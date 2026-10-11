@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <memory>
 
 namespace Engine {
 
@@ -57,6 +58,9 @@ namespace Engine {
 } // Engine
 namespace Engine::MeshSubMeshAuthoring {
 
+	// Worldと索引へ触れずモデルの編集用情報を準備する
+	bool PrepareSourceLayout(std::weak_ptr<const uint8_t> databaseLifetime, AssetID meshAssetID,
+		const std::filesystem::path& path, uint64_t contentRevision);
 	// メッシュアセットからサブメッシュレイアウトを読む
 	bool TryBuildLayout(AssetDatabase* assetDatabase, AssetID meshAssetID,
 		std::vector<MeshSubMeshLayoutItem>& outLayout,

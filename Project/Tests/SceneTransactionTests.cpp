@@ -17,6 +17,9 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
+// c++
+#include <future>
+
 namespace NEMTests {
 
 	bool TestSceneSnapshotTransactions() {
@@ -75,6 +78,33 @@ namespace NEMTests {
 		if (!JsonFile::Save(scenePath, sceneFile) ||
 			validationSystem.LoadScene(scenePath, validationWorld, &database, asset)) return false;
 		sceneFile["Header"] = ToJson(header);
+		// Workerで準備した文書を外部変更後に使い回さない
+		if (!JsonFile::Save(scenePath, sceneFile)) return false;
+		const std::unordered_map<AssetID, std::filesystem::path> scenePaths{ { asset, scenePath } };
+		SceneSystem preparedSystem;
+		bool assetsPrepared = false;
+		auto prepare = std::async(std::launch::async, [&] {
+			return preparedSystem.PrepareSceneDocuments(asset, scenePaths, [&](const nlohmann::json& document) {
+				assetsPrepared = document == sceneFile;
+				return assetsPrepared;
+			});
+		});
+		if (!prepare.get() || !assetsPrepared || validationWorld.GetRecordCount() != 0u) return false;
+		// Asset準備の失敗でもWorldへ途中生成を持ち込まない
+		if (preparedSystem.PrepareSceneDocuments(asset, scenePaths, [](const nlohmann::json&) { return false; }) ||
+			validationWorld.GetRecordCount() != 0u) return false;
+		auto changedFile = sceneFile;
+		changedFile["Entities"].push_back({ { "LocalFileID", "0000000000000042" },
+			{ "Components", { { "Name", { { "name", "ChangedAfterPrepare" } } } } } });
+		ECSWorld preparedWorld;
+		if (!JsonFile::Save(scenePath, changedFile) || !preparedSystem.LoadScene(scenePath, preparedWorld, &database, asset)) return false;
+		bool restoredChange = false;
+		preparedWorld.ForEach<NameComponent>([&](Entity, const NameComponent& name) { restoredChange |= name.name == "ChangedAfterPrepare"; });
+		if (!restoredChange) return false;
+		// 破損した次の文書でも現在の実体を保持する
+		if (!JsonFile::Save(scenePath, nlohmann::json::object()) ||
+			preparedSystem.LoadScene(scenePath, preparedWorld, &database, asset)) return false;
+		if (preparedWorld.GetRecordCount() != 1u) return false;
 		// 失敗した読込のディスク状態を次回保存の基準にしない
 		SceneSaveSnapshot afterFailedLoad;
 		afterFailedLoad.scenePath = scenePath;

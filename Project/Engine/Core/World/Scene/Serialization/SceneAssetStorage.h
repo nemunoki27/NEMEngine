@@ -79,6 +79,16 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct RevisionSource {
+
+			std::string revision;
+			std::vector<std::string> actorIDs;
+			uint64_t lastAccess = 0;
+			bool valid = true;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		// プロジェクトの編集セッションで共有する保存状態
@@ -86,11 +96,16 @@ namespace Engine {
 		std::unordered_map<std::string, std::string> loadedRevisions_;
 		std::unordered_map<std::string, AssetID> loadedAssets_;
 		std::unordered_set<AssetID> protectedScenes_;
+		// 未変更のSceneからActor一覧を解析し直さない
+		std::unordered_map<std::string, RevisionSource> revisionSources_;
+		uint64_t revisionAccessSerial_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
 		// MetaからSceneのGUIDを取得
 		static AssetID ReadSceneID(const std::filesystem::path& path);
+		// 本体と参照中Actorの内容を照合する
+		std::string ReadRevision(const std::filesystem::path& path, AssetID asset);
 
 		// SceneとActorの共通保存文書を作成する
 		static void AppendSaveChanges(

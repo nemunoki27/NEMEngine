@@ -90,6 +90,7 @@ namespace Engine {
 		struct CachedBindingData {
 
 			std::vector<uint8_t> packedParameters{}; // 宣言配置へ詰めた値
+			std::vector<TextureOwnership> textureOwnerships{};
 			std::vector<TextureBinding> textures{}; // 解決済みのTexture配置
 			uint64_t lastUsedFrame = 0; // 最後に参照されたframe
 			uint64_t uploadedFrame = 0; // 転送したframe

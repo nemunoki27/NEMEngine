@@ -161,6 +161,11 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		}
 	}
 
+	// 早期returnする通知もEditorの入力へ渡す
+	if (messageHandler_ && (msg == WM_ACTIVATE || msg == WM_SETFOCUS || msg == WM_KILLFOCUS)) {
+		messageHandler_(hwnd, msg, wparam, lparam);
+	}
+
 	// フォーカス/アクティブ変化：クリップ解除・カーソル表示の安全復帰
 	switch (msg) {
 	case WM_ACTIVATE:

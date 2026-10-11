@@ -10,6 +10,7 @@
 
 // directX
 #include <d3d12.h>
+#include <dxgi1_6.h>
 #include <Externals/DirectX12/d3dx12.h>
 
 //============================================================================
@@ -19,6 +20,8 @@
 namespace DxUtils {
 
 	//--------- functions ----------------------------------------------------
+	// Deviceを所有するAdapterを取得する
+	ComPtr<IDXGIAdapter3> FindDeviceAdapter(ID3D12Device* device);
 
 	// ディスクリプタヒープを作成する
 	void MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,

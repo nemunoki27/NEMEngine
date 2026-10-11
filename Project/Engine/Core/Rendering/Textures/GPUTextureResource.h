@@ -7,11 +7,14 @@
 
 // c++
 #include <cstdint>
+#include <memory>
 #include <string>
 // directX
 #include <d3d12.h>
 
 namespace Engine {
+
+	using TextureOwnership = std::shared_ptr<const uint8_t>;
 
 	//============================================================================
 	//	GPUTextureResource structure
@@ -28,5 +31,6 @@ namespace Engine {
 
 		// リソースが有効かどうか
 		bool valid = false;
+		TextureOwnership ownership;
 	};
 }

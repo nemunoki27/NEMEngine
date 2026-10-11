@@ -239,6 +239,8 @@ namespace Engine {
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
 		// 描画結果の検証用にView内の色Bufferを貸し出す
 		const RenderTexture2D* FindViewColorTexture(RenderViewKind kind, const std::string& name) const;
+		// 描画要求したMeshの読込完了を取得する
+		bool AreSceneMeshesReady() const;
 		RenderAssetLibrary& GetRenderAssetLibrary() { return renderAssetLibrary_; }
 		const RenderAssetLibrary& GetRenderAssetLibrary() const { return renderAssetLibrary_; }
 
@@ -289,6 +291,7 @@ namespace Engine {
 		std::unordered_map<std::string, std::unique_ptr<RenderPipelineViewResources>> cameraStates_{};
 		std::shared_ptr<const ECSWorldLifetime> cameraWorldLifetime_{};
 		uint64_t historyWorldRevision_ = 0;
+		UUID historySceneInstance_{};
 		// Game Viewへ順番に合成するCameraごとのView
 		std::vector<ResolvedRenderView> gameCameraViews_{};
 

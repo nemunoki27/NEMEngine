@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
+#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
 // c++
 #include <unordered_map>
@@ -36,7 +37,9 @@ namespace Engine {
 		// 解決cacheを破棄する
 		void Clear();
 		// 現在FrameのTexture待ちを解除
-		void ResetPending() { hasPendingTextureDescriptors_ = false; }
+		void ResetPending();
+		// 公開したSceneで使用しないTextureの所有を解除する
+		void CommitTextures();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -47,12 +50,21 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct CachedTextureDescriptor {
+
+			uint32_t index = UINT32_MAX;
+			TextureOwnership ownership;
+			bool used = false;
+		};
+
 		//--------- variables ----------------------------------------------------
 
-		std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
-		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
+		std::unordered_map<AssetID, CachedTextureDescriptor> textureDescriptorIndexCache_{};
+		std::unordered_map<AssetID, CachedTextureDescriptor> sRGBTextureDescriptorIndexCache_{};
 		// 法線用途の変換済みTextureを区別する
-		std::unordered_map<AssetID, uint32_t> normalTextureDescriptorIndexCache_{};
+		std::unordered_map<AssetID, CachedTextureDescriptor> normalTextureDescriptorIndexCache_{};
 		// 読込中は次のFrameでもMaterial値を再解決
 		bool hasPendingTextureDescriptors_ = false;
 	};

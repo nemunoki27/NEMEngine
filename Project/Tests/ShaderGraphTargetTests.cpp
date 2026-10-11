@@ -322,7 +322,9 @@ namespace NEMTests {
 			}
 		}
 
-		return true;
+		// Material Parameterを持つMeshとPrimitiveの両経路を確認する
+		return fixture.CompileRasterShaders("Primitive3D") && fixture.CompileRasterShaders("VertexMesh") &&
+			fixture.CompileRasterShaders("VertexPrimitive3D");
 	}
 
 } // NEMTests

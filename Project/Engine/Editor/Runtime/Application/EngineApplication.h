@@ -24,6 +24,8 @@
 
 // c++
 #include <optional>
+#include <future>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -72,7 +74,11 @@ namespace Engine {
 
 		// 計測と画像保存に直近のView出力を貸し出す
 		const RenderTexture2D* GetRenderedViewTexture(RenderViewKind kind, const std::string& attachment = {}) const;
+		// 描画要求したMeshの読込完了を取得する
+		bool AreSceneMeshesReady() const;
 	private:
+		// 隔離した描画検証だけが編集Worldを操作
+		friend class EditorRenderBenchmark;
 		//============================================================================
 		//	private Methods
 		//============================================================================
@@ -98,6 +104,12 @@ namespace Engine {
 		SceneInstanceManager playScenes_;
 		// シーン管理
 		SceneSystem sceneSystem_;
+		// Workerは文書だけを準備し、Worldへ触れない
+		std::future<bool> pendingSceneRead_;
+		AssetID pendingSceneAsset_{};
+		AssetID nextSceneAsset_{};
+		uint64_t pendingSceneRevision_ = 0;
+		std::unordered_map<UUID, uint64_t> pendingSceneDirtyRevisions_;
 
 		// ワールド管理
 		WorldManager worldManager_;
@@ -138,6 +150,11 @@ namespace Engine {
 		std::unique_ptr<SceneSaveController> sceneSaveController_;
 
 		//--------- functions ----------------------------------------------------
+
+		// Sceneの文書準備を開始する
+		void QueueEditScene(AssetID asset);
+		// 最新の読込結果だけを編集Worldへ適用する
+		void CompletePendingSceneRead();
 
 		// プレファブ編集の開始/終了/保存、隔離ワールドへの展開と.prefab保存を行う
 		void EnterPrefabEdit(AssetID prefabAsset);

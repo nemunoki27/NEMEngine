@@ -15,6 +15,7 @@
 // c++
 #include <cstddef>
 #include <fstream>
+#include <future>
 #include <vector>
 
 bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* queue,
@@ -52,6 +53,13 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	if (!asset || !lodAsset || !database.UpdateImporterSettings(
 		asset, ToJson(settings), kMeshImporterVersion)) return false;
 	std::vector<MeshSubMeshLayoutItem> initialLayout;
+	const auto assetCount = database.GetAssets().size();
+	// Workerへは索引の寿命と確定した入力だけを渡す
+	auto preparation = std::async(std::launch::async, [lifetime = database.GetCacheLifetime(), asset, path,
+		revision = database.GetContentRevision(asset)] {
+		return MeshSubMeshAuthoring::PrepareSourceLayout(lifetime, asset, path, revision);
+	});
+	if (!preparation.get() || database.GetAssets().size() != assetCount) return false;
 	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, initialLayout) || initialLayout.empty()) return false;
 	BufferUploadService uploads;
 	uploads.Init(descriptors.GetRetirementQueue(), device, queue);
@@ -77,6 +85,8 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	const size_t publishedSubMeshCount = publishedLayout.size();
 	const uint32_t firstIndex = first->vertexSRV.srvIndex;
 	const uint32_t firstGeneration = first->reloadGeneration;
+	const auto firstOwnership = first->ownership;
+	if (!firstOwnership) return false;
 	const uint64_t firstRevision = meshes.GetResourceRevision();
 	DxUtils::CreateReadbackBufferResource(device, readback, sizeof(float) * 2);
 	// 旧Meshの使用を提出前の描画リストへ残す
@@ -85,7 +95,8 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	auto retained = [&]() {
 		const auto* current = meshes.Find(asset);
 		return current && current->IsValid() && current->vertexSRV.srvIndex == firstIndex &&
-			current->reloadGeneration == firstGeneration && meshes.GetResourceRevision() == firstRevision;
+			current->reloadGeneration == firstGeneration && current->ownership == firstOwnership &&
+			meshes.GetResourceRevision() == firstRevision;
 	};
 
 	// 壊れたファイルの読込失敗では旧表示を維持する
@@ -119,6 +130,7 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	meshes.WaitAll();
 	const auto* second = meshes.Find(asset);
 	if (!second || !second->IsValid() || second->vertexSRV.srvIndex == firstIndex ||
+		!second->ownership || second->ownership == firstOwnership ||
 		second->reloadGeneration != firstGeneration + 1 || meshes.GetResourceRevision() != firstRevision + 1 ||
 		!descriptors.IsAllocated(firstIndex)) return false;
 	std::vector<MeshSubMeshLayoutItem> reloadedLayout;
@@ -134,6 +146,14 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	meshes.WaitAll();
 	const auto* reopened = meshes.Find(asset);
 	if (!reopened || reopened->reloadGeneration != firstGeneration + 2) return false;
+	// GPU再生成だけでは編集用の解析結果を失わない
+	{
+		std::ofstream file(path);
+		file << "invalid mesh";
+	}
+	std::vector<MeshSubMeshLayoutItem> retainedLayout;
+	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, retainedLayout) ||
+		retainedLayout.size() != reloadedLayout.size() || !save(7)) return false;
 	meshes.Finalize();
 	uploads.Finalize();
 	return !meshes.Find(asset) && meshes.GetResourceRevision() == firstRevision + 4 &&

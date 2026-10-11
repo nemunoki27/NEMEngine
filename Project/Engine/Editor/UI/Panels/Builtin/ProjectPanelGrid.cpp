@@ -18,6 +18,17 @@
 
 namespace {
 
+	// 未準備の画像は枠だけ表示する
+	bool DrawProjectIconButton(const char* id, ImTextureID texture, float size, const ImVec2& uv0, const ImVec2& uv1) {
+
+		if (texture == ImTextureID{}) {
+
+			const ImVec2 padding = ImGui::GetStyle().FramePadding;
+			return ImGui::Button(id, ImVec2(size + padding.x * 2.0f, size + padding.y * 2.0f));
+		}
+		return ImGui::ImageButton(id, texture, ImVec2(size, size), uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f));
+	}
+
 	// 透過テクスチャの背景へチェッカーを描画する
 	void DrawTextureCheckerboard(ImDrawList* drawList, const ImVec2& min, const ImVec2& max) {
 
@@ -195,8 +206,8 @@ void Engine::ProjectPanel::DrawFolderGridItem(
 	ImGui::PushID(node.virtualPath.c_str());
 	ImGui::BeginGroup();
 
-	if (ImGui::ImageButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), ImVec2(iconSize, iconSize),
-			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
+	if (DrawProjectIconButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), iconSize,
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f))) {
 
 		// Project内のフォルダ移動ではInspectorの選択状態を変更しない
 		navigate();
@@ -281,7 +292,8 @@ void Engine::ProjectPanel::DrawAssetGridItem(
 
 	bool clicked = false;
 	Vector2 textureSize{};
-	if (asset.type == AssetType::Texture && thumbnailCache_.TryGetAssetTextureSize(asset.assetPath, textureSize)) {
+	if (textureID != ImTextureID{} && asset.type == AssetType::Texture &&
+		thumbnailCache_.TryGetAssetTextureSize(asset.assetPath, textureSize)) {
 
 		const ImVec2 buttonMin = ImGui::GetCursorScreenPos();
 		const ImVec2 buttonMax(buttonMin.x + iconSize, buttonMin.y + iconSize);
@@ -314,8 +326,7 @@ void Engine::ProjectPanel::DrawAssetGridItem(
 		clicked = ImGui::InvisibleButton("##AssetButton", ImVec2(iconSize, iconSize));
 	} else {
 
-		clicked = ImGui::ImageButton(
-			"##AssetButton", textureID, ImVec2(iconSize, iconSize), uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f));
+		clicked = DrawProjectIconButton("##AssetButton", textureID, iconSize, uv0, uv1);
 	}
 	if (clicked) {
 

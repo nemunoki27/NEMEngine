@@ -320,6 +320,23 @@ namespace NEMTests {
 		passed &= savedScene.value("SchemaVersion", 0) == 3 && !savedScene.contains("Entities") &&
 				  savedScene.contains("ExternalActors") && savedScene["ExternalActors"].is_array() &&
 				  savedScene["ExternalActors"].size() == 1 && std::filesystem::exists(actorPath);
+		// Scene本体が未変更でもActorの外部編集を検出する
+		if (passed) {
+
+			const auto storage = sceneSystem.GetStorage();
+			const auto revision = storage->CaptureRevision(scenePath, sceneAsset);
+			passed &= storage->MatchesRevision(scenePath, sceneAsset, revision);
+			const auto originalActor = Engine::JsonAdapter::Load(actorPath);
+			const auto writeTime = std::filesystem::last_write_time(actorPath);
+			auto changedActor = originalActor;
+			changedActor["Components"]["Name"]["name"] = "ExternalOther";
+			passed &= Engine::JsonAdapter::SaveCanonical(actorPath, changedActor);
+			std::filesystem::last_write_time(actorPath, writeTime);
+			passed &= !storage->MatchesRevision(scenePath, sceneAsset, revision);
+			passed &= Engine::JsonAdapter::SaveCanonical(actorPath, originalActor);
+			std::filesystem::last_write_time(actorPath, writeTime);
+			passed &= storage->MatchesRevision(scenePath, sceneAsset, revision);
+		}
 
 		Engine::ECSWorld loadedWorld;
 		std::vector<Engine::Entity> loadedEntities;

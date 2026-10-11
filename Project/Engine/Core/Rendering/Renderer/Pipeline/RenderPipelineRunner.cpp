@@ -54,6 +54,12 @@ const RenderTexture2D* RenderPipelineRunner::FindViewColorTexture(RenderViewKind
 	return state.targetRegistry.FindColorByName(name);
 }
 
+bool RenderPipelineRunner::AreSceneMeshesReady() const {
+
+	// 描画要求と同じMesh集合で読込完了を確認
+	return meshBackend_ && meshBackend_->AreMeshesReady(scenePreparation_.visibleMeshes_);
+}
+
 //============================================================================
 //	RenderPipelineRunner classMethods
 //============================================================================

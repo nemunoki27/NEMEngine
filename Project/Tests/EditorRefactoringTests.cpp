@@ -1,4 +1,5 @@
 #include "EditorRefactoringTests.h"
+#include <Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.h>
 #include "CommandHistoryTests.h"
 #include "EditorEntityCommandTests.h"
 #include "EditorDeleteCommandTests.h"
@@ -392,6 +393,27 @@ namespace {
 }
 
 bool TestEditorContracts() {
+
+	// 未計測の連続時間で非表示にし再計測で復帰する
+	Engine::ConsoleGPUPassTooltipState tooltip;
+	const std::array<Engine::FrameProfiler::GPUPassTime, 1> measured{{{ "GI/ProbeUpdate", 1.0f, 1, "Game" }}};
+	tooltip.Update(measured, 1, true, 0.0);
+	tooltip.Update({}, 2, true, 0.1);
+	tooltip.Update({}, 2, true, 3.0);
+	if (tooltip.GetViews().size() != 1 || tooltip.GetViews()[0].passTimes[0].time.frameID != 0) return false;
+	tooltip.Update({}, 2, true, 3.1001);
+	if (!tooltip.GetViews().empty()) return false;
+	tooltip.Update(measured, 3, true, 3.2);
+	if (tooltip.GetViews().size() != 1) return false;
+	tooltip.Update({}, 4, true, 3.3);
+	tooltip.Update(measured, 5, true, 5.0);
+	tooltip.Update({}, 6, true, 5.1);
+	tooltip.Update({}, 6, true, 7.0);
+	if (tooltip.GetViews().size() != 1) return false;
+	tooltip.Update(measured, 7, true, 8.0);
+	tooltip.Update(measured, 7, false, 8.1);
+	tooltip.Update(measured, 7, false, 11.2);
+	if (!tooltip.GetViews().empty()) return false;
 
 	if (!TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||

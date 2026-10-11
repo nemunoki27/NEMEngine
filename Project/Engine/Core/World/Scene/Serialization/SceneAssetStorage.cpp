@@ -26,23 +26,6 @@ namespace {
 	using namespace Engine;
 	using Path = std::filesystem::path;
 
-	// シーン本体と参照中Actorの内容をまとめて比較する
-	std::string Revision(const Path& path, AssetID id) {
-
-		std::string revision = FileRevision(path) + FileRevision(Path(path.wstring() + L".meta"));
-		const auto data = JsonAdapter::Load(path, false);
-		if (data.contains("ExternalActors") && data["ExternalActors"].is_array()) {
-			const Path root = SceneAssetStorage::ResolveActorRoot(path, id);
-			for (const auto& actor : data["ExternalActors"]) {
-				if (!actor.is_string() || !TryParseUUID16Hex(actor.get<std::string>())) {
-					return "invalid";
-				}
-				revision += FileRevision(root / (actor.get<std::string>() + ".actor.json"));
-			}
-		}
-		return revision;
-	}
-
 	// 参照空間と所有シーンが一致するEntityRefだけを空にする
 	bool ClearActorReferences(nlohmann::json& value, AssetID owner, AssetID targetScene, const std::string& actorID) {
 
@@ -178,7 +161,7 @@ std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Inspect(const 
 void Engine::SceneAssetStorage::TrackLoaded(const Path& scenePath, AssetID sceneAsset) {
 
 	std::lock_guard lock(storageMutex_);
-	TrackLoaded(scenePath, sceneAsset, Revision(scenePath, sceneAsset));
+	TrackLoaded(scenePath, sceneAsset, ReadRevision(scenePath, sceneAsset));
 }
 
 void Engine::SceneAssetStorage::TrackLoaded(const Path& scenePath, AssetID sceneAsset, std::string revision) {
@@ -196,13 +179,13 @@ void Engine::SceneAssetStorage::TrackLoaded(const Path& scenePath, AssetID scene
 std::string Engine::SceneAssetStorage::CaptureRevision(const Path& scenePath, AssetID sceneAsset) {
 
 	std::lock_guard lock(storageMutex_);
-	return Revision(scenePath, sceneAsset);
+	return ReadRevision(scenePath, sceneAsset);
 }
 
 bool Engine::SceneAssetStorage::MatchesRevision(const Path& scenePath, AssetID sceneAsset, std::string_view revision) {
 
 	std::lock_guard lock(storageMutex_);
-	return Revision(scenePath, sceneAsset) == revision;
+	return ReadRevision(scenePath, sceneAsset) == revision;
 }
 
 void Engine::SceneAssetStorage::SetProtectedScenes(const std::vector<AssetID>& sceneAssets) {
@@ -223,7 +206,7 @@ bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& er
 	}
 	try {
 		const auto tracked = loadedRevisions_.find(PathKey(snapshot.scenePath));
-		const std::string originalRevision = Revision(snapshot.scenePath, snapshot.sceneAsset);
+		const std::string originalRevision = ReadRevision(snapshot.scenePath, snapshot.sceneAsset);
 		if (tracked != loadedRevisions_.end() && tracked->second != originalRevision) {
 			throw std::runtime_error("シーンまたはActorが外部で変更・削除されています、再読み込みまたは修復してください");
 		}
@@ -248,13 +231,13 @@ bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& er
 			}
 		}
 		if (!Commit(changes, "シーン保存", error, [&] {
-				if (Revision(snapshot.scenePath, snapshot.sceneAsset) != originalRevision) {
+				if (ReadRevision(snapshot.scenePath, snapshot.sceneAsset) != originalRevision) {
 					throw std::runtime_error("保存準備中に外部変更を検出しました");
 				}
 			})) {
 			return false;
 		}
-		loadedRevisions_[PathKey(snapshot.scenePath)] = Revision(snapshot.scenePath, snapshot.sceneAsset);
+		loadedRevisions_[PathKey(snapshot.scenePath)] = ReadRevision(snapshot.scenePath, snapshot.sceneAsset);
 		loadedAssets_[PathKey(snapshot.scenePath)] = snapshot.sceneAsset;
 		if (!actorRoot.empty()) {
 			std::filesystem::remove(actorRoot, ec);
@@ -284,7 +267,7 @@ bool Engine::SceneAssetStorage::Canonicalize(const std::vector<Path>& paths, std
 			}
 			const AssetID asset = ReadSceneID(path);
 			RequireClosed(asset);
-			const std::string revision = Revision(path, asset);
+			const std::string revision = ReadRevision(path, asset);
 			const auto issues = Validate(path, asset);
 			if (!issues.empty()) {
 				throw std::runtime_error(issues.front().detail);
@@ -299,7 +282,7 @@ bool Engine::SceneAssetStorage::Canonicalize(const std::vector<Path>& paths, std
 		// 他の保存処理との排他内で読込時の状態を照合する
 		return Commit(changes, "シーン正規化", error, [&] {
 			for (size_t index = 0; index < changes.size(); ++index) {
-				if (Revision(changes[index].path, revisions[index].first) != revisions[index].second) {
+				if (ReadRevision(changes[index].path, revisions[index].first) != revisions[index].second) {
 					throw std::runtime_error("正規化の準備中に外部変更を検出しました");
 				}
 			}

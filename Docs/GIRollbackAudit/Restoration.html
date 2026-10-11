@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GI取り消し後の非GI修正復元</title>
+<style>body{font:16px/1.7 system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 22px;color:#202830;background:#fafafa}h1{font-size:25px}h2{font-size:20px;margin-top:32px}table{border-collapse:collapse;width:100%;background:white}td,th{border:1px solid #ced6dd;text-align:left;padding:8px 12px}li{margin:6px 0}a{color:#075fa4}code{background:#e8edf2;padding:2px 5px}details{padding:15px;background:white;border:1px solid #ced6dd;overflow-wrap:anywhere}</style>
+<h1>GI取り消し後の非GI修正復元</h1>
+<p>更新日: 2026-10-12。調査一覧の24項目（N01〜N22、M01〜M02）を復元・調整しました。GI本体・GI用Shader・GI設定UI・GIValidation Sceneは復元していません。</p>
+<p>基準: <code>4e57ee637779828d1a4395eaf9897520cfb73410</code>。元の調査一覧: <a href="Report.html">Report.html</a>。</p>
+<h2>復元項目</h2><table><thead><tr><th>ID</th><th>変更内容</th><th>実装</th></tr></thead><tbody><tr><td>N01</td><td>重いSceneでのTab＋Esc入力修正</td><td>実装済み</td></tr>
+<tr><td>N02</td><td>FBXの画像Alphaによる葉・植栽の切り抜き</td><td>実装済み</td></tr>
+<tr><td>N03</td><td>Cameraのポストプロセス無効化修正</td><td>実装済み</td></tr>
+<tr><td>N04</td><td>ConsoleのGPU計測行の安定表示と3秒での非表示</td><td>実装済み</td></tr>
+<tr><td>N05</td><td>ProjectPanelで未準備の画像を描画しない</td><td>実装済み</td></tr>
+<tr><td>N06</td><td>Skyboxの不正なTexture参照を使用しない</td><td>実装済み</td></tr>
+<tr><td>N07</td><td>Texture全Mip／配列面のResource Barrier修正</td><td>実装済み</td></tr>
+<tr><td>N08</td><td>非対応GPUでInline Ray Tracing版PSOを作らない</td><td>実装済み</td></tr>
+<tr><td>N09</td><td>Primitive ShaderGraphのMaterialParameters名衝突修正</td><td>実装済み</td></tr>
+<tr><td>N10</td><td>レイトレーシング反射の読込待ちでエラー色を使わない</td><td>実装済み</td></tr>
+<tr><td>N11</td><td>反射側でRenderTextureの更新・サイズ変更を再解決</td><td>実装済み</td></tr>
+<tr><td>N12</td><td>静的TLASが参照する画面外Primitiveの保持</td><td>実装済み</td></tr>
+<tr><td>N13</td><td>VRAM圧迫時の未使用Mesh／Texture cache回収</td><td>実装済み</td></tr>
+<tr><td>N14</td><td>Texture／Mesh番号を使用するcacheとTLASの所有保持</td><td>実装済み</td></tr>
+<tr><td>N15</td><td>未使用の共有Mesh BLASの回収</td><td>実装済み</td></tr>
+<tr><td>N16</td><td>同じEditWorld内でScene切替時にCamera資源を更新</td><td>実装済み</td></tr>
+<tr><td>N17</td><td>EditorのScene切替をCPU準備とWorld適用へ分離</td><td>実装済み</td></tr>
+<tr><td>N18</td><td>非同期Scene切替とPlay／編集／終了の競合防止</td><td>実装済み</td></tr>
+<tr><td>N19</td><td>Mesh編集用のCPU解析結果を再利用</td><td>実装済み</td></tr>
+<tr><td>N20</td><td>Scene保存世代照合でActor一覧の再解析を削減</td><td>実装済み</td></tr>
+<tr><td>N21</td><td>描画／Scene切替／長時間動作の計測機能拡張</td><td>実装済み</td></tr>
+<tr><td>N22</td><td>Scene transaction回帰テストの個別実行入口</td><td>実装済み</td></tr>
+<tr><td>M01</td><td>Primitive形状・頂点色処理の共通化</td><td>実装済み</td></tr>
+<tr><td>M02</td><td>ShaderGraph PBRのTransmission入力</td><td>実装済み</td></tr></tbody></table>
+<h2>維持した設定と対象範囲</h2><ul>
+<li>Sponza／BistroのEntity配置・ライト・露出・RenderPasses設定は取り消し直後の内容を維持しました。Bistroの葉・植栽は189個のSubMeshのsourceSurfaceModeだけをAutoからMaskedへ変更しました。</li>
+<li>Transmission／TransmissionColor入力は保存・生成へ復元し、Transparent描画のTransmissionによる拡散光の減衰を反映しました。GIを用いた透過光・TransmissionColorの光輸送は対象外です。</li>
+<li>CornellBoxの汎用glTFモデル・Buffer・metaを復元しました。GI専用SceneやMaterialは追加していません。</li>
+<li>未使用Mesh／TextureはVRAM予算の80%超過時に回収を開始し、所有されず5秒以上未使用の資源を古い順に回収します。GPU使用中の資源は既存のFence回収へ渡します。</li>
+<li>SceneのCPU準備中に編集、Play開始、Prefab編集、終了要求が発生した場合は、古い切替要求を適用しません。</li>
+<li>描画対象がないSceneへ切り替えた場合も、旧TLAS構築結果のMesh／Texture所有を解除する経路へ通します。</li>
+<li>Primitive ShaderGraphの標準Material定数とGraph定数は名前だけでなくレジスタの参照も分離しました。頂点出力がないGraphも専用VS／MSを生成し、標準DisplacementはGraphの頂点変形へ重ねません。</li>
+</ul>
+<h2>検証</h2><table><thead><tr><th>確認</th><th>結果</th><th>記録</th></tr></thead><tbody><tr><td>Premake / generate_vs2026.bat</td><td>成功。新規Sourceの登録を確認</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/Premake.log">ログ</a></td></tr>
+<tr><td>Debug / NEMEditor・NEMTests・依存するScriptCore</td><td>成功（終了コード0）</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/Debug.Build.log">ログ</a></td></tr>
+<tr><td>NEMTests全体</td><td>116件成功（終了コード0）</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/Debug.Tests.log">ログ</a></td></tr>
+<tr><td>ShaderGraph個別検証</td><td>成功。Primitiveの定数衝突を修正後、VS・MS・Opaque/Transparent PSをDXCで確認</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/ShaderGraph.Tests.log">ログ</a></td></tr>
+<tr><td>RTX 3060 Laptop / GPU資源寿命・公開・描画</td><td>成功（終了コード0、GPU-based validation有効）</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/GPU.Tests.log">ログ</a></td></tr>
+<tr><td>Intel UHD / 非DXR・非Mesh ShaderのGPU検証</td><td>成功（終了コード0、Debug Layer有効、GPU-based validation無効）</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/GPU.Compatible.Tests.log">ログ</a></td></tr>
+<tr><td>最終差分・Scene設定・GI参照検査</td><td>成功。Bistroは189箇所の切り抜き分類だけ変更</td><td><a href="../../Generated/Refactoring/GIRollbackAudit/Review.log">ログ</a></td></tr></tbody></table>
+<p>Editor上での操作・見た目の目視確認、VRAM圧迫時の長時間FPS測定、復元した描画Benchmark自体の実行は未実施です。今回は実装と自動回帰テストを完了し、性能値は断定していません。Develop／Release構成は今回ビルドしていません。</p>
+<h2>Editorでの確認</h2><ol>
+<li>Bistroを開き、葉・植栽の透明部分が切り抜かれることを確認します。Sponza／Bistroの配置やライト設定は変更していません。</li>
+<li>BistroでCameraを操作しながらTab＋Escを短く押し、非表示／表示が1回ずつ切り替わることを確認します。押し続けて連続切替されないことも確認します。</li>
+<li>Camera3Dのポストプロセスを無効にし、色補正・露出・CameraのRenderPassesが適用されないことを確認します。有効に戻すと設定が再び適用されます。</li>
+<li>Consoleの描画時間へカーソルを合わせます。一時的に計測されない行は「--」になり、3秒続くと消え、再計測されれば戻ります。</li>
+<li>CameraのRenderTextureを別Rendererへ貼り、Camera移動・RenderTextureサイズ変更・Scene切替後も描画と反射内の参照が更新されることを確認します。</li>
+<li>Sponza→Bistro→Sponzaと切り替えます。CPU準備中は旧Sceneが表示され、準備完了後に切り替わります。準備中に旧Sceneを編集した場合は警告を出して切替を中止します。</li>
+</ol>
+<details><summary>変更したファイル（119件）</summary><ul><li><a href="../../Docs/GIRollbackAudit/Inventory.json">Docs/GIRollbackAudit/Inventory.json</a></li>
+<li><a href="../../Docs/GIRollbackAudit/Report.html">Docs/GIRollbackAudit/Report.html</a></li>
+<li><a href="../../Docs/GIRollbackAudit/Restoration.html">Docs/GIRollbackAudit/Restoration.html</a></li>
+<li><a href="../../Premake/premakeNemengine.lua">Premake/premakeNemengine.lua</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/Mesh/Common/meshSurfaceLighting.hlsli">Project/Engine/Assets/Shaders/Builtin/Mesh/Common/meshSurfaceLighting.hlsli</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/Mesh/Common/pbrShading.hlsli">Project/Engine/Assets/Shaders/Builtin/Mesh/Common/pbrShading.hlsli</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/Primitive/primitive.hlsli">Project/Engine/Assets/Shaders/Builtin/Primitive/primitive.hlsli</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/Primitive/primitiveInstanceColor.hlsli">Project/Engine/Assets/Shaders/Builtin/Primitive/primitiveInstanceColor.hlsli</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/Primitive/primitiveInstanceColor.hlsli.meta">Project/Engine/Assets/Shaders/Builtin/Primitive/primitiveInstanceColor.hlsli.meta</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/ToneMapToView/autoExposure.CS.hlsl">Project/Engine/Assets/Shaders/Builtin/ToneMapToView/autoExposure.CS.hlsl</a></li>
+<li><a href="../../Project/Engine/Assets/Shaders/Builtin/ToneMapToView/toneMapToView.PS.hlsl">Project/Engine/Assets/Shaders/Builtin/ToneMapToView/toneMapToView.PS.hlsl</a></li>
+<li><a href="../../Project/Engine/Core/Platform/Windows/Win32Window.cpp">Project/Engine/Core/Platform/Windows/Win32Window.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Core/RenderingPlatform.cpp">Project/Engine/Core/Rendering/Core/RenderingPlatform.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/DxObject/Common/DxUtils.cpp">Project/Engine/Core/Rendering/DxObject/Common/DxUtils.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/DxObject/Common/DxUtils.h">Project/Engine/Core/Rendering/DxObject/Common/DxUtils.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/DxObject/Core/DxCommand.cpp">Project/Engine/Core/Rendering/DxObject/Core/DxCommand.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Materials/MaterialParameterBinder.cpp">Project/Engine/Core/Rendering/Materials/MaterialParameterBinder.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Materials/MaterialParameterBinder.h">Project/Engine/Core/Rendering/Materials/MaterialParameterBinder.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h">Project/Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.cpp">Project/Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h">Project/Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h">Project/Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/Import/MeshFileImporter.cpp">Project/Engine/Core/Rendering/Meshes/Import/MeshFileImporter.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/Import/MeshImportUtility.cpp">Project/Engine/Core/Rendering/Meshes/Import/MeshImportUtility.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h">Project/Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h">Project/Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Meshes/MeshSubMeshLayout.cpp">Project/Engine/Core/Rendering/Meshes/MeshSubMeshLayout.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.cpp">Project/Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h">Project/Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/PostProcess/PostProcessExecutor.cpp">Project/Engine/Core/Rendering/PostProcess/PostProcessExecutor.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingBLASCache.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingBLASCache.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingBLASCache.h">Project/Engine/Core/Rendering/Raytracing/RaytracingBLASCache.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingMaterialResolver.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingMaterialResolver.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingMaterialResolver.h">Project/Engine/Core/Rendering/Raytracing/RaytracingMaterialResolver.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h">Project/Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h">Project/Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingSceneMeshBuilder.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingSceneMeshBuilder.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Raytracing/RaytracingScenePrimitiveBuilder.cpp">Project/Engine/Core/Rendering/Raytracing/RaytracingScenePrimitiveBuilder.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshMaterialBuffers.cpp">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshMaterialBuffers.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshMaterialBuffers.h">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshMaterialBuffers.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleBatchResources.h">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleBatchResources.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderDataUtility.cpp">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderDataUtility.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.cpp">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.cpp">Project/Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.cpp">Project/Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.cpp">Project/Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineLifecycle.cpp">Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineLifecycle.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.cpp">Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h">Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineViewExecution.cpp">Project/Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineViewExecution.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.cpp">Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.cpp">Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/SkyboxPass.cpp">Project/Engine/Core/Rendering/Renderer/RenderPath/Passes/SkyboxPass.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphMeshRasterSource.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphMeshRasterSource.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphPBRBuilder.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphPBRBuilder.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphPrimitiveVertexSource.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphPrimitiveVertexSource.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphRasterSource.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphRasterSource.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphSurfaceSource.cpp">Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphSurfaceSource.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/GPUTextureResource.h">Project/Engine/Core/Rendering/Textures/GPUTextureResource.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/RuntimeTextureResolver.cpp">Project/Engine/Core/Rendering/Textures/RuntimeTextureResolver.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/RuntimeTextureResolver.h">Project/Engine/Core/Rendering/Textures/RuntimeTextureResolver.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureAlphaAnalysis.cpp">Project/Engine/Core/Rendering/Textures/TextureAlphaAnalysis.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureAlphaAnalysis.h">Project/Engine/Core/Rendering/Textures/TextureAlphaAnalysis.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureAssetResolver.cpp">Project/Engine/Core/Rendering/Textures/TextureAssetResolver.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureAssetResolver.h">Project/Engine/Core/Rendering/Textures/TextureAssetResolver.h</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureCacheLifetime.cpp">Project/Engine/Core/Rendering/Textures/TextureCacheLifetime.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureSnapshotRequests.cpp">Project/Engine/Core/Rendering/Textures/TextureSnapshotRequests.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureUploadService.cpp">Project/Engine/Core/Rendering/Textures/TextureUploadService.cpp</a></li>
+<li><a href="../../Project/Engine/Core/Rendering/Textures/TextureUploadService.h">Project/Engine/Core/Rendering/Textures/TextureUploadService.h</a></li>
+<li><a href="../../Project/Engine/Core/World/Scene/Runtime/SceneSystem.cpp">Project/Engine/Core/World/Scene/Runtime/SceneSystem.cpp</a></li>
+<li><a href="../../Project/Engine/Core/World/Scene/Runtime/SceneSystem.h">Project/Engine/Core/World/Scene/Runtime/SceneSystem.h</a></li>
+<li><a href="../../Project/Engine/Core/World/Scene/Serialization/SceneAssetStorage.cpp">Project/Engine/Core/World/Scene/Serialization/SceneAssetStorage.cpp</a></li>
+<li><a href="../../Project/Engine/Core/World/Scene/Serialization/SceneAssetStorage.h">Project/Engine/Core/World/Scene/Serialization/SceneAssetStorage.h</a></li>
+<li><a href="../../Project/Engine/Core/World/Scene/Serialization/SceneAssetStorageRevision.cpp">Project/Engine/Core/World/Scene/Serialization/SceneAssetStorageRevision.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Core/EditorManager.cpp">Project/Engine/Editor/Core/EditorManager.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Core/EditorShortcutState.cpp">Project/Engine/Editor/Core/EditorShortcutState.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Core/EditorShortcutState.h">Project/Engine/Editor/Core/EditorShortcutState.h</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EditorPlaySession.h">Project/Engine/Editor/Runtime/Application/EditorPlaySession.h</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EditorRenderBenchmark.cpp">Project/Engine/Editor/Runtime/Application/EditorRenderBenchmark.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EditorRenderBenchmark.h">Project/Engine/Editor/Runtime/Application/EditorRenderBenchmark.h</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EngineApplication.cpp">Project/Engine/Editor/Runtime/Application/EngineApplication.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EngineApplication.h">Project/Engine/Editor/Runtime/Application/EngineApplication.h</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EngineApplicationContext.cpp">Project/Engine/Editor/Runtime/Application/EngineApplicationContext.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EngineApplicationEditing.cpp">Project/Engine/Editor/Runtime/Application/EngineApplicationEditing.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/Runtime/Application/EngineApplicationLifecycle.cpp">Project/Engine/Editor/Runtime/Application/EngineApplicationLifecycle.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/UI/ImGui/ImGuiManager.cpp">Project/Engine/Editor/UI/ImGui/ImGuiManager.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/UI/ImGui/ImGuiManager.h">Project/Engine/Editor/UI/ImGui/ImGuiManager.h</a></li>
+<li><a href="../../Project/Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.cpp">Project/Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.h">Project/Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.h</a></li>
+<li><a href="../../Project/Engine/Editor/UI/Panels/Builtin/ConsolePanel.cpp">Project/Engine/Editor/UI/Panels/Builtin/ConsolePanel.cpp</a></li>
+<li><a href="../../Project/Engine/Editor/UI/Panels/Builtin/ProjectPanelGrid.cpp">Project/Engine/Editor/UI/Panels/Builtin/ProjectPanelGrid.cpp</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box.bin">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box.bin</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box.bin.meta">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box.bin.meta</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/_resources/0/cornell_box.bin">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/_resources/0/cornell_box.bin</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/_resources/0/cornell_box.bin.meta">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/_resources/0/cornell_box.bin.meta</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/cornell_box_core.gltf">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/cornell_box_core.gltf</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/cornell_box_core.gltf.meta">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_core/cornell_box_core.gltf.meta</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/_resources/0/cornell_box.bin">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/_resources/0/cornell_box.bin</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/_resources/0/cornell_box.bin.meta">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/_resources/0/cornell_box.bin.meta</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/cornell_box_extended.gltf">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/cornell_box_extended.gltf</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/cornell_box_extended.gltf.meta">Project/Sandbox/GameAssets/Models/cornell_box/cornell_box_extended/cornell_box_extended.gltf.meta</a></li>
+<li><a href="../../Project/Sandbox/GameAssets/Scenes/View/Bistro.scene.json">Project/Sandbox/GameAssets/Scenes/View/Bistro.scene.json</a></li>
+<li><a href="../../Project/Tests/EditorRefactoringTests.cpp">Project/Tests/EditorRefactoringTests.cpp</a></li>
+<li><a href="../../Project/Tests/FBXImportTests.cpp">Project/Tests/FBXImportTests.cpp</a></li>
+<li><a href="../../Project/Tests/GPUMeshPublicationTests.cpp">Project/Tests/GPUMeshPublicationTests.cpp</a></li>
+<li><a href="../../Project/Tests/GPURenderTextureBindingTests.cpp">Project/Tests/GPURenderTextureBindingTests.cpp</a></li>
+<li><a href="../../Project/Tests/InputConfigurationTests.cpp">Project/Tests/InputConfigurationTests.cpp</a></li>
+<li><a href="../../Project/Tests/SceneContracts2.cpp">Project/Tests/SceneContracts2.cpp</a></li>
+<li><a href="../../Project/Tests/SceneTransactionTests.cpp">Project/Tests/SceneTransactionTests.cpp</a></li>
+<li><a href="../../Project/Tests/ShaderGraphCompileFixture.cpp">Project/Tests/ShaderGraphCompileFixture.cpp</a></li>
+<li><a href="../../Project/Tests/ShaderGraphCompileFixture.h">Project/Tests/ShaderGraphCompileFixture.h</a></li>
+<li><a href="../../Project/Tests/ShaderGraphContracts1.cpp">Project/Tests/ShaderGraphContracts1.cpp</a></li>
+<li><a href="../../Project/Tests/ShaderGraphTargetTests.cpp">Project/Tests/ShaderGraphTargetTests.cpp</a></li>
+<li><a href="../../Project/Tests/TestSelection.cpp">Project/Tests/TestSelection.cpp</a></li></ul></details>
+<p>Gitのcommit・reset・checkout・stage等の操作は行っていません。</p></html>

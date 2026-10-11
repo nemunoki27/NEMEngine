@@ -33,6 +33,15 @@ namespace {
 //============================================================================
 //	DxUtils namespaceMethods
 //============================================================================
+ComPtr<IDXGIAdapter3> DxUtils::FindDeviceAdapter(ID3D12Device* device) {
+
+	ComPtr<IDXGIAdapter3> adapter;
+	ComPtr<IDXGIFactory4> factory;
+	if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return adapter;
+	factory->EnumAdapterByLuid(device->GetAdapterLuid(), IID_PPV_ARGS(&adapter));
+	return adapter;
+}
+
 void DxUtils::MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
 	ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
 

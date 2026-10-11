@@ -422,5 +422,7 @@ namespace Engine {
 		bool isSkinned = false;
 		// 骨の数
 		uint32_t boneCount = 0;
+		// TLASから参照する頂点とIndexの回収を防ぐ
+		std::shared_ptr<const uint8_t> ownership;
 	};
 } // Engine

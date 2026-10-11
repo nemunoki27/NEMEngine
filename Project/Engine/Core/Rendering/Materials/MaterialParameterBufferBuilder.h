@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
 // c++
 #include <cstdint>
@@ -25,6 +26,7 @@ namespace Engine {
 
 			uint32_t index = kNoTextureIndex; // 解決したSRV番号
 			bool cacheable = true; // 次のframeも再利用できるか
+			TextureOwnership ownership; // 番号を使用する間の所有
 		};
 		//========================================================================
 		//	public Methods

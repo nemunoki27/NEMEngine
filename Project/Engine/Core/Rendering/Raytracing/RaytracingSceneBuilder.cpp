@@ -68,6 +68,10 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	cachedMeshLODRecordIndices_.clear();
 
 	materialResolver_.Clear();
+	publishedBLASKeys_.clear();
+	buildingMeshOwnerships_.clear();
+	publishedMeshOwnerships_.clear();
+	renderTextureInputs_.clear();
 	materialRevision_.reset();
 	sceneMaterialGeneration_ = 0;
 	cachedSceneMaterialHash_ = 0;
@@ -122,12 +126,18 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	}
 
 	// Texture差し替え後は静的Sceneも新しい番号で再構築する
-	const uint64_t textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision();
+	const uint64_t textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision() +
+		RuntimeTextureResolver::GetBindingRevision();
 	if (textureRevision_ != textureRevision) {
 		textureRevision_ = textureRevision;
 		materialResolver_.Clear();
 		cachedStaticScene_ = false;
 		builtThisFrame_ = false;
+	}
+
+	// 静的SceneでもCamera出力を読み取り状態へ戻す
+	for (const AssetID texture : renderTextureInputs_) {
+		RuntimeTextureResolver::ResolveBindless(graphicsCore, &assetDatabase, texture);
 	}
 
 	const uint64_t meshResourceRevision = meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
@@ -157,12 +167,28 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		builtSceneInstanceID_ = context.sceneInstance->instanceID;
 	};
 	bool lodResourceMissing = false;
-	const bool matchesStaticScene = cachedStaticScene_ && !materialResolver_.HasPendingTextures() &&
+	bool matchesStaticScene = cachedStaticScene_ && !materialResolver_.HasPendingTextures() &&
 		cachedWorld_ == context.world && cachedWorldLifetime_ && cachedWorldLifetime_->IsAlive() &&
 		renderBatch.MatchesExtractors(cachedExtractorRevision_) &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
 		cachedRenderRevision_ == renderBatch.GetSourceRenderRevision() &&
 		cachedMeshResourceRevision_ == meshResourceRevision && tlasState_.IsBuilt();
+	if (matchesStaticScene && primitiveGeometryManager) {
+
+		// 画面外のPrimitiveもTLAS参照中は共有形状を保持
+		for (auto it = cachedTLASInstanceIndices_.begin(); it != cachedTLASInstanceIndices_.end();) {
+
+			const auto key = it->first;
+			it = cachedTLASInstanceIndices_.equal_range(key).second;
+			const auto* renderer = key.world->TryGetComponent<PrimitiveRendererComponent>(key.entity);
+			if (!renderer) continue;
+			const auto* geometry = primitiveGeometryManager->GetOrCreate(graphicsCore, *renderer);
+			if (!geometry || !geometry->blasBuilt) {
+				matchesStaticScene = false;
+				break;
+			}
+		}
+	}
 	if (matchesStaticScene) {
 
 		const uint64_t currentFrame = GraphicsFrameState::GetFrameSerial();
@@ -306,10 +332,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	if (primitiveGeometryManager) {
 		CollectScenePrimitiveInstances(renderBatch, *context.sceneInstance, context.view, scenePrimitives);
 	}
-	if (sceneMeshes.empty() && scenePrimitives.empty()) {
-		return;
-	}
-
 	// 必要メッシュを一度だけ要求
 	std::unordered_set<AssetID> requiredMeshSet{};
 	requiredMeshSet.reserve(sceneMeshes.size());
@@ -334,6 +356,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	ID3D12GraphicsCommandList6* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
 
 	// データクリア
+	renderTextureInputs_.clear();
 	result_.sceneInstanceScratch_.clear();
 	result_.sceneGeometryScratch_.clear();
 	result_.sceneSubMeshScratch_.clear();
@@ -378,6 +401,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		.staticScene = staticScene,
 		.blasGeometryCount = blasGeometryCount,
 	};
+	publishedBLASKeys_.clear();
+	buildingMeshOwnerships_.clear();
 	BuildMeshInstances(sceneMeshes, work);
 
 	// 形状ごとにBLASを共有してPrimitiveを追加
@@ -385,6 +410,13 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 	// TLASインスタンスがない場合は処理しない
 	if (tlasInstances.empty()) {
+
+		// 描画対象がなくなったSceneの所有を解除する
+		tlasState_.ResetState();
+		buildingMeshOwnerships_.clear();
+		publishedMeshOwnerships_.clear();
+		publishedBLASKeys_.clear();
+		materialResolver_.CommitTextures();
 		return;
 	}
 	FrameProfiler::GetInstance().SetTLASInstanceCount(static_cast<uint32_t>(tlasInstances.size()));
@@ -434,9 +466,17 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context);
+	materialResolver_.CommitTextures();
+	// 新しいTLASの公開まで旧Meshの所有を保持する
+	publishedMeshOwnerships_ = std::move(buildingMeshOwnerships_);
 }
 
-void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context) const {
+void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context) {
+
+	// TLASの再利用中も共有BLASを保持する
+	for (const auto& key : publishedBLASKeys_) {
+		blasCache_.sharedBLASFrames_[key] = GraphicsFrameState::GetFrameSerial();
+	}
 
 	result_.Publish(context, tlasState_.GetResource(), sceneMaterialGeneration_, !materialResolver_.HasPendingTextures());
 }

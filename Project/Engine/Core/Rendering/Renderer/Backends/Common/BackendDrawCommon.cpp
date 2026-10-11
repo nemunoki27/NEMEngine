@@ -211,6 +211,7 @@ Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
 	return {
 		.index = textureIndex,
 		.cacheable = !result.retry,
+		.ownership = result.ownership,
 	};
 }
 

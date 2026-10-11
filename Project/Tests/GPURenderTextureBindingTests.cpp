@@ -50,10 +50,11 @@ bool NEMTests::CheckRenderTextureBindings(ID3D12Device* device, Engine::Graphics
 	binder.BeginFrame();
 	uint32_t resolveCount = 0;
 	bool feedback = false;
+	const TextureOwnership ownership = std::make_shared<const uint8_t>(0);
 	const auto resolve = [&](MaterialParameterSemantic, const AssetID&) {
 
 		++resolveCount;
-		return MaterialParameterBufferBuilder::TextureResolveResult{ resolveCount, !feedback };
+		return MaterialParameterBufferBuilder::TextureResolveResult{ resolveCount, !feedback, ownership };
 	};
 	// 出力Cameraの代替値を通常Cameraの転送先へ混ぜない
 	binder.SetTextureRevision(1, textureID);
@@ -87,6 +88,10 @@ bool NEMTests::CheckRenderTextureBindings(ID3D12Device* device, Engine::Graphics
 		const auto output = binder.ResolveAndUpload(retirement, device8.Get(), *pipeline, material, resolve);
 		if (!blocked || !output || blocked == output || resolveCount != 7 + frame) return false;
 	}
+	// 解決済み番号が残る間は画像を回収させない
+	if (ownership.use_count() <= 1) return false;
+	binder.Release();
+	if (ownership.use_count() != 1) return false;
 	RuntimeTextureResolver::BeginRenderTextureWrite(textureID);
 	const bool writing = RuntimeTextureResolver::GetWritingRenderTexture() == textureID;
 	RuntimeTextureResolver::EndRenderTextureWrite(textureID);

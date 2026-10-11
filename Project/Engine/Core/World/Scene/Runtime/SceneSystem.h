@@ -10,6 +10,9 @@
 
 // c++
 #include <filesystem>
+#include <functional>
+#include <mutex>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -29,6 +32,10 @@ namespace Engine {
 		SceneSystem();
 		explicit SceneSystem(std::shared_ptr<SceneAssetStorage> storage);
 		~SceneSystem() = default;
+
+		// Sceneと子Sceneの文書をWorldに触れず準備する
+		bool PrepareSceneDocuments(AssetID rootAsset, const std::unordered_map<AssetID, std::filesystem::path>& paths,
+			const std::function<bool(const nlohmann::json&)>& prepareAssets = {}) const;
 
 		// ファイルからワールドをロード
 		bool LoadScene(const std::filesystem::path& scenePath, ECSWorld& world, AssetDatabase* assetDatabase, AssetID sourceAsset = AssetID{},
@@ -63,9 +70,34 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct PreparedDocument {
+
+			nlohmann::json root;
+			std::string revision;
+		};
+		struct CachedDocument {
+
+			std::shared_ptr<const PreparedDocument> document;
+			uint64_t lastAccess = 0;
+		};
+		struct DocumentCache {
+
+			std::mutex mutex;
+			std::unordered_map<std::string, CachedDocument> entries;
+			uint64_t accessSerial = 0;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		// プロジェクト内の読込・保存・修復で共有する状態
 		std::shared_ptr<SceneAssetStorage> storage_;
+		std::shared_ptr<DocumentCache> documentCache_ = std::make_shared<DocumentCache>();
+
+		//--------- functions ----------------------------------------------------
+
+		// 保存世代が一致する文書だけを再利用する
+		std::shared_ptr<const PreparedDocument> ReadSceneDocument(const std::filesystem::path& path, AssetID asset) const;
 	};
 } // Engine

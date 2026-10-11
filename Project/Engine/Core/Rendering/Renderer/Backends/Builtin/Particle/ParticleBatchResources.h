@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
+#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
 // c++
 #include <vector>
@@ -31,6 +32,7 @@ namespace Engine {
 		uint32_t stride = 0;
 		std::vector<ShaderConstantBufferVariable> variables{};
 		std::vector<uint8_t> defaultData{};
+		std::vector<TextureOwnership> textureOwnerships;
 	};
 
 	//============================================================================

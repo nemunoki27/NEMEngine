@@ -56,6 +56,7 @@ void Engine::TextureUploadService::ReleaseSnapshot(const std::string& key) {
 		// 描画中のDescriptorもGPU完了まで保持する
 		srvDescriptor_->Retire(texture->second.srvIndex, texture->second.resource);
 		readyTextures_.erase(texture);
+		textureAccessTimes_.erase(key);
 		++contentRevision_;
 	}
 	// 受付済みの結果は要求照合で失効させる

@@ -41,6 +41,11 @@ namespace Engine::ShaderGraphStageSource {
 			ShaderGraphExpression{ShaderGraphValueType::Float3, "0.0f.xxx"};
 		const ShaderGraphExpression opacity = context.EmitInput(*output, is3D ? 6u : 1u, ShaderGraphValueType::Float, "1.0f");
 		const ShaderGraphExpression alphaClip = context.EmitInput(*output, is3D ? 7u : 2u, ShaderGraphValueType::Float, "0.0f");
+		// 透過はOpacityから推定せず専用入力で指定
+		const ShaderGraphExpression transmission = is3D ? context.EmitInput(*output, 8u, ShaderGraphValueType::Float, "0.0f") :
+			ShaderGraphExpression{ShaderGraphValueType::Float, "0.0f"};
+		const ShaderGraphExpression transmissionColor = is3D ? context.EmitInput(*output, 9u, ShaderGraphValueType::Float3, "1.0f.xxx") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "1.0f.xxx"};
 
 		// 各描画経路で使う表面入力を宣言する
 		std::string source = "#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n"
@@ -82,6 +87,8 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tfloat3 emissive;\n"
 				  "\tfloat opacity;\n"
 				  "\tfloat alphaClip;\n"
+				  "\tfloat transmission;\n"
+				  "\tfloat3 transmissionColor;\n"
 				  "};\n\n";
 		const bool particleTarget = graph.target == ShaderGraphTarget::Particle || graph.target == ShaderGraphTarget::Trail;
 		// 画面座標はピクセル単位で4x4のしきい値を繰り返す
@@ -100,8 +107,8 @@ namespace Engine::ShaderGraphStageSource {
 			uint32_t textureRegister = 1;
 			for (const ShaderGraphParameter& parameter : graph.parameters) {
 				if (parameter.type != ShaderGraphValueType::Texture2D) {
-				continue;
-			}
+					continue;
+				}
 				source +=
 					"Texture2D<float4> " +
 					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
@@ -112,8 +119,8 @@ namespace Engine::ShaderGraphStageSource {
 			uint32_t textureIndex = 0;
 			for (const ShaderGraphParameter& parameter : graph.parameters) {
 				if (parameter.type != ShaderGraphValueType::Texture2D) {
-				continue;
-			}
+					continue;
+				}
 				source +=
 					"\tif (textureIndex == " + std::to_string(textureIndex++) + "u) return " +
 					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
@@ -175,6 +182,8 @@ namespace Engine::ShaderGraphStageSource {
 		source += "\tresult.emissive = " + emissive.code + ";\n";
 		source += "\tresult.opacity = saturate(" + opacity.code + ");\n";
 		source += "\tresult.alphaClip = saturate(" + alphaClip.code + ");\n";
+		source += "\tresult.transmission = saturate(" + transmission.code + ");\n";
+		source += "\tresult.transmissionColor = saturate(" + transmissionColor.code + ");\n";
 		source += "\treturn result;\n"
 				  "}\n\n"
 				  "#endif // NEM_GENERATED_SHADER_GRAPH_SURFACE\n";

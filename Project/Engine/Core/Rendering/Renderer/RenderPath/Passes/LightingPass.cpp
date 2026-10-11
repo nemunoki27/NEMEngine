@@ -126,8 +126,11 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 	desc.pixel.entry = "mainShadowed";
 	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
 	desc.pixel.profile = "ps_6_6";
-	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
-							  graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
+	// 非対応GPUではInline Ray Tracing版を生成しない
+	if (graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath()) {
+		shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
+			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
+	}
 }
 
 Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::LightingPass::AllocateConstantBuffer(

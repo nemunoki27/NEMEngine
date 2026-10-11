@@ -29,6 +29,9 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--scene-transactions") {
+		return RunTest("TestSceneSnapshotTransactions", TestSceneSnapshotTransactions) ? 0 : 56;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--project-git-ignore") {
 		return RunTest("TestProjectGitIgnoreDocument", TestProjectGitIgnoreDocument) ? 0 : 54;
 	}

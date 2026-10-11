@@ -18,6 +18,7 @@ namespace Engine {
 
 			uint32_t srvIndex = UINT32_MAX;
 			bool retry = false;
+			TextureOwnership ownership;
 		};
 
 		// 実行中のRenderTextureをAssetIDへ対応付ける

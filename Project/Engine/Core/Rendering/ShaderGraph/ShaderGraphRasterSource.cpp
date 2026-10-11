@@ -14,7 +14,9 @@ namespace Engine::ShaderGraphStageSource {
 		std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context, bool transparent) {
 
 		std::string source = "// Shader Graph generated file\n"
+							 "#define NEM_PRIMITIVE_SHADER_GRAPH 1\n"
 							 "#include \"Builtin/Primitive/primitive.hlsli\"\n"
+							 "#undef NEM_PRIMITIVE_SHADER_GRAPH\n"
 							 "#include \"Builtin/Mesh/Common/pbrShading.hlsli\"\n"
 							 "#include \"Builtin/Mesh/Common/deferredGBuffer.hlsli\"\n"
 							 "#include \"" +
@@ -68,17 +70,17 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tfloat3 lighting = 0.0f.xxx;\n"
 					  "\t[loop] for (uint i = 0; i < directionalCount; ++i) { lighting += "
 					  "EvaluatePBRDirectionalLight(gDirectionalLights[i], graph.normal, V, graph.baseColor.rgb, "
-					  "graph.metallic, graph.roughness, F0); }\n"
+					  "graph.metallic, graph.roughness, F0, 1.0f - graph.transmission); }\n"
 					  "\t[loop] for (uint i = 0; i < pointCount; ++i) { lighting += EvaluatePBRPointLight(gPointLights[i], "
-					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0); }\n"
+					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0, 1.0f - graph.transmission); }\n"
 					  "\t[loop] for (uint i = 0; i < spotCount; ++i) { lighting += EvaluatePBRSpotLight(gSpotLights[i], "
-					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0); }\n"
+					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0, 1.0f - graph.transmission); }\n"
 					  "\t[loop] for (uint i = 0; i < rectCount; ++i) { lighting += EvaluatePBRRectLight(gRectLights[i], "
-					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0); }\n"
+					  "input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0, 1.0f - graph.transmission); }\n"
 					  "\tfloat3 ambient = ((input.flags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) ? 0.03f * graph.baseColor.rgb "
 					  "* graph.ambientOcclusion : 0.0f.xxx;\n"
 					  "\tTransparentPSOutput output;\n"
-					  "\toutput.color = float4(lighting + ambient + graph.emissive, alpha);\n"
+					  "\toutput.color = float4(lighting + ambient * (1.0f - graph.transmission) + graph.emissive, alpha);\n"
 					  "\treturn output;\n"
 					  "}\n";
 		}

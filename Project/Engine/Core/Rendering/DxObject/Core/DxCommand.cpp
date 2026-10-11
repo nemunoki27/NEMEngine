@@ -230,6 +230,8 @@ void DxCommand::TransitionBarriers(ID3D12Resource* resource,
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	barrier.Transition.pResource = resource;
+	// 全Mipと配列面をまとめて遷移
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barrier.Transition.StateBefore = stateBefore;
 	barrier.Transition.StateAfter = stateAfter;
 
@@ -250,6 +252,8 @@ void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources
 		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 		// バリアを貼る対象のリソースで引数で渡されたリソースに対して行う
 		barrier.Transition.pResource = resource;
+		// 全Mipと配列面をまとめて遷移
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		// 遷移前(現在)のResourceState
 		barrier.Transition.StateBefore = stateBefore;
 		// 遷移後のResourceState

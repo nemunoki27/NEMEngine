@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 
 // c++
 #include <fstream>
@@ -57,4 +58,18 @@ bool NEMTests::ShaderGraphCompileFixture::WriteGeneratedGraph(
 		return false;
 	}
 	return true;
+}
+
+// 頂点とPixelの定数衝突を実際のコンパイルで確認する
+bool NEMTests::ShaderGraphCompileFixture::CompileRasterShaders(std::string_view name) const {
+
+	Engine::DxShaderCompiler compiler;
+	compiler.Init();
+	const auto root = generatedRoot_ / std::string(name);
+	for (const char* file : { "opaque.PS.hlsl", "transparent.PS.hlsl" }) {
+		const wchar_t* entry = std::string_view(file) == "transparent.PS.hlsl" ? L"mainTransparent" : L"main";
+		if (!compiler.CompileShader((root / file).wstring(), L"ps_6_6", entry, Engine::ShaderStage::PS).IsValid()) return false;
+	}
+	return compiler.CompileShader((root / "vertex.VS.hlsl").wstring(), L"vs_6_6", L"main", Engine::ShaderStage::VS).IsValid() &&
+		compiler.CompileShader((root / "mesh.MS.hlsl").wstring(), L"ms_6_6", L"main", Engine::ShaderStage::MS).IsValid();
 }

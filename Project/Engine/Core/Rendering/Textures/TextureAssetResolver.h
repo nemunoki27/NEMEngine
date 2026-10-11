@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "TextureAlphaAnalysis.h"
+
 // c++
 #include <filesystem>
 #include <string>
@@ -33,6 +35,9 @@ namespace Engine {
 		// Normalを解決し失敗時は基本色の名前から補完する
 		std::string ResolveNormalAssetPath(
 			const std::string& importedNormalReference, const std::string& importedBaseColorReference) const;
+
+		// 基本色画像の透明画素を読込中に共有する
+		TextureAlphaContent AnalyzeAlpha(const std::string& reference) const;
 
 		// Project外を含む画像の実ファイルを解決する
 		std::filesystem::path ResolveFilePath(const std::string& importedReference) const;
@@ -66,6 +71,7 @@ namespace Engine {
 		std::filesystem::path modelDirectory_;											  // 直接参照の基準
 		std::filesystem::path preferredFolder_;											  // モデル専用の画像フォルダー
 		std::unordered_map<std::string, std::vector<TextureCandidate>> candidatesByStem_; // 名前ごとの候補
+		mutable TextureAlphaAnalysis alphaAnalysis_;
 		bool uriReferences_ = false; // 外部参照がURIの形式か
 
 		//--------- functions ----------------------------------------------------

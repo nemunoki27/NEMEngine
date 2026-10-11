@@ -277,6 +277,11 @@ const Engine::RenderTexture2D* Engine::EngineApplication::GetRenderedViewTexture
 							  : renderPipeline_->FindViewColorTexture(kind, attachment);
 }
 
+bool Engine::EngineApplication::AreSceneMeshesReady() const {
+
+	return renderPipeline_->AreSceneMeshesReady();
+}
+
 int Engine::RunEditorApplication() {
 
 	wchar_t benchmarkPath[32768]{};
@@ -389,6 +394,11 @@ bool Engine::EngineApplication::WaitForSceneSave() {
 void Engine::EngineApplication::HandlePlayToggle() {
 
 	playSession_->HandlePlayToggle();
+	// ScriptのBuild待ちから古いScene読込を取り消す
+	if (playSession_->IsStarting()) {
+		pendingSceneAsset_ = {};
+		nextSceneAsset_ = {};
+	}
 }
 
 void Engine::EngineApplication::StopPlayWorld() {

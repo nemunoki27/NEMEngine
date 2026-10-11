@@ -223,6 +223,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			return MaterialParameterBufferBuilder::TextureResolveResult{
 				.index = result.srvIndex,
 				.cacheable = !result.retry,
+				.ownership = result.ownership,
 			};
 		};
 		std::vector<uint8_t> bytes;

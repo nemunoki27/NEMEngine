@@ -104,6 +104,7 @@ void RenderPipelineRunner::Init() {
 
 	cameraStates_.clear();
 	cameraWorldLifetime_.reset();
+	historySceneInstance_ = {};
 
 	// ビューライトバッファの初期化
 	gameViewState_.lightBuffers.Release();
@@ -118,6 +119,7 @@ void RenderPipelineRunner::Finalize() {
 	// Camera別のGPU資源をDevice終了前に回収する
 	cameraStates_.clear();
 	cameraWorldLifetime_.reset();
+	historySceneInstance_ = {};
 	// GPU計測の資源をDevice終了前に解放する
 	GPUFrameProfiler::GetInstance().Finalize();
 	// Worldや登録処理より先に抽出結果の借用を解除する

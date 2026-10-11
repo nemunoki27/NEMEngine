@@ -32,7 +32,8 @@ Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
 	const GPUTextureResource* cubemap = RuntimeTextureResolver::Resolve(
 		graphicsCore, assetDatabase, skybox->cubemapTexture,
 		TextureColorSpace::Linear);
-	if (!cubemap || cubemap->srvIndex == UINT32_MAX) {
+	if (!cubemap || !cubemap->resource || cubemap->srvIndex == UINT32_MAX ||
+		cubemap->resource->GetDesc().DepthOrArraySize != 6) {
 		return info;
 	}
 

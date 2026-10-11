@@ -9,6 +9,7 @@
 void Engine::RaytracingBLASCache::Clear() {
 
 	blases_.clear();
+	sharedBLASFrames_.clear();
 	staticInstanceBLASes_.clear();
 	dynamicBlases_.clear();
 	meshBLASGeneration_.clear();
@@ -30,6 +31,12 @@ void Engine::RaytracingBLASCache::CollectExpired() {
 	std::erase_if(staticInstanceBLASes_, [&](const auto& pair) {
 		return !pair.first.worldLifetime || !pair.first.worldLifetime->IsAlive() || expired(pair.second.lastUsedFrame);
 	});
+	// Sceneから参照されなくなった共有形状も回収する
+	std::erase_if(blases_, [&](const auto& pair) {
+		const auto used = sharedBLASFrames_.find(pair.first);
+		return used == sharedBLASFrames_.end() || currentFrame > used->second + 120u;
+	});
+	std::erase_if(sharedBLASFrames_, [&](const auto& pair) { return !blases_.contains(pair.first); });
 
 }
 

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
@@ -17,6 +18,20 @@
 //	RaytracingSceneGeometryUtility namespaceMethods
 //============================================================================
 namespace Engine::RaytracingSceneGeometryUtility {
+
+	void CollectRenderTextureParameters(const MaterialParameterSet& parameters, const AssetDatabase& database,
+		std::unordered_set<AssetID>& inputs) {
+
+		// 同じCamera出力の状態変更をまとめる
+		for (const auto& parameter : parameters.GetRecords()) {
+
+			const auto* texture = std::get_if<AssetID>(&parameter.namedValue.second.value);
+			const auto* meta = texture ? database.Find(*texture) : nullptr;
+			if (meta && meta->type == AssetType::RenderTexture) {
+				inputs.insert(*texture);
+			}
+		}
+	}
 
 	constexpr uint32_t kRaytracingRenderFlagLighting = 1u << 1;
 	constexpr uint32_t kRaytracingRenderFlagReceiveShadow = 1u << 2;

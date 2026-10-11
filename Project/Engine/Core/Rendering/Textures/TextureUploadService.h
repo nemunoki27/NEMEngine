@@ -11,6 +11,7 @@
 
 // c++
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
@@ -18,6 +19,7 @@
 // directX
 #include <DirectXTex.h>
 #include <d3dx12.h>
+#include <dxgi1_6.h>
 
 namespace Engine {
 
@@ -34,6 +36,14 @@ namespace Engine {
 		Queued,
 		Ready,
 		Failed,
+	};
+
+	struct TextureCacheStatistics {
+
+		uint64_t textureCount = 0;
+		uint64_t allocationBytes = 0;
+		uint64_t queuedCount = 0;
+		uint64_t decodedBytes = 0;
 	};
 
 	//============================================================================
@@ -79,6 +89,10 @@ namespace Engine {
 
 		const GPUTextureResource* GetTexture(const std::string& key) const;
 		TextureRequestState GetState(const std::string& key) const;
+		// デコードとGPU公開が完了していない要求を確認する
+		bool HasPendingRequests() const;
+		// 公開資源と転送待ちの使用量を取得する
+		TextureCacheStatistics GetCacheStatistics(ID3D12Device* device) const;
 		uint64_t GetContentRevision() const { return contentRevision_.load(std::memory_order_relaxed); }
 		// 指定ファイルの再読込要求の世代を取得する
 		uint64_t GetFileReloadRevision(const std::filesystem::path& fullPath) const;
@@ -121,6 +135,9 @@ namespace Engine {
 		std::deque<CompletedRequest> pendingUploads_;
 		// キーとGPUテクスチャリソースのマップ
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
+		mutable std::unordered_map<std::string, std::chrono::steady_clock::time_point> textureAccessTimes_;
+		ComPtr<IDXGIAdapter3> cacheAdapter_;
+		std::chrono::steady_clock::time_point cacheCollectionTime_{};
 		std::unordered_set<std::string> queuedKeys_;
 		std::unordered_set<std::string> failedKeys_;
 		std::unordered_set<std::string> deferredReloadKeys_;
@@ -139,5 +156,8 @@ namespace Engine {
 		void PrepareRequest(DecodeRequest& request, std::vector<DecodeRequest>& toEnqueue);
 		// 保護中の要求と完了結果の世代を照合する
 		bool IsCurrentRequest(const CompletedRequest& completed) const;
+		// 常駐予算と未使用画像の所有を確認する
+		void InitCacheTracking(ID3D12Device* device);
+		void CollectUnusedTextures();
 	};
 } // Engine

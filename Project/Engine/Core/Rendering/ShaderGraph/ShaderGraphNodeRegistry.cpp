@@ -36,6 +36,8 @@ namespace {
 		Port{ "Emissive", Type::Float3 },
 		Port{ "Opacity", Type::Float },
 		Port{ "Alpha Clip", Type::Float },
+		Port{ "Transmission", Type::Float },
+		Port{ "Transmission Color", Type::Float3 },
 	};
 	constexpr std::array kUnlitInputs{
 		Port{ "Color", Type::Float4 },

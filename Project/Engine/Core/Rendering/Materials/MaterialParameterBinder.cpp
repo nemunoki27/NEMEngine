@@ -126,12 +126,20 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUploadParam
 
 		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
 		bool textureValuesCacheable = true;
+		// 転送済みのTexture番号をCacheの寿命まで保持する
+		cache.textureOwnerships.clear();
+		const auto retainTexture = [&](MaterialParameterSemantic semantic, const AssetID& id) {
+
+			auto result = resolveTexture ? resolveTexture(semantic, id) : MaterialParameterBufferBuilder::TextureResolveResult{};
+			if (result.ownership) cache.textureOwnerships.push_back(result.ownership);
+			return result;
+		};
 		// Textureの一時代替値は次のframeで再解決する
 		bool built = overrides ?
 			MaterialParameterBufferBuilder::BuildElementInto(cache.packedParameters, material.parameters, *overrides,
-				layout, resolveTexture, &textureValuesCacheable) :
+				layout, retainTexture, &textureValuesCacheable) :
 			MaterialParameterBufferBuilder::BuildInto(cache.packedParameters, material, layout,
-				resolveTexture, &textureValuesCacheable);
+				retainTexture, &textureValuesCacheable);
 		if (!built) {
 			cache.packedParameters.clear();
 			return 0;

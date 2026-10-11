@@ -89,7 +89,7 @@ namespace Engine {
 			float filmicShoulder = 0.0f;
 			float filmicBlackClip = 0.0f;
 			float filmicWhiteClip = 0.0f;
-			float _pad0 = 0.0f;
+			float postProcessEnabled = 1.0f;
 
 			Color4 colorFilter = Color4::White();
 

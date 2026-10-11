@@ -9,6 +9,10 @@
 // c++
 #include <unordered_map>
 #include <mutex>
+#include <chrono>
+
+// directX
+#include <dxgi1_6.h>
 
 namespace Engine {
 
@@ -72,9 +76,13 @@ namespace Engine {
 		// アセットIDとGPUリソースのマップ
 		mutable std::mutex mutex_;
 		std::unordered_map<AssetID, MeshGPUResource> gpuMeshes_;
+		mutable std::unordered_map<AssetID, std::chrono::steady_clock::time_point> meshAccessTimes_;
+		ComPtr<IDXGIAdapter3> cacheAdapter_;
+		std::chrono::steady_clock::time_point cacheCollectionTime_{};
 		// 実行中の要求世代と、最後に受け付けた要求世代
 		std::unordered_map<AssetID, uint64_t> requested_;
 		std::unordered_map<AssetID, uint64_t> requestRevisions_;
+		std::unordered_map<AssetID, uint64_t> layoutReloadRevisions_;
 		// 再初期化を越えて保持するMeshの公開世代
 		std::unordered_map<AssetID, uint32_t> reloadGeneration_;
 		uint64_t resourceRevision_ = 1;
@@ -93,6 +101,8 @@ namespace Engine {
 		void CompleteRequest(AssetID asset, uint64_t revision);
 		// メッシュGPUリソースが持つ全SRVを解放する、破棄と再ロードで共用する
 		void ReleaseMeshResource(MeshGPUResource& mesh);
+		// メモリ予算を超えた場合に未使用Meshを回収する
+		void CollectUnusedMeshes();
 	};
 } // Engine
 

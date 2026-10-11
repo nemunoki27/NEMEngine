@@ -14,6 +14,8 @@
 #include <Engine/Core/Rendering/Meshes/Import/MeshFileImporter.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include <Engine/Core/Rendering/Textures/TextureAlphaAnalysis.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -22,6 +24,12 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+
+// directX
+#include <DirectXTex.h>
+
+// assimp
+#include <assimp/material.h>
 
 namespace {
 
@@ -151,6 +159,34 @@ bool NEMTests::TestFBXImport() {
 	if (!CheckFBXReferences() || !CheckFBXTransforms() || AssetTypeResolver::GuessByPath("mesh.FBX") != AssetType::Mesh ||
 		!ModelDocumentReferences::IsDocumentPath("mesh.fbx")) return false;
 	TestDirectory source("FBXExternal");
+	// Alphaの有無ではなく不透明と切り抜きと半透明を分類
+	DirectX::ScratchImage pixels;
+	if (FAILED(pixels.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 8, 1, 1, 1))) return false;
+	const auto* image = pixels.GetImage(0, 0, 0);
+	TextureAlphaAnalysis analysis;
+	for (const auto content : {TextureAlphaContent::Opaque, TextureAlphaContent::Masked, TextureAlphaContent::Transparent}) {
+
+		for (size_t x = 0; x < 8; ++x) {
+			auto* pixel = image->pixels + x * 4;
+			pixel[0] = pixel[1] = pixel[2] = 255;
+			pixel[3] = content == TextureAlphaContent::Transparent ? 128 : content == TextureAlphaContent::Masked && x < 4 ? 0 : 255;
+		}
+		const auto path = source.GetPath() / (std::to_string(static_cast<int>(content)) + ".dds");
+		if (FAILED(DirectX::SaveToDDSFile(*image, DirectX::DDS_FLAGS_NONE, path.c_str())) || analysis.Analyze(path) != content) return false;
+		TextureAssetResolver resolver;
+		resolver.Build(source.GetPath() / "alpha.fbx");
+		aiMaterial material;
+		aiString reference(path.filename().string());
+		material.AddProperty(&reference, AI_MATKEY_TEXTURE_DIFFUSE(0));
+		const auto surface = MeshImportUtility::ReadMaterialSurface(&material, &resolver);
+		const auto expected = content == TextureAlphaContent::Opaque ? MaterialSurfaceMode::Auto :
+			content == TextureAlphaContent::Masked ? MaterialSurfaceMode::Masked : MaterialSurfaceMode::Transparent;
+		if (surface.surfaceMode != expected) return false;
+		// glTFの明示OpaqueをTextureのAlphaで上書きしない
+		aiString opaque("OPAQUE");
+		material.AddProperty(&opaque, "$mat.gltf.alphaMode", 0, 0);
+		if (MeshImportUtility::ReadMaterialSurface(&material, &resolver).surfaceMode != MaterialSurfaceMode::Opaque) return false;
+	}
 	TestDirectory assets("FBXImport", RuntimePaths::GetGameAssetsRoot());
 	if (!CheckTextureImport(source.GetPath(), assets.GetPath())) return false;
 	const auto fixtures = RuntimePaths::GetEngineProjectRoot() / "Externals/assimp/test/models/FBX";

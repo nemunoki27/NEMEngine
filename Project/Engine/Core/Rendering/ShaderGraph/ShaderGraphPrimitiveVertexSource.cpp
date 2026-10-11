@@ -14,18 +14,23 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context) {
 
 		const ShaderGraphNode* output = context.FindNode(graph.vertexOutputNode);
-		if (!output || output->kind != ShaderGraphNodeKind::VertexOutput) {
+		if (graph.vertexOutputNode && (!output || output->kind != ShaderGraphNodeKind::VertexOutput)) {
 			context.AddDiagnostic(graph.vertexOutputNode, "Vertex出力ノードが見つかりません");
 			return {};
 		}
 		// 形状の頂点入力から変形結果を生成する
-		const ShaderGraphExpression position =
-			context.EmitInput(*output, 0, ShaderGraphValueType::Float3, "vertex.position.xyz");
-		const ShaderGraphExpression normal = context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "vertex.normal");
-		const ShaderGraphExpression tangent = context.EmitInput(*output, 2, ShaderGraphValueType::Float3, "vertex.tangent");
+		const ShaderGraphExpression position = output ?
+			context.EmitInput(*output, 0, ShaderGraphValueType::Float3, "vertex.position.xyz") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "vertex.position.xyz"};
+		const ShaderGraphExpression normal = output ? context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "vertex.normal") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "vertex.normal"};
+		const ShaderGraphExpression tangent = output ? context.EmitInput(*output, 2, ShaderGraphValueType::Float3, "vertex.tangent") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "vertex.tangent"};
 
 		std::string source = "// Shader Graph generated Primitive vertex file\n"
+							 "#define NEM_PRIMITIVE_SHADER_GRAPH 1\n"
 							 "#include \"Builtin/Primitive/primitive.hlsli\"\n"
+							 "#undef NEM_PRIMITIVE_SHADER_GRAPH\n"
 							 "#include \"Builtin/Mesh/Common/meshShaderSharedTypes.hlsli\"\n"
 							 "SamplerState gSampler : register(s0);\n"
 							 "#include \"" +

@@ -26,6 +26,9 @@ namespace NEMTests {
 		// Graphから生成した全描画経路を検証用に保存する
 		bool WriteGeneratedGraph(const Engine::ShaderGraphAsset& sourceGraph, std::string_view name) const;
 
+		// 生成した3D描画ShaderをDXCで検証する
+		bool CompileRasterShaders(std::string_view name) const;
+
 		//--------- accessor -----------------------------------------------------
 
 		const std::filesystem::path& GetGeneratedRoot() const { return generatedRoot_; }

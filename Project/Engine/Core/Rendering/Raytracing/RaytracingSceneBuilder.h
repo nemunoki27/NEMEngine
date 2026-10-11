@@ -20,6 +20,7 @@
 // c++
 #include <array>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Engine {
 
@@ -168,6 +169,13 @@ namespace Engine {
 
 		RaytracingSceneResult result_{};
 
+		// 公開中のTLASが参照するMeshと共有BLAS
+		std::vector<std::shared_ptr<const uint8_t>> buildingMeshOwnerships_;
+		std::vector<std::shared_ptr<const uint8_t>> publishedMeshOwnerships_;
+		std::vector<BLASKey> publishedBLASKeys_;
+		// 静的Sceneでも読み取り状態へ戻すCamera出力
+		std::unordered_set<AssetID> renderTextureInputs_;
+
 		// テクスチャ解決キャッシュ
 		RaytracingMaterialResolver materialResolver_{};
 		// 反射履歴の無効化に使うマテリアル内容の世代
@@ -225,6 +233,6 @@ namespace Engine {
 			const ResolvedRenderView* lodView, bool& lodResourceMissing);
 
 		// 構築結果をViewへ渡す
-		void PublishBuiltScene(SceneExecutionContext& context) const;
+		void PublishBuiltScene(SceneExecutionContext& context);
 	};
 }

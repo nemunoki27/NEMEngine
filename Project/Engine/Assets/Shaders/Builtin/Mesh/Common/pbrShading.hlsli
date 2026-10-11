@@ -29,7 +29,7 @@ struct ResolvedPBRMaterial {
 //============================================================================
 float3 EvaluatePBRRadiance(float3 N, float3 V, float3 L,
 	float3 radiance, float3 albedo, float metallic,
-	float roughness, float3 F0) {
+	float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
 	float NdotL = saturate(dot(N, L));
 	if (NdotL <= 0.0f) {
@@ -52,12 +52,12 @@ float3 EvaluatePBRRadiance(float3 N, float3 V, float3 L,
 	float3 diffuse =
 		kD * DisneyDiffuse(NdotL, NdotV, LdotH, roughness, albedo);
 
-	return (diffuse + specular) * NdotL * radiance;
+	return (diffuse * diffuseWeight + specular) * NdotL * radiance;
 }
 
 // PBR平行光源
 float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0) {
+	float3 albedo, float metallic, float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
 	float3 L = normalize(-light.direction);
 	float NdotL = saturate(dot(N, L));
@@ -79,12 +79,12 @@ float3 EvaluatePBRDirectionalLight(DirectionalLight light, float3 N, float3 V,
 	float3 kD = (1.0f - F) * (1.0f - metallic);
 	float3 diffuse = kD * DisneyDiffuse(NdotL, NdotV, LdotH, roughness, albedo);
 
-	return (diffuse + specular) * NdotL * light.color.rgb * light.intensity;
+	return (diffuse * diffuseWeight + specular) * NdotL * light.color.rgb * light.intensity;
 }
 
 // PBR点光源
 float3 EvaluatePBRPointLight(PointLight light, float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0) {
+	float3 albedo, float metallic, float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
@@ -117,12 +117,12 @@ float3 EvaluatePBRPointLight(PointLight light, float3 worldPos, float3 N, float3
 	float3 kD = (1.0f - F) * (1.0f - metallic);
 	float3 diffuse = kD * DisneyDiffuse(NdotL, NdotV, LdotH, roughness, albedo);
 
-	return (diffuse + specular) * NdotL * light.color.rgb * light.intensity * attenuation;
+	return (diffuse * diffuseWeight + specular) * NdotL * light.color.rgb * light.intensity * attenuation;
 }
 
 // PBRスポットライト
 float3 EvaluatePBRSpotLight(SpotLight light, float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0) {
+	float3 albedo, float metallic, float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
@@ -164,12 +164,12 @@ float3 EvaluatePBRSpotLight(SpotLight light, float3 worldPos, float3 N, float3 V
 	float3 kD = (1.0f - F) * (1.0f - metallic);
 	float3 diffuse = kD * DisneyDiffuse(NdotL, NdotV, LdotH, roughness, albedo);
 
-	return (diffuse + specular) * NdotL * light.color.rgb * light.intensity * distanceAttenuation * coneAttenuation;
+	return (diffuse * diffuseWeight + specular) * NdotL * light.color.rgb * light.intensity * distanceAttenuation * coneAttenuation;
 }
 
 // PBR矩形面光源
 float3 EvaluatePBRRectLight(RectLight light, float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0) {
+	float3 albedo, float metallic, float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
 	float centerDistance = length(light.pos - worldPos);
 	float attenuation = ComputeDistanceAttenuation(
@@ -199,7 +199,7 @@ float3 EvaluatePBRRectLight(RectLight light, float3 worldPos, float3 N, float3 V
 		float3 radiance = light.color.rgb * light.intensity *
 			attenuation * barnAttenuation * sourceFacing;
 		result += EvaluatePBRRadiance(
-			N, V, L, radiance, albedo, metallic, roughness, F0);
+			N, V, L, radiance, albedo, metallic, roughness, F0, diffuseWeight);
 	}
 	return result / float(kRectLightSampleCount);
 }

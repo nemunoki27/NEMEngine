@@ -126,8 +126,9 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 			output.vertexHLSL = BuildMeshVertexSource(expandedGraph, surfaceIncludeFile, vertexContext);
 			ShaderGraphExpressionCompiler meshContext(expandedGraph, output);
 			output.meshHLSL = BuildMeshShaderSource(expandedGraph, surfaceIncludeFile, meshContext);
-		} else if (expandedGraph.target == ShaderGraphTarget::Primitive3D && expandedGraph.vertexOutputNode) {
+		} else if (expandedGraph.target == ShaderGraphTarget::Primitive3D) {
 
+			// 頂点出力がなくても標準Material定数を混ぜない
 			ShaderGraphExpressionCompiler vertexContext(expandedGraph, output);
 			output.vertexHLSL = BuildPrimitiveVertexSource(expandedGraph, surfaceIncludeFile, vertexContext);
 			ShaderGraphExpressionCompiler meshContext(expandedGraph, output);

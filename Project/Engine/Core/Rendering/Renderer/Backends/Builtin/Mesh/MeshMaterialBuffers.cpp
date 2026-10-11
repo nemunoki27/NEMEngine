@@ -42,6 +42,7 @@ void Engine::MeshMaterialBuffers::ReleaseSubMeshMaterialParamBuffer(
 	buffer.buffer.Release();
 	buffer.handles = {};
 	buffer.packedScratch.clear();
+	buffer.textureOwnerships.clear();
 	buffer.sourceGenerations.clear();
 	buffer.packedSourceGeneration = 0;
 	buffer.elementGenerations.clear();
@@ -79,6 +80,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	buffer.available = false;
 
 	bool usedFallbackTexture = false;
+	uint32_t ownershipElement = 0;
 
 	// Textureの用途に合わせてGPU番号を解決
 	auto resolveTexture = [&](MaterialParameterSemantic semantic,
@@ -87,6 +89,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 		const MaterialParameterBufferBuilder::TextureResolveResult result =
 			BackendDrawCommon::ResolveMaterialTextureIndex(drawContext, semantic, id);
 		usedFallbackTexture |= !result.cacheable;
+		if (result.ownership) buffer.textureOwnerships[ownershipElement].push_back(result.ownership);
 		return result;
 		};
 
@@ -110,10 +113,15 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 			buffer.packedScratch.assign(static_cast<size_t>(stride) * elementCount, 0);
 			buffer.sourceGenerations.assign(elementCount, 0);
 			buffer.elementGenerations.resize(elementCount);
+			buffer.textureOwnerships.clear();
+			buffer.textureOwnerships.resize(elementCount);
 		}
 		bool changed = false;
 		for (uint32_t i = 0; i < elementCount; ++i) {
 			if (!rebuildPacked && buffer.sourceGenerations[i] == generations[i]) { continue; }
+			// 変更した要素の所有だけを差し替える
+			ownershipElement = i;
+			buffer.textureOwnerships[i].clear();
 			const size_t offset = static_cast<size_t>(stride) * i;
 			// 小さい要素はスタック上で構築
 			std::array<uint8_t, 16> smallElement{};

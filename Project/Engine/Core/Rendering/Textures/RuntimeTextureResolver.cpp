@@ -267,7 +267,7 @@ namespace Engine::RuntimeTextureResolver {
 		if (const GPUTextureResource* texture =
 			uploadService.GetTexture(key)) {
 			if (texture->valid && texture->srvIndex != UINT32_MAX) {
-				return { texture->srvIndex, false };
+				return { texture->srvIndex, false, texture->ownership };
 			}
 		}
 		return { fallbackIndex, state != TextureRequestState::Failed };

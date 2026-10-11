@@ -152,7 +152,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	}
 
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-	if ((updateExposure && state.lastUpdatedFrame != frameSerial) || resetExposure) {
+	if (constants.postProcessEnabled != 0.0f && ((updateExposure && state.lastUpdatedFrame != frameSerial) || resetExposure)) {
 
 		if (!UpdateExposure(graphicsCore, context, *source,
 			assetLibrary, pipelineCache, state, constants, allocation.gpuAddress)) {
@@ -161,6 +161,8 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 		state.lastUpdatedFrame = frameSerial;
 		state.initialized = true;
 	}
+	// 再有効化時は古い自動露出を引き継がない
+	if (constants.postProcessEnabled == 0.0f) state.initialized = false;
 
 	const bool drawn = DrawToneMap(graphicsCore, *source, *dest,
 		assetLibrary, pipelineCache, state, allocation.gpuAddress, context);
@@ -292,6 +294,7 @@ Engine::ColorPipelineProcessor::BuildConstants(
 	constants.filmicShoulder = std::clamp(settings.filmic.shoulder, 0.0f, 1.0f);
 	constants.filmicBlackClip = std::clamp(settings.filmic.blackClip, 0.0f, 0.99f);
 	constants.filmicWhiteClip = std::clamp(settings.filmic.whiteClip, 0.0f, 0.99f);
+	constants.postProcessEnabled = context.postProcessCamera.valid && context.postProcessCamera.postProcessEnabled ? 1.0f : 0.0f;
 	constants.colorFilter = settings.colorGrading.colorFilter;
 	constants.whiteBalance = CalculateWhiteBalance(
 		settings.colorGrading.temperature, settings.colorGrading.tint);

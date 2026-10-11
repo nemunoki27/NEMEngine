@@ -35,6 +35,7 @@ Engine::TextureUploadService::~TextureUploadService() {
 void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 
 	Finalize();
+	InitCacheTracking(device);
 
 	srvDescriptor_ = srvDescriptor;
 
@@ -53,6 +54,8 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 }
 
 void Engine::TextureUploadService::TickFinalize() {
+
+	CollectUnusedTextures();
 
 	// 完了画像の転送をframeへ分散する
 	std::deque<CompletedRequest> jobs{};
@@ -115,6 +118,8 @@ void Engine::TextureUploadService::TickFinalize() {
 			continue;
 		}
 		try {
+			uploaded.ownership = std::make_shared<const uint8_t>(0);
+			textureAccessTimes_[job.key] = std::chrono::steady_clock::now();
 			// 名前の準備も差し替え前に完了する
 			uploaded.textureName = job.key;
 			uploaded.resource->SetName(Algorithm::ConvertString(job.key).c_str());
@@ -345,6 +350,7 @@ void Engine::TextureUploadService::Finalize() {
 		pendingUploads_.clear();
 		if (!readyTextures_.empty()) ++contentRevision_;
 		readyTextures_.clear();
+		textureAccessTimes_.clear();
 		queuedKeys_.clear();
 		failedKeys_.clear();
 		deferredReloadKeys_.clear();
@@ -353,6 +359,8 @@ void Engine::TextureUploadService::Finalize() {
 	}
 
 	uploader_.Finalize();
+	cacheAdapter_.Reset();
+	cacheCollectionTime_ = {};
 	srvDescriptor_ = nullptr;
 }
 
@@ -360,7 +368,14 @@ const Engine::GPUTextureResource* Engine::TextureUploadService::GetTexture(const
 
 	std::scoped_lock lock(mutex_);
 	auto it = readyTextures_.find(key);
+	if (it != readyTextures_.end()) textureAccessTimes_[key] = std::chrono::steady_clock::now();
 	return (it == readyTextures_.end()) ? nullptr : &it->second;
+}
+
+bool Engine::TextureUploadService::HasPendingRequests() const {
+
+	std::scoped_lock lock(mutex_);
+	return !queuedKeys_.empty() || !deferredReloadKeys_.empty();
 }
 
 Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::string& key) const {
@@ -379,6 +394,7 @@ Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::st
 	}
 	return TextureRequestState::None;
 }
+
 
 void Engine::TextureUploadService::DecodeTextureWorker(DecodeRequest&& request, uint32_t workerIndex) {
 

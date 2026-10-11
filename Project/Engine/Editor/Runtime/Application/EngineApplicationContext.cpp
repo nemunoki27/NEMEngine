@@ -17,6 +17,11 @@ using namespace Engine;
 
 void Engine::EngineApplication::RefreshActiveWorldContext() {
 
+	// PlayやPrefabへ移った時点で編集Sceneの読込要求を取り消す
+	if (worldManager_.IsPlaying() || IsPrefabEditing()) {
+		pendingSceneAsset_ = {};
+		nextSceneAsset_ = {};
+	}
 	if constexpr (BuildConfig::kEditorEnabled) {
 		std::vector<AssetID> protectedAssets;
 		for (const auto& scene : editScenes_.GetAll()) {

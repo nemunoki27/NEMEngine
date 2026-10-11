@@ -37,10 +37,16 @@ Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout
 	layout.defaultData.resize((std::max)(layout.stride, 16u), 0);
 	if (defaults) {
 		MaterialParameterLayout parameterLayout{};
+		const auto retainTexture = [&](MaterialParameterSemantic semantic, const AssetID& id) {
+
+			auto result = resolveTexture ? resolveTexture(semantic, id) : MaterialParameterBufferBuilder::TextureResolveResult{};
+			if (result.ownership) layout.textureOwnerships.push_back(result.ownership);
+			return result;
+		};
 		parameterLayout.Build(reflection, "gParticleCustomParameters");
 		MaterialParameterBufferBuilder::BuildElementInto(
 			layout.defaultData, *defaults, {}, parameterLayout,
-			resolveTexture);
+			retainTexture);
 	}
 	layout.defaultData.resize(layout.stride);
 	return layout;

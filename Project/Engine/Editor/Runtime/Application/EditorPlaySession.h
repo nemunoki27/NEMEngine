@@ -58,6 +58,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		bool IsPaused() const { return playPaused_; }
+		bool IsStarting() const { return pendingPlayStart_ || waitingForSceneSave_; }
 		bool IsFrameStepRequested() const { return playFrameStepRequested_; }
 		void FinishFrameStep() { playFrameStepRequested_ = false; }
 		void SetJustStarted() { playWorldJustStarted_ = true; }

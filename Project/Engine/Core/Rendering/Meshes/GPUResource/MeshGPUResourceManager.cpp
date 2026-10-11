@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // c++
 #include <algorithm>
@@ -40,6 +41,7 @@ void Engine::MeshGPUResourceManager::Init(ID3D12Device* device, BufferUploadServ
 	device_ = device;
 	srvDescriptor_ = &descriptors;
 	uploadService_ = &uploads;
+	cacheAdapter_ = DxUtils::FindDeviceAdapter(device);
 
 	// メッシュインポートサービスの初期化
 	importService_.Init(4);
@@ -63,13 +65,17 @@ void Engine::MeshGPUResourceManager::Finalize() {
 			++resourceRevision_;
 		}
 		gpuMeshes_.clear();
+		meshAccessTimes_.clear();
 		requested_.clear();
 		requestRevisions_.clear();
+		layoutReloadRevisions_.clear();
 	}
 	device_ = nullptr;
 	srvDescriptor_ = nullptr;
 	uploadService_ = nullptr;
 	assetDatabase_ = nullptr;
+	cacheAdapter_.Reset();
+	cacheCollectionTime_ = {};
 	initialized_ = false;
 }
 
@@ -82,6 +88,7 @@ void Engine::MeshGPUResourceManager::BeginFrame(GraphicsCore& graphicsCore) {
 
 		Init(graphicsCore);
 	}
+	CollectUnusedMeshes();
 }
 
 void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, AssetID meshAssetID) {
@@ -94,6 +101,7 @@ void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, A
 	}
 
 	std::scoped_lock lock(mutex_);
+	meshAccessTimes_[meshAssetID] = std::chrono::steady_clock::now();
 	if (gpuMeshes_.contains(meshAssetID) || requested_.contains(meshAssetID)) {
 		return;
 	}
@@ -112,6 +120,8 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 		return;
 	}
 	BeginRequest(meshAssetID);
+	// 内容の再読込とGPU Cacheの再生成を区別する
+	layoutReloadRevisions_[meshAssetID] = requestRevisions_.at(meshAssetID);
 }
 
 void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) {
@@ -178,6 +188,7 @@ const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID mesh
 	if (it == gpuMeshes_.end()) {
 		return nullptr;
 	}
+	meshAccessTimes_[meshAssetID] = std::chrono::steady_clock::now();
 	return &it->second;
 }
 
@@ -218,7 +229,9 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 	}
 
 	MeshGPUResource old{};
+	mesh.ownership = std::make_shared<const uint8_t>(0);
 	bool retireOld = false;
+	bool reloadLayout = false;
 	// 成功した候補を公開してから旧GPU資源を回収へ渡す
 	{
 		std::scoped_lock lock(mutex_);
@@ -232,6 +245,7 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 			throw std::overflow_error("Meshの公開世代が上限に達しました");
 		}
 		mesh.reloadGeneration = generation + 1;
+		meshAccessTimes_[imported.assetID] = std::chrono::steady_clock::now();
 		if (it == gpuMeshes_.end()) {
 			gpuMeshes_.emplace(imported.assetID, std::move(mesh));
 		} else {
@@ -241,12 +255,68 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		}
 		++generation;
 		++resourceRevision_;
+		const auto layoutReload = layoutReloadRevisions_.find(imported.assetID);
+		reloadLayout = layoutReload != layoutReloadRevisions_.end() && layoutReload->second == revision;
 	}
 	if (retireOld) {
 		ReleaseMeshResource(old);
 	}
-	// GPU公開に成功した世代だけ編集layoutの解析を失効させる
-	MeshSubMeshAuthoring::InvalidateCachedLayout(imported.assetID);
+	// 未使用Meshの再転送では編集layoutを解析し直さない
+	if (reloadLayout) MeshSubMeshAuthoring::InvalidateCachedLayout(imported.assetID);
+}
+
+void Engine::MeshGPUResourceManager::CollectUnusedMeshes() {
+
+	const auto now = std::chrono::steady_clock::now();
+	if (!cacheAdapter_ || now - cacheCollectionTime_ < std::chrono::seconds(1)) return;
+	cacheCollectionTime_ = now;
+	DXGI_QUERY_VIDEO_MEMORY_INFO memory{};
+	if (FAILED(cacheAdapter_->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memory)) ||
+		memory.Budget == 0 || double(memory.CurrentUsage) <= double(memory.Budget) * 0.8) return;
+	std::scoped_lock lock(mutex_);
+	std::vector<AssetID> unused;
+	// 描画とTLASが参照する形状は回収しない
+	for (const auto& [id, mesh] : gpuMeshes_) {
+
+		if (requested_.contains(id) || !mesh.ownership || mesh.ownership.use_count() != 1) continue;
+		const auto access = meshAccessTimes_.find(id);
+		if (access != meshAccessTimes_.end() && now - access->second >= std::chrono::seconds(5)) unused.push_back(id);
+	}
+	std::sort(unused.begin(), unused.end(), [&](AssetID left, AssetID right) {
+		return meshAccessTimes_.at(left) < meshAccessTimes_.at(right);
+	});
+	uint64_t releasedBytes = 0;
+	for (AssetID id : unused) {
+
+		auto found = gpuMeshes_.find(id);
+		auto& mesh = found->second;
+		const auto allocation = [&](const auto& handle) {
+
+			if (!handle.buffer) return uint64_t(0);
+			const auto description = handle.buffer->GetResource()->GetDesc();
+			return device_->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;
+		};
+		releasedBytes += allocation(mesh.vertexSRV) + allocation(mesh.packedVertexSRV) + allocation(mesh.indexSRV) +
+			allocation(mesh.vertexSubMeshIndexSRV) + allocation(mesh.primitiveSubMeshIndexSRV) + allocation(mesh.meshletDrawSRV) +
+			allocation(mesh.meshletBoundsSRV) + allocation(mesh.meshletVertexIndexSRV) + allocation(mesh.packedMeshletVertexIndexSRV) +
+			allocation(mesh.meshletPrimitiveIndexSRV) + allocation(mesh.skinInfluenceSRV);
+		if (mesh.indexBuffer.GetResource()) {
+
+			const auto description = mesh.indexBuffer.GetResource()->GetDesc();
+			releasedBytes += device_->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;
+		}
+		// BufferとDescriptorは既存のFence回収へ渡す
+		ReleaseMeshResource(mesh);
+		gpuMeshes_.erase(found);
+		meshAccessTimes_.erase(id);
+		++resourceRevision_;
+		if (double(memory.CurrentUsage) - double(releasedBytes) <= double(memory.Budget) * 0.7) break;
+	}
+	if (releasedBytes > 0) {
+
+		Logger::Output(LogType::Engine, "[MeshCache] 未使用形状を回収しました bytes={} usage={} budget={}",
+			releasedBytes, memory.CurrentUsage, memory.Budget);
+	}
 }
 
 void Engine::MeshGPUResourceManager::BeginRequest(AssetID asset) {
@@ -289,5 +359,7 @@ void Engine::MeshGPUResourceManager::CompleteRequest(AssetID asset, uint64_t rev
 	const uint64_t latest = requestRevisions_.at(asset);
 	if (latest != revision) {
 		QueueLatestRequest(asset, latest);
+	} else {
+		layoutReloadRevisions_.erase(asset);
 	}
 }

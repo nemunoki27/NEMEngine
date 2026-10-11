@@ -69,6 +69,11 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		if (!material || !pipelineVariant) {
 			continue;
 		}
+		// 反射で参照するCamera出力を保持する
+		CollectRenderTextureParameters(material->parameters, work.assetDatabase, renderTextureInputs_);
+		if (src.materialInstance) {
+			CollectRenderTextureParameters(*src.materialInstance, work.assetDatabase, renderTextureInputs_);
+		}
 		++work.blasGeometryCount;
 
 		PrimitiveGeometry* geometry = work.primitiveGeometryManager->GetOrCreate(work.graphicsCore, renderer);

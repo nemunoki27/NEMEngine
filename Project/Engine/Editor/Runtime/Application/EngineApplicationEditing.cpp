@@ -10,8 +10,58 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+
+// c++
+#include <chrono>
+#include <utility>
+#include <unordered_set>
 
 using namespace Engine;
+
+namespace {
+
+	struct SceneAssetPreparation {
+
+		AssetType type;
+		std::filesystem::path path;
+		uint64_t contentRevision = 0;
+	};
+
+	bool PrepareAssetReferences(const nlohmann::json& node,
+		const std::unordered_map<AssetID, SceneAssetPreparation>& assets, std::weak_ptr<const uint8_t> lifetime,
+		std::unordered_set<AssetID>& prepared) {
+
+		if (node.is_string()) {
+
+			const auto& value = node.get_ref<const std::string&>();
+			if (value.size() != 32u) return true;
+			const AssetID id = FromString32Hex(value);
+			const auto asset = assets.find(id);
+			if (asset == assets.end() || !prepared.insert(id).second) return true;
+			if (asset->second.type == AssetType::Mesh) {
+
+				// 欠損モデルはScene読込側で診断する
+				if (std::filesystem::exists(asset->second.path)) {
+					MeshSubMeshAuthoring::PrepareSourceLayout(lifetime, id, asset->second.path, asset->second.contentRevision);
+				}
+				return true;
+			}
+			nlohmann::json prefab;
+			// 未解決のPrefab参照だけでScene準備を中止しない
+			if (!JsonFile::TryLoad(asset->second.path, prefab)) return true;
+			return PrepareAssetReferences(prefab, assets, lifetime, prepared);
+		}
+		// SceneとPrefabの保存参照からモデルだけを準備する
+		if (node.is_structured()) {
+			for (const auto& child : node) {
+				if (!PrepareAssetReferences(child, assets, lifetime, prepared)) return false;
+			}
+		}
+		return true;
+	}
+}
 
 void Engine::EngineApplication::HandleEditorSceneRequests() {
 
@@ -39,6 +89,7 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 		// EditorManagerに溜まっているシーン操作要求を1件取り出す
 		EditorSceneRequest request = editorManager_.ConsumeSceneRequest();
 		if (request.type == EditorSceneRequestType::None) {
+			CompletePendingSceneRead();
 			return;
 		}
 		// Play中はEditWorldを書き換えない
@@ -55,7 +106,7 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			break;
 		case EditorSceneRequestType::OpenScene:
 			// Project上の既存シーンを開く
-			OpenEditScene(request.sceneAsset);
+			QueueEditScene(request.sceneAsset);
 			break;
 		case EditorSceneRequestType::SaveScene:
 			// 現在のEditシーンを保存する
@@ -145,7 +196,7 @@ void Engine::EngineApplication::CompleteSceneSaveRequest(
 		if (remaining) {
 			editorManager_.RequestOpenScene(request.sceneAsset);
 		} else {
-			OpenEditScene(request.sceneAsset);
+			QueueEditScene(request.sceneAsset);
 		}
 		break;
 	case EditorSceneSaveAction::Close:
@@ -165,6 +216,9 @@ bool Engine::EngineApplication::CreateNewEditScene() {
 	if (!WaitForSceneSave()) {
 		return false;
 	}
+	// 新規Sceneへ古い読込要求を持ち越さない
+	pendingSceneAsset_ = {};
+	nextSceneAsset_ = {};
 	EditorSceneOperationContext context{ assetDatabase_, editScenes_, sceneSystem_, worldManager_, scheduler_,
 		systemContext_, editorManager_, activeScene_, activeScenePath_, requestFrameDeltaReset_ };
 	return EditorSceneOperations::CreateNewEditScene(context);
@@ -178,6 +232,74 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 	EditorSceneOperationContext context{ assetDatabase_, editScenes_, sceneSystem_, worldManager_, scheduler_,
 		systemContext_, editorManager_, activeScene_, activeScenePath_, requestFrameDeltaReset_ };
 	return EditorSceneOperations::OpenEditScene(context, sceneAsset);
+}
+
+void Engine::EngineApplication::QueueEditScene(AssetID asset) {
+
+	if (pendingSceneRead_.valid()) {
+		// 準備中の要求は破棄せず、最新の要求へ置き換える
+		nextSceneAsset_ = asset;
+		return;
+	}
+	if (!WaitForSceneSave()) return;
+	std::unordered_map<AssetID, std::filesystem::path> paths;
+	std::unordered_map<AssetID, SceneAssetPreparation> assets;
+	for (const auto& [id, meta] : assetDatabase_.GetAssets()) {
+		if (meta.type == AssetType::Scene) paths.emplace(id, assetDatabase_.ResolveFullPath(id));
+		if (meta.type == AssetType::Mesh || meta.type == AssetType::Prefab) {
+			assets.emplace(id, SceneAssetPreparation{ meta.type, assetDatabase_.ResolveFullPath(id), assetDatabase_.GetContentRevision(id) });
+		}
+	}
+	if (!paths.contains(asset)) return;
+	pendingSceneAsset_ = asset;
+	pendingSceneRevision_ = editScenes_.GetRevision();
+	pendingSceneDirtyRevisions_.clear();
+	for (const auto& scene : editScenes_.GetAll()) {
+		pendingSceneDirtyRevisions_[scene.instanceID] = editorManager_.GetSceneDirtyRevision(scene.sceneAsset, scene.instanceID);
+	}
+	// AssetDatabaseとWorldはWorkerへ貸し出さない
+	pendingSceneRead_ = std::async(std::launch::async, [system = sceneSystem_, asset, paths = std::move(paths),
+		assets = std::move(assets), lifetime = assetDatabase_.GetCacheLifetime()] {
+
+		std::unordered_set<AssetID> prepared;
+		return system.PrepareSceneDocuments(asset, paths, [&](const nlohmann::json& document) {
+			return PrepareAssetReferences(document, assets, lifetime, prepared);
+		});
+	});
+}
+
+void Engine::EngineApplication::CompletePendingSceneRead() {
+
+	// 終了確認を取り消した後も古いScene要求を復帰させない
+	if (closeRequestPending_ || shutdownAccepted_) {
+		pendingSceneAsset_ = {};
+		nextSceneAsset_ = {};
+	}
+	if (!pendingSceneRead_.valid() || pendingSceneRead_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+	bool prepared = false;
+	try {
+		prepared = pendingSceneRead_.get();
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] Sceneの準備に失敗しました 詳細={}", error.what());
+	}
+	const AssetID asset = std::exchange(pendingSceneAsset_, {});
+	const AssetID next = std::exchange(nextSceneAsset_, {});
+	// Play開始と終了操作で待機中の要求も取り消す
+	if (worldManager_.IsPlaying() || IsPrefabEditing() || closeRequestPending_ || shutdownAccepted_) return;
+	if (next) {
+		QueueEditScene(next);
+		return;
+	}
+	// Play開始やScene変更後へ古い要求を適用しない
+	if (!prepared || !asset || editScenes_.GetRevision() != pendingSceneRevision_) return;
+	for (const auto& scene : editScenes_.GetAll()) {
+		// 読込待ちの間に追加した編集を破棄しない
+		if (pendingSceneDirtyRevisions_.at(scene.instanceID) != editorManager_.GetSceneDirtyRevision(scene.sceneAsset, scene.instanceID)) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[SceneSystem] 読込待ちの間にSceneが編集されたため切替を中止しました");
+			return;
+		}
+	}
+	OpenEditScene(asset);
 }
 
 void Engine::EngineApplication::RestoreEditModeUIVisuals() {

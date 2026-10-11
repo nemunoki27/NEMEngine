@@ -59,6 +59,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		if (meshResource->subMeshes.empty()) {
 			continue;
 		}
+		// TLASが参照する頂点とIndexの所有を保持する
+		buildingMeshOwnerships_.push_back(meshResource->ownership);
 		const std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) : std::span<const SubMeshMaterial>{};
 		uint32_t visibleSubMeshCount = 0;
@@ -247,6 +249,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				const auto& authoring = subMeshes[subMeshIndex];
 				// 標準Parameterから反射用のMaterial値を設定
 				const auto& params = authoring.materialInstance;
+				CollectRenderTextureParameters(params, work.assetDatabase, renderTextureInputs_);
 				auto findColor = [&](MaterialParameterID id, const Color4& fallback) -> Color4 {
 					const MaterialParameterValue* value = params.Find(id);
 					return value && std::holds_alternative<Color4>(value->value) ? std::get<Color4>(value->value) : fallback;
@@ -387,6 +390,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				key.reloadGeneration = reloadGeneration;
 				key.lodIndex = lodIndex;
 				key.geometryLayoutHash = geometryLayoutHash;
+				blasCache_.sharedBLASFrames_[key] = GraphicsFrameState::GetFrameSerial();
+				publishedBLASKeys_.push_back(key);
 
 				auto blasIt = blasCache_.blases_.find(key);
 				if (blasIt != blasCache_.blases_.end() && blasIt->second.IsBuilt()) {

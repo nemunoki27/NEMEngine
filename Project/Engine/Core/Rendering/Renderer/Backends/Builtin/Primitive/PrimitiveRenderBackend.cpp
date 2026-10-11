@@ -206,24 +206,7 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 				renderFlags,
 				payload->renderer->renderingLayerMask);
 		}
-		if (payload->renderer && payload->renderer->type == PrimitiveType::Ring) {
-
-			const PrimitiveRingParams& ring = payload->renderer->ring;
-			instance.shapeParams0 = Vector4(
-				ring.outerRadius, ring.innerRadius, ring.startAngle, ring.endAngle - ring.startAngle);
-			instance.shapeParams1.z = 1.0f;
-		}
-		if (payload->renderer && payload->renderer->type == PrimitiveType::Cylinder) {
-
-			const PrimitiveCylinderParams& cylinder = payload->renderer->cylinder;
-			instance.shapeParams0 = Vector4(
-				cylinder.topRadius, cylinder.centerRadius, cylinder.bottomRadius, cylinder.height);
-			instance.shapeParams1 = Vector4(
-				cylinder.topRadiusWeight, cylinder.bottomRadiusWeight, 0.0f, 1.0f);
-			instance.topColor = cylinder.topColor;
-			instance.centerColor = cylinder.centerColor;
-			instance.bottomColor = cylinder.bottomColor;
-		}
+		if (payload->renderer) ApplyPrimitiveShapeToInstance(*payload->renderer, instance);
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Plane &&
 			IsPrimitiveScreen2D(*payload->renderer)) {
 

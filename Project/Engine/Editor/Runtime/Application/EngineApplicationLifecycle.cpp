@@ -171,6 +171,14 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 void Engine::EngineApplication::Finalize() {
 
+	// 文書準備の完了後に保存管理を終了する
+	if (pendingSceneRead_.valid()) {
+		pendingSceneRead_.wait();
+		pendingSceneRead_ = {};
+	}
+	pendingSceneAsset_ = {};
+	nextSceneAsset_ = {};
+
 	// 保存と切替の前にSceneプレビューを戻す
 	EditorToolUI::EndScenePreviews();
 

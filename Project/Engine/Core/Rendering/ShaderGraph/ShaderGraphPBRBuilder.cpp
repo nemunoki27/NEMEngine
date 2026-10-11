@@ -61,6 +61,9 @@ ShaderGraphAsset ShaderGraphPBRBuilder::Build(
 	builder.Begin("切り抜き");
 	builder.Link(builder.Constant(1.0f), output, 6);
 	builder.Link(builder.Parameter("alphaClip", Type::Float, {.value = 0.0f}), output, 7);
+	builder.Begin("透過");
+	builder.Link(builder.Parameter("transmission", Type::Float, {.value = 0.0f}), output, 8);
+	builder.Link(builder.Parameter("transmissionColor", Type::Color, {.value = Color4(1, 1, 1, 1)}), output, 9);
 	// 取り込めない設定が残っていないか確認
 	for (const auto& item : material.parameters) {
 		Require(builder.consumed_.contains(item.first) ||

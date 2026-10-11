@@ -82,7 +82,7 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tmaterial.ao = graph.ambientOcclusion;\n"
 					  "\tmaterial.emissive = graph.emissive;\n"
 					  "\tTransparentPSOutput output;\n"
-					  "\toutput.color = float4(EvaluateMeshSurfaceLighting(input, material), alpha);\n"
+					  "\toutput.color = float4(EvaluateMeshSurfaceLighting(input, material, graph.transmission), alpha);\n"
 					  "\treturn output;\n"
 					  "}\n";
 		}

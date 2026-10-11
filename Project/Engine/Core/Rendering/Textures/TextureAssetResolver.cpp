@@ -130,6 +130,8 @@ const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolv
 
 void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullPath) {
 
+	alphaAnalysis_.Clear();
+
 	candidatesByStem_.clear();
 	modelDirectory_.clear();
 	preferredFolder_.clear();
@@ -286,4 +288,9 @@ std::filesystem::path Engine::TextureAssetResolver::ResolveNormalPath(
 	}
 
 	return {};
+}
+
+Engine::TextureAlphaContent Engine::TextureAssetResolver::AnalyzeAlpha(const std::string& reference) const {
+
+	return alphaAnalysis_.Analyze(ResolveFilePath(reference));
 }

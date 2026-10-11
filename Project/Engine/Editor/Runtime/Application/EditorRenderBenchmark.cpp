@@ -8,9 +8,14 @@
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 #include <Externals/DirectXTex/DirectXTex.h>
 
@@ -27,15 +32,49 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 
 	features_ = &graphicsCore.GetDXObject().GetFeatureController();
 	originalMeshShader_ = features_->GetPreferences().allowMeshShader;
+	// 短い確認は性能比較と区別して記録
+	wchar_t quick[2]{};
+	quickCheck_ = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_QUICK", quick, 2) == 1 && quick[0] == L'1';
+	// Debug Layerの停止前に原因をログへ残す
+	if (SUCCEEDED(graphicsCore.GetDXObject().GetDevice()->QueryInterface(IID_PPV_ARGS(&diagnostics_)))) {
+
+		diagnostics_->RegisterMessageCallback([](D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity,
+			D3D12_MESSAGE_ID id, LPCSTR text, void*) {
+
+			if (severity > D3D12_MESSAGE_SEVERITY_ERROR) return;
+			Logger::Output(LogType::Engine, spdlog::level::err, "D3D12 ERROR id={} {}", static_cast<uint32_t>(id), text);
+		}, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &diagnosticsCookie_);
+	}
 	application_->Init(graphicsCore);
+	// 長時間確認とScene反復は専用プロセスだけで行う
+	wchar_t setting[32]{};
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_PHASE_COUNT", setting, 32) > 0u) {
+		phaseCount_ = static_cast<uint32_t>(std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 128ul));
+	}
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_HOLD_SECONDS", setting, 32) > 0u) {
+		holdSeconds_ = static_cast<uint32_t>(std::min(std::wcstoul(setting, nullptr, 10), 3600ul));
+	}
+	const auto scenes = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_SCENES");
+	if (!scenes.empty()) {
+
+		sceneSequence_ = JsonFile::Load(scenes, false);
+		if (!sceneSequence_.is_array() || sceneSequence_.empty()) throw std::runtime_error("Scene反復の指定が不正です");
+	}
 	wchar_t freeze[2]{};
 	freezeAnimation_ = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_FREEZE", freeze, 2) == 1 && freeze[0] == L'1';
 	// 入力とウィンドウ移動による条件変化を避ける
 	ShowWindow(WinApp::GetHwnd(), SW_HIDE);
 	const auto& settings = graphicsCore.GetContext().GetWindowSetting();
+	bool gpuValidation = false;
+#if defined(_DEBUG)
+	gpuValidation = quick[0] == L'1';
+#endif
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
 		{ "freezeAnimation", freezeAnimation_ },
+		{ "comparison", sceneSequence_.empty() ? "MeshShader" : "SceneSwitch" },
+		{ "quickCheck", quickCheck_ }, { "gpuValidation", gpuValidation },
+		{ "phaseCount", phaseCount_ }, { "holdSeconds", holdSeconds_ }, { "sceneSequence", sceneSequence_ },
 		{ "cpuSamples", "FrameProfiler rolling category averages" },
 		{ "gpuSamples", "latest completed GPU frame, no additional wait" },
 		{ "phases", nlohmann::json::array() } };
@@ -44,8 +83,21 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 
 void Engine::EditorRenderBenchmark::BeginPhase() {
 
-	// ON→OFF→ONでキャッシュと熱状態の片寄りも確認する
-	features_->SetAllowMeshShader(phase_ != 1);
+	if (!sceneSequence_.empty()) {
+
+		const std::string path = sceneSequence_[phase_ % sceneSequence_.size()].get<std::string>();
+		const auto* meta = application_->assetDatabase_.FindByPath(path);
+		if (!meta) throw std::runtime_error("反復対象のSceneがありません: " + path);
+		sceneReadStarted_ = std::chrono::steady_clock::now();
+		scenePreparationMaxTickMs_ = 0.0;
+		application_->QueueEditScene(meta->guid);
+		if (!application_->pendingSceneRead_.valid()) throw std::runtime_error("Sceneの準備を開始できません: " + path);
+		sceneReadPending_ = true;
+		report_["cameraMotionOrigins"] = nlohmann::json::object();
+	}
+
+	// 同じSceneで機能の切替前後を計測
+	features_->SetAllowMeshShader(sceneSequence_.empty() ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
 	phaseStarted_ = std::chrono::steady_clock::now();
@@ -55,8 +107,50 @@ void Engine::EditorRenderBenchmark::BeginPhase() {
 
 void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float deltaTime) {
 
+	// 移動確認は隔離したEditorのGame Cameraだけへ適用
+	wchar_t motion[2]{};
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_CAMERA_MOTION", motion, 2) == 1 && motion[0] == L'1') {
+		if (auto* world = application_->GetActiveWorld()) {
+			world->ForEach<PerspectiveCameraComponent, TransformComponent>([&](Entity entity,
+				PerspectiveCameraComponent& camera, TransformComponent& transform) {
+
+				if (!camera.common.enabled) return;
+				const std::string key = std::to_string(entity.index);
+				auto& origins = report_["cameraMotionOrigins"];
+				if (!origins.contains(key)) origins[key] = transform.localPos.x;
+				const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - phaseStarted_).count();
+				transform.localPos.x = origins[key].get<float>() + (phase_ == 1u ? 0.5f * std::sin(float(seconds) * 1.5f) : 0.0f);
+				MarkTransformSubtreeDirty(*world, entity);
+			});
+		}
+	}
+	const auto tickStarted = std::chrono::steady_clock::now();
+	const bool preparingScene = sceneReadPending_ && application_->pendingSceneRead_.valid() &&
+		application_->pendingSceneRead_.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
 	application_->Tick(graphicsCore, freezeAnimation_ ? 0.0f : deltaTime);
-	if (phase_ >= 3) {
+	if (sceneReadPending_) {
+
+		const double tickMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tickStarted).count();
+		if (preparingScene) scenePreparationMaxTickMs_ = (std::max)(scenePreparationMaxTickMs_, tickMs);
+		if (application_->pendingSceneRead_.valid()) return;
+		const std::string path = sceneSequence_[phase_ % sceneSequence_.size()].get<std::string>();
+		const auto* meta = application_->assetDatabase_.FindByPath(path);
+		if (!meta || application_->activeScene_ != meta->guid) throw std::runtime_error("Sceneの非同期切替に失敗しました: " + path);
+		report_["sceneLoads"].push_back({ { "phase", phase_ }, { "path", path },
+			{ "seconds", std::chrono::duration<double>(std::chrono::steady_clock::now() - sceneReadStarted_).count() },
+			{ "preparationMaxTickMs", scenePreparationMaxTickMs_ }, { "commitTickMs", tickMs } });
+		sceneReadPending_ = false;
+		phaseStarted_ = std::chrono::steady_clock::now();
+	}
+	if (phase_ >= phaseCount_) {
+		return;
+	}
+	// Meshと画像のGPU公開が終わってから安定待ちを始める
+	if (!application_->AreSceneMeshesReady() || graphicsCore.GetTextureUploadService().HasPendingRequests()) {
+
+		warmFrames_ = 0;
+		frames_ = nlohmann::json::array();
+		phaseStarted_ = std::chrono::steady_clock::now();
 		return;
 	}
 	const uint64_t revision = graphicsCore.GetTextureUploadService().GetContentRevision();
@@ -64,14 +158,18 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		textureRevision_ = revision;
 		warmFrames_ = 0;
 		frames_ = nlohmann::json::array();
+		phaseStarted_ = std::chrono::steady_clock::now();
 	}
 	const auto elapsed = std::chrono::steady_clock::now() - phaseStarted_;
-	// 読込後180フレームと開始後30秒を計測対象から外す
-	if (++warmFrames_ <= 180 || elapsed < std::chrono::seconds(30)) {
+	// 読込後の安定待ちを計測対象から外す
+	if (++warmFrames_ <= (quickCheck_ ? 30u : 180u) || elapsed < std::chrono::seconds(quickCheck_ ? 5 : 30)) {
 		return;
 	}
 	auto& profiler = FrameProfiler::GetInstance();
+	const double seconds = std::chrono::duration<double>(elapsed).count();
+	if (holdSeconds_ > 0u && !frames_.empty() && seconds - frames_.back().at("elapsedSeconds").get<double>() < 1.0) return;
 	nlohmann::json sample = { { "frameMs", deltaTime * 1000.0f },
+		{ "elapsedSeconds", seconds },
 		{ "updateMs", profiler.GetAverageMs(FrameProfiler::Category::Update) },
 		{ "drawMs", profiler.GetAverageMs(FrameProfiler::Category::Draw) },
 		{ "gpuWaitMs", profiler.GetAverageMs(FrameProfiler::Category::GPUWait) },
@@ -80,11 +178,42 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		{ "meshTransferBytes", profiler.GetRenderingStatistics().meshTransferBytes },
 		{ "gpuValid", profiler.HasGPUData() }, { "gpuMs", profiler.GetGPUTotalMs() },
 		{ "passes", nlohmann::json::array() } };
+	// 描画時間とGPUメモリの圧迫を対応付ける
+	auto& platform = graphicsCore.GetDXObject();
+	Microsoft::WRL::ComPtr<IDXGIAdapter3> adapter;
+	DXGI_QUERY_VIDEO_MEMORY_INFO memory{};
+	const bool memoryValid = SUCCEEDED(platform.GetDxgiFactory()->EnumAdapterByLuid(
+		platform.GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter))) &&
+		SUCCEEDED(adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &memory));
+	sample["gpuMemoryValid"] = memoryValid;
+	sample["gpuMemoryUsage"] = memory.CurrentUsage;
+	sample["gpuMemoryBudget"] = memory.Budget;
+	sample["retirementPending"] = platform.GetResourceRetirement().GetPendingCount();
+	sample["srvDescriptors"] = graphicsCore.GetSRVDescriptor().GetUseDescriptorCount();
+	const auto& rendering = profiler.GetRenderingStatistics();
+	sample["blasGeometries"] = rendering.blasGeometryCount;
+	sample["tlasInstances"] = rendering.tlasInstanceCount;
+	sample["blasBuilds"] = rendering.blasBuildCount;
+	sample["tlasBuilds"] = rendering.tlasBuildCount;
+	sample["tlasRefits"] = rendering.tlasRefitCount;
+	sample["tlasSkips"] = rendering.tlasSkipCount;
+	if (const auto* world = application_->GetActiveWorld()) {
+		sample["entityRecords"] = world->GetRecordCount();
+		sample["archetypes"] = world->GetArchetypeCount();
+	}
+	if (frames_.empty()) {
+
+		const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics(platform.GetDevice());
+		sample["textures"] = { { "count", textures.textureCount }, { "allocationBytes", textures.allocationBytes },
+			{ "queuedCount", textures.queuedCount }, { "decodedBytes", textures.decodedBytes } };
+	}
 	for (const auto& pass : profiler.GetGPUPassTimes()) {
-		sample["passes"].push_back({ { "name", pass.name }, { "ms", pass.milliseconds } });
+		sample["passes"].push_back({ { "name", pass.name }, { "ms", pass.milliseconds },
+			{ "viewID", pass.viewID }, { "frameID", pass.frameID } });
 	}
 	frames_.push_back(std::move(sample));
-	if (frames_.size() == 180) {
+	if ((holdSeconds_ == 0u && frames_.size() == (quickCheck_ ? 30u : 180u)) ||
+		(holdSeconds_ > 0u && seconds >= 30.0 + double(holdSeconds_))) {
 		FinishPhase(graphicsCore);
 	}
 }
@@ -98,12 +227,13 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 		throw std::runtime_error("描画比較に有効なGPU計測がありません");
 	}
 	report_["phases"].push_back({ { "phase", phase_ },
-		{ "meshShader", features_->ShouldUseMeshShader() }, { "frames", std::move(frames_) } });
+		{ "meshShader", features_->ShouldUseMeshShader() },
+		{ "frames", std::move(frames_) } });
 	if (!JsonFile::Save(output_, report_)) {
 		throw std::runtime_error("描画比較結果を保存できません");
 	}
-	CaptureViews(graphicsCore);
-	if (++phase_ < 3) {
+	if (sceneSequence_.empty() || phase_ == 0u || phase_ + 1u == phaseCount_) CaptureViews(graphicsCore);
+	if (++phase_ < phaseCount_) {
 		BeginPhase();
 	} else {
 		// 確認専用プロセスを通常の終了処理へ進める
@@ -116,7 +246,8 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 	// 画像の読戻し待機は計測区間の外へ置く
 	for (const auto kind : { RenderViewKind::Game, RenderViewKind::Scene }) {
 		for (const char* attachment : { "", RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
-			RenderTargetNames::kScenePositionMain, RenderTargetNames::kSceneMaterialMain }) {
+			RenderTargetNames::kScenePositionMain, RenderTargetNames::kSceneMaterialMain,
+			RenderTargetNames::kSceneColorFinal, ViewportRenderService::GetPrimaryColorName(kind) }) {
 			const auto* texture = application_->GetRenderedViewTexture(kind, attachment);
 			if (!texture || !texture->IsValid()) {
 				continue;
@@ -143,8 +274,8 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 				DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str()))) {
 				throw std::runtime_error("Viewの画像保存に失敗しました");
 			}
-			if (*attachment) {
-				// 法線と座標は丸めずに数値比較できる形式でも残す
+			{
+				// 照明結果とGBufferを丸めずに比較用へ残す
 				auto dataPath = path;
 				dataPath.replace_extension(".dds");
 				if (FAILED(DirectX::SaveToDDSFile(captured.GetImages(), captured.GetImageCount(), captured.GetMetadata(),
@@ -172,6 +303,8 @@ void Engine::EditorRenderBenchmark::Finalize() {
 		features_->SetAllowMeshShader(originalMeshShader_);
 	}
 	application_->Finalize();
+	if (diagnostics_) diagnostics_->UnregisterMessageCallback(diagnosticsCookie_);
+	diagnostics_.Reset();
 }
 
 bool Engine::EditorRenderBenchmark::ConsumeFrameDeltaResetRequest() {

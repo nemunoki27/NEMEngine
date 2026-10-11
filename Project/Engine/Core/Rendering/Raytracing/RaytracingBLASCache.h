@@ -132,6 +132,8 @@ namespace Engine {
 			StaticInstanceBLASKeyHash> staticInstanceBLASes_{};
 		std::unordered_map<DynamicBLASKey,
 			DynamicBLASEntry, DynamicBLASKeyHash> dynamicBlases_{};
+		// 共有形状を最後に使用したframe
+		std::unordered_map<BLASKey, uint64_t, BLASKeyHash> sharedBLASFrames_;
 		// 構築済みMeshの読み込み世代
 		std::unordered_map<AssetID, uint32_t> meshBLASGeneration_;
 

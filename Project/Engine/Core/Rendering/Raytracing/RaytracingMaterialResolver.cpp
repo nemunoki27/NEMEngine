@@ -8,6 +8,9 @@
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
+// c++
+#include <algorithm>
+
 namespace {
 
 	// 名前IDを優先して標準Parameterを取得
@@ -118,11 +121,20 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap) {
 
+	// Camera出力はサイズ変更とGPU状態をその都度解決する
+	const auto* meta = assetDatabase.Find(textureAssetID);
+	if (meta && meta->type == AssetType::RenderTexture) {
+
+		const auto resolved = RuntimeTextureResolver::ResolveBindless(graphicsCore, &assetDatabase, textureAssetID,
+			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear, normalMap);
+		return resolved.srvIndex;
+	}
 	auto& descriptorCache = normalMap ? normalTextureDescriptorIndexCache_ :
 		(sRGB ? sRGBTextureDescriptorIndexCache_ : textureDescriptorIndexCache_);
 	if (auto it = descriptorCache.find(textureAssetID);
 		it != descriptorCache.end()) {
-		return it->second;
+		it->second.used = true;
+		return it->second.index;
 	}
 
 	const GPUTextureResource* errorTexture = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
@@ -137,11 +149,13 @@ uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(Graph
 			graphicsCore, &assetDatabase, textureAssetID,
 			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear, normalMap);
 	hasPendingTextureDescriptors_ |= resolved.retry;
+	// 読込途中のエラー色を反射へ渡さない
+	if (resolved.retry) return UINT32_MAX;
 	const uint32_t descriptorIndex =
 		resolved.srvIndex != UINT32_MAX ? resolved.srvIndex : errorIndex;
 	// 読み込み失敗はキャッシュせず次回再取得
 	if (!resolved.retry && descriptorIndex != errorIndex) {
-		descriptorCache[textureAssetID] = descriptorIndex;
+		descriptorCache[textureAssetID] = { descriptorIndex, resolved.ownership, true };
 	}
 	return descriptorIndex;
 }
@@ -152,4 +166,29 @@ void Engine::RaytracingMaterialResolver::Clear() {
 	sRGBTextureDescriptorIndexCache_.clear();
 	normalTextureDescriptorIndexCache_.clear();
 	hasPendingTextureDescriptors_ = false;
+}
+
+void Engine::RaytracingMaterialResolver::ResetPending() {
+
+	hasPendingTextureDescriptors_ = false;
+	// 再構築中は旧SceneのTextureも保持する
+	const auto reset = [](auto& cache) {
+
+		for (auto& entry : cache) entry.second.used = false;
+	};
+	reset(textureDescriptorIndexCache_);
+	reset(sRGBTextureDescriptorIndexCache_);
+	reset(normalTextureDescriptorIndexCache_);
+}
+
+void Engine::RaytracingMaterialResolver::CommitTextures() {
+
+	// 新しいSceneの公開後に不要な所有を解除する
+	const auto collect = [](auto& cache) {
+
+		std::erase_if(cache, [](const auto& entry) { return !entry.second.used; });
+	};
+	collect(textureDescriptorIndexCache_);
+	collect(sRGBTextureDescriptorIndexCache_);
+	collect(normalTextureDescriptorIndexCache_);
 }

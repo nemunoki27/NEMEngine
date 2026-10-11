@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
 // c++
 #include <array>
@@ -55,6 +56,8 @@ namespace Engine {
 
 		// Passの転送先とMaterial値の更新世代
 		struct SubMeshMaterialParamBuffer {
+
+			std::vector<std::vector<TextureOwnership>> textureOwnerships;
 
 			DxFrameMappedUploadBuffer buffer{};
 			std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
