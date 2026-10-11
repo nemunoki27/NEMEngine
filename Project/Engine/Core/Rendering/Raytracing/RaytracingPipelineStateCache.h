@@ -47,7 +47,7 @@ namespace Engine {
 		RaytracingPipelineState* GetOrCreate(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
 			AssetID shaderOverrideAssetID = {},
-			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr, bool useGlobalIllumination = false);
+			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// データクリア
 		void Clear();

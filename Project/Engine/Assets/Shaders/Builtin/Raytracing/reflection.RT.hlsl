@@ -83,11 +83,7 @@ struct RaytracingGeometryShaderData {
 	uint subMeshDataIndex;
 	uint indexOffset;
 	uint pickRecordIndex;
-	uint giCallableIndex;
-	uint giParametersDescriptor;
-	uint giPrimitiveColorDescriptor;
-	uint giOriginalVertexDescriptor;
-	uint giPadding;
+	uint _pad0;
 };
 struct LightClusterHeader {
 
@@ -623,10 +619,6 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 	return result / float(kRectLightSampleCount);
 }
 
-#ifdef NEM_REFLECTION_GI
-#include "../GlobalIllumination/giProbeSampling.hlsli"
-#endif
-
 float3 EvaluateRaytracingSurfaceLighting(
 	float3 worldPosition,
 	ResolvedPBRMaterial material,
@@ -718,19 +710,12 @@ float3 EvaluateRaytracingSurfaceLighting(
 			ambient = 0.03f * material.baseColor.rgb * material.ao;
 		}
 	}
-	#ifdef NEM_REFLECTION_GI
-	float4 indirect = SampleGlobalIllumination(worldPosition, material.N, V);
-	float3 diffuse = indirect.rgb * saturate(material.baseColor.rgb) *
-		(1.0f - saturate(material.metallic)) * 0.96f * material.ao / PI;
-	ambient = lerp(ambient, diffuse, indirect.a);
-#endif
 	return lighting + ambient + material.emissive;
 }
 
 //============================================================================
 //	miss
 //============================================================================
-#ifndef NEM_REFLECTION_HELPERS_ONLY
 [shader("miss")]
 void ReflectionMiss(inout ReflectionPayload payload) {
 
@@ -913,4 +898,3 @@ void ReflectionRayGen() {
 		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) :
 		0.0f.xxxx;
 }
-#endif

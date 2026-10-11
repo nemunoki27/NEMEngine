@@ -69,8 +69,6 @@ void Engine::to_json(nlohmann::json& out, const OrthographicCameraComponent& com
 
 void Engine::from_json(const nlohmann::json& in, PerspectiveCameraComponent& component) {
 
-	component.useGlobalIllumination = in.value("useGlobalIllumination", component.useGlobalIllumination);
-
 	component.projectionMode = EnumAdapter<CameraProjectionMode>::FromString(in.value("projectionMode",
 		std::string(EnumAdapter<CameraProjectionMode>::ToString(component.projectionMode)))).value_or(component.projectionMode);
 	component.fovY = in.value("fovY", component.fovY);
@@ -82,8 +80,6 @@ void Engine::from_json(const nlohmann::json& in, PerspectiveCameraComponent& com
 }
 
 void Engine::to_json(nlohmann::json& out, const PerspectiveCameraComponent& component) {
-
-	out["useGlobalIllumination"] = component.useGlobalIllumination;
 
 	out["projectionMode"] = EnumAdapter<CameraProjectionMode>::ToString(component.projectionMode);
 	out["fovY"] = component.fovY;

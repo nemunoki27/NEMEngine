@@ -12,11 +12,9 @@
 
 // c++
 #include <span>
-#include <unordered_set>
 
 namespace Engine {
 	class RenderAssetLibrary;
-	class AssetDatabase;
 	enum class MeshRenderFlags : uint32_t;
 	struct ResolvedRenderView;
 	struct SubMeshMaterial;
@@ -40,9 +38,6 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	uint64_t ComputeGeometryLayoutHash(
 		std::span<const Engine::SubMeshMaterial> subMeshes,
 		uint32_t geometryCount);
-	// Materialが参照するCamera出力を収集する
-	void CollectRenderTextureParameters(const Engine::MaterialParameterSet& parameters, const Engine::AssetDatabase& database,
-		std::unordered_set<Engine::AssetID>& inputs);
 	// Material内容を識別する
 	uint64_t ComputeSceneMaterialHash(
 		std::span<const Engine::MeshSubMeshShaderData> subMeshes);

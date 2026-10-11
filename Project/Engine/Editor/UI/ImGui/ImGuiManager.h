@@ -3,8 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Core/EditorShortcutState.h>
-
 // c++
 #include <cstdint>
 #include <unordered_map>
@@ -40,8 +38,6 @@ namespace Engine {
 
 		// フレームを開始する
 		void Begin();
-		// 保持した表示切替要求を取り出す
-		bool ConsumeHidePanelsShortcut();
 		// 描画データを確定する
 		void End();
 
@@ -65,7 +61,6 @@ namespace Engine {
 
 		// 初期化済みか
 		bool initialized_ = false;
-		EditorShortcutState shortcutState_;
 		// 初期化できた段階だけ終了する
 		bool contextCreated_ = false;
 		bool platformInitialized_ = false;
@@ -105,8 +100,6 @@ namespace Engine {
 		void RestorePlatformWindowProcedures();
 		// 指定ウィンドウがエディターの管理対象か
 		bool IsEditorWindow(HWND hwnd) const;
-		// メインWindowの入力を受け取る
-		static LRESULT ForwardWindowMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 		// 外部ウィンドウのメッセージを処理する
 		static LRESULT CALLBACK PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 	};

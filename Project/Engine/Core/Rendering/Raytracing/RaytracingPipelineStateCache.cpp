@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include "RaytracingPipelineBuilder.h"
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -26,7 +25,7 @@ bool Engine::RaytracingPipelineCacheKey::operator==(
 Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCreate(GraphicsPlatform& graphicsPlatform,
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
 	AssetID shaderOverrideAssetID,
-	const PipelineStaticSamplerOverrideSet* samplerOverrides, bool useGlobalIllumination) {
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	retirement_ = &graphicsPlatform.GetResourceRetirement();
 	CollectRetiredStates();
@@ -52,8 +51,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 
 	RaytracingPipelineCacheKey key{};
 	key.pipelineAsset = pipelineAssetID;
-	key.pipelineShaderAsset = useGlobalIllumination && variant->shader == BuiltinAssets::Shaders::RaytracingReflection ?
-		BuiltinAssets::Shaders::RaytracingReflectionGI : variant->shader;
+	key.pipelineShaderAsset = variant->shader;
 	key.shaderOverrideAsset = shaderOverrideAssetID;
 	key.samplerHash = HashPipelineStaticSamplerOverrides(samplerOverrides);
 
@@ -71,7 +69,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	}
 
 	// シェーダーアセットをロード
-	const ShaderAsset* shaderAsset = assetLibrary.LoadShader(key.pipelineShaderAsset);
+	const ShaderAsset* shaderAsset = assetLibrary.LoadShader(variant->shader);
 	if (!shaderAsset) {
 		return FindFallback(pipelineAssetID, shaderOverrideAssetID,
 			key.samplerHash);

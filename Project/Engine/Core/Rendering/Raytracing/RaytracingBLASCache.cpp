@@ -58,7 +58,7 @@ namespace Engine {
 
 		return worldLifetime == rhs.worldLifetime && world == rhs.world && entity == rhs.entity &&
 			meshAssetID == rhs.meshAssetID &&
-			reloadGeneration == rhs.reloadGeneration && globalIllumination == rhs.globalIllumination;
+			reloadGeneration == rhs.reloadGeneration;
 	}
 
 	size_t RaytracingBLASCache::StaticInstanceBLASKeyHash::operator()(const StaticInstanceBLASKey& key) const noexcept {
@@ -68,14 +68,13 @@ namespace Engine {
 		hash ^= std::hash<uint32_t>{}(key.entity.generation) << 2;
 		hash ^= std::hash<AssetID>{}(key.meshAssetID) << 3;
 		hash ^= std::hash<uint32_t>{}(key.reloadGeneration) << 4;
-		hash ^= std::hash<bool>{}(key.globalIllumination) << 5;
 		return hash;
 	}
 
 	bool RaytracingBLASCache::DynamicBLASKey::operator==(const DynamicBLASKey& rhs) const noexcept {
 
 		return worldLifetime == rhs.worldLifetime && world == rhs.world && entity == rhs.entity &&
-			meshAssetID == rhs.meshAssetID && reloadGeneration == rhs.reloadGeneration && deformationOwner == rhs.deformationOwner;
+			meshAssetID == rhs.meshAssetID && reloadGeneration == rhs.reloadGeneration;
 	}
 
 	size_t RaytracingBLASCache::DynamicBLASKeyHash::operator()(const DynamicBLASKey& key) const noexcept {
@@ -85,7 +84,6 @@ namespace Engine {
 		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
 		h ^= (std::hash<AssetID>{}(key.meshAssetID) << 3);
 		h ^= (std::hash<uint32_t>{}(key.reloadGeneration) << 4);
-		h ^= std::hash<const void*>{}(key.deformationOwner);
 		return h;
 	}
 }

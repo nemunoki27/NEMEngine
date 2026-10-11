@@ -237,9 +237,6 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 				artifact.outlineShaderID,
 				artifact.computeShaderID,
 				artifact.rayTracingShaderID,
-				artifact.giMaterialShader.guid,
-				artifact.giVertexShader.guid,
-				artifact.giReflectionShader.guid,
 			};
 			for (AssetID shaderID : shaderIDs) {
 				if (shaderID) {
@@ -261,10 +258,6 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 				std::move(artifact.computeShader));
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.rayTracingShader));
-			// GIの生成Shaderも再読み込みへ揃える
-			renderAssetLibrary_.RegisterDerivedShader(std::move(artifact.giMaterialShader));
-			renderAssetLibrary_.RegisterDerivedShader(std::move(artifact.giVertexShader));
-			renderAssetLibrary_.RegisterDerivedShader(std::move(artifact.giReflectionShader));
 			renderAssetLibrary_.RegisterDerivedPipeline(
 				std::move(artifact.opaquePipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(

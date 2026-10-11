@@ -14,7 +14,6 @@
 #include "FBXImportTests.h"
 #include "EditorAssetWorkflowTests.h"
 #include "ProjectGitIgnoreTests.h"
-#include "GlobalIlluminationTests.h"
 
 // c++
 #include <iostream>
@@ -30,7 +29,6 @@ int NEMTests::RunAllTests() {
 	if (!RunTest("TestWindowFileDropConversion", TestWindowFileDropConversion)) {
 		return 42;
 	}
-	if (!RunTest("TestGlobalIllumination", TestGlobalIllumination)) return 55;
 	if (!RunTest("TestGameplayContracts", TestGameplayContracts)) {
 		return 42;
 	}

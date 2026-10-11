@@ -29,10 +29,9 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		if (item.backendID != RenderBackendID::Mesh) {
 			continue;
 		}
-		if (!globalIlluminationScene_ && sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
 			continue;
 		}
-		if (globalIlluminationScene_ && view && (item.visibilityLayerMask & view->GetCullingMask(RenderCameraDomain::Perspective)) == 0u) continue;
 		const MeshRenderPayload* payload = renderBatch.GetPayload<MeshRenderPayload>(item);
 		if (!payload || !payload->mesh) {
 			continue;
@@ -78,11 +77,9 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		if (item.backendID != RenderBackendID::Primitive) {
 			continue;
 		}
-		if (!globalIlluminationScene_ && sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
+		if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
 			continue;
 		}
-		if (globalIlluminationScene_ && (item.surfaceMode == MaterialSurfaceMode::Transparent ||
-			(view && (item.visibilityLayerMask & view->GetCullingMask(RenderCameraDomain::Perspective)) == 0u))) continue;
 		if (!item.world || !item.world->IsAlive(item.entity)) {
 			continue;
 		}

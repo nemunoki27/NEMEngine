@@ -15,8 +15,6 @@ struct aiNode;
 struct aiMesh;
 struct aiMaterial;
 
-namespace Engine { class TextureAssetResolver; }
-
 namespace Engine::MeshImportUtility {
 
 	// モデルマテリアルから読み取った表面設定
@@ -44,8 +42,7 @@ namespace Engine::MeshImportUtility {
 	// 三角形を持つMeshだけを描画と編集の対象にする
 	bool HasTriangleGeometry(const aiMesh* mesh);
 	// glTFや汎用Opacity情報から表面方式を読み取る
-	ImportedMaterialSurface ReadMaterialSurface(const aiMaterial* material,
-		const TextureAssetResolver* textureResolver = nullptr);
+	ImportedMaterialSurface ReadMaterialSurface(const aiMaterial* material);
 	// PBR係数を優先し、従来Materialの色とOpacityを補完する
 	ImportedMaterialFactors ReadMaterialFactors(const aiMaterial* material);
 

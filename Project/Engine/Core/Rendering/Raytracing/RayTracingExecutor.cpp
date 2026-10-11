@@ -7,9 +7,6 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationView.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
@@ -114,18 +111,10 @@ bool Engine::RayTracingExecutor::Execute(
 	PipelineStaticSamplerOverrideSet samplerOverrides{};
 	samplerOverrides.fillMissingSamplers = true;
 	samplerOverrides.byName = pass.samplerOverrides;
-	// GIの使用Cameraでは反射用Shaderも切り替える
-	const bool useGI = context.globalIllumination && context.globalIllumination->IsReady() &&
-		materialPass->pipeline == BuiltinAssets::Pipelines::RaytracingReflection;
-	AssetID shaderOverride = materialPass->shaderOverride;
-	if (useGI && material->shaderGraph) {
-
-		shaderOverride = ShaderGraphArtifactCache::MakeDerivedID(material->shaderGraph, 0x47495245464c4543ull);
-	}
 	RaytracingPipelineState* pipeline = pipelineCache.GetOrCreate(
 		graphicsCore.GetDXObject(), assetLibrary,
-		materialPass->pipeline, shaderOverride,
-		&samplerOverrides, useGI);
+		materialPass->pipeline, materialPass->shaderOverride,
+		&samplerOverrides);
 	if (!pipeline) {
 		ReportFailure(pass, "raytracing pipeline creation failed");
 		return false;
@@ -145,12 +134,11 @@ bool Engine::RayTracingExecutor::Execute(
 
 	const ShaderReflectionInfo& reflection = pipeline->GetReflection();
 	lastReflection_ = &reflection;
-	if (useGI) context.globalIllumination->BindReflection(graphicsCore, *pipeline);
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 
 		const RootBindingLocation* location = pipeline->FindBindingByName(
 			binding.name, binding.kind);
-		if (!location || binding.kind == ShaderBindingKind::Sampler || (useGI && binding.space == 6u)) {
+		if (!location || binding.kind == ShaderBindingKind::Sampler) {
 			continue;
 		}
 		if (binding.kind == ShaderBindingKind::CBV &&

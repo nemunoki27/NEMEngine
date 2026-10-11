@@ -6,7 +6,6 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Core/Rendering/Meshes/Import/FBXDocumentReferences.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
@@ -140,8 +139,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 
 		if (material && assetDatabase) {
 			const MeshImportUtility::ImportedMaterialSurface surface =
-				MeshImportUtility::ReadMaterialSurface(material,
-					FBXDocumentReferences::IsDocumentPath(fullPath) ? &textureResolver : nullptr);
+				MeshImportUtility::ReadMaterialSurface(material);
 			item.sourceSurfaceMode = surface.surfaceMode;
 			item.alphaCutoff = surface.alphaCutoff;
 

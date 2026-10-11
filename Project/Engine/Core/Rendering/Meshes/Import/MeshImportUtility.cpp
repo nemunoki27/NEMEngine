@@ -4,8 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
-#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include "AssimpMaterialTextureExtractor.h"
 
 // c++
 #include <algorithm>
@@ -46,7 +44,7 @@ bool Engine::MeshImportUtility::HasTriangleGeometry(const aiMesh* mesh) {
 }
 
 Engine::MeshImportUtility::ImportedMaterialSurface
-Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material, const TextureAssetResolver* textureResolver) {
+Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
 
 	ImportedMaterialSurface result{};
 	if (!material) {
@@ -81,14 +79,6 @@ Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material, const
 	}
 	if (material->GetTextureCount(aiTextureType_OPACITY) > 0) {
 		result.surfaceMode = MaterialSurfaceMode::Masked;
-	}
-	// FBXは基本色の実際のAlphaから不足した表面情報を補う
-	if (textureResolver && result.surfaceMode == MaterialSurfaceMode::Auto) {
-
-		const auto reference = AssimpMaterialTextureExtractor::Extract(material, {aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE});
-		const auto alpha = textureResolver->AnalyzeAlpha(reference);
-		if (alpha == TextureAlphaContent::Masked) result.surfaceMode = MaterialSurfaceMode::Masked;
-		if (alpha == TextureAlphaContent::Transparent) result.surfaceMode = MaterialSurfaceMode::Transparent;
 	}
 	return result;
 }

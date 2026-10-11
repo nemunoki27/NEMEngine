@@ -8,7 +8,6 @@
 #include "ModelFileIOSystem.h"
 #include "FBXScenePreparation.h"
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Core/Rendering/Meshes/Import/FBXDocumentReferences.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -217,8 +216,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 
 			// マテリアルがあれば、テクスチャの参照を取得
 			if (material) {
-				const MeshImportUtility::ImportedMaterialSurface surface = MeshImportUtility::ReadMaterialSurface(material,
-					FBXDocumentReferences::IsDocumentPath(fullPath) ? &textureResolver : nullptr);
+				const MeshImportUtility::ImportedMaterialSurface surface = MeshImportUtility::ReadMaterialSurface(material);
 				subMesh.surfaceMode = surface.surfaceMode;
 				subMesh.alphaCutoff = surface.alphaCutoff;
 
