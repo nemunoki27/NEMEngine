@@ -230,9 +230,9 @@ namespace {
 		valid &= std::memcmp(mapped, expectedStatic, sizeof(expectedStatic)) == 0;
 		staticReadback->Unmap(0, &writtenRange);
 		if (asReadback) {
-			readRange.End = 40;
+			readRange.End = 48;
 			if (FAILED(asReadback->Map(0, &readRange, &mapped))) return false;
-			const uint32_t expectedHits[]{ 1, 0, 1, 0, 1, 1, 0, 1, 0, 1 };
+			const uint32_t expectedHits[]{ 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1 };
 			valid &= std::memcmp(mapped, expectedHits, sizeof(expectedHits)) == 0;
 			asReadback->Unmap(0, &writtenRange);
 		}

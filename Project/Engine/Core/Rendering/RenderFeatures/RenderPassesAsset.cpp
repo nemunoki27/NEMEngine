@@ -18,6 +18,8 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPassesAsset& outAsset) {
 	RenderPassesAsset loaded{};
 	loaded.guid = ParseAssetID(data, "guid");
 	loaded.name = source.name;
+	loaded.gameView = source.gameView;
+	loaded.sceneView = source.sceneView;
 	loaded.passes = source.passes;
 	loaded.hierarchy = source.hierarchy;
 	outAsset = std::move(loaded);
@@ -28,7 +30,7 @@ nlohmann::json Engine::ToJson(const RenderPassesAsset& asset) {
 
 	nlohmann::json data = RenderFeatureProfileSerializer::ToJson(ToRuntimeProfile(asset));
 	data.erase("colorPipeline");
-	data["version"] = 1u;
+	data["version"] = 2u;
 	if (asset.guid) {
 		data["guid"] = ToString(asset.guid);
 	}
@@ -40,6 +42,8 @@ Engine::RenderFeatureProfileAsset Engine::ToRuntimeProfile(const RenderPassesAss
 	RenderFeatureProfileAsset profile{};
 	profile.guid = asset.guid;
 	profile.name = asset.name;
+	profile.gameView = asset.gameView;
+	profile.sceneView = asset.sceneView;
 	profile.passes = asset.passes;
 	profile.hierarchy = asset.hierarchy;
 	return profile;

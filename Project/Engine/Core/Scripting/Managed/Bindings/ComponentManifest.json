@@ -6,8 +6,14 @@
       "managedType": "AudioRolloffMode",
       "nativeType": "AudioRolloffMode",
       "members": [
-        { "name": "Logarithmic", "value": 0 },
-        { "name": "Linear", "value": 1 }
+        {
+          "name": "Logarithmic",
+          "value": 0
+        },
+        {
+          "name": "Linear",
+          "value": 1
+        }
       ]
     },
     {
@@ -1665,6 +1671,54 @@
           "nativeMember": "common.colorPipeline.colorGrading.offset",
           "kind": "Vector3",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionEnabled",
+          "nativeMember": "common.reflectionEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionIntensity",
+          "nativeMember": "common.reflectionIntensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionMaxDistance",
+          "nativeMember": "common.reflectionMaxDistance",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionQuality",
+          "nativeMember": "common.reflectionQuality",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionEnabled",
+          "nativeMember": "common.ambientOcclusionEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionIntensity",
+          "nativeMember": "common.ambientOcclusionIntensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionRadius",
+          "nativeMember": "common.ambientOcclusionRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionQuality",
+          "nativeMember": "common.ambientOcclusionQuality",
+          "kind": "Int",
+          "access": "ReadWrite"
         }
       ]
     },
@@ -1904,6 +1958,54 @@
           "managedName": "ColorOffset",
           "nativeMember": "common.colorPipeline.colorGrading.offset",
           "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionEnabled",
+          "nativeMember": "common.reflectionEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionIntensity",
+          "nativeMember": "common.reflectionIntensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionMaxDistance",
+          "nativeMember": "common.reflectionMaxDistance",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReflectionQuality",
+          "nativeMember": "common.reflectionQuality",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionEnabled",
+          "nativeMember": "common.ambientOcclusionEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionIntensity",
+          "nativeMember": "common.ambientOcclusionIntensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionRadius",
+          "nativeMember": "common.ambientOcclusionRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AmbientOcclusionQuality",
+          "nativeMember": "common.ambientOcclusionQuality",
+          "kind": "Int",
           "access": "ReadWrite"
         }
       ]

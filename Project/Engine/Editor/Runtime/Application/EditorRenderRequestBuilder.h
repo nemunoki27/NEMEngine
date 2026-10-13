@@ -8,6 +8,7 @@
 // c++
 #include <functional>
 #include <cstdint>
+#include <chrono>
 
 namespace Engine {
 
@@ -44,11 +45,20 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		uint64_t renderFrameSerial_ = 0;
+		std::chrono::steady_clock::time_point nextSecondaryViewUpdate_{};
+		std::chrono::steady_clock::time_point secondaryRecoveryStarted_{};
+		uint64_t lastGPUFrameID_ = UINT64_MAX;
+		float averagedGPUTime_ = 0.0f;
+		bool secondaryViewThrottled_ = false;
 		SystemContext& systemContext_;
 		AssetDatabase& assetDatabase_;
 		EditorManager& editorManager_;
 		WorldManager& worldManager_;
+
+		//--------- functions ----------------------------------------------------
+
+		// GPU負荷から副Viewの更新時刻を決める
+		bool ShouldRenderSecondaryView();
 
 	};
 }

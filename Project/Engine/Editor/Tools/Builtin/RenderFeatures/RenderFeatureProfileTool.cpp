@@ -96,7 +96,12 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 	if (context.IsPlaying()) {
 		ImGui::TextDisabled("Play中の変更は実行用にだけ反映され、Stop時に破棄されます");
 		RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
-		const RenderFeatureProfileAsset& runtimeProfile = service.GetRuntimeExtension().GetProfile();
+		const RenderFeatureProfileAsset& runtimeProfile = service.GetProfile();
+		bool gameView = overrides.IsViewEnabled(editSession_.GetProfileID(), false, runtimeProfile.gameView);
+		bool sceneView = overrides.IsViewEnabled(editSession_.GetProfileID(), true, runtimeProfile.sceneView);
+		bool viewChanged = MyGUI::Checkbox("GameView出力", gameView);
+		viewChanged |= MyGUI::Checkbox("SceneView出力", sceneView);
+		if (viewChanged) overrides.SetViewEnabled(editSession_.GetProfileID(), gameView, sceneView);
 		for (const RenderFeaturePassSettings& pass : runtimeProfile.passes) {
 			ImGui::PushID(static_cast<int32_t>(pass.id.value));
 			bool enabled = overrides.IsEnabled(pass.id, pass.enabled);
@@ -106,10 +111,6 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 			ImGui::SameLine();
 			ImGui::TextUnformatted(pass.name.c_str());
 			ImGui::SameLine();
-			bool sceneColorOutput = overrides.IsSceneColorOutput(pass.id, pass.sceneColorOutput);
-			if (ImGui::Checkbox("Scene Colorへ出力", &sceneColorOutput)) {
-				overrides.SetSceneColorOutput(runtimeProfile, pass.id, sceneColorOutput);
-			}
 			ImGui::PopID();
 		}
 		ImGui::End();
@@ -125,6 +126,11 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 
 		ImportProfileSettings(context, importSource);
 	}
+
+	// 全パスの出力先をまとめて切り替える
+	bool viewChanged = MyGUI::Checkbox("GameView出力", service.GetProfile().gameView);
+	viewChanged |= MyGUI::Checkbox("SceneView出力", service.GetProfile().sceneView);
+	if (viewChanged) editSession_.SetDirty();
 
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
@@ -260,37 +266,6 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 		ImGui::TextDisabled("トーンマッピング後、ScreenUIの前にビューへ描画します");
 	}
 	changed |= DrawSelectedPassApplicationSettings(context, profile, editablePass);
-	changed |= MyGUI::Checkbox("Game View", editablePass.gameView);
-	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
-	// Play中の出力切り替えはスクリプトと同じ実行時設定を使う
-	RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
-	bool sceneColorOutput = context.IsPlaying() ? overrides.IsSceneColorOutput(editablePass.id, editablePass.sceneColorOutput)
-												: editablePass.sceneColorOutput;
-	if (MyGUI::Checkbox("Scene Colorへ出力", sceneColorOutput)) {
-
-		if (context.IsPlaying()) {
-
-			if (!overrides.SetSceneColorOutput(
-					RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(), editablePass.id, sceneColorOutput)) {
-
-				editSession_.SetStatusMessage("SceneColor出力を変更できません。出力形式とサイズを確認してください", true);
-			}
-		} else {
-
-			editablePass.sceneColorOutput = sceneColorOutput;
-			changed = true;
-			if (sceneColorOutput) {
-
-				for (RenderFeaturePassSettings& candidate : profile.passes) {
-
-					if (candidate.id != editablePass.id && candidate.anchor == editablePass.anchor) {
-
-						candidate.sceneColorOutput = false;
-					}
-				}
-			}
-		}
-	}
 
 	AssetEditSetting setting{};
 	AssetID selectedAsset = editablePass.material;

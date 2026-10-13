@@ -193,8 +193,6 @@ namespace Engine {
 		UUID id{};
 		std::string name = "Render Feature";
 		bool enabled = true;
-		bool gameView = true;
-		bool sceneView = true;
 		RenderFeaturePassType type = RenderFeaturePassType::Compute;
 		RenderFeatureAnchor anchor = RenderFeatureAnchor::AfterTransparent;
 		AssetID material{};
@@ -202,7 +200,6 @@ namespace Engine {
 		RenderFeatureSourceKind sourceKind =
 			RenderFeatureSourceKind::PreviousPass;
 		RenderFeatureOutputReference source{};
-		bool sceneColorOutput = false;
 		uint32_t rayGenerationIndex = 0u;
 		// GPU時間を予算内へ収めるため出力解像度を段階的に調整する
 		bool adaptiveResolution = false;
@@ -254,7 +251,9 @@ namespace Engine {
 
 		AssetID guid{};
 		std::string name = "Render Feature Profile";
-		uint32_t version = 3u;
+		bool gameView = true;
+		bool sceneView = true;
+		uint32_t version = 5u;
 		ColorPipelineSettings colorPipeline{};
 		std::vector<RenderFeaturePassSettings> passes{};
 		std::vector<RenderFeatureHierarchyItem> hierarchy{};

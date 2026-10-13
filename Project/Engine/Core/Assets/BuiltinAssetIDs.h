@@ -29,6 +29,8 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7cull };
 		inline constexpr AssetID ReflectionSpatial{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7dull };
 		inline constexpr AssetID ReflectionTemporal{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7eull };
+		inline constexpr AssetID AmbientOcclusion{ 0x4e454d4153534554ull, 0x414f000000000004ull };
+		inline constexpr AssetID AmbientOcclusionFilter{ 0x4e454d4153534554ull, 0x414f000000000014ull };
 		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7full };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0004ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
@@ -100,10 +102,14 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
 		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
+		inline constexpr AssetID InlineShadowTrace{ 0x4e454d4153534554ull, 0x5348445700000001ull };
+		inline constexpr AssetID InlineShadowTemporal{ 0x4e454d4153534554ull, 0x5348445700000002ull };
+		inline constexpr AssetID InlineShadowSpatial{ 0x4e454d4153534554ull, 0x5348445700000003ull };
 		// 固定描画パスが製品実行で必要とするシェーダー
 		inline constexpr AssetID FixedRuntime[] = {
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
 			SkyboxIrradiance, DepthVisualize, Skybox,
+			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
 		};
 
 		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };
@@ -122,6 +128,7 @@ namespace Engine::BuiltinAssets {
 			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,
 			Materials::ToneMapToView, Materials::OutputTransform, Materials::RaytracingReflection,
 			Materials::ReflectionSpatial, Materials::ReflectionTemporal, Materials::ReflectionComposite,
+			Materials::AmbientOcclusion, Materials::AmbientOcclusionFilter,
 			Materials::PostProcessMaskComposite, Materials::ScreenSpaceOutlineMask,
 			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
 			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
@@ -129,6 +136,7 @@ namespace Engine::BuiltinAssets {
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
 			Pipelines::ParticleTrail, RenderPasses::Default,
+			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial,
 		};
 	}
 

@@ -117,7 +117,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 	const auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
 	const bool canBuildRaytracingScene =
-		featureController.GetSupport().SupportsRayTracingPath() && graphicsCore.GetDXObject().ShouldBuildRaytracingScene();
+		featureController.GetSupport().SupportsRayTracingPath() &&
+		(graphicsCore.GetDXObject().ShouldBuildRaytracingScene() ||
+		(context.view && context.view->FindCamera(RenderCameraDomain::Perspective) && !context.disableInlineRayTracing &&
+		 context.postProcessCamera.surfaceSettings.ambientOcclusionEnabled &&
+		 featureController.GetSupport().SupportsInlineRayTracingPath() && featureController.GetSupport().SupportsShaderModel6_6()));
 	if (!canBuildRaytracingScene) {
 		return;
 	}
@@ -227,7 +231,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 				tlasState_.RefitORRebuild(graphicsCore, cachedTLASInstances_, false);
 				tlasState_.RecordInstances(cachedTLASInstances_);
 			} else {
-				FrameProfiler::GetInstance().AddTLASSkip();
+				tlasState_.MaintainTraceQuality(graphicsCore, cachedTLASInstances_);
 			}
 			cachedLODViewHash_ = lodViewHash;
 			if (0 < lodChangedCount) {
@@ -295,7 +299,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 					RequiresTLASRebuildForTraceQuality(cachedTLASInstances_.size(), changedInstanceCount);
 				tlasState_.RefitORRebuild(graphicsCore, cachedTLASInstances_, rebuildForTraceQuality);
 			} else {
-				FrameProfiler::GetInstance().AddTLASSkip();
+				tlasState_.MaintainTraceQuality(graphicsCore, cachedTLASInstances_);
 			}
 
 			tlasState_.RecordInstances(cachedTLASInstances_);
@@ -479,4 +483,5 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 	}
 
 	result_.Publish(context, tlasState_.GetResource(), sceneMaterialGeneration_, !materialResolver_.HasPendingTextures());
+	context.raytracing.geometryGeneration = tlasState_.GetContentGeneration();
 }

@@ -15,104 +15,16 @@ Texture2D<float4> gWorldPos : register(t2);
 Texture2D<float4> gMaterial : register(t3);
 Texture2D<float4> gEmissive : register(t4);
 Texture2D<uint> gFlags : register(t5);
+Texture2D<float4> gAmbientOcclusion : register(t17);
+StructuredBuffer<float2> gFilteredRaytracedShadows : register(t18);
+StructuredBuffer<uint> gShadowLightIndices : register(t19);
 
 SamplerState gSampler : register(s0);
 
 //============================================================================
 //	ライト
 //============================================================================
-// 平行光源
-struct DirectionalLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float shadowStrength;
-	float shadowAngularRadius;
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
-};
-// 点光源
-struct PointLight {
-
-	float4 color;
-
-	float3 pos;
-	float intensity;
-
-	float radius;
-	float decay;
-	float shadowStrength;
-	float shadowRadius;
-
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
-	uint2 _pad1;
-};
-// スポットライト
-struct SpotLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float3 pos;
-	float distance;
-
-	float decay;
-	float cosAngle;
-	float cosFalloffStart;
-	float shadowStrength;
-
-	float shadowRadius;
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
-	uint _pad0;
-};
-// 矩形面光源
-struct RectLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float3 pos;
-	float attenuationRadius;
-
-	float3 right;
-	float sourceWidth;
-
-	float3 up;
-	float sourceHeight;
-
-	float decay;
-	float barnDoorAngle;
-	float barnDoorLength;
-	float shadowStrength;
-
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
-	uint2 _pad0;
-};
-// ライト数
-cbuffer LightCounts : register(b0) {
-
-	uint directionalCount;
-	uint pointCount;
-	uint spotCount;
-	uint rectCount;
-
-	uint localCount;
-	uint3 _lightCountPad;
-};
-StructuredBuffer<DirectionalLight> gDirectionalLights : register(t6);
-StructuredBuffer<PointLight> gPointLights : register(t7);
-StructuredBuffer<SpotLight> gSpotLights : register(t8);
-StructuredBuffer<RectLight> gRectLights : register(t12);
+#include "lightShaderData.hlsli"
 
 struct LightClusterHeader {
 
@@ -169,6 +81,11 @@ cbuffer DeferredLightingConstants : register(b1) {
 	uint shadowMapLightIndex;
 	uint reflectionFeatureActive;
 
+	float ambientOcclusionIntensity;
+	float reflectionIntensity;
+	uint filteredShadowAvailable;
+	float _surfacePad;
+
 	float4x4 shadowViewProjections[4];
 	float4 shadowCascadeSplits;
 	float4 shadowDepthRanges;
@@ -186,248 +103,19 @@ static const uint kNoCubemap = 0xFFFFFFFF;
 //	平行光源影
 //============================================================================
 
-RaytracingAccelerationStructure gSceneTLAS : register(t10);
-
-// 影を落とすインスタンスのTLASマスク
-static const uint kRaytracingMaskShadowCaster = 1u;
-static const uint kMaximumSoftShadowSampleCount = 4u;
-static const float2 kSoftShadowDisk[kMaximumSoftShadowSampleCount] = {
-	float2(0.353553f, 0.000000f),
-	float2(-0.451180f, 0.414030f),
-	float2(0.068910f, -0.787560f),
-	float2(0.569130f, 0.742260f)
-};
-static const float2 kRectLightSamples[kMaximumSoftShadowSampleCount] = {
-	float2(-0.375f, -0.125f),
-	float2(0.125f, -0.375f),
-	float2(-0.125f, 0.375f),
-	float2(0.375f, 0.125f)
-};
-
-uint HashShadowSeed(uint value) {
-
-	value ^= 2747636419u;
-	value *= 2654435769u;
-	value ^= value >> 16u;
-	value *= 2654435769u;
-	value ^= value >> 16u;
-	value *= 2654435769u;
-	return value;
-}
-
-float ResolveShadowRotation(uint2 pixel, uint lightIndex) {
-
-	uint seed = pixel.x * 1973u + pixel.y * 9277u +
-		lightIndex * 26699u;
-	return float(HashShadowSeed(seed)) *
-		(6.28318530718f / 4294967295.0f);
-}
-
-float2 RotateShadowDisk(float2 samplePos, float sinRotation, float cosRotation) {
-
-	return float2(
-		samplePos.x * cosRotation - samplePos.y * sinRotation,
-		samplePos.x * sinRotation + samplePos.y * cosRotation);
-}
-
-uint ResolveShadowSampleIndex(uint sampleIndex, uint sampleCount,
-	uint2 pixel, uint lightIndex) {
-
-	uint offset = HashShadowSeed(pixel.x * 1973u + pixel.y * 9277u +
-		lightIndex * 26699u) & 3u;
-	uint step = kMaximumSoftShadowSampleCount / sampleCount;
-	return (offset + sampleIndex * step) & 3u;
-}
-
-void BuildShadowBasis(float3 direction, out float3 tangent, out float3 bitangent) {
-
-	float3 up = abs(direction.y) < 0.999f ?
-		float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
-	tangent = normalize(cross(up, direction));
-	bitangent = cross(direction, tangent);
-}
-
-// 最初の遮蔽物で走査を終了する共通シャドウレイ
-bool TraceShadowRay(float3 origin, float3 direction, float maxDistance) {
-
-	RayDesc rayDesc;
-	rayDesc.Origin = origin;
-	rayDesc.Direction = direction;
-	rayDesc.TMin = 0.001f;
-	rayDesc.TMax = maxDistance;
-
-	RayQuery <
-		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
-		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES > rayQuery;
-
-	// CastShadow無効のインスタンスはマスクで除外される
-	rayQuery.TraceRayInline(gSceneTLAS, 0, kRaytracingMaskShadowCaster, rayDesc);
-	while (rayQuery.Proceed()) {
-	}
-	return rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
-}
-
-// 平行光源の見かけの角度内へ分散したレイから遮蔽率を返す
-float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
-	float3 lightDirection, float angularRadius, uint2 pixel, uint lightIndex) {
-
-	float3 origin = worldPos + worldNormal * shadowNormalBias;
-	float3 centerDirection = normalize(-lightDirection);
-	if (angularRadius <= 0.0001f) {
-		return TraceShadowRay(origin, centerDirection, shadowMaxDistance) ?
-			1.0f : 0.0f;
-	}
-
-	float3 tangent;
-	float3 bitangent;
-	BuildShadowBasis(centerDirection, tangent, bitangent);
-
-	float rotation = ResolveShadowRotation(pixel, lightIndex);
-	float sinRotation;
-	float cosRotation;
-	sincos(rotation, sinRotation, cosRotation);
-
-	float coneRadius = tan(radians(min(angularRadius, 5.0f)));
-	uint sampleCount = clamp(softShadowSampleCount,
-		1u, kMaximumSoftShadowSampleCount);
-	if (sampleCount == 1u) {
-		return TraceShadowRay(origin, centerDirection,
-			shadowMaxDistance) ? 1.0f : 0.0f;
-	}
-	float occlusion = 0.0f;
-	[loop]
-	for (uint sampleIndex = 0u;
-		sampleIndex < sampleCount; ++sampleIndex) {
-
-		uint diskIndex = ResolveShadowSampleIndex(
-			sampleIndex, sampleCount, pixel, lightIndex);
-		float2 disk = RotateShadowDisk(
-			kSoftShadowDisk[diskIndex], sinRotation, cosRotation);
-		float3 direction = normalize(centerDirection +
-			(tangent * disk.x + bitangent * disk.y) * coneRadius);
-		occlusion += TraceShadowRay(
-			origin, direction, shadowMaxDistance) ? 1.0f : 0.0f;
-	}
-	return occlusion / float(sampleCount);
-}
-
-//============================================================================
-//	点光源影
-//============================================================================
-
-// ローカルライトを円形面光源として遮蔽率を返す
-float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
-	float3 toLight, float distToLight, float sourceRadius,
-	uint2 pixel, uint lightIndex) {
-
-	float3 origin = worldPos + worldNormal * shadowNormalBias;
-	float3 centerDirection = toLight / distToLight;
-	if (sourceRadius <= 0.0001f) {
-		return TraceShadowRay(origin, centerDirection, distToLight) ?
-			1.0f : 0.0f;
-	}
-
-	float3 tangent;
-	float3 bitangent;
-	BuildShadowBasis(centerDirection, tangent, bitangent);
-
-	float rotation = ResolveShadowRotation(pixel, lightIndex);
-	float sinRotation;
-	float cosRotation;
-	sincos(rotation, sinRotation, cosRotation);
-
-	uint sampleCount = clamp(softShadowSampleCount,
-		1u, kMaximumSoftShadowSampleCount);
-	if (sampleCount == 1u) {
-		return TraceShadowRay(origin, centerDirection,
-			distToLight) ? 1.0f : 0.0f;
-	}
-	float occlusion = 0.0f;
-	[loop]
-	for (uint sampleIndex = 0u;
-		sampleIndex < sampleCount; ++sampleIndex) {
-
-		uint diskIndex = ResolveShadowSampleIndex(
-			sampleIndex, sampleCount, pixel, lightIndex);
-		float2 disk = RotateShadowDisk(
-			kSoftShadowDisk[diskIndex], sinRotation, cosRotation);
-		float3 sampleToLight = toLight +
-			(tangent * disk.x + bitangent * disk.y) * sourceRadius;
-		float sampleDistance = length(sampleToLight);
-		occlusion += TraceShadowRay(origin,
-			sampleToLight / sampleDistance, sampleDistance) ? 1.0f : 0.0f;
-	}
-	return occlusion / float(sampleCount);
-}
-
-float3 GetRectLightSamplePosition(RectLight light,
-	float2 sampleUV) {
-
-	return light.pos +
-		light.right * (sampleUV.x * max(light.sourceWidth, 0.0f)) +
-		light.up * (sampleUV.y * max(light.sourceHeight, 0.0f));
-}
-
-// 矩形面上の複数点へレイを飛ばして面積に応じた遮蔽率を返す
-float TraceRectShadow(float3 worldPos, float3 worldNormal,
-	RectLight light, uint2 pixel, uint lightIndex) {
-
-	float3 origin = worldPos + worldNormal * shadowNormalBias;
-	if (light.sourceWidth <= 0.0001f &&
-		light.sourceHeight <= 0.0001f) {
-
-		float3 toLight = light.pos - origin;
-		float distanceToLight = length(toLight);
-		if (distanceToLight <= 1e-5f) {
-			return 0.0f;
-		}
-		return TraceShadowRay(origin,
-			toLight / distanceToLight,
-			distanceToLight) ? 1.0f : 0.0f;
-	}
-
-	uint seed = HashShadowSeed(
-		pixel.x * 1973u + pixel.y * 9277u +
-		lightIndex * 26699u);
-	float2 sampleSign = float2(
-		(seed & 1u) != 0u ? -1.0f : 1.0f,
-		(seed & 2u) != 0u ? -1.0f : 1.0f);
-
-	uint sampleCount = clamp(softShadowSampleCount,
-		1u, kMaximumSoftShadowSampleCount);
-	if (sampleCount == 1u) {
-		float3 toLight = light.pos - origin;
-		float distanceToLight = length(toLight);
-		return distanceToLight > 1e-5f &&
-			TraceShadowRay(origin, toLight / distanceToLight,
-				distanceToLight) ? 1.0f : 0.0f;
-	}
-	float occlusion = 0.0f;
-	[loop]
-	for (uint sampleIndex = 0u;
-		sampleIndex < sampleCount; ++sampleIndex) {
-
-		uint rectSampleIndex = ResolveShadowSampleIndex(
-			sampleIndex, sampleCount, pixel, lightIndex);
-		float2 sampleUV =
-			kRectLightSamples[rectSampleIndex] * sampleSign;
-		float3 samplePos =
-			GetRectLightSamplePosition(light, sampleUV);
-		float3 toLight = samplePos - origin;
-		float distanceToLight = length(toLight);
-		if (distanceToLight <= 1e-5f) {
-			continue;
-		}
-		occlusion += TraceShadowRay(origin,
-			toLight / distanceToLight,
-			distanceToLight) ? 1.0f : 0.0f;
-	}
-	return occlusion / float(sampleCount);
-}
+#include "inlineShadowCommon.hlsli"
 
 //============================================================================
 //	PBR lighting
 //============================================================================
+// ライトごとに平滑化した遮蔽率を参照する
+float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
+
+	uint slot = gShadowLightIndices[lightIndex];
+	if (slot == 0xFFFFFFFFu) return 0.0f;
+	return saturate(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x].x);
+}
+
 float ComputeDistanceAttenuation(float dist, float range, float decay) {
 
 	if (range <= 0.0001f || dist >= range) {
@@ -520,8 +208,8 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
-			light.shadowRadius, pixel, lightIndex);
+		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + lightIndex) :
+			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 	float3 radiance =
@@ -560,8 +248,8 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
-			light.shadowRadius, pixel, pointCount + lightIndex);
+		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + pointCount + lightIndex) :
+			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 	float3 radiance = light.color.rgb * light.intensity *
@@ -589,9 +277,9 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 
-		float occlusion = TraceRectShadow(
-			worldPos, N, light, pixel,
-			pointCount + spotCount + lightIndex);
+		float occlusion = filteredShadowAvailable != 0u ?
+			LoadFilteredShadow(pixel, directionalCount + pointCount + spotCount + lightIndex) :
+			TraceRectShadow(worldPos, N, light, pixel, pointCount + spotCount + lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 
@@ -923,8 +611,8 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 			(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 			float occlusion = useShadow ?
-				TraceDirectionalShadow(worldPos, N, light.direction,
-					light.shadowAngularRadius, pixel, index) :
+				(filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, index) :
+					TraceDirectionalShadow(worldPos, N, light.direction, light.shadowAngularRadius, pixel, index)) :
 				(shadowMapAvailable != 0u && index == shadowMapLightIndex ?
 					TraceDirectionalShadowMap(worldPos, N) :
 					TraceScreenSpaceShadow(
@@ -1063,9 +751,12 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 
 	float3 V = normalize(cameraPos - worldPos);
 	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
+	// 遮蔽は環境光だけに適用する
+	float ambientAO = ambientOcclusionIntensity <= 0.0f ? 1.0f : pow(saturate(gAmbientOcclusion.SampleLevel(gSampler, input.texcoord, 0.0f).r),
+		max(ambientOcclusionIntensity, 0.0f));
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
-		roughness, ao, emissive, flags, useShadow);
+		roughness, ao * ambientAO, emissive, flags, useShadow);
 
 	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
 	if ((flags & kMaterialFlagLighting) != 0u &&
@@ -1076,7 +767,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		float3 environment = ResolveEnvironmentReflection(
 			worldPos, N, V, roughness, useShadow);
 		color += environment * FresnelSchlick(NdotV, F0) *
-			(1.0f - roughness * 0.75f) * ao;
+			(1.0f - roughness * 0.75f) * ao * reflectionIntensity;
 	}
 
 	return float4(color, 1.0f);

@@ -25,6 +25,9 @@ namespace Engine {
 //============================================================================
 namespace Engine::MeshDrawPathCommon {
 
+	// 描画とレイ判定で表面方式を揃える
+	MeshSubMeshRenderState ResolveSubMeshRenderState(const MeshRendererComponent& renderer, const SubMeshMaterial& subMesh);
+
 	// サブメッシュをMaterialと表面方式が同じ描画グループへ分類する
 	void BuildSubMeshRenderGroups(
 		const MeshRendererComponent& renderer,

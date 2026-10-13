@@ -9,20 +9,21 @@
 bool NEMTests::TestProfilerContracts() {
 
 	Engine::FrameProfileHistory history;
+	if (history.GetLatest() != 0.0f) return false;
 	history.BeginFrame(true);
 	history.Add(2.0f);
 	history.Add(3.0f);
-	if (history.GetAverage() != 5.0f) return false;
+	if (history.GetAverage() != 5.0f || history.GetLatest() != 0.0f) return false;
 	history.BeginFrame(false);
 	history.Add(100.0f);
-	if (history.GetAverage() != 5.0f) return false;
+	if (history.GetAverage() != 5.0f || history.GetLatest() != 5.0f) return false;
 	history.BeginFrame(false);
-	if (history.GetAverage() != 52.5f) return false;
+	if (history.GetAverage() != 52.5f || history.GetLatest() != 100.0f) return false;
 	for (int i = 0; i < 8; ++i) {
 		history.Add(4.0f);
 		history.BeginFrame(false);
 	}
-	if (history.GetAverage() != 4.0f) return false;
+	if (history.GetAverage() != 4.0f || history.GetLatest() != 4.0f) return false;
 
 	std::vector<Engine::ScriptProfileRow> rows(2);
 	rows[0].name = "first";

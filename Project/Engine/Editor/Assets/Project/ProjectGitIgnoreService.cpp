@@ -194,7 +194,7 @@ Engine::ProjectGitIgnoreService::Result Engine::ProjectGitIgnoreService::Apply(
 		}
 		result.state = refreshed;
 		result.message = included ? "Gitの除外設定を解除しました。ステージ操作は手動で行ってください" :
-			"Gitの除外設定を保存しました。追跡済みファイルの索引解除は手動で行ってください";
+			"Gitの除外設定を保存しました";
 	} catch (const std::exception& exception) {
 		result.message = exception.what();
 		result.state = Query(path, directory);

@@ -26,6 +26,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -272,6 +273,21 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				subMeshData.localOrientationSign = localNormal.orientationSign;
 				subMeshData.sourcePivot = authoring.sourcePivot;
 			}
+			// 遮蔽判定用の表面方式と切り抜き閾値を詰める
+			MeshSubMeshRenderState renderState{};
+			if (src.renderer) {
+				renderState.material = src.renderer->material;
+				renderState.surfaceMode = src.renderer->queue == RenderPhase::Transparent ?
+					MaterialSurfaceMode::Transparent : MaterialSurfaceMode::Opaque;
+				if (hasMesh) renderState = MeshDrawPathCommon::ResolveSubMeshRenderState(*src.renderer, subMeshes[subMeshIndex]);
+			}
+			const auto* material = work.assetLibrary.LoadMaterial(renderState.material);
+			if (material && material->renderState.overridesRenderer && !renderState.surfaceModeOverridden) {
+				renderState.surfaceMode = material->renderState.surfaceMode;
+			}
+			const float alphaCutoff = hasMesh ? subMeshes[subMeshIndex].alphaCutoff : 0.5f;
+			subMeshData._materialPad = (static_cast<uint32_t>(renderState.surfaceMode) << 16u) |
+				static_cast<uint32_t>(std::clamp(alphaCutoff, 0.0f, 1.0f) * 65535.0f);
 			// サブメッシュデータを追加
 			result_.sceneSubMeshScratch_.emplace_back(subMeshData);
 

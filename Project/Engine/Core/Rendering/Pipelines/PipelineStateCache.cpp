@@ -292,6 +292,8 @@ const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsRefl
 
 void Engine::PipelineStateCache::Clear() {
 
+	++contentRevision_;
+
 	failedKeys_.clear();
 	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする
 	for (auto& entry : cache_) {
@@ -306,6 +308,8 @@ void Engine::PipelineStateCache::Clear() {
 }
 
 void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
+
+	++contentRevision_;
 
 	// Pipeline更新後は失敗した構成も再試行する
 	std::erase_if(failedKeys_, [pipelineAssetID](const PipelineCacheKey& key) {
@@ -352,6 +356,8 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 }
 
 void Engine::PipelineStateCache::InvalidateByShaderAsset(AssetID shaderAssetID) {
+
+	++contentRevision_;
 
 	// Shader更新後は旧PSOの有無に関係なく再試行する
 	std::erase_if(failedKeys_, [shaderAssetID](const PipelineCacheKey& key) {

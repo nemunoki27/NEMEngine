@@ -1,0 +1,11 @@
+{
+  "name": "ambientOcclusion",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d4153534554414f000000000001",
+      "entry": "main",
+      "profile": "cs_6_6"
+    }
+  ]
+}

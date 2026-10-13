@@ -24,3 +24,8 @@ float Engine::FrameProfileHistory::GetAverage() const {
 	}
 	return sum / static_cast<float>(sampleCount_);
 }
+
+float Engine::FrameProfileHistory::GetLatest() const {
+
+	return sampleCount_ == 0 ? 0.0f : samples_[(nextSample_ + kSampleCount - 1) % kSampleCount];
+}

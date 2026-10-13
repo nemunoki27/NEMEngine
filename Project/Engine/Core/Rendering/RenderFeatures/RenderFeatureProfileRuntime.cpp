@@ -76,10 +76,11 @@ namespace {
 		}
 	}
 
-	bool IsEnabledForView(const Engine::RenderFeaturePassSettings& pass, Engine::RenderViewKind viewKind) {
+	bool IsEnabledForView(const Engine::RenderFeatureProfileAsset& pass, Engine::RenderViewKind viewKind) {
 
-		return (viewKind == Engine::RenderViewKind::Game && pass.gameView) ||
-			   (viewKind == Engine::RenderViewKind::Scene && pass.sceneView);
+		const bool sceneView = viewKind == Engine::RenderViewKind::Scene;
+		return Engine::RenderFeatureRuntimeOverrides::GetInstance().IsViewEnabled(
+			pass.guid, sceneView, sceneView ? pass.sceneView : pass.gameView);
 	}
 }
 
@@ -157,11 +158,8 @@ Engine::RenderFeatureExecutionPlan Engine::RenderFeatureProfileRuntime::BuildPla
 			.pass = pass.id,
 			.output = pass.outputs.empty() ? "Color" : pass.outputs.front().name,
 		};
-		if (RenderFeatureRuntimeOverrides::GetInstance().IsSceneColorOutput(pass.id, pass.sceneColorOutput)) {
-			if (plan.sceneColorOutput.pass) {
-				plan.diagnostic = "同じ実行位置にSceneColor出力が複数あります";
-				return plan;
-			}
+		// 最後の有効パスの主出力をSceneColorへ戻す
+		if (RenderFeatureRuntimeOverrides::GetInstance().IsEnabled(pass.id, pass.enabled)) {
 			plan.sceneColorOutput = previous;
 		}
 	}
@@ -286,7 +284,7 @@ bool Engine::RenderFeatureProfileRuntime::IsPassConfiguredActive(
 	const RenderFeaturePassRuntimeOverride* runtimeOverride = RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
 	// 無効化したPassも主入力を引き継ぐため計画へ残す
 	const bool enabled = pass.enabled || (runtimeOverride && runtimeOverride->enabled == true);
-	return enabled && pass.material && IsEnabledForView(pass, viewKind) && IsPassHierarchyEnabled(pass.id);
+	return enabled && pass.material && IsEnabledForView(*profile_, viewKind) && IsPassHierarchyEnabled(pass.id);
 }
 
 bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(const RenderFeatureHierarchyItem& group) const {

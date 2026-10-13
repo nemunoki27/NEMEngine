@@ -80,7 +80,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// データ転送、skyboxは反射レイのミス時の背景に使う
-		void Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox);
+		void Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const CameraCommon& settings);
 
 		// 描画バッファレジストリに自身のバッファを登録する
 		void RegisterTo(RenderBufferRegistry& registry) const;

@@ -6,6 +6,8 @@
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
 #include <filesystem>
 #include <chrono>
+#include <map>
+#include <vector>
 
 // DirectX
 #include <d3d12sdklayers.h>
@@ -55,6 +57,13 @@ namespace Engine {
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
 		bool quickCheck_ = false;
+		// 起動から全frameを一秒単位で集計する
+		bool continuousCapture_ = false;
+		uint64_t capturedGPUFrameID_ = 0;
+		uint64_t captureFirstCPUFrameID_ = 0;
+		uint64_t captureFirstGPUFrameID_ = 0;
+		uint32_t captureBucket_ = 0;
+		std::map<std::string, std::vector<double>> captureTimes_;
 		// 画像比較時だけScene内の時刻を固定する
 		bool freezeAnimation_ = false;
 		// 切替後の読込とフレーム安定を待つ
@@ -80,5 +89,7 @@ namespace Engine {
 		void FinishPhase(GraphicsCore& graphicsCore);
 		// 計測終了後のViewを画像へ保存する
 		void CaptureViews(GraphicsCore& graphicsCore);
+		// 読込中も連続記録し短い停止を残す
+		void CaptureContinuousFrame(GraphicsCore& graphicsCore, float deltaTime);
 	};
 }

@@ -20,6 +20,7 @@ namespace Engine {
 			double missingSince = -1.0;
 		};
 		std::string name{};
+		std::string viewID{};
 		std::vector<Pass> passTimes{};
 		float totalMilliseconds = 0.0f;
 	};
@@ -35,11 +36,12 @@ namespace Engine {
 		//========================================================================
 
 		// 新しいGPU結果だけを取り込み実時間で行を整理する
-		void Update(std::span<const FrameProfiler::GPUPassTime> times, uint64_t frameID, bool hasData, double now);
+		void Update(std::span<const FrameProfiler::GPUPassTime> times, uint64_t frameID, bool hasData, double now, bool hovered = false);
 
 		//--------- accessor -----------------------------------------------------
 
 		const std::vector<ConsoleGPUPassViewSnapshot>& GetViews() const { return views_; }
+		bool HasCurrentData() const { return hasData_; }
 
 	private:
 		//========================================================================
@@ -50,6 +52,8 @@ namespace Engine {
 
 		std::vector<ConsoleGPUPassViewSnapshot> views_;
 		uint64_t lastFrameID_ = UINT64_MAX;
+		bool hovered_ = false;
+		bool hasData_ = false;
 	};
 
 	// GPU計測一覧を更新し必要な場合だけ表示する

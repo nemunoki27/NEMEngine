@@ -1,0 +1,11 @@
+{
+  "name": "InlineShadowSpatial",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345545348445700000012",
+      "entry": "spatial",
+      "profile": "cs_6_0"
+    }
+  ]
+}

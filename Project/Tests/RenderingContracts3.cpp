@@ -189,48 +189,29 @@ namespace NEMTests {
 		profile = beforeDependency;
 		overrides.ResetAll();
 
-		// SceneColor出力の切り替えは保存値とパスの有効状態を変更しない
-		profile.passes.front().sceneColorOutput = true;
+		// 最後の有効PassをAnchorごとに自動で選ぶ
+		profile.guid = Engine::AssetID{91, 92};
 		Engine::RenderFeaturePassSettings second = profile.passes.front();
 		second.id = Engine::UUID{102};
-		second.name = "RuntimeOutput";
-		second.sceneColorOutput = false;
+		second.name = "AutomaticOutput";
 		profile.passes.emplace_back(second);
 		Engine::RenderFeaturePassSettings other = second;
 		other.id = Engine::UUID{103};
-		other.name = "OtherAnchor";
+		other.name = "LaterAnchor";
 		other.anchor = Engine::RenderFeatureAnchor::BeforeBlit;
-		other.sceneColorOutput = true;
 		profile.passes.emplace_back(other);
 		runtime.Rebuild(profile);
-		const bool switched =
-			overrides.SetSceneColorOutput(profile, second.id, true) && !overrides.IsSceneColorOutput(passID, true) &&
-			overrides.IsSceneColorOutput(second.id, false) && overrides.IsSceneColorOutput(other.id, true) &&
-			overrides.IsEnabled(passID, true) && profile.passes.front().sceneColorOutput &&
-			!profile.passes[1].sceneColorOutput &&
-			runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass == second.id &&
-			runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Scene).sceneColorOutput.pass == second.id;
-
-		// パラメータの削除後も出力指定を保持する
-		const bool retained = overrides.SetParameter(second.id, parameterID, "ReflectionStrength", value) &&
-							  overrides.ClearParameter(second.id, parameterID) &&
-							  overrides.IsSceneColorOutput(second.id, false);
-		const bool outputOff = overrides.SetSceneColorOutput(profile, second.id, false) &&
-							   !runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass &&
-							   runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).nodes.size() == 2;
-
-		// 出力設定が不正な要求は現在の指定を維持して拒否する
-		overrides.SetSceneColorOutput(profile, second.id, true);
-		profile.passes.front().outputs.emplace_back(Engine::RenderFeatureOutputSettings{});
-		profile.passes.front().outputs.front().widthScale = 0.5f;
-		const bool rejected = !overrides.SetSceneColorOutput(profile, passID, true) &&
-							  !overrides.SetSceneColorOutput(profile, Engine::UUID{999}, true) &&
-							  overrides.IsSceneColorOutput(second.id, false) && !overrides.IsSceneColorOutput(passID, true);
-		const bool resetPass = overrides.ResetPass(second.id) && !overrides.IsSceneColorOutput(second.id, false);
+		const bool automatic = runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass == second.id &&
+			runtime.BuildPlan(other.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass == other.id;
+		overrides.SetEnabled(second.id, false);
+		const bool previous = runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass == passID;
+		// Viewの切替は保存値や別Anchorを変更しない
+		overrides.SetViewEnabled(profile.guid, true, false);
+		const bool selectedView = runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Scene).nodes.empty() &&
+			!runtime.BuildPlan(other.anchor, Engine::RenderViewKind::Game).nodes.empty() && profile.sceneView;
 		overrides.ResetAll();
-		return valid && cleared && enabledByScript && disabledPassKeepsBypassNode && visibleEnabled && switched && retained &&
-			   outputOff && rejected && resetPass && overrides.IsSceneColorOutput(passID, true) &&
-			   overrides.Find(passID) == nullptr;
+		return valid && cleared && enabledByScript && disabledPassKeepsBypassNode && visibleEnabled && automatic && previous &&
+			selectedView && overrides.Find(passID) == nullptr;
 	}
 
 	bool TestShaderPathDependencies() {

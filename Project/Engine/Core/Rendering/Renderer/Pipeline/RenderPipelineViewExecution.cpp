@@ -441,6 +441,10 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.hasShadowCastingLight = cameraState.lightSet.hasShadowCastingLight;
 	context.viewLights = &cameraState.lightSet;
 	cameraState.lightBuffers.RegisterTo(context.bufferRegistry);
+	// 反射定数を転送してから、この描画のGPUアドレスを登録する
+	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
+		graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
+	cameraState.raytracingBuffers.Upload(view, skyboxInfo, context.postProcessCamera.surfaceSettings);
 	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
 	return context;
 }

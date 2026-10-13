@@ -156,6 +156,11 @@ bool Engine::RayTracingExecutor::Execute(
 			const RegisteredRenderBuffer* registered =
 				context.bufferRegistry.Find(binding.name);
 			if (registered) {
+				// 未転送の定数をGPUへ渡さない
+				if (binding.kind == ShaderBindingKind::CBV && !registered->gpuAddress) {
+					ReportFailure(pass, "constant buffer is not uploaded: " + binding.name);
+					return false;
+				}
 				if (binding.kind == ShaderBindingKind::CBV) {
 					RootBindingCommand::SetComputeCBV(commandList,
 						location, registered->gpuAddress);

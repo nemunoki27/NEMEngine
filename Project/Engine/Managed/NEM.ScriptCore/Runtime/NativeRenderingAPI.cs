@@ -163,9 +163,6 @@ internal static unsafe class NativeRenderingAPI {
             passID, generation, enabled ? 1 : 0) != 0;
 
     // 描画Passの画面出力を設定する
-    internal static bool WriteRenderFeaturePassSceneColorOutput(ulong passID, ulong generation, bool enabled) =>
-        SetRenderFeaturePassSceneColorOutput != null &&
-        SetRenderFeaturePassSceneColorOutput(passID, generation, enabled ? 1 : 0) != 0;
 
     // 描画PassのParameterを設定する
     internal static bool WriteRenderFeaturePassParameter(ulong passID, ulong generation, ulong parameterID,

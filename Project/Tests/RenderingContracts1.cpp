@@ -76,7 +76,23 @@ namespace NEMTests {
 				return false;
 			}
 		}
-		return Engine::ShaderSourcePath::Resolve("b2995658d93cd4ab").empty();
+		if (!Engine::ShaderSourcePath::Resolve("b2995658d93cd4ab").empty()) return false;
+		// Cameraの固定パスも製品と同じDXCで検証する
+		Engine::DxShaderCompiler compiler;
+		compiler.Init();
+		const std::pair<const char*, const wchar_t*> shaders[] = {
+			{"Shaders/Builtin/Raytracing/AmbientOcclusion/ambientOcclusion.CS.hlsl", L"cs_6_6"},
+			{"Shaders/Builtin/Raytracing/AmbientOcclusion/ambientOcclusionFilter.CS.hlsl", L"cs_6_0"},
+		};
+		for (const auto& [source, profile] : shaders) {
+			const auto shader = compiler.CompileShader(Engine::RuntimePaths::GetEngineAssetPath(source).wstring(),
+				profile, L"main", Engine::ShaderStage::CS);
+			if (!shader.IsValid()) {
+				std::cerr << source << '\n' << shader.diagnostics << '\n';
+				return false;
+			}
+		}
+		return true;
 	}
 
 	bool TestMeshShaderConstantLayout() {

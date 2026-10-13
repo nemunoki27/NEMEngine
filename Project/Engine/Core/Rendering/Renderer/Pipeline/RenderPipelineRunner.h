@@ -68,6 +68,8 @@ namespace Engine {
 		uint32_t instanceCount = 0;
 		// レイトレーシング用マテリアルが変化した世代
 		uint64_t materialGeneration = 0;
+		// BLASとTLASの内容変更を影の再利用へ伝える
+		uint64_t geometryGeneration = 0;
 		// 非同期テクスチャが全て確定しているか
 		bool materialTexturesReady = true;
 	};
@@ -86,6 +88,7 @@ namespace Engine {
 		const ResolvedRenderView* lodView = nullptr;
 		// 最終出力へ適用するCameraの画面設定
 		ResolvedCameraView postProcessCamera{};
+		RenderTexture2D* ambientOcclusion = nullptr;
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
@@ -267,6 +270,8 @@ namespace Engine {
 
 		// 指定ビューのGBufferアタッチメントテクスチャを取得する、GBufferデバッグ表示用、未生成はnullptr
 		RenderTexture2D* GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment);
+		// 表示Cameraの遮蔽結果を参照する
+		RenderTexture2D* GetViewAmbientOcclusionTexture(RenderViewKind kind);
 		// 指定ビューのSceneMain深度テクスチャを取得する、GBufferデバッグ表示の深度用、未生成はnullptr
 		DepthTexture2D* GetViewDepthTexture(RenderViewKind kind);
 	private:

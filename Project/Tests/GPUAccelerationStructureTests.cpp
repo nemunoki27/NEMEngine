@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingTLASState.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 // c++
 #include <array>
@@ -89,8 +90,8 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		desc.pRootSignature = root.Get();
 		desc.CS = { shader.GetBytecodePointer(), shader.GetBytecodeSize() };
 		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
-		DxUtils::CreateReadbackBufferResource(device, readback, 40);
-		DxUtils::CreateUavBufferResource(device, output, 40);
+		DxUtils::CreateReadbackBufferResource(device, readback, 48);
+		DxUtils::CreateUavBufferResource(device, output, 48);
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		commands->ResourceBarrier(1, &barrier);
@@ -158,10 +159,13 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	geometry.localMatrix.m[3][0] = 10;
 	source.Update(commands, input);
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, {}, 0, false, false);
+	const uint64_t firstContentGeneration = state.GetContentGeneration();
+	if (firstContentGeneration == 0) return false;
 	trace(6, state.GetResource());
 	geometry.localMatrix = Engine::Matrix4x4::Identity();
 	source.Update(commands, input);
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
+	if (state.GetContentGeneration() <= firstContentGeneration) return false;
 	trace(7, state.GetResource());
 	geometry.localMatrix.m[3][0] = 10;
 	source.Rebuild(commands, input);
@@ -171,11 +175,26 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	source.Rebuild(commands, input);
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
 	trace(9, state.GetResource());
+	// 配置が落ち着いた後だけ再構築し、以降は再利用する
+	auto& profiler = Engine::FrameProfiler::GetInstance();
+	profiler.BeginFrame(0, 0);
+	Engine::GraphicsFrameState::BeginFrame(0);
+	Engine::GraphicsFrameState::BeginFrame(0);
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, false);
+	trace(10, state.GetResource());
+	profiler.BeginFrame(0, 0);
+	if (profiler.GetRenderingStatistics().tlasBuildCount != 1) return false;
+	const uint64_t stableContentGeneration = state.GetContentGeneration();
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, false);
+	trace(11, state.GetResource());
+	profiler.BeginFrame(0, 0);
+	if (profiler.GetRenderingStatistics().tlasBuildCount != 0 || profiler.GetRenderingStatistics().tlasSkipCount != 1) return false;
+	if (state.GetContentGeneration() != stableContentGeneration) return false;
 	if (canQuery) {
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commands->ResourceBarrier(1, &barrier);
-		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 40);
+		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 48);
 		retirement.Retire(std::move(output));
 		retirement.Retire(std::move(root));
 		retirement.Retire(std::move(pipeline));

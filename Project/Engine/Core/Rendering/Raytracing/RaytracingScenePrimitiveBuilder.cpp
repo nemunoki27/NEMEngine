@@ -26,6 +26,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -95,9 +96,14 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(result_.sceneSubMeshScratch_.size());
 
-		const MeshSubMeshShaderData subMeshData = materialResolver_.BuildPrimitiveSubMeshData(
+		MeshSubMeshShaderData subMeshData = materialResolver_.BuildPrimitiveSubMeshData(
 			work.graphicsCore, work.assetDatabase, *material,
 			src.materialInstance, src.uvMatrix);
+		const MaterialParameterValue* alphaClip = src.materialInstance ? src.materialInstance->Find(MaterialParameterIDs::AlphaClip) : nullptr;
+		if (!alphaClip) alphaClip = material->parameters.Find(MaterialParameterIDs::AlphaClip);
+		const float threshold = alphaClip && std::holds_alternative<float>(alphaClip->value) ? std::get<float>(alphaClip->value) : 0.5f;
+		subMeshData._materialPad = (static_cast<uint32_t>(src.surfaceMode) << 16u) |
+			static_cast<uint32_t>(std::clamp(threshold, 0.0f, 1.0f) * 65535.0f);
 		result_.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};

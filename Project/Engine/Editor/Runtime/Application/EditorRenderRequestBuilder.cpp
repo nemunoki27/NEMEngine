@@ -9,6 +9,8 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 
 using namespace Engine;
 
@@ -70,20 +72,21 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			request.drawSceneView2DCameraBounds = editorManager_.ShouldDrawSceneView2DCameraBounds();
 		}
 
-		// 2つのViewを表示中は操作対象を毎フレーム、副Viewを30Hzで更新してGPUの熱飽和を防ぐ
+		// 操作対象は毎frame、副Viewは負荷に応じて更新する
 		renderGameView = showGameView;
 		renderSceneView = showSceneView;
 		if (showGameView && showSceneView && !layout.hidePanels) {
 
-			const bool renderSecondaryView = (renderFrameSerial_ % 2) == 0;
+			const bool renderSecondaryView = ShouldRenderSecondaryView();
 			const EditorState& editorState = editorManager_.GetEditorState();
-			if (worldManager_.IsPlaying()) {
+			const bool gameViewPrimary = editorState.gameViewportHovered ||
+				(worldManager_.IsPlaying() && !editorState.sceneViewportHovered);
+			if (gameViewPrimary) {
 				renderSceneView = renderSecondaryView;
 			} else {
-				renderGameView = renderSecondaryView || editorState.gameViewportHovered;
+				renderGameView = renderSecondaryView;
 			}
 		}
-		++renderFrameSerial_;
 	}
 	// ゲームビューの要求を構築
 	{
@@ -123,4 +126,43 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		}
 	}
 	return request;
+}
+
+bool Engine::EditorRenderRequestBuilder::ShouldRenderSecondaryView() {
+
+	const auto now = std::chrono::steady_clock::now();
+	const auto& profiler = FrameProfiler::GetInstance();
+	if (profiler.HasGPUData() && profiler.GetGPUFrameID() != lastGPUFrameID_) {
+
+		// 同じ計測結果を重複して平均へ入れない
+		lastGPUFrameID_ = profiler.GetGPUFrameID();
+		const float gpuTime = profiler.GetGPUTotalMs();
+		averagedGPUTime_ = averagedGPUTime_ > 0.0f ? averagedGPUTime_ + (gpuTime - averagedGPUTime_) * 0.05f : gpuTime;
+		const uint32_t targetFPS = FrameRateSettings::GetInstance().GetPresentTargetFps();
+		const float frameBudget = 1000.0f / (targetFPS > 0 ? targetFPS : 60u);
+		if (averagedGPUTime_ > frameBudget * 0.85f) {
+
+			// 描画が重い間は副Viewを15Hzへ落とす
+			secondaryViewThrottled_ = true;
+			secondaryRecoveryStarted_ = {};
+		} else if (secondaryViewThrottled_ && averagedGPUTime_ < frameBudget * 0.5f) {
+
+			// 余裕が続いてから30Hzへ戻す
+			if (secondaryRecoveryStarted_ == std::chrono::steady_clock::time_point{}) secondaryRecoveryStarted_ = now;
+			if (now - secondaryRecoveryStarted_ >= std::chrono::seconds(5)) secondaryViewThrottled_ = false;
+		} else {
+			secondaryRecoveryStarted_ = {};
+		}
+	}
+	if (now < nextSecondaryViewUpdate_) return false;
+
+	// 遅れた更新をまとめて実行しない
+	const auto interval = std::chrono::duration<double>(1.0 / (secondaryViewThrottled_ ? 15.0 : 30.0));
+	const auto updateInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(interval);
+	if (nextSecondaryViewUpdate_ == std::chrono::steady_clock::time_point{} || now - nextSecondaryViewUpdate_ >= updateInterval) {
+		nextSecondaryViewUpdate_ = now + updateInterval;
+	} else {
+		nextSecondaryViewUpdate_ += updateInterval;
+	}
+	return true;
 }

@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <chrono>
 
 namespace Engine {
 
@@ -29,6 +30,11 @@ namespace Engine {
 			uint32_t width, uint32_t height, uint64_t runtimeGeneration, uint64_t materialGeneration);
 		void MarkWritten(const std::string& historyKey);
 		void RetainViews(const std::unordered_set<std::string>& activeViews);
+
+		//--------- accessor -----------------------------------------------------
+
+		// 次の書き込み先を履歴ごとに取得する
+		uint32_t GetHistoryWriteIndex(const std::string& historyKey) const;
 	private:
 		//========================================================================
 		//	private Methods
@@ -40,7 +46,8 @@ namespace Engine {
 			uint32_t height = 0;
 			uint64_t runtimeGeneration = 0;
 			uint64_t raytracingMaterialGeneration = 0;
-			uint64_t lastWrittenFrame = 0;
+			std::chrono::steady_clock::time_point lastWrittenTime{};
+			uint32_t writeIndex = 0;
 			bool valid = false;
 		};
 

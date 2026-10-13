@@ -1,0 +1,16 @@
+{
+  "name": "ambientOcclusion",
+  "domain": "Compute",
+  "parameters": {
+    "radius": 1,
+    "sampleCount": 4,
+    "cullingMask": 16777215
+  },
+  "passes": [
+    {
+      "passKind": "PostProcess",
+      "pipeline": "4e454d4153534554414f000000000003",
+      "preferredVariant": "Compute"
+    }
+  ]
+}

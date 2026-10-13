@@ -100,10 +100,15 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	PipelineStaticSamplerOverrideSet samplerOverrides{};
 	samplerOverrides.fillMissingSamplers = true;
 	samplerOverrides.byName = desc.samplerOverrides;
+	// CameraのAOだけは影の希望設定から独立して実行する
+	auto runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	if (desc.allowInlineRayTracing) {
+		runtimeFeatures.useInlineRayTracing = graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath();
+	}
 	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
 		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {},
 		DXGI_FORMAT_UNKNOWN,
-		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(),
+		runtimeFeatures,
 		nullptr, false, &samplerOverrides, passBinding->shaderOverride);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
 		Logger::Output(LogType::Engine, logHeader + "Pipelineがないかコンパイルに失敗しました");
@@ -145,7 +150,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			continue;
 		}
 
-		if (binding.kind == ShaderBindingKind::SRV) {
+		if (binding.kind == ShaderBindingKind::SRV || binding.kind == ShaderBindingKind::AccelStruct) {
 			if (!AppendSRVBinding(binding, graphicsCore, context, desc, *source, binds, logHeader)) {
 				return false;
 			}

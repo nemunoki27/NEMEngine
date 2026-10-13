@@ -259,8 +259,22 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 	const MeshRenderBackend* meshBackend =
 		deps.backendRegistry ? dynamic_cast<const MeshRenderBackend*>(deps.backendRegistry->Find(RenderBackendID::Mesh))
 							 : nullptr;
+	auto& owner = views_[context.view->GetHistoryKey()];
+	if (!owner) owner = std::make_unique<ViewState>();
+	activeView_ = owner.get();
+	auto& viewState = *activeView_;
+	auto stamp = BuildShadowSceneStamp(graphicsCore, context, deps);
+	if (viewState.built && stamp.reusable && stamp == viewState.stamp &&
+		viewState.lightDirection == shadowLight->direction && viewState.lightEntity == shadowLight->common.entity &&
+		viewState.shadowState.lightIndex == state_.lightIndex) {
 
-	for (std::unique_ptr<MultiRenderTarget>& shadowMap : shadowMaps_) {
+		// Cameraと遮蔽物が同じなら四枚のCascadeを再利用する
+		state_ = viewState.shadowState;
+		return true;
+	}
+	viewState.built = false;
+
+	for (std::unique_ptr<MultiRenderTarget>& shadowMap : viewState.shadowMaps) {
 		if (shadowMap) {
 			continue;
 		}
@@ -344,7 +358,7 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 		shadowView.perspective.farClip = depthRange;
 		shadowView.perspective.cullingMask = 0xffffffffu;
 
-		MultiRenderTarget* target = shadowMaps_[cascade].get();
+		MultiRenderTarget* target = viewState.shadowMaps[cascade].get();
 		target->TransitionForRender(*graphicsCore.GetDXObject().GetDxCommand());
 		target->Clear(*graphicsCore.GetDXObject().GetDxCommand(), MultiRenderTargetClearDesc{
 																	  .clearColor = false,
@@ -364,10 +378,23 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 		RenderPassExecutionHelper::Execute(
 			graphicsCore, context, shadowItems, deps, target, MaterialPassKind::ZPrepass, false, true);
 	}
+	// 完成したCascadeだけ次frameへ残す
+	viewState.stamp = std::move(stamp);
+	viewState.shadowState = state_;
+	viewState.lightDirection = shadowLight->direction;
+	viewState.lightEntity = shadowLight->common.entity;
+	viewState.built = true;
 	return true;
 }
 
 Engine::DepthTexture2D* Engine::DirectionalShadowMapRenderer::GetDepthTexture(uint32_t cascade) {
 
-	return shadowMaps_[cascade] ? shadowMaps_[cascade]->GetDepthTexture() : nullptr;
+	return activeView_ && activeView_->shadowMaps[cascade] ? activeView_->shadowMaps[cascade]->GetDepthTexture() : nullptr;
+}
+
+void Engine::DirectionalShadowMapRenderer::RetainViews(const std::unordered_set<std::string>& viewKeys) {
+
+	// CameraとWorldの切替時に不要なCascadeを回収する
+	activeView_ = nullptr;
+	std::erase_if(views_, [&](const auto& view) { return !viewKeys.contains(view.first); });
 }

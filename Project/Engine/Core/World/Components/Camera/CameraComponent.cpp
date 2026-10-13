@@ -23,6 +23,15 @@ namespace {
 		common.viewportHeight = in.value("viewportHeight", common.viewportHeight);
 		common.targetTexture = Engine::ParseAssetReference(
 			in, "targetTexture", nullptr, Engine::AssetType::RenderTexture);
+		common.reflectionEnabled = in.value("reflectionEnabled", common.reflectionEnabled);
+		common.reflectionIntensity = in.value("reflectionIntensity", common.reflectionIntensity);
+		common.reflectionMaxDistance = in.value("reflectionMaxDistance", common.reflectionMaxDistance);
+		common.reflectionQuality = in.value("reflectionQuality", common.reflectionQuality);
+		common.reflectionParameters = in.value("reflectionParameters", common.reflectionParameters);
+		common.ambientOcclusionEnabled = in.value("ambientOcclusionEnabled", common.ambientOcclusionEnabled);
+		common.ambientOcclusionIntensity = in.value("ambientOcclusionIntensity", common.ambientOcclusionIntensity);
+		common.ambientOcclusionRadius = in.value("ambientOcclusionRadius", common.ambientOcclusionRadius);
+		common.ambientOcclusionQuality = in.value("ambientOcclusionQuality", common.ambientOcclusionQuality);
 		common.postProcessEnabled = in.value("postProcessEnabled", common.postProcessEnabled);
 		// Camera内の保存値から露出と色補正を復元する
 		common.colorPipeline = Engine::RenderFeatureProfileSerializer::FromJson(in).colorPipeline;
@@ -41,6 +50,15 @@ namespace {
 		out["viewportWidth"] = common.viewportWidth;
 		out["viewportHeight"] = common.viewportHeight;
 		out["targetTexture"] = Engine::ToAssetReferenceJson(common.targetTexture);
+		out["reflectionEnabled"] = common.reflectionEnabled;
+		out["reflectionIntensity"] = common.reflectionIntensity;
+		out["reflectionMaxDistance"] = common.reflectionMaxDistance;
+		out["reflectionQuality"] = common.reflectionQuality;
+		out["reflectionParameters"] = common.reflectionParameters;
+		out["ambientOcclusionEnabled"] = common.ambientOcclusionEnabled;
+		out["ambientOcclusionIntensity"] = common.ambientOcclusionIntensity;
+		out["ambientOcclusionRadius"] = common.ambientOcclusionRadius;
+		out["ambientOcclusionQuality"] = common.ambientOcclusionQuality;
 		out["postProcessEnabled"] = common.postProcessEnabled;
 		// 設定値をCameraと同じ文書へ保存する
 		Engine::RenderFeatureProfileAsset settings{};

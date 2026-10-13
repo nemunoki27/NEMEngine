@@ -6,9 +6,13 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/Stage/RootSignaturePlanning.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/AutoRootSignatureBuilder.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -240,5 +244,30 @@ bool NEMTests::CheckRootSignaturePlanning(ID3D12Device* device) {
 	}
 	auto fullyStatic = builder.Build(device, PipelineType::Vertex, {&vertex, &pixel},
 		{MakeStaticSampler(D3D12_SHADER_VISIBILITY_VERTEX), MakeStaticSampler(D3D12_SHADER_VISIBILITY_PIXEL)});
-	return fullyStatic.rootSignature && fullyStatic.bindings.empty();
+	if (!fullyStatic.rootSignature || !fullyStatic.bindings.empty()) return false;
+
+	// AOの実ShaderでTLASと画像のルート配置を作成する
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 raytracing{};
+	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{D3D_SHADER_MODEL_6_6};
+	const bool supportsTrace = SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &raytracing, sizeof(raytracing))) &&
+		SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel))) &&
+		raytracing.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1 && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6;
+	DxShaderCompiler compiler;
+	compiler.Init();
+	const std::pair<const char*, const wchar_t*> shaders[] = {
+		{"ambientOcclusion.CS.hlsl", L"cs_6_6"}, {"ambientOcclusionFilter.CS.hlsl", L"cs_6_0"}};
+	for (const auto& [name, profile] : shaders) {
+		if (std::wstring_view(profile) == L"cs_6_6" && !supportsTrace) continue;
+		const auto path = RuntimePaths::GetEngineAssetPath(std::string("Shaders/Builtin/Raytracing/AmbientOcclusion/") + name);
+		const auto compiled = compiler.CompileShader(path.wstring(), profile, L"main", ShaderStage::CS);
+		if (!compiled.IsValid()) return false;
+		auto root = builder.Build(device, PipelineType::Compute, {&compiled}, {MakeStaticSampler(D3D12_SHADER_VISIBILITY_ALL)});
+		if (!root.rootSignature) return false;
+		ComPtr<ID3D12PipelineState> pipeline;
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc{};
+		desc.pRootSignature = root.rootSignature.Get();
+		desc.CS = {compiled.GetBytecodePointer(), compiled.GetBytecodeSize()};
+		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
+	}
+	return true;
 }

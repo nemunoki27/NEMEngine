@@ -257,7 +257,6 @@ internal static unsafe class NativeAPI {
     // 実行中の描画Passを切り替える
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassEnabled;
     // 描画Passの画面出力を切り替える
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassSceneColorOutput;
     // 実行中の描画Groupを切り替える
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRenderFeatureGroupEnabled;
     // 実行中の描画Pass値を設定する
@@ -502,7 +501,6 @@ internal static unsafe class NativeAPI {
         ResolveRenderFeaturePass = callbacks->resolveRenderFeaturePass;
         ValidateRenderFeaturePass = callbacks->validateRenderFeaturePass;
         SetRenderFeaturePassEnabled = callbacks->setRenderFeaturePassEnabled;
-        SetRenderFeaturePassSceneColorOutput = callbacks->setRenderFeaturePassSceneColorOutput;
         SetRenderFeatureGroupEnabled = callbacks->setRenderFeatureGroupEnabled;
         SetRenderFeaturePassParameter = callbacks->setRenderFeaturePassParameter;
         GetRenderFeaturePassParameter = callbacks->getRenderFeaturePassParameter;

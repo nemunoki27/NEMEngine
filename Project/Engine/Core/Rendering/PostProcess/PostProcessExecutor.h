@@ -79,6 +79,7 @@ namespace Engine {
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
 		uint32_t groupCountZ = 1;
+		bool allowInlineRayTracing = false;
 	};
 
 	//============================================================================

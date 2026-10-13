@@ -53,7 +53,13 @@ bool Engine::RenderFeatureProfileService::SetActiveProfileAsset(AssetID assetID,
 		return false;
 	}
 	const std::filesystem::path path = assetDatabase->ResolveFullPath(assetID);
-	return !path.empty() && SetActiveProfilePath(path);
+	if (path.empty() || !SetActiveProfilePath(path)) {
+		return false;
+	}
+	// metaのIDで編集中と実行中のView設定を対応付ける
+	document_.profile_.guid = assetID;
+	RebuildRuntime();
+	return true;
 }
 
 void Engine::RenderFeatureProfileService::SetRuntimeExtension(const RenderPassesAsset* extension, uint64_t revision) {

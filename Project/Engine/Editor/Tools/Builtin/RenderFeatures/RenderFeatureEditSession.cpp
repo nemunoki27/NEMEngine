@@ -188,6 +188,8 @@ void Engine::RenderFeatureEditSession::SynchronizePreview(const EditorToolContex
 	RenderPassesAsset preview{};
 	preview.guid = assetID;
 	preview.name = profile.name;
+	preview.gameView = profile.gameView;
+	preview.sceneView = profile.sceneView;
 	preview.passes = profile.passes;
 	preview.hierarchy = profile.hierarchy;
 	library.RegisterPreviewRenderPasses(std::move(preview));

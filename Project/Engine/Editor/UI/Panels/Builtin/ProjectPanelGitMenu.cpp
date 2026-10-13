@@ -19,10 +19,7 @@ void Engine::ProjectPanel::DrawGitContextMenu(const std::filesystem::path& path,
 	}
 	if (state->parentExcluded) {
 		ImGui::TextDisabled("親フォルダーがGit管理から除外されています");
-	} else if (state->tracked) {
-		ImGui::TextDisabled("追跡済みファイルの索引変更は手動で行います");
 	}
-	if (gitIgnore_.IsBusy()) { ImGui::TextDisabled("Git設定を処理中..."); }
 	if (!state->message.empty()) { ImGui::TextDisabled("%s", state->message.c_str()); }
 	ImGui::Separator();
 }

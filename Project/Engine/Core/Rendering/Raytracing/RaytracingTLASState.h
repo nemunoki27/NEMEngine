@@ -31,6 +31,8 @@ namespace Engine {
 			uint32_t previousCount, bool requireTLASRebuild, bool blasContentsChanged);
 		// 連続更新の上限で再構築する
 		void RefitORRebuild(GraphicsCore& graphicsCore, const std::vector<RaytracingTLASInstance>& instances, bool forceRebuild);
+		// 配置が落ち着いた後に探索品質を戻す
+		void MaintainTraceQuality(GraphicsCore& graphicsCore, const std::vector<RaytracingTLASInstance>& instances);
 		// 比較用の配置を記録する
 		void RecordInstances(std::span<const RaytracingTLASInstance> instances);
 
@@ -38,6 +40,7 @@ namespace Engine {
 
 		bool IsBuilt() const { return tlas_.IsBuilt(); }
 		ID3D12Resource* GetResource() const { return tlas_.GetResource(); }
+		uint64_t GetContentGeneration() const { return contentGeneration_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -49,6 +52,9 @@ namespace Engine {
 		bool firstTLASBuild_ = true;
 		uint64_t tlasInstanceHash_ = 0;
 		uint32_t consecutiveTLASRefitCount_ = 0;
+		uint64_t lastTLASRefitFrame_ = 0;
+		// 同じResource内の形状変更も通知する
+		uint64_t contentGeneration_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
@@ -57,5 +63,8 @@ namespace Engine {
 		// 使用中のGPU接続でTLASを更新
 		void RefitORRebuild(ID3D12GraphicsCommandList6* commandList,
 			const std::vector<RaytracingTLASInstance>& instances, bool forceRebuild);
+		// 同frameの別Viewでは再構築しない
+		void MaintainTraceQuality(ID3D12GraphicsCommandList6* commandList,
+			const std::vector<RaytracingTLASInstance>& instances);
 	};
 }

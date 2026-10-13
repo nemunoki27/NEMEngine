@@ -287,6 +287,9 @@ Engine::RenderFeatureProfileAsset Engine::RenderFeatureProfileSerializer::FromJs
 
 	// Passと入出力の保存値を復元
 	RenderFeatureProfileAsset profile{};
+	profile.gameView = data.value("gameView", true);
+	profile.sceneView = data.value("sceneView", true);
+	profile.guid = ParseAssetID(data, "guid");
 	profile.version = data.value("version", 1u);
 	profile.name = data.value("name", profile.name);
 	if (const auto colorPipeline = data.find("colorPipeline"); colorPipeline != data.end()) {
@@ -309,8 +312,6 @@ Engine::RenderFeatureProfileAsset Engine::RenderFeatureProfileSerializer::FromJs
 		}
 		pass.name = passJson.value("name", pass.name);
 		pass.enabled = passJson.value("enabled", pass.enabled);
-		pass.gameView = passJson.value("gameView", pass.gameView);
-		pass.sceneView = passJson.value("sceneView", pass.sceneView);
 		pass.type = EnumAdapter<RenderFeaturePassType>::FromString(passJson.value("type", "Compute"))
 						.value_or(RenderFeaturePassType::Compute);
 		pass.anchor = EnumAdapter<RenderFeatureAnchor>::FromString(passJson.value("anchor", "AfterTransparent"))
@@ -322,7 +323,6 @@ Engine::RenderFeatureProfileAsset Engine::RenderFeatureProfileSerializer::FromJs
 		pass.sourceKind = EnumAdapter<RenderFeatureSourceKind>::FromString(sourceJson.value("kind", "PreviousPass"))
 							  .value_or(RenderFeatureSourceKind::PreviousPass);
 		pass.source = ParseOutputReference(sourceJson);
-		pass.sceneColorOutput = passJson.value("sceneColorOutput", false);
 		pass.rayGenerationIndex = passJson.value("rayGenerationIndex", 0u);
 		pass.adaptiveResolution = passJson.value("adaptiveResolution", pass.adaptiveResolution);
 		pass.gpuBudgetMs = passJson.value("gpuBudgetMs", pass.gpuBudgetMs);
@@ -392,8 +392,10 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(const RenderFeatur
 	RenderFeatureProfileAsset normalized = profile;
 	SynchronizeRenderFeaturePassOrder(normalized);
 	nlohmann::json data{
-		{"version", 4u},
+		{"version", 5u},
 		{"name", normalized.name},
+		{"gameView", normalized.gameView},
+		{"sceneView", normalized.sceneView},
 		{"colorPipeline", WriteColorPipeline(normalized.colorPipeline)},
 		{"passes", nlohmann::json::array()},
 		{"hierarchy", WriteHierarchyItems(normalized.hierarchy)},
@@ -406,14 +408,11 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(const RenderFeatur
 			{"id", ToString(pass.id)},
 			{"name", pass.name},
 			{"enabled", pass.enabled},
-			{"gameView", pass.gameView},
-			{"sceneView", pass.sceneView},
 			{"type", EnumAdapter<RenderFeaturePassType>::ToString(pass.type)},
 			{"anchor", EnumAdapter<RenderFeatureAnchor>::ToString(pass.anchor)},
 			{"material", ToAssetReferenceJson(pass.material)},
 			{"materialPass", EnumAdapter<MaterialPassKind>::ToString(pass.materialPass)},
 			{"source", std::move(sourceJson)},
-			{"sceneColorOutput", pass.sceneColorOutput},
 			{"rayGenerationIndex", pass.rayGenerationIndex},
 			{"adaptiveResolution", pass.adaptiveResolution},
 			{"gpuBudgetMs", pass.gpuBudgetMs},

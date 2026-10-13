@@ -65,6 +65,8 @@ namespace Engine {
 
 		PipelineStateCache() = default;
 		~PipelineStateCache() = default;
+		// 再読み込みによる描画内容の失効を通知する
+		uint64_t GetContentRevision() const { return contentRevision_; }
 
 		// パイプラインステートの取得または生成
 		const PipelineState* GetORCreate(GraphicsPlatform& graphicsPlatform,
@@ -114,6 +116,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 再読み込みで描画内容を失効させる世代
+		uint64_t contentRevision_ = 1;
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> cache_;
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> fallbackCache_;
 		// 入力が更新されるまで失敗したPSOの再生成を抑える

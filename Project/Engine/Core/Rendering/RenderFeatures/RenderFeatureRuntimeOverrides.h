@@ -19,7 +19,6 @@ namespace Engine {
 	struct RenderFeaturePassRuntimeOverride {
 
 		std::optional<bool> enabled{};
-		std::optional<bool> sceneColorOutput{};
 		MaterialParameterSet parameters{};
 		std::unordered_map<std::string, AssetID> textureOverrides{};
 	};
@@ -39,12 +38,12 @@ namespace Engine {
 		RenderFeatureRuntimeOverrides& operator=(
 			const RenderFeatureRuntimeOverrides&) = delete;
 
+		// 全パス共通のView出力を実行中だけ変更する
+		void SetViewEnabled(AssetID profile, bool gameView, bool sceneView);
+		bool IsViewEnabled(AssetID profile, bool sceneView, bool savedValue) const;
+
 		bool SetEnabled(UUID passID, bool enabled);
-		// 同じ実行位置のSceneColor出力を切り替える
-		bool SetSceneColorOutput(const RenderFeatureProfileAsset& profile,
-			UUID passID, bool enabled);
 		bool IsEnabled(UUID passID, bool savedValue) const;
-		bool IsSceneColorOutput(UUID passID, bool savedValue) const;
 		bool SetGroupEnabled(std::string_view groupName, bool enabled);
 		bool SetParameter(UUID passID,
 			MaterialParameterID parameterID,
@@ -69,6 +68,7 @@ namespace Engine {
 		RenderFeatureRuntimeOverrides() = default;
 		~RenderFeatureRuntimeOverrides() = default;
 
+		std::unordered_map<AssetID, std::pair<bool, bool>> viewOverrides_{};
 		std::unordered_map<UUID,
 			RenderFeaturePassRuntimeOverride> overrides_{};
 		std::unordered_map<std::string, bool> groupEnabledOverrides_{};

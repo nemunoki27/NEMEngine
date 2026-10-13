@@ -102,6 +102,9 @@ namespace {
 		const float tooltipWidth = GetGPUPassTooltipWidth(state.GetViews().size(), *viewport);
 		SetNextGPUPassTooltipWindow(tooltipWidth);
 		ImGui::BeginTooltip();
+		if (!state.GetViews().empty()) {
+			ImGui::TextDisabled(state.HasCurrentData() ? "直近のGPU計測結果" : "GPU計測待ち（直近の結果を表示）");
+		}
 		if (state.GetViews().empty()) {
 
 			ImGui::TextUnformatted("GPU計測データなし");
@@ -142,14 +145,17 @@ void Engine::DrawConsoleGPUPassTooltip(const FrameProfiler& profiler, bool hover
 
 	static ConsoleGPUPassTooltipState state;
 	// ホバーしていない間も未計測の時間を進める
-	state.Update(profiler.GetGPUPassTimes(), profiler.GetGPUFrameID(), profiler.HasGPUData(), ImGui::GetTime());
+	state.Update(profiler.GetGPUPassTimes(), profiler.GetGPUFrameID(), profiler.HasGPUData(), ImGui::GetTime(), hovered);
 	if (hovered) DrawGPUPassTooltip(state);
 }
 
-void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::GPUPassTime> times, uint64_t frameID, bool hasData, double now) {
+void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::GPUPassTime> times, uint64_t frameID, bool hasData, double now, bool hovered) {
 
 	// 同じGPU結果を繰り返し受けても有効時間を延ばさない
-	if (!hasData || lastFrameID_ != frameID) {
+	const bool freezeRows = hovered && hovered_ && !views_.empty();
+	hovered_ = hovered;
+	hasData_ = hasData;
+	if (hasData && lastFrameID_ != frameID) {
 
 		lastFrameID_ = frameID;
 		for (auto& view : views_) {
@@ -159,24 +165,29 @@ void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::G
 				pass.time.frameID = 0;
 			}
 		}
-		for (const auto& time : hasData ? times : std::span<const FrameProfiler::GPUPassTime>{}) {
+		for (const auto& time : times) {
 
 			const size_t slash = time.name.find('/');
 			const std::string name = slash != std::string::npos ? time.name.substr(0, slash) : std::string();
-			auto view = std::find_if(views_.begin(), views_.end(), [&](const auto& item) { return item.name == name; });
+			auto view = std::find_if(views_.begin(), views_.end(), [&](const auto& item) { return item.name == name && item.viewID == time.viewID; });
 			if (view == views_.end()) {
-				views_.push_back({ .name = name });
+				if (freezeRows) continue;
+				views_.push_back({ .name = name, .viewID = time.viewID });
 				view = std::prev(views_.end());
 			}
+			view->totalMilliseconds += time.milliseconds;
 			auto pass = std::find_if(view->passTimes.begin(), view->passTimes.end(), [&](const auto& item) {
 				return item.time.name == time.name && item.time.viewID == time.viewID;
 			});
-			if (pass == view->passTimes.end()) view->passTimes.push_back({ time, -1.0 });
+			if (pass == view->passTimes.end()) {
+				if (freezeRows) continue;
+				view->passTimes.push_back({ time, -1.0 });
+			}
 			else *pass = { time, -1.0 };
-			view->totalMilliseconds += time.milliseconds;
 		}
 	}
 	// 三秒間更新されない行と空のグループを取り除く
+	if (freezeRows) return;
 	for (auto& view : views_) {
 		std::erase_if(view.passTimes, [&](const auto& pass) { return pass.missingSince >= 0.0 && now - pass.missingSince >= 3.0; });
 	}

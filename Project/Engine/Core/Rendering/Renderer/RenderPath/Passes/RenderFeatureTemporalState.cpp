@@ -72,7 +72,7 @@ void Engine::RenderFeatureTemporalState::PrepareHistory(GraphicsCore& graphicsCo
 
 	HistoryState& state = historyStates_[historyKey];
 	const bool resetHistory = !state.valid ||
-		state.lastWrittenFrame + 1 < GraphicsFrameState::GetFrameSerial() || state.width != width ||
+		std::chrono::steady_clock::now() - state.lastWrittenTime > std::chrono::milliseconds(250) || state.width != width ||
 		state.height != height ||
 		state.runtimeGeneration != runtimeGeneration ||
 		state.raytracingMaterialGeneration !=
@@ -99,7 +99,15 @@ void Engine::RenderFeatureTemporalState::MarkWritten(const std::string& historyK
 
 	HistoryState& state = historyStates_[historyKey];
 	state.valid = true;
-	state.lastWrittenFrame = GraphicsFrameState::GetFrameSerial();
+	state.lastWrittenTime = std::chrono::steady_clock::now();
+	// 実際に描画した回だけ履歴を交代する
+	state.writeIndex = 1u - state.writeIndex;
+}
+
+uint32_t Engine::RenderFeatureTemporalState::GetHistoryWriteIndex(const std::string& historyKey) const {
+
+	const auto found = historyStates_.find(historyKey);
+	return found != historyStates_.end() ? found->second.writeIndex : 0u;
 }
 
 void Engine::RenderFeatureTemporalState::RetainViews(const std::unordered_set<std::string>& activeViews) {

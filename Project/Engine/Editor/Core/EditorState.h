@@ -118,6 +118,7 @@ namespace Engine {
 		Material,
 		Emissive,
 		Depth,
+		AmbientOcclusion,
 	};
 
 	// エディタの状態を管理する構造体

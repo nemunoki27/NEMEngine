@@ -86,7 +86,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--foundation") {
-		if (!RunTest("TestFoundationContracts", TestFoundationContracts)) {
+		if (!RunTest("TestFoundationContracts", TestFoundationContracts) ||
+			!RunTest("TestProfilerContracts", TestProfilerContracts)) {
 			return 41;
 		}
 		std::cout << "Foundation tests passed\n";

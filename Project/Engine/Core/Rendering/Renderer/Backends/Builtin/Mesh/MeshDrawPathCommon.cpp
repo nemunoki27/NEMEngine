@@ -14,24 +14,6 @@
 //============================================================================
 namespace {
 
-	Engine::MeshSubMeshRenderState ResolveSubMeshRenderState(
-		const Engine::MeshRendererComponent& renderer,
-		const Engine::SubMeshMaterial& subMesh) {
-
-		Engine::MeshSubMeshRenderState state{};
-		state.material = subMesh.material ?
-			subMesh.material : renderer.material;
-		state.surfaceModeOverridden =
-			subMesh.surfaceMode != Engine::MaterialSurfaceMode::Auto;
-		state.surfaceMode = state.surfaceModeOverridden ?
-			subMesh.surfaceMode : subMesh.sourceSurfaceMode;
-		if (state.surfaceMode == Engine::MaterialSurfaceMode::Auto) {
-			state.surfaceMode = renderer.queue == Engine::RenderPhase::Transparent ?
-				Engine::MaterialSurfaceMode::Transparent :
-				Engine::MaterialSurfaceMode::Opaque;
-		}
-		return state;
-	}
 
 	bool IsSameRenderState(
 		const Engine::MeshSubMeshRenderState& lhs,
@@ -246,4 +228,23 @@ bool Engine::MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(const MeshGP
 		return gpuMesh.subMeshes[subMeshIndex].hasBaseColorTexture;
 	}
 	return false;
+}
+
+Engine::MeshSubMeshRenderState Engine::MeshDrawPathCommon::ResolveSubMeshRenderState(
+	const Engine::MeshRendererComponent& renderer,
+	const Engine::SubMeshMaterial& subMesh) {
+
+	Engine::MeshSubMeshRenderState state{};
+	state.material = subMesh.material ?
+		subMesh.material : renderer.material;
+	state.surfaceModeOverridden =
+		subMesh.surfaceMode != Engine::MaterialSurfaceMode::Auto;
+	state.surfaceMode = state.surfaceModeOverridden ?
+		subMesh.surfaceMode : subMesh.sourceSurfaceMode;
+	if (state.surfaceMode == Engine::MaterialSurfaceMode::Auto) {
+		state.surfaceMode = renderer.queue == Engine::RenderPhase::Transparent ?
+			Engine::MaterialSurfaceMode::Transparent :
+			Engine::MaterialSurfaceMode::Opaque;
+	}
+	return state;
 }

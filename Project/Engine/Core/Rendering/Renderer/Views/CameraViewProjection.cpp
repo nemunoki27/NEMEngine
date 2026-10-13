@@ -75,6 +75,7 @@ namespace Engine::CameraViewProjection {
 		out.nearClip = camera.nearClip;
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
+		out.surfaceSettings = camera.common;
 		out.postProcessEnabled = camera.common.postProcessEnabled;
 		out.colorPipeline = camera.common.colorPipeline;
 		out.renderPasses = camera.common.renderPasses;
@@ -103,6 +104,7 @@ namespace Engine::CameraViewProjection {
 		out.nearClip = (std::max)(camera.nearClip, 0.001f);
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
+		out.surfaceSettings = camera.common;
 		out.postProcessEnabled = camera.common.postProcessEnabled;
 		out.colorPipeline = camera.common.colorPipeline;
 		out.renderPasses = camera.common.renderPasses;

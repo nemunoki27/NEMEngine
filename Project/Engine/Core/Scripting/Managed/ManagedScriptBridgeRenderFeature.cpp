@@ -84,20 +84,6 @@ namespace Engine {
 				UUID{ passID }, enabled != 0) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback(
-		uint64_t passID, uint64_t generation, int32_t enabled) {
-
-		if (!ResolveRenderFeaturePass(passID, generation)) {
-
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[レンダー機能] SceneColor出力のパスハンドルが無効です");
-			return 0;
-		}
-		return RenderFeatureRuntimeOverrides::GetInstance().SetSceneColorOutput(
-			RenderFeatureProfileService::GetInstance().GetRuntimeExtension().GetProfile(),
-			UUID{ passID }, enabled != 0) ? 1 : 0;
-	}
-
 	int32_t ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback(const char* groupName, int32_t enabled) {
 
 		return groupName && RenderFeatureRuntimeOverrides::GetInstance().

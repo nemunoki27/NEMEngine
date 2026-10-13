@@ -5,6 +5,8 @@
 //============================================================================
 #include "RuntimeRenderPreloader.h"
 #include "RenderPipelineUtility.h"
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/Views/GameViewCameraSnapshot.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
@@ -15,7 +17,6 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/ViewLightCollector.h>
-#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Passes/RenderItemBatchDispatcher.h>
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
@@ -125,6 +126,12 @@ Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewK
 	// 表示対象CameraのGBufferを参照する
 	RenderPathResources& resources = FindCameraState(kind).resources;
 	return resources.GetGBuffer(attachment);
+}
+
+Engine::RenderTexture2D* RenderPipelineRunner::GetViewAmbientOcclusionTexture(RenderViewKind kind) {
+
+	const auto alias = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
+	return FindCameraState(kind).targetRegistry.FindColorByName(alias);
 }
 
 const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflection(const MaterialAsset& material) const {
@@ -288,11 +295,6 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			ViewLightCollector::CollectForView(scenePreparation_.frameLightBatch_, activeScene, view, viewState.lightSet);
 		}
 		viewState.lightBuffers.Upload(viewState.lightSet);
-		// 反射の背景も描画Cameraのレイヤーから解決する
-		const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
-			graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
-		viewState.raytracingBuffers.Upload(view, skyboxInfo);
-
 		SceneExecutionContext context = BuildViewExecutionContext(graphicsCore, request, activeScene, kind, view);
 		if (!context.sceneInstance) {
 			return;

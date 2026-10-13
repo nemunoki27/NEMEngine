@@ -431,8 +431,6 @@ namespace Engine {
 		// 実行中の描画Passを切り替える
 		static int32_t __cdecl SetRenderFeaturePassEnabledCallback(uint64_t passID, uint64_t generation, int32_t enabled);
 		// 描画Passの画面出力を切り替える
-		static int32_t __cdecl SetRenderFeaturePassSceneColorOutputCallback(uint64_t passID, uint64_t generation,
-			int32_t enabled);
 		// 実行中の描画Groupを切り替える
 		static int32_t __cdecl SetRenderFeatureGroupEnabledCallback(const char* groupName, int32_t enabled);
 		// 実行中の描画Pass値を設定する

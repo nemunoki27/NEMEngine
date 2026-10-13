@@ -13,6 +13,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
+#include "Passes/CameraSurfacePass.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeaturePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
@@ -41,6 +42,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.phase = RenderPhase::Opaque,
 		.target = QueueRenderPass::Target::SceneMain
 		}));
+	fixedPasses.emplace_back(std::make_unique<CameraSurfacePass>(deps_, true));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
@@ -83,6 +85,10 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 		const RenderPathPassKind kind = pass->GetKind();
 		passes_.emplace_back(std::move(pass));
+		// 固定反射を任意のポストプロセスより先に合成する
+		if (kind == RenderPathPassKind::Lighting) {
+			passes_.emplace_back(std::make_unique<CameraSurfacePass>(deps_, false));
+		}
 		for (const AnchorPoint& point : kAnchorPoints) {
 			if (point.after == kind) {
 				passes_.emplace_back(
@@ -116,9 +122,9 @@ void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 		// GPUPIXイベント発行
 		DxGPUEventScope eventScope{ commandList, eventPassName };
 
-		// RenderFeatureは内部ノード単位で計測する
+		// RenderFeatureとLightingは内部処理ごとに計測する
 		const bool profileWholePass =
-			pass->GetKind() != RenderPathPassKind::RenderFeature;
+			pass->GetKind() != RenderPathPassKind::RenderFeature && pass->GetKind() != RenderPathPassKind::Lighting;
 		if (profileWholePass) {
 			GPUFrameProfiler::GetInstance().BeginPass(
 				commandList, eventPassName);

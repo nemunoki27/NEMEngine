@@ -48,7 +48,6 @@ bool Engine::RenderFeatureProfileValidation::Validate(const RenderFeatureProfile
 
 	std::unordered_map<uint64_t, const RenderFeaturePassSettings*> passes{};
 	std::unordered_set<std::string> passNames{};
-	std::unordered_map<uint32_t, uint32_t> sceneColorCounts{};
 	std::unordered_set<std::string> groupNames{};
 	std::vector<const RenderFeatureHierarchyItem*> isolatedSelections{};
 	std::function<bool(const std::vector<RenderFeatureHierarchyItem>&, bool)> validateItems =
@@ -154,21 +153,7 @@ bool Engine::RenderFeatureProfileValidation::Validate(const RenderFeatureProfile
 				return false;
 			}
 		}
-		if (!pass.sceneColorOutput) {
-			continue;
-		}
 
-		const RenderFeatureOutputSettings& output = defaultOutputs.front();
-		if (output.format != RenderFeatureTextureFormat::Inherit || output.widthScale != 1.0f || output.heightScale != 1.0f) {
-
-			diagnostic = "SceneColor出力は継承形式かつ等倍が必要です";
-			return false;
-		}
-		uint32_t& count = sceneColorCounts[GetRenderFeatureAnchorOrder(pass.anchor)];
-		if (++count > 1u) {
-			diagnostic = "同じ実行位置にSceneColor出力が複数あります";
-			return false;
-		}
 	}
 
 	for (const RenderFeaturePassSettings& pass : profile.passes) {

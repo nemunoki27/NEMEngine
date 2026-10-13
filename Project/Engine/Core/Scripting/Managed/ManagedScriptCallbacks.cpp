@@ -94,7 +94,6 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.resolveRenderFeaturePass = &ManagedScriptRuntime::ResolveRenderFeaturePassCallback;
 	callbacks.validateRenderFeaturePass = &ManagedScriptRuntime::ValidateRenderFeaturePassCallback;
 	callbacks.setRenderFeaturePassEnabled = &ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
-	callbacks.setRenderFeaturePassSceneColorOutput = &ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback;
 	callbacks.setRenderFeatureGroupEnabled = &ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback;
 	callbacks.setRenderFeaturePassParameter = &ManagedScriptRuntime::SetRenderFeaturePassParameterCallback;
 	callbacks.getRenderFeaturePassParameter = &ManagedScriptRuntime::GetRenderFeaturePassParameterCallback;

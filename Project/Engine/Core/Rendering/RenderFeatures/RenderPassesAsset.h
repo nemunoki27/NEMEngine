@@ -15,6 +15,8 @@ namespace Engine {
 
 		AssetID guid{};
 		std::string name = "Render Passes";
+		bool gameView = true;
+		bool sceneView = true;
 		std::vector<RenderFeaturePassSettings> passes{};
 		std::vector<RenderFeatureHierarchyItem> hierarchy{};
 	};

@@ -59,9 +59,10 @@ bool Engine::RenderFeaturePassTargets::Resolve(GraphicsCore& graphicsCore, Scene
 		};
 		PostProcessTemporaryTargetDesc desc{};
 		const std::string outputAlias = MakeOutputAlias(reference);
-		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+		const std::string historyKey = MakeStateKey(*context.view, pass.id, output.name);
+		const uint32_t historyWriteIndex = temporalState.GetHistoryWriteIndex(historyKey);
 		desc.name = output.history ? outputAlias + "_History" +
-			std::to_string(frameSerial & 1u) : outputAlias;
+			std::to_string(historyWriteIndex) : outputAlias;
 		desc.format = ToDXGIFormat(output.format, sceneFormat);
 		const bool forceFullResolution = raytracingChain &&
 			!runtimeFeatures.useRaytracingDownsampling;
@@ -81,14 +82,12 @@ bool Engine::RenderFeaturePassTargets::Resolve(GraphicsCore& graphicsCore, Scene
 
 			PostProcessTemporaryTargetDesc previousDesc = desc;
 			previousDesc.name = outputAlias + "_History" +
-				std::to_string((frameSerial + 1u) & 1u);
+				std::to_string(1u - historyWriteIndex);
 			MultiRenderTarget* previous = pool.Acquire(
 				graphicsCore, *context.targetRegistry, previousDesc, sceneFinal);
 			if (!previous || !previous->GetColorTexture(0)) {
 				return false;
 			}
-			const std::string historyKey = MakeStateKey(
-				*context.view, pass.id, output.name);
 			temporalState.PrepareHistory(graphicsCore, previous, historyKey, target->GetWidth(), target->GetHeight(),
 				runtimeGeneration, context.raytracing.materialGeneration);
 			context.targetRegistry->Register(outputAlias, target,

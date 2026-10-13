@@ -43,6 +43,8 @@ bool Engine::RenderFeatureProfileDocument::Save() const {
 		RenderPassesAsset extension{};
 		extension.guid = profile_.guid;
 		extension.name = profile_.name;
+		extension.gameView = profile_.gameView;
+		extension.sceneView = profile_.sceneView;
 		extension.passes = profile_.passes;
 		extension.hierarchy = profile_.hierarchy;
 		return JsonAdapter::SaveCanonical(profilePath_, ToJson(extension));

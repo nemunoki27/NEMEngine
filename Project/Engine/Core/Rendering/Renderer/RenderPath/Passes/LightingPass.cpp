@@ -15,6 +15,8 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <algorithm>
@@ -25,24 +27,7 @@ namespace {
 
 	constexpr uint32_t kShadowCascadeCount = Engine::DirectionalShadowMapState::kCascadeCount;
 
-	bool HasRaytracingReflection(const Engine::SceneExecutionContext& context) {
 
-		if (!context.renderPassesRuntime) {
-			return false;
-		}
-		const bool gameView = context.kind == Engine::RenderViewKind::Game;
-		const Engine::RenderFeatureProfileRuntime& runtime = *context.renderPassesRuntime;
-		for (const Engine::RenderFeaturePassSettings& pass : runtime.GetProfile().passes) {
-
-			if (pass.enabled && pass.type == Engine::RenderFeaturePassType::RayTracing &&
-				pass.material == Engine::BuiltinAssets::Materials::RaytracingReflection &&
-				(gameView ? pass.gameView : pass.sceneView) && runtime.IsPassHierarchyEnabled(pass.id)) {
-
-				return true;
-			}
-		}
-		return false;
-	}
 }
 
 //============================================================================
@@ -58,6 +43,7 @@ Engine::LightingPass::LightingPass(const RenderPipelineDeps& deps) : deps_(deps)
 	materialSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 3, 0);
 	emissiveSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 4, 0);
 	flagsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 5, 0);
+	ambientOcclusionSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 17, 0);
 	constantsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 0);
 	for (uint32_t cascade = 0; cascade < kShadowCascadeCount; ++cascade) {
 		shadowMapSlots_[cascade] = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 13 + cascade, 0);
@@ -162,6 +148,12 @@ void Engine::LightingPass::BindGBufferSRV(
 	RootBindingCommand::SetGraphicsSRV(commandList, bindCache_.Get(slot), 0, texture->GetSRVGPUHandle());
 }
 
+void Engine::LightingPass::RetainViews(const std::unordered_set<std::string>& viewKeys) {
+
+	inlineShadows_.RetainViews(viewKeys);
+	directionalShadows_.RetainViews(viewKeys);
+}
+
 void Engine::LightingPass::Execute(
 	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
@@ -184,10 +176,21 @@ void Engine::LightingPass::Execute(
 	if (!initialized_) {
 		return;
 	}
-	const bool shadowMapAvailable = directionalShadows_.Render(graphicsCore, passBuckets, context, deps_);
-
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
+	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
+	const bool requestShadow =
+		context.hasShadowCastingLight && shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable &&
+		!context.disableInlineRayTracing;
+	// レイトレーシング影が使えるときはShadow Mapを描かない
+	const bool useShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_);
+	auto& profiler = GPUFrameProfiler::GetInstance();
+	const std::string profilePrefix = std::string(EnumAdapter<RenderViewKind>::ToStringView(context.kind)) + "/Lighting";
+	profiler.BeginPass(commandList, profilePrefix + " ShadowMap");
+	const bool shadowMapAvailable = !useShadow && directionalShadows_.Render(graphicsCore, passBuckets, context, deps_);
+	profiler.EndPass(commandList);
+	profiler.BeginPass(commandList, profilePrefix + " Preparation");
 
 	// GBufferをシェーダーリードへ、SceneFinalをレンダーターゲットへ遷移してバインド
 	sceneMain->TransitionForShaderRead(*dxCommand);
@@ -199,6 +202,8 @@ void Engine::LightingPass::Execute(
 	// 背景に使うskyboxを探す、最初に見つかったskyboxが対象
 	const SceneSkyboxInfo skybox = SceneSkyboxResolver::Resolve(
 		graphicsCore, context.assetDatabase, context.world, context.view->GetCullingMask(RenderCameraDomain::Perspective));
+	profiler.EndPass(commandList);
+	profiler.BeginPass(commandList, profilePrefix + " Irradiance");
 	uint32_t irradianceCubemapIndex = 0xFFFFFFFF;
 	if (skybox.found) {
 
@@ -206,12 +211,10 @@ void Engine::LightingPass::Execute(
 		irradianceMap_.Update(graphicsCore, skybox.cubemapAssetID, skybox.cubemapIndex);
 		irradianceCubemapIndex = irradianceMap_.GetSRVIndex();
 	}
+	profiler.EndPass(commandList);
 
-	// 影付きライトがありinlineRTとTLASを使えるときだけシャドウ付きPSOを選ぶ
-	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
-	const bool useShadow =
-		context.hasShadowCastingLight && shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable;
+	// 生成に成功した影に合わせてLightingを設定
+	profiler.BeginPass(commandList, profilePrefix);
 	PipelineState& activePipeline = useShadow ? *pipelineShadowed_ : *pipeline_;
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());
@@ -250,10 +253,23 @@ void Engine::LightingPass::Execute(
 	constants.irradianceCubemapIndex = irradianceCubemapIndex;
 	constants.iblIntensity = skybox.iblIntensity;
 	constants.softShadowSampleCount = runtimeFeatures.softShadowSampleCount;
+	constants.filteredShadowAvailable = useShadow ? 1u : 0u;
 	constants.shadowMapAvailable = shadowMapAvailable ? 1u : 0u;
 	constants.shadowMapLightIndex = directionalShadows_.GetState().lightIndex;
 	constants.reflectionFeatureActive =
-		runtimeFeatures.useDispatchRays && tlasAvailable && HasRaytracingReflection(context) ? 1u : 0u;
+		!context.postProcessCamera.surfaceSettings.reflectionEnabled ||
+		(runtimeFeatures.useDispatchRays && tlasAvailable) ? 1u : 0u;
+	constants.reflectionIntensity = context.postProcessCamera.surfaceSettings.reflectionIntensity;
+	constants.ambientOcclusionIntensity = context.ambientOcclusion ?
+		context.postProcessCamera.surfaceSettings.ambientOcclusionIntensity : 0.0f;
+	// 遮蔽がないViewは白Textureを使う
+	if (context.ambientOcclusion) {
+		context.ambientOcclusion->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		BindGBufferSRV(commandList, ambientOcclusionSlot_, context.ambientOcclusion);
+	} else {
+		RootBindingCommand::SetGraphicsSRV(commandList, bindCache_.Get(ambientOcclusionSlot_), 0,
+			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture()->gpuHandle);
+	}
 	constants.shadowViewProjections = directionalShadows_.GetState().viewProjections;
 	constants.shadowCascadeSplits = directionalShadows_.GetState().cascadeSplits;
 	constants.shadowDepthRanges = directionalShadows_.GetState().depthRanges;
@@ -284,4 +300,5 @@ void Engine::LightingPass::Execute(
 	// 画面全体の三角形を描いてGBufferを合成する
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawInstanced(3, 1, 0, 0);
+	profiler.EndPass(commandList);
 }

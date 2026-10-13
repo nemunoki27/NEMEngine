@@ -48,6 +48,16 @@ namespace Engine {
 		float viewportHeight = 1.0f;
 		// 空ならGame Viewへ出力する
 		AssetID targetTexture{};
+		// ポストプロセスから独立した反射と遮蔽
+		bool reflectionEnabled = true;
+		float reflectionIntensity = 1.0f;
+		float reflectionMaxDistance = 600.0f;
+		int32_t reflectionQuality = 1;
+		nlohmann::json reflectionParameters = nlohmann::json::object();
+		bool ambientOcclusionEnabled = true;
+		float ambientOcclusionIntensity = 1.0f;
+		float ambientOcclusionRadius = 1.0f;
+		int32_t ambientOcclusionQuality = 1;
 		// Camera固有の露出と色補正
 		bool postProcessEnabled = true;
 		ColorPipelineSettings colorPipeline{};

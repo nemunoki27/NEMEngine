@@ -22,7 +22,7 @@ void Engine::RaytracingViewBufferSet::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox) {
+void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const CameraCommon& settings) {
 
 
 	// 描画サイズとその逆数を転送
@@ -39,6 +39,8 @@ void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, con
 		debugData_.inverseProjection = camera->matrices.inverseProjectionMatrix;
 		debugData_.inverseViewProjection = Matrix4x4::Inverse(camera->matrices.viewProjectionMatrix);
 		debugData_.cameraPos = camera->cameraPos;
+		debugData_.maxReflectionDistance = settings.reflectionMaxDistance;
+		debugData_.reflectionIntensity = settings.reflectionIntensity;
 		debugData_.nearClip = camera->nearClip;
 		debugData_.farClip = camera->farClip;
 	}

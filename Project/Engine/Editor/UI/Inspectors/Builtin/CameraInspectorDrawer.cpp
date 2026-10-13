@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/CameraPostProcessEditor.h>
+#include <Engine/Editor/UI/Inspectors/Common/CameraSurfaceSettingsEditor.h>
 
 // c++
 #include <algorithm>
@@ -137,6 +138,12 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields(const EditorPanelConte
 	MyGUI::TextMatrix4x4("ビュープロジェクト行列", draft.common.viewProjectionMatrix);
 
 	ImGui::Indent();
+	if (MyGUI::CollapsingHeader("反射", false)) {
+		DrawField(anyItemActive, [&]() { return CameraSurfaceSettingsEditor::DrawReflection(draft.common); });
+	}
+	if (MyGUI::CollapsingHeader("アンビエントオクルージョン", false)) {
+		DrawField(anyItemActive, [&]() { return CameraSurfaceSettingsEditor::DrawAmbientOcclusion(draft.common, context.graphicsCore); });
+	}
 	if (MyGUI::CollapsingHeader("ポストプロセス設定", false)) {
 
 		DrawField(anyItemActive, [&]() {

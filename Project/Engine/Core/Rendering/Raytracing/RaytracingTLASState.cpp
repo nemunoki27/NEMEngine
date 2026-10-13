@@ -5,6 +5,7 @@
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -29,6 +30,8 @@ void Engine::RaytracingTLASState::ResetState() {
 	firstTLASBuild_ = true;
 	tlasInstanceHash_ = 0;
 	consecutiveTLASRefitCount_ = 0;
+	lastTLASRefitFrame_ = 0;
+	++contentGeneration_;
 }
 
 void Engine::RaytracingTLASState::RecordInstances(std::span<const RaytracingTLASInstance> instances) {
@@ -83,6 +86,7 @@ void Engine::RaytracingTLASState::BuildORUpdate(ID3D12Device8* device, ID3D12Gra
 		// 形状や配置の変更に合わせて再構築
 		tlas_.SetRetirementQueue(retirement);
 		tlas_.Build(device, commandList, tlasInstances, true);
+		++contentGeneration_;
 		consecutiveTLASRefitCount_ = 0;
 		firstTLASBuild_ = false;
 		FrameProfiler::GetInstance().AddTLASBuild();
@@ -92,7 +96,7 @@ void Engine::RaytracingTLASState::BuildORUpdate(ID3D12Device8* device, ID3D12Gra
 		RefitORRebuild(commandList, tlasInstances, false);
 	} else {
 
-		FrameProfiler::GetInstance().AddTLASSkip();
+		MaintainTraceQuality(commandList, tlasInstances);
 	}
 	tlasInstanceHash_ = tlasInstanceHash;
 
@@ -142,6 +146,7 @@ void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* com
 
 		// 連続更新で劣化した探索構造を再構築
 		tlas_.Rebuild(commandList, instances);
+		++contentGeneration_;
 		consecutiveTLASRefitCount_ = 0;
 		FrameProfiler::GetInstance().AddTLASBuild();
 		return;
@@ -149,6 +154,26 @@ void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* com
 
 	// 配置の差分だけを更新
 	tlas_.Update(commandList, instances);
+	++contentGeneration_;
 	++consecutiveTLASRefitCount_;
+	lastTLASRefitFrame_ = GraphicsFrameState::GetFrameSerial();
 	FrameProfiler::GetInstance().AddTLASRefit();
+}
+
+void Engine::RaytracingTLASState::MaintainTraceQuality(GraphicsCore& graphicsCore,
+	const std::vector<RaytracingTLASInstance>& instances) {
+
+	MaintainTraceQuality(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList(), instances);
+}
+
+void Engine::RaytracingTLASState::MaintainTraceQuality(ID3D12GraphicsCommandList6* commandList,
+	const std::vector<RaytracingTLASInstance>& instances) {
+
+	// 更新が止まった後に一度だけ再構築
+	if (consecutiveTLASRefitCount_ > 0 && GraphicsFrameState::GetFrameSerial() > lastTLASRefitFrame_ + 1) {
+
+		RefitORRebuild(commandList, instances, true);
+		return;
+	}
+	FrameProfiler::GetInstance().AddTLASSkip();
 }

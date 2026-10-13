@@ -24,6 +24,8 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureHierarchyEditing.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderPassesAsset.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureTemporalState.h>
 #include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
@@ -44,6 +46,44 @@
 namespace NEMTests {
 
 	bool TestRenderFeatureProfile() {
+
+		// 描画を省いたViewの履歴を進めず、他Cameraの履歴と分ける
+		Engine::RenderFeatureTemporalState temporalState;
+		if (temporalState.GetHistoryWriteIndex("Game|Reflection") != 0) return false;
+		temporalState.MarkWritten("Game|Reflection");
+		if (temporalState.GetHistoryWriteIndex("Game|Reflection") != 1 ||
+			temporalState.GetHistoryWriteIndex("Scene|Reflection") != 0) return false;
+		temporalState.MarkWritten("Game|Reflection");
+		temporalState.MarkWritten("Scene|Reflection");
+		if (temporalState.GetHistoryWriteIndex("Game|Reflection") != 0 ||
+			temporalState.GetHistoryWriteIndex("Scene|Reflection") != 1) return false;
+		temporalState.MarkWritten("Game|Reflection");
+		temporalState.RetainViews({ "Scene" });
+		if (temporalState.GetHistoryWriteIndex("Game|Reflection") != 0 ||
+			temporalState.GetHistoryWriteIndex("Scene|Reflection") != 1) return false;
+
+		// 全パス共通の出力設定を保存して復元する
+		Engine::RenderFeatureProfileAsset outputSettings{};
+		outputSettings.gameView = false;
+		outputSettings.sceneView = false;
+		const auto outputData = Engine::RenderFeatureProfileSerializer::ToJson(outputSettings);
+		const auto outputRestored = Engine::RenderFeatureProfileSerializer::FromJson(outputData);
+		if (outputRestored.gameView || outputRestored.sceneView) return false;
+
+		// 固定反射とAOは追加パスなしでも有効な計画になる
+		Engine::CameraCommon settings{};
+		Engine::RenderFeatureProfileRuntime surfaceRuntime{};
+		for (int32_t quality = 0; quality <= 2; ++quality) {
+			settings.ambientOcclusionQuality = settings.reflectionQuality = quality;
+			surfaceRuntime.Rebuild(Engine::BuildCameraAmbientOcclusionProfile(settings));
+			const auto aoPlan = surfaceRuntime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting, Engine::RenderViewKind::Game);
+			if (!aoPlan.IsValid() || aoPlan.nodes.size() != 2 ||
+				aoPlan.nodes.back().source.pass != aoPlan.nodes.front().pass->id) return false;
+			surfaceRuntime.Rebuild(Engine::BuildCameraReflectionProfile(settings));
+			const auto reflectionPlan = surfaceRuntime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting, Engine::RenderViewKind::Game);
+			if (!reflectionPlan.IsValid() || reflectionPlan.nodes.size() != 7 ||
+				reflectionPlan.sceneColorOutput.pass != Engine::UUID{0x5254434f4d504f53ull}) return false;
+		}
 
 		Engine::RenderFeatureProfileAsset profile{};
 		profile.name = "RenderFeatureTest";
@@ -87,7 +127,6 @@ namespace NEMTests {
 															 .output = "Color",
 														 });
 		composite.outputs.emplace_back(Engine::RenderFeatureOutputSettings{});
-		composite.sceneColorOutput = true;
 		const Engine::MaterialParameterID thresholdID = Engine::MaterialParameterID::FromUUID(Engine::UUID{31});
 		Engine::MaterialParameterValue threshold{};
 		threshold.value = 0.25f;
@@ -261,7 +300,6 @@ namespace NEMTests {
 		afterToneMapPass.type = Engine::RenderFeaturePassType::Compute;
 		afterToneMapPass.materialPass = Engine::MaterialPassKind::PostProcess;
 		afterToneMapPass.outputs = {Engine::RenderFeatureOutputSettings{}};
-		afterToneMapPass.sceneColorOutput = true;
 		afterToneMapSource.passes = {afterToneMapPass};
 		const nlohmann::json afterToneMapData = Engine::RenderFeatureProfileSerializer::ToJson(afterToneMapSource);
 		const Engine::RenderFeatureProfileAsset afterToneMapProfile =
@@ -339,7 +377,7 @@ namespace NEMTests {
 			return false;
 		}
 		// 対象外ViewからRendererを取り除かない
-		standaloneProfile.passes[0].sceneView = false;
+		standaloneProfile.sceneView = false;
 		runtime.Rebuild(standaloneProfile);
 		if (!runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Game) ||
 			runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Scene)) {
@@ -365,13 +403,7 @@ namespace NEMTests {
 		}
 		Engine::RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 
-		selectiveProfile.passes[1].sceneView = false;
-		runtime.Rebuild(selectiveProfile);
-		if (runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting, Engine::RenderViewKind::Scene).IsValid()) {
-
-			return false;
-		}
-		selectiveProfile.passes[2].sceneView = false;
+		selectiveProfile.sceneView = false;
 		runtime.Rebuild(selectiveProfile);
 		const Engine::RenderFeatureExecutionPlan disabledSceneViewPlan =
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting, Engine::RenderViewKind::Scene);
@@ -445,13 +477,19 @@ namespace NEMTests {
 		camera.common.targetTexture = renderTexture.guid;
 		camera.common.colorPipeline.exposure.manualEV100 = 2.5f;
 		camera.common.renderPasses = extension.guid;
+		camera.common.ambientOcclusionEnabled = false;
+		camera.common.ambientOcclusionRadius = 3.5f;
+		camera.common.reflectionQuality = 2;
+		camera.common.reflectionIntensity = 0.4f;
 		const nlohmann::json cameraData = camera;
 		const Engine::PerspectiveCameraComponent restoredCamera = cameraData.get<Engine::PerspectiveCameraComponent>();
 		return restoredCamera.projectionMode == Engine::CameraProjectionMode::Orthographic &&
 			   restoredCamera.orthographicSize == 12.0f && restoredCamera.common.viewportX == 0.5f &&
 			   restoredCamera.common.viewportWidth == 0.5f && restoredCamera.common.targetTexture == renderTexture.guid &&
 			   restoredCamera.common.colorPipeline.exposure.manualEV100 == 2.5f &&
-			   restoredCamera.common.renderPasses == extension.guid;
+			   restoredCamera.common.renderPasses == extension.guid && !restoredCamera.common.ambientOcclusionEnabled &&
+			restoredCamera.common.ambientOcclusionRadius == 3.5f && restoredCamera.common.reflectionQuality == 2 &&
+			restoredCamera.common.reflectionIntensity == 0.4f;
 	}
 
 	bool TestPostProcessSourceExtension() {

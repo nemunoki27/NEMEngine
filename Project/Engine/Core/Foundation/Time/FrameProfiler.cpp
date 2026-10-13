@@ -150,6 +150,12 @@ float Engine::FrameProfiler::GetAverageMs(Category category) const {
 	return index < measures_.size() ? measures_[index].GetAverage() : 0.0f;
 }
 
+float Engine::FrameProfiler::GetLatestMs(Category category) const {
+
+	const size_t index = static_cast<size_t>(category);
+	return index < measures_.size() ? measures_[index].GetLatest() : 0.0f;
+}
+
 float Engine::FrameProfiler::GetGPUTotalMs() const {
 
 	float total = 0.0f;

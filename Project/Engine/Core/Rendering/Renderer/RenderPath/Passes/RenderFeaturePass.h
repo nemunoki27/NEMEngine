@@ -14,6 +14,14 @@
 
 namespace Engine {
 
+	// 固定パスだけが追加パスと異なる実行条件を持つ
+	struct RenderFeaturePassOptions {
+
+		bool sceneColorOutput = true;
+		bool allowInlineRayTracing = false;
+		bool useConfiguredResolution = false;
+	};
+
 	//============================================================================
 	//	RenderFeaturePass class
 	//	指定AnchorのComputeとDispatchRaysを共通グラフから実行する
@@ -25,7 +33,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor) : deps_(deps), anchor_(anchor) {}
+		RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor, const RenderFeaturePassOptions& options = {});
 		~RenderFeaturePass() override = default;
 
 		void RetainViews(const std::unordered_set<std::string>& activeViews) override;
@@ -33,6 +41,8 @@ namespace Engine {
 		void Execute(GraphicsCore& graphicsCore,
 			const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
+
+		bool HasExecutionSucceeded() const { return executionSucceeded_; }
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RenderFeature; }
 
@@ -44,6 +54,8 @@ namespace Engine {
 		const RenderPipelineDeps& deps_;
 		RenderFeatureAnchor anchor_ = RenderFeatureAnchor::AfterTransparent;
 		std::string lastDiagnostic_{};
+		RenderFeaturePassOptions options_{};
+		bool executionSucceeded_ = false;
 
 		RenderFeatureTemporalState temporalState_{};
 	};

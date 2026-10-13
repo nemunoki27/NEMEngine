@@ -24,7 +24,7 @@ namespace Engine {
 	bool IsResourceBinding(const ShaderResourceBinding& binding) {
 		// SRV(テクスチャ入力)またはUAV(ランダムアクセス出力)であるかを確認
 		return binding.kind == ShaderBindingKind::SRV ||
-			binding.kind == ShaderBindingKind::UAV;
+			binding.kind == ShaderBindingKind::UAV || binding.kind == ShaderBindingKind::AccelStruct;
 	}
 
 	bool RequiresSourceDepth(const PipelineState& pipelineState) {
@@ -103,6 +103,23 @@ namespace Engine {
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& source,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader) {
 
+		// TLASと構造化バッファは描画レジストリから解決する
+		if (binding.kind == ShaderBindingKind::AccelStruct) {
+			if (!context.raytracing.tlasResource) return false;
+			outBindItems.push_back({binding.name, ComputeBindValueType::AccelStruct,
+				context.raytracing.tlasResource->GetGPUVirtualAddress(), {}, binding.bindPoint, binding.space});
+			return true;
+		}
+		if (binding.rawType == D3D_SIT_STRUCTURED || binding.rawType == D3D_SIT_BYTEADDRESS) {
+			const auto* buffer = context.bufferRegistry.Find(binding.name);
+			if (!buffer || (!buffer->gpuAddress && !buffer->srvGPUHandle.ptr)) {
+				Logger::Output(LogType::Engine, logHeader + "BufferのBindingを解決できません binding=" + binding.name);
+				return false;
+			}
+			outBindItems.push_back({binding.name, ComputeBindValueType::SRV, buffer->gpuAddress,
+				buffer->srvGPUHandle, binding.bindPoint, binding.space});
+			return true;
+		}
 		RenderTexture2D* sourceColor = GetFirstColor(&source);
 		DepthTexture2D* sourceDepth = ResolveSourceDepth(
 			context, desc, source);

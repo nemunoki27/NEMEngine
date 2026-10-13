@@ -156,6 +156,8 @@ namespace Engine {
 		float GetTotalTimeSec() const { return totalTimeSec_; }
 		// カテゴリの平均処理時間(ms)
 		float GetAverageMs(Category category) const;
+		// 前frameの確定値を平均せず取得する
+		float GetLatestMs(Category category) const;
 
 		const std::vector<NamedTime>& GetGPUPassTimes() const { return gpuPassTimes_; }
 		float FindGPUPassMs(std::string_view name) const;

@@ -116,7 +116,16 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		D3D12_GPU_DESCRIPTOR_HANDLE imageSRV = display->GetSRVGPUHandle();
 		if (context.editorState->gbufferDebugView != GBufferDebugView::None && context.renderPipeline && context.graphicsCore) {
 
-			if (context.editorState->gbufferDebugView == GBufferDebugView::Depth) {
+			if (context.editorState->gbufferDebugView == GBufferDebugView::AmbientOcclusion) {
+
+				// AOの遮蔽率を白黒で表示する
+				if (auto* ao = context.renderPipeline->GetViewAmbientOcclusionTexture(viewKind)) {
+					ao->Transition(*context.graphicsCore->GetDXObject().GetDxCommand(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+					imageSRV = ao->GetSRVGPUHandle();
+				} else if (const auto* white = context.graphicsCore->GetBuiltinTextureLibrary().GetWhiteTexture()) {
+					imageSRV = white->gpuHandle;
+				}
+			} else if (context.editorState->gbufferDebugView == GBufferDebugView::Depth) {
 
 				// 深度を線形化した画像を表示する
 				if (const RenderTexture2D* depthViz = depthSurface_.RenderDepthVisualization(

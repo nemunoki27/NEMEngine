@@ -225,6 +225,7 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 					{"Material", GBufferDebugView::Material},
 					{"Emissive", GBufferDebugView::Emissive},
 					{"Depth", GBufferDebugView::Depth},
+					{"AO", GBufferDebugView::AmbientOcclusion},
 				};
 
 				GBufferDebugView& current = context.editorState->gbufferDebugView;
@@ -236,7 +237,7 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 						current = checked ? item.view : GBufferDebugView::None;
 					}
 				}
-				ImGui::Text("現在の表示: %s", EnumAdapter<GBufferDebugView>::ToString(current));
+				ImGui::Text("現在の表示: %s", current == GBufferDebugView::AmbientOcclusion ? "AO" : EnumAdapter<GBufferDebugView>::ToString(current));
 			}
 			ImGui::EndMenu();
 		}

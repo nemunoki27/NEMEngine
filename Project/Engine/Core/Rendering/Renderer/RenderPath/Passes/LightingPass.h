@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/DirectionalShadowMapRenderer.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/InlineShadowRenderer.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
@@ -44,6 +45,8 @@ namespace Engine {
 
 		void Execute(
 			GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
+		// 使用中のViewだけ影の履歴を残す
+		void RetainViews(const std::unordered_set<std::string>& viewKeys) override;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -86,6 +89,11 @@ namespace Engine {
 			uint32_t shadowMapLightIndex = UINT32_MAX;
 			uint32_t reflectionFeatureActive = 0;
 
+			float ambientOcclusionIntensity = 0.0f;
+			float reflectionIntensity = 1.0f;
+			uint32_t filteredShadowAvailable = 0;
+			float _surfacePad1 = 0.0f;
+
 			std::array<Matrix4x4, 4> shadowViewProjections{};
 			Vector4 shadowCascadeSplits = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 			Vector4 shadowDepthRanges = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -114,6 +122,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID materialSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID emissiveSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID flagsSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID ambientOcclusionSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID constantsSlot_ = PipelineBindingCache::kInvalidSlot;
 		std::array<PipelineBindingCache::SlotID, 4> shadowMapSlots_{};
 
@@ -124,6 +133,7 @@ namespace Engine {
 		SkyboxIrradianceMap irradianceMap_{};
 		const RenderPipelineDeps& deps_;
 		DirectionalShadowMapRenderer directionalShadows_;
+		InlineShadowRenderer inlineShadows_;
 
 		//--------- functions ----------------------------------------------------
 

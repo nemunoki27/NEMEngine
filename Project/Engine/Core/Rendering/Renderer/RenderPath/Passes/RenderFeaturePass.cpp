@@ -107,9 +107,15 @@ namespace {
 //============================================================================
 //	RenderFeaturePass classMethods
 //============================================================================
+Engine::RenderFeaturePass::RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor,
+	const RenderFeaturePassOptions& options) : deps_(deps), anchor_(anchor), options_(options) {
+
+}
+
 void Engine::RenderFeaturePass::Execute(
 	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	executionSucceeded_ = false;
 	if (!context.resources || !context.targetRegistry || !deps_.assetLibrary || !deps_.pipelineCache ||
 		!deps_.postProcessExecutor || !deps_.postProcessTargetPool || !deps_.rayTracingExecutor ||
 		!deps_.raytracingPipelineCache) {
@@ -139,7 +145,9 @@ void Engine::RenderFeaturePass::Execute(
 		return;
 	}
 	const DXGI_FORMAT sceneFormat = sceneFinal->GetColorTexture(0)->GetFormat();
-	const GraphicsRuntimeFeatures& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	auto runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	// 固定反射の解像度はCameraの品質を優先する
+	if (options_.useConfiguredResolution) runtimeFeatures.useRaytracingDownsampling = true;
 	std::unordered_map<uint64_t, float> resolutionScales{};
 	std::unordered_map<uint64_t, bool> raytracingChains{};
 	RenderFeatureSelectionSession selection{};
@@ -271,6 +279,7 @@ void Engine::RenderFeaturePass::Execute(
 			}
 			if (pass.type == RenderFeaturePassType::Compute) {
 				PostProcessExecutionDesc desc{};
+				desc.allowInlineRayTracing = options_.allowInlineRayTracing;
 				desc.material = pass.material;
 				desc.passKind = pass.materialPass;
 				desc.source.colors = {sourceAlias};
@@ -364,7 +373,7 @@ void Engine::RenderFeaturePass::Execute(
 		}
 	}
 
-	if (plan.sceneColorOutput.pass) {
+	if (options_.sceneColorOutput && plan.sceneColorOutput.pass) {
 		MultiRenderTarget* output = ResolveOutputTarget(*context.targetRegistry, plan.sceneColorOutput);
 		if (!output || !output->GetColorTexture(0)) {
 
@@ -389,6 +398,7 @@ void Engine::RenderFeaturePass::Execute(
 		}
 		sceneFinal->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
 	}
+	executionSucceeded_ = true;
 	lastDiagnostic_.clear();
 }
 

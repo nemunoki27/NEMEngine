@@ -633,11 +633,6 @@
       "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int, int>"
     },
     {
-      "name": "setRenderFeaturePassSceneColorOutput",
-      "nativeType": "SetRenderFeaturePassEnabledCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int, int>"
-    },
-    {
       "name": "setRenderFeatureGroupEnabled",
       "nativeType": "SetRenderFeatureGroupEnabledCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"

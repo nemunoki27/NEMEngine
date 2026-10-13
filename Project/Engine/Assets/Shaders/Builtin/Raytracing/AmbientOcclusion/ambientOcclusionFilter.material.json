@@ -1,0 +1,14 @@
+{
+  "name": "ambientOcclusionFilter",
+  "domain": "Compute",
+  "parameters": {
+    "radius": 1
+  },
+  "passes": [
+    {
+      "passKind": "PostProcess",
+      "pipeline": "4e454d4153534554414f000000000013",
+      "preferredVariant": "Compute"
+    }
+  ]
+}
