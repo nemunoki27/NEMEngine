@@ -113,6 +113,7 @@ namespace Engine {
 			AudioPlaybackOwner owner = AudioPlaybackOwner::Game;
 			AudioSpatialState spatial;
 			std::vector<float> normalMatrix;
+			AudioSpatialMatrixScratch spatialScratch;
 			AudioPlaybackCursor cursor;
 			float pitch = 1.0f;
 		};

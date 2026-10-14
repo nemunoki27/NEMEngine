@@ -13,6 +13,8 @@
 #include <string>
 #include <stdexcept>
 #include <exception>
+#include <algorithm>
+#include <iterator>
 
 //============================================================================
 //	BufferUploadService classMethods
@@ -132,6 +134,7 @@ void Engine::BufferUploadService::Finalize() {
 	contextIndex_ = 0;
 	nextFenceValue_ = 1;
 	lastSubmittedFenceValue_ = 0;
+	statistics_ = {};
 }
 
 void Engine::BufferUploadService::BeginBatch() {
@@ -160,6 +163,9 @@ void Engine::BufferUploadService::EnsureBatchOpened() {
 	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 		throw std::runtime_error("BufferUpload用コマンドリストのリセットに失敗しました");
 	}
+	// 転送Fenceの完了後に書き込み範囲を再利用する
+	for (auto& page : context.pages) page.offset = 0;
+	context.lastUsed = std::chrono::steady_clock::now();
 
 	currentContext_ = &context;
 	batchOpened_ = true;
@@ -190,20 +196,47 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 
 	EnsureBatchOpened();
 
-	// CPUデータをUPLOAD heap stagingへ書き込む
 	ComPtr<ID3D12Resource> staging;
-	DxUtils::CreateUploadBufferResource(device_, staging, sourceData.size_bytes());
+	size_t sourceOffset = 0;
+	if (sourceData.size_bytes() <= kUploadPageSize) {
 
-	void* mapped = nullptr;
-	HRESULT hr = staging->Map(0, nullptr, &mapped);
-	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::EnqueueBufferUpload/Map")) {
-		throw std::runtime_error("BufferUpload用ステージングバッファのMapに失敗しました");
+		// 小さい転送は同じページの空き範囲へ書き込む
+		auto found = std::find_if(currentContext_->pages.begin(), currentContext_->pages.end(), [&](const auto& page) {
+			return sourceData.size_bytes() <= kUploadPageSize - page.offset;
+		});
+		if (found == currentContext_->pages.end()) {
+			UploadPage page;
+			page.buffer.Create(*retirement_, device_, kUploadPageSize);
+			currentContext_->pages.emplace_back(std::move(page));
+			++statistics_.stagingCreationCount;
+			statistics_.pooledBytes += kUploadPageSize;
+			found = std::prev(currentContext_->pages.end());
+		}
+		sourceOffset = found->offset;
+		found->buffer.Write(sourceData.data(), sourceData.size_bytes(), sourceOffset);
+		found->offset += sourceData.size_bytes();
+		staging = found->buffer.GetResource();
+	} else {
+
+		// 大きい転送元はFence完了後に保持を解除する
+		DxUtils::CreateUploadBufferResource(device_, staging, sourceData.size_bytes());
+		void* mapped = nullptr;
+		const D3D12_RANGE readRange{0, 0};
+		const HRESULT hr = staging->Map(0, &readRange, &mapped);
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::EnqueueBufferUpload/Map")) {
+			throw std::runtime_error("BufferUpload用ステージングバッファのMapに失敗しました");
+		}
+		std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
+		const D3D12_RANGE writtenRange{0, sourceData.size_bytes()};
+		staging->Unmap(0, &writtenRange);
+		++statistics_.stagingCreationCount;
 	}
-	std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
-	staging->Unmap(0, nullptr);
 
 	// 記録後の所有登録で追加確保が発生しないようにする
-	currentContext_->retainedResources.reserve(currentContext_->retainedResources.size() + 2);
+	auto& retained = currentContext_->retainedResources;
+	if (retained.capacity() - retained.size() < 2) {
+		retained.reserve((std::max)(retained.size() + 2, retained.capacity() * 2));
+	}
 
 	// 更新済みリソースも扱えるよう、呼び出し元が管理する状態からCOPY_DESTへ遷移する
 	if (currentState != D3D12_RESOURCE_STATE_COPY_DEST) {
@@ -224,7 +257,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 	// staging -> DEFAULT heapへコピー
 	currentContext_->commandList->CopyBufferRegion(
 		destination, destinationOffset,
-		staging.Get(), 0, sourceData.size_bytes());
+		staging.Get(), sourceOffset, sourceData.size_bytes());
 
 	// 必要なら最終状態へ遷移する(COPY_DESTのままにする場合はBarrierを積まない)
 	if (finalState != D3D12_RESOURCE_STATE_COPY_DEST) {
@@ -241,6 +274,8 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 	// 未提出期間を含め転送先もFence完了まで保持する
 	currentContext_->retainedResources.emplace_back(destination);
 	currentContext_->retainedResources.emplace_back(std::move(staging));
+	statistics_.uploadedBytes += sourceData.size_bytes();
+	++statistics_.uploadCount;
 	hasCommands_ = true;
 }
 
@@ -317,6 +352,22 @@ void Engine::BufferUploadService::TickFinalize() {
 			break;
 		}
 		pendingBatches_.pop_front();
+	}
+	CollectUnusedPages(completed);
+}
+
+void Engine::BufferUploadService::CollectUnusedPages(uint64_t completed) {
+
+	const auto now = std::chrono::steady_clock::now();
+	for (auto& context : contexts_) {
+
+		// 使用中と提出待ちのページは保持する
+		if (&context == currentContext_ || context.lastFenceValue > completed ||
+			now - context.lastUsed < std::chrono::seconds(5)) continue;
+		while (context.pages.size() > 1) {
+			context.pages.pop_back();
+			statistics_.pooledBytes -= kUploadPageSize;
+		}
 	}
 }
 

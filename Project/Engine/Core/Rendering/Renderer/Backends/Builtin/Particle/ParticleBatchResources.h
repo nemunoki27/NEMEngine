@@ -156,6 +156,8 @@ namespace Engine {
 		ID3D12Device* device_ = nullptr;
 		DxFrameMappedUploadBuffer customParameterBuffer_{};
 		uint32_t instanceCount_ = 0;
+		std::vector<ParticleGeometryData> geometryScratch_;
+		std::vector<ParticleMaterialData> materialScratch_;
 		StructuredInstanceBuffer<ParticleTrailPointData> trailPoints_{ "gTrailPoints" };
 		StructuredInstanceBuffer<uint32_t> trailSegments_{ "gTrailSegments" };
 		StructuredInstanceBuffer<ParticleMaterialData> trailMaterials_{ "gParticleMaterials_Trail" };

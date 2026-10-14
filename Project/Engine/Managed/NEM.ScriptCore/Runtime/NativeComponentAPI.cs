@@ -43,7 +43,7 @@ internal static unsafe class NativeComponentAPI {
         if (needed <= 0) {
             return string.Empty;
         }
-        byte[] bytes = new byte[needed];
+        Span<byte> bytes = needed <= 256 ? stackalloc byte[needed] : new byte[needed];
         int written = 0;
         fixed (byte* ptr = bytes) {
             RequireComponentStatus(GetComponentStringProperty(entity, typeID, propertyID, ptr, needed, &written));
@@ -51,7 +51,7 @@ internal static unsafe class NativeComponentAPI {
                 throw new InvalidOperationException("Invalid component string length.");
             }
         }
-        return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
+        return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes[..written]);
     }
 
     // Componentの文字列を設定する
@@ -61,7 +61,9 @@ internal static unsafe class NativeComponentAPI {
             throw new NotSupportedException("Component string setter is not connected.");
         }
         string safe = value ?? string.Empty;
-        byte[] bytes = Encoding.UTF8.GetBytes(safe);
+        int needed = Encoding.UTF8.GetByteCount(safe);
+        Span<byte> bytes = needed <= 256 ? stackalloc byte[needed] : new byte[needed];
+        Encoding.UTF8.GetBytes(safe, bytes);
         fixed (byte* ptr = bytes) {
             RequireComponentStatus(SetComponentStringProperty(entity, typeID, propertyID, ptr, bytes.Length));
         }

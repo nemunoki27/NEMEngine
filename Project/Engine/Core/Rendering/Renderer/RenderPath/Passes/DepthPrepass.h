@@ -39,6 +39,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+		std::vector<const RenderItem*> itemScratch_;
 		FrameConstantBufferAllocator constantAllocator_{};
 		uint64_t constantAllocatorFrameSerial_ = 0;
 		AssetID depthPyramidPipeline_{};
@@ -53,8 +54,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 深度プリパス対象アイテムを収集する
-		std::vector<const RenderItem*> CollectItems(const SceneExecutionContext& context,
-			const RenderPassPhaseBuckets& passBuckets) const;
+		void CollectItems(const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets);
 		// 現在Viewの深度から同一フレーム用Hi-Zを生成する
 		void BuildDepthPyramid(GraphicsCore& graphicsCore,
 			SceneExecutionContext& context);

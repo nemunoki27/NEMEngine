@@ -176,6 +176,10 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 				srvDescriptor->Retire(buffer.srvIndices[frameIndex], {});
 				buffer.srvIndices[frameIndex] = UINT32_MAX;
 			}
+			buffer.handles[frameIndex] = {};
+			if (frameIndex >= GraphicsFrameState::GetActiveCount()) {
+				continue;
+			}
 			srvDescriptor->CreateSRV(
 				buffer.srvIndices[frameIndex],
 				buffer.buffer.GetResource(frameIndex), srvDesc);

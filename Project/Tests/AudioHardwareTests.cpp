@@ -49,15 +49,16 @@ namespace {
 			Engine::AudioListenerState listener;
 			listener.active = true;
 			Engine::AudioSpatialState source;
+			Engine::AudioSpatialMatrixScratch scratch;
 			source.blend = 1.0f;
 			source.position = { -1.0f, 0.0f, 1.0f };
-			device.ApplySpatialMatrix(*voice, 1, normal, source, listener);
+			device.ApplySpatialMatrix(*voice, 1, normal, source, listener, scratch);
 			auto left = device.GetOutputMatrix(*voice, 1);
 			source.position.x = 1.0f;
-			device.ApplySpatialMatrix(*voice, 1, normal, source, listener);
+			device.ApplySpatialMatrix(*voice, 1, normal, source, listener, scratch);
 			auto right = device.GetOutputMatrix(*voice, 1);
 			source.blend = 0.0f;
-			device.ApplySpatialMatrix(*voice, 1, normal, source, listener);
+			device.ApplySpatialMatrix(*voice, 1, normal, source, listener, scratch);
 			passed = device.GetOutputMatrix(*voice, 1) == normal;
 			for (float value : left) { passed &= std::isfinite(value); }
 			for (float value : right) { passed &= std::isfinite(value); }

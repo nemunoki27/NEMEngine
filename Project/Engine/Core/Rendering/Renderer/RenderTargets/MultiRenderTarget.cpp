@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 
 // c++
+#include <array>
 #include <stdexcept>
 
 //============================================================================
@@ -125,7 +126,9 @@ void Engine::MultiRenderTarget::TransitionForShaderRead(DxCommand& dxCommand) {
 void Engine::MultiRenderTarget::Bind(DxCommand& dxCommand) const {
 
 	// 色と深度の描画先を設定する
-	std::vector<RenderTarget> renderTargets = BuildRenderTargets();
+	std::array<RenderTarget, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> targets{};
+	for (size_t index = 0; index < colors_.size(); ++index) targets[index] = colors_[index]->GetRenderTarget();
+	const std::span<const RenderTarget> renderTargets(targets.data(), colors_.size());
 	if (depth_) {
 
 		dxCommand.BindRenderTargets(renderTargets, depth_->GetDSVCPUHandle());

@@ -79,6 +79,9 @@ void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& cont
 	candidate.Create(context, width, height);
 	candidate.currentWidth_ = width;
 	candidate.currentHeight_ = height;
+	// 既に使用したOutlineも候補側で完成させる
+	if (runtimeOutline_.IsValid()) candidate.PrepareScreenSpaceOutline(context, false);
+	if (editorSelectionOutline_.IsValid()) candidate.PrepareScreenSpaceOutline(context, true);
 	Swap(candidate);
 }
 
@@ -117,18 +120,37 @@ void Engine::RenderPathResources::Create(const RenderTargetCreationContext& cont
 	sceneColorOpaque_ = createSurface(BuildSceneColorOpaqueDesc(width, height));
 	depthPyramid_.Create(context.device, &context.shaders, width, height);
 
-	// RuntimeとEditorで同じOutline構成を使う
-	auto createOutline = [&](ScreenSpaceOutlineViewResources& outline, const std::string& prefix) {
+}
 
-		outline.mask_ = createSurface(BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".Mask", false));
-		outline.projectedCoverageMask_ = createSurface(
-			BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".ProjectedCoverageMask", false));
-		outline.horizontalDilatedMask_ = createSurface(
-			BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".HorizontalDilatedMask", true));
-		outline.dilatedMask_ = createSurface(BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".FinalDilatedMask", true));
+Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::PrepareScreenSpaceOutline(
+	GraphicsCore& graphicsCore, bool editorSelection) {
+
+	const RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
+	return PrepareScreenSpaceOutline(context, editorSelection);
+}
+
+Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::PrepareScreenSpaceOutline(
+	const RenderTargetCreationContext& context, bool editorSelection) {
+
+	auto& outline = editorSelection ? editorSelectionOutline_ : runtimeOutline_;
+	if (outline.IsValid() || !IsValid()) return outline;
+	const std::string prefix = editorSelection ? "SSOutline.EditorSelection" : "SSOutline.Runtime";
+	// 全Maskの生成が成功してから所有を渡す
+	ScreenSpaceOutlineViewResources candidate;
+	auto createMask = [&](const char* suffix, bool createUAV) {
+
+		auto surface = std::make_unique<MultiRenderTarget>();
+		surface->Create(context.device, &context.targets, &context.depths, &context.shaders,
+			BuildScreenSpaceOutlineMaskDesc(currentWidth_, currentHeight_, prefix + suffix, createUAV));
+		return surface;
 	};
-	createOutline(runtimeOutline_, "SSOutline.Runtime");
-	createOutline(editorSelectionOutline_, "SSOutline.EditorSelection");
+	candidate.mask_ = createMask(".Mask", false);
+	candidate.projectedCoverageMask_ = createMask(".ProjectedCoverageMask", false);
+	candidate.horizontalDilatedMask_ = createMask(".HorizontalDilatedMask", true);
+	candidate.dilatedMask_ = createMask(".FinalDilatedMask", true);
+	std::swap(outline, candidate);
+	return outline;
 }
 
 void Engine::RenderPathResources::Destroy() {
@@ -275,8 +297,7 @@ bool Engine::RenderPathResources::IsValid() const {
 
 	return sceneMain_ && sceneMain_->IsValid() &&
 		sceneFinal_ && sceneFinal_->IsValid() &&
-		sceneColorOpaque_ && sceneColorOpaque_->IsValid() && depthPyramid_.IsValid() &&
-		runtimeOutline_.IsValid() && editorSelectionOutline_.IsValid();
+		sceneColorOpaque_ && sceneColorOpaque_->IsValid() && depthPyramid_.IsValid();
 }
 
 Engine::RenderTexture2D* Engine::RenderPathResources::GetGBufferColor(GBufferAttachment attachment) {

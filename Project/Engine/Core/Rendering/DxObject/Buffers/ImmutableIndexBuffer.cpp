@@ -8,6 +8,21 @@ using namespace Engine;
 //============================================================================
 //	ImmutableIndexBuffer classMethods
 //============================================================================
+void ImmutableIndexBuffer::Share32BitResource(GraphicsResourceRetirement& retirement,
+	ID3D12Resource* resource, uint32_t indexCount) {
+
+	if (!resource || indexCount == 0 || indexCount > UINT32_MAX / sizeof(uint32_t) ||
+		resource->GetDesc().Dimension != D3D12_RESOURCE_DIMENSION_BUFFER ||
+		resource->GetDesc().Width < uint64_t(indexCount) * sizeof(uint32_t)) {
+		throw std::invalid_argument("共有するIndex Bufferの範囲が無効です");
+	}
+	// SRVとIBVで同じ静的データを読む
+	buffer_.Share(retirement, resource);
+	indexBufferView_.BufferLocation = buffer_.GetGPUVirtualAddress();
+	indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+	indexBufferView_.SizeInBytes = indexCount * sizeof(uint32_t);
+}
+
 void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& uploadService,
 	std::span<const uint32_t> data, DXGI_FORMAT format, D3D12_RESOURCE_STATES finalState) {
 

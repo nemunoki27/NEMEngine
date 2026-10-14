@@ -100,6 +100,10 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 			mesh.packedVertexSRV, packedVertices, L"MeshPackedVertices");
 	}
 
+	// 32bit IndexはShaderとIndex描画で同じBufferを読む
+	CreateImmutableSRV(device, *uploadService, *srvDescriptor,
+		mesh.indexSRV, imported.indices, L"MeshIndices");
+
 	// インデックスバッファ
 	{
 		// 16bitに収まるメッシュはIBVだけ16bit化して帯域を減らす
@@ -110,17 +114,11 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 			mesh.indexBuffer.Create(device, *uploadService, std::span(indices16),
 				D3D12_RESOURCE_STATE_GENERIC_READ);
 		} else {
-			// SRV用indexSRVは32bitのまま別途保持し、IBVだけ描画向けに最適化する
-			mesh.indexBuffer.Create(device, *uploadService, std::span(imported.indices),
-				DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
+			if (mesh.indexSRV.buffer) {
+				mesh.indexBuffer.Share32BitResource(uploadService->GetResourceRetirement(),
+					mesh.indexSRV.buffer->GetResource(), static_cast<uint32_t>(imported.indices.size()));
+			}
 		}
-	}
-
-	// インデックスSRVリソース
-	{
-		// シェーダ側では32bit Indexとして読むため、SRVは従来どおり32bitを保持する
-		CreateImmutableSRV(device, *uploadService, *srvDescriptor,
-			mesh.indexSRV, imported.indices, L"MeshIndices");
 	}
 
 	// スキニングインフルエンスSRVリソース

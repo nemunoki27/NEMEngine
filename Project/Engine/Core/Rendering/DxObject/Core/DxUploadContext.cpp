@@ -28,7 +28,7 @@ DxUploadCommand::~DxUploadCommand() {
 	if (fenceEvent_) CloseHandle(fenceEvent_);
 }
 
-void DxUploadCommand::Create(ID3D12Device* device) {
+void DxUploadCommand::Create(ID3D12Device* device, ID3D12CommandQueue* queue) {
 
 	if (!device) throw std::invalid_argument("UploadのDeviceが指定されていません");
 	if (device_) throw std::logic_error("UploadCommandは生成済みです");
@@ -46,13 +46,23 @@ void DxUploadCommand::Create(ID3D12Device* device) {
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	if (!fenceEvent_) throw std::runtime_error("Upload用Fenceの待機イベント作成に失敗しました");
 
-	commandQueue_ = nullptr;
-	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
-	hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
-	if (!DxDREDDiagnostics::CheckHRESULT(device_.Get(), hr, "DxUploadCommand")) {
-		throw std::runtime_error("Upload用コマンドキューの作成に失敗しました");
+	if (queue) {
+
+		ComPtr<ID3D12Device> queueDevice;
+		if (queue->GetDesc().Type != D3D12_COMMAND_LIST_TYPE_DIRECT ||
+			FAILED(queue->GetDevice(IID_PPV_ARGS(&queueDevice))) || queueDevice.Get() != device) {
+			throw std::invalid_argument("Upload用コマンドキューのDeviceまたは種類が異なります");
+		}
+		commandQueue_ = queue;
+	} else {
+
+		D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
+		hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
+		if (!DxDREDDiagnostics::CheckHRESULT(device_.Get(), hr, "DxUploadCommand")) {
+			throw std::runtime_error("Upload用コマンドキューの作成に失敗しました");
+		}
+		commandQueue_->SetName(L"DxUploadQueue");
 	}
-	commandQueue_->SetName(L"DxUploadQueue");
 
 	commandAllocator_ = nullptr;
 	hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
@@ -78,15 +88,28 @@ ID3D12GraphicsCommandList* DxUploadCommand::GetCommandList() const {
 
 void DxUploadCommand::ExecuteCommands(std::span<const ComPtr<ID3D12Resource>> resources) {
 
+	SubmitCommands(resources);
+	FlushAndWait();
+}
+
+void DxUploadCommand::RetainResources(std::span<const ComPtr<ID3D12Resource>> resources) {
+
+	if (!recording_) throw std::logic_error("UploadCommandは記録可能な状態ではありません");
+	retainedResources_.insert(retainedResources_.end(), resources.begin(), resources.end());
+}
+
+void DxUploadCommand::SubmitCommands(std::span<const ComPtr<ID3D12Resource>> resources) {
+
 	if (!recording_) throw std::logic_error("UploadCommandは記録可能な状態ではありません");
 	if (fenceValue_ >= UINT64_MAX - 1) throw std::overflow_error("UploadのFence値が上限に達しました");
 
 	// 提出後の失敗に備えて転送元と転送先を保持する
-	recording_ = false;
 	if (!DxDREDDiagnostics::CheckDeviceState(device_.Get(), "DxUploadCommand::Execute/Device")) {
+		recording_ = false;
 		throw std::runtime_error("Deviceが失われたためTexture転送を提出できません");
 	}
-	retainedResources_.assign(resources.begin(), resources.end());
+	RetainResources(resources);
+	recording_ = false;
 	const HRESULT closeResult = commandList_->Close();
 	if (!DxDREDDiagnostics::CheckHRESULT(device_.Get(), closeResult, "DxUploadCommand::Close")) {
 		throw std::runtime_error("Upload用コマンドリストを閉じられませんでした");
@@ -96,11 +119,10 @@ void DxUploadCommand::ExecuteCommands(std::span<const ComPtr<ID3D12Resource>> re
 	ID3D12CommandList* commandLists[] = { commandList_.Get() };
 	submitted_ = true;
 	commandQueue_->ExecuteCommandLists(1, commandLists);
-	FlushAndWait();
-	ResetCommand();
+	SignalCommands();
 }
 
-void DxUploadCommand::FlushAndWait() {
+void DxUploadCommand::SignalCommands() {
 
 	if (!submitted_) return;
 	if (!signaled_) {
@@ -114,13 +136,40 @@ void DxUploadCommand::FlushAndWait() {
 		signaled_ = true;
 	}
 
-	// CPU側で完了を待ち、公開前に転送を確定する
+}
+
+bool DxUploadCommand::TryFinalize() {
+
+	if (!submitted_) return true;
+	SignalCommands();
+	const uint64_t completed = fence_->GetCompletedValue();
+	// Device消失を転送の成功として公開しない
+	if (completed == UINT64_MAX) {
+		DxDREDDiagnostics::CheckDeviceState(device_.Get(), "DxUploadCommand::Poll");
+		throw std::runtime_error("Deviceが失われたためTexture転送を確定できません");
+	}
+	if (completed < fenceValue_) return false;
+	submitted_ = false;
+	signaled_ = false;
+	retainedResources_.clear();
+	ResetCommand();
+	return true;
+}
+
+void DxUploadCommand::FlushAndWait() {
+
+	// 終了時は未提出の記録も転送し、所有を途中で失わない
+	if (recording_ && !retainedResources_.empty()) SubmitCommands();
+	if (!submitted_) return;
+	SignalCommands();
+	// 明示的な待機時だけCPUで完了を待つ
 	if (!DxDREDDiagnostics::WaitForFence(device_.Get(), fence_.Get(), fenceValue_, fenceEvent_, "DxUploadCommand::Wait")) {
 		throw std::runtime_error("Texture転送の完了を確認できませんでした");
 	}
 	submitted_ = false;
 	signaled_ = false;
 	retainedResources_.clear();
+	ResetCommand();
 }
 
 void DxUploadCommand::ResetCommand() {

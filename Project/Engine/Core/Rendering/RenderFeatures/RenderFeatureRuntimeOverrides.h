@@ -59,6 +59,7 @@ namespace Engine {
 		bool IsGroupEnabled(std::string_view groupName,
 			bool fallback) const;
 		static RenderFeatureRuntimeOverrides& GetInstance();
+		uint64_t GetPlanRevision() const { return planRevision_; }
 
 	private:
 		//========================================================================
@@ -72,5 +73,6 @@ namespace Engine {
 		std::unordered_map<UUID,
 			RenderFeaturePassRuntimeOverride> overrides_{};
 		std::unordered_map<std::string, bool> groupEnabledOverrides_{};
+		uint64_t planRevision_ = 0;
 	};
 } // Engine

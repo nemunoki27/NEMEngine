@@ -81,6 +81,7 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 	}
 	// 非表示のPanelでは未確定操作を終了する
 	if (!visible || !*visible) {
+		UpdateVisibility(context, false);
 		EndPreview();
 		return;
 	}
@@ -90,16 +91,34 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}
 	if (!drawContents || !*visible) {
+		UpdateVisibility(context, false);
 		EndPreview();
 		ImGui::End();
 		return;
 	}
 
 	// ビューポートの内容を描画する
+	UpdateVisibility(context, true);
 	*lastSize = ImGui::GetContentRegionAvail();
 	DrawViewportContent(context, label_.c_str(), *lastSize);
 
 	ImGui::End();
+}
+
+void Engine::ViewportPanel::UpdateVisibility(const EditorPanelContext& context, bool visible) {
+
+	// 非選択タブと閉じたPanelを描画対象から外す
+	if (kind_ == ViewportPanelKind::Scene) {
+		context.editorState->sceneViewportVisible = visible;
+		context.editorState->sceneViewportHovered = false;
+		if (!visible) context.editorState->useSceneGizmo = false;
+	} else {
+		context.editorState->gameViewportVisible = visible;
+		context.editorState->gameViewportHovered = false;
+	}
+	// 表示画像がない場合も古い座標へ操作を送らない
+	const InputViewArea inputArea = kind_ == ViewportPanelKind::Game ? InputViewArea::Game : InputViewArea::Scene;
+	Input::GetInstance()->ClearViewRect(inputArea);
 }
 
 void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size) {
@@ -231,7 +250,6 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 void Engine::ViewportPanel::EndPreview() {
 
-	gizmoSession_.EndPreview();
 	gizmoSession_.EndPreview();
 	placementSession_.EndPreview();
 }

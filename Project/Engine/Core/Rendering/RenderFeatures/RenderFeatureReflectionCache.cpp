@@ -13,13 +13,20 @@
 
 void Engine::RenderFeatureReflectionCache::CacheReflection(AssetID materialID, MaterialPassKind passKind,
 	const std::vector<ShaderConstantBufferVariable>& variables, const std::vector<ShaderResourceBinding>& resources,
-	const std::vector<ShaderResourceBinding>& samplers) {
+	const std::vector<ShaderResourceBinding>& samplers, uint64_t pipelineID) {
 
 	const ReflectionKey key{materialID, passKind};
+	if (HasReflection(materialID, passKind, pipelineID)) return;
 	// 全種類の取得後に同じ世代として公開する
-	ReflectionData candidate{variables, resources, samplers};
+	ReflectionData candidate{variables, resources, samplers, pipelineID};
 	static_assert(std::is_nothrow_move_assignable_v<ReflectionData>);
 	entries_.insert_or_assign(key, std::move(candidate));
+}
+
+bool Engine::RenderFeatureReflectionCache::HasReflection(AssetID materialID, MaterialPassKind passKind, uint64_t pipelineID) const {
+
+	const auto found = entries_.find(ReflectionKey{materialID, passKind});
+	return pipelineID != 0 && found != entries_.end() && found->second.pipelineID == pipelineID;
 }
 
 void Engine::RenderFeatureReflectionCache::ClearReflection(AssetID materialID) {

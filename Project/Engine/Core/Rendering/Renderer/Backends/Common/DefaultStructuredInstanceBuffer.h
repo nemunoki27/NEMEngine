@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <deque>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,13 +109,14 @@ namespace Engine {
 		std::array<size_t, kGraphicsFrameContextCount> publishedCounts_{};
 		std::array<size_t, kGraphicsFrameContextCount> uploadedCounts_{};
 		uint32_t capacity_ = 0;
+		uint32_t resourceCount_ = 0;
 		uint32_t elementCount_ = 0;
 		uint64_t generation_ = 1;
 		std::deque<DirtyRange> dirtyRanges_{};
 
 		//--------- functions ----------------------------------------------------
 
-		// 全フレームの容量を必要な要素数まで拡張する
+		// 稼働フレームの容量を必要な要素数まで拡張する
 		void EnsureCapacity(uint32_t requiredCount);
 		// 現在の資源とDescriptorを描画完了まで預ける
 		void RetireFrame(uint32_t frameIndex);
@@ -158,6 +160,7 @@ namespace Engine {
 		uploadedGenerations_ = { 0, 0, 0 };
 		dirtyRanges_.clear();
 		capacity_ = 0;
+		resourceCount_ = 0;
 		elementCount_ = 0;
 		generation_ = 1;
 		uploadService_ = nullptr;
@@ -275,17 +278,20 @@ namespace Engine {
 		uint32_t requiredCount) {
 
 		requiredCount = (std::max)(requiredCount, 1u);
-		if (requiredCount <= capacity_) {
+		const uint32_t activeCount = GraphicsFrameState::GetActiveCount();
+		if (requiredCount <= capacity_ && activeCount <= resourceCount_) {
 			return;
 		}
 
-		const uint32_t newCapacity = RoundUpCapacity(requiredCount);
-		std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> candidates;
+		const bool growCapacity = requiredCount > capacity_;
+		const uint32_t newCapacity = growCapacity ? RoundUpCapacity(requiredCount) : capacity_;
+		const uint32_t firstIndex = growCapacity ? 0 : resourceCount_;
+		std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> candidates{};
 		std::array<uint32_t, kGraphicsFrameContextCount> indices;
 		indices.fill(UINT32_MAX);
-		// 全frameのResourceとSRVを作成してから交換する
+		// 稼働frameのResourceとSRVを作成してから公開する
 		try {
-			for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+			for (uint32_t index = firstIndex; index < activeCount; ++index) {
 				DxUtils::CreateDefaultBufferResource(device_, candidates[index], static_cast<size_t>(newCapacity) * sizeof(T));
 				if (!bindingName_.empty()) candidates[index]->SetName(Algorithm::ConvertString(bindingName_).c_str());
 				D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
@@ -296,19 +302,27 @@ namespace Engine {
 				desc.Buffer.StructureByteStride = sizeof(T);
 				srvDescriptor_->CreateSRV(indices[index], candidates[index].Get(), desc);
 			}
-			srvDescriptor_->GetRetirementQueue().ReservePending(kGraphicsFrameContextCount);
+			if (growCapacity) srvDescriptor_->GetRetirementQueue().ReservePending(resourceCount_);
 		} catch (...) {
 			for (uint32_t index : indices) if (index != UINT32_MAX) srvDescriptor_->Free(index);
 			throw;
 		}
-		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) RetireFrame(index);
-		resources_ = std::move(candidates);
-		srvIndices_ = indices;
-		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+		if (growCapacity) {
+			for (uint32_t index = 0; index < resourceCount_; ++index) RetireFrame(index);
+			resources_ = std::move(candidates);
+			srvIndices_ = indices;
+			capacity_ = newCapacity;
+			uploadedGenerations_ = {};
+		} else {
+			for (uint32_t index = firstIndex; index < activeCount; ++index) {
+				resources_[index] = std::move(candidates[index]);
+				srvIndices_[index] = indices[index];
+			}
+		}
+		for (uint32_t index = firstIndex; index < activeCount; ++index) {
 			srvGPUHandles_[index] = srvDescriptor_->GetGPUHandle(indices[index]);
 		}
-		capacity_ = newCapacity;
-		uploadedGenerations_ = {};
+		resourceCount_ = activeCount;
 	}
 
 	template<typename T>

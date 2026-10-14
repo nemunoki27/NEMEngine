@@ -57,8 +57,8 @@ void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	// 不透明アイテムから深度に描画する対象のみ取得
-	std::vector<const RenderItem*> items = CollectItems(context, passBuckets);
-	RenderPassExecutionHelper::Execute(graphicsCore, context, items, deps_,
+	CollectItems(context, passBuckets);
+	RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps_,
 		context.resources->GetSceneMain(), MaterialPassKind::ZPrepass, false, true);
 
 	// カリング対象View自身の深度だけを生成し、SceneViewのGame基準時はGame側を再利用する
@@ -69,22 +69,21 @@ void Engine::DepthPrepass::Execute(GraphicsCore& graphicsCore,
 	}
 }
 
-std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
-	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets) const {
+void Engine::DepthPrepass::CollectItems(const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets) {
 
 	// 不透明アイテムが空ならZPrepassの対象も無い
-	std::vector<const RenderItem*> result{};
+	itemScratch_.clear();
 	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
 	if (list.IsEmpty()) {
-		return result;
+		return;
 	}
 	// 深度は透視投影カメラ基準で書くため対応するカメラが無ければ描画不可
 	const ResolvedCameraView* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	if (!camera) {
-		return result;
+		return;
 	}
 
-	result.reserve(list.items.size());
+	itemScratch_.reserve(list.items.size());
 	for (const RenderItem* item : list.items) {
 
 		if (!item) {
@@ -107,9 +106,8 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 		if (!payload || !payload->enableZPrepass) {
 			continue;
 		}
-		result.emplace_back(item);
+		itemScratch_.emplace_back(item);
 	}
-	return result;
 }
 
 void Engine::DepthPrepass::BuildDepthPyramid(

@@ -4,9 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
@@ -24,6 +24,8 @@
 namespace {
 
 	constexpr uint32_t kMaxDecodeWorkerCount = 4;
+	constexpr uint64_t kDecodedQueueBudget = 256ull * 1024 * 1024;
+	constexpr uint64_t kUploadBatchBudget = 32ull * 1024 * 1024;
 }
 
 Engine::TextureUploadService::~TextureUploadService() {
@@ -40,6 +42,7 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 	srvDescriptor_ = srvDescriptor;
 
 	uploader_.Init(device, srvDescriptor);
+	acceptingDecodes_ = true;
 
 	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());
 	const uint32_t threadCount = (std::min)(kMaxDecodeWorkerCount, hardwareThreadCount);
@@ -56,21 +59,37 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 void Engine::TextureUploadService::TickFinalize() {
 
 	CollectUnusedTextures();
+	// 未完了の転送はCPUを待機させず次の更新で確認する
+	if (!uploader_.TryFinalize()) return;
+	while (!pendingGPUUploads_.empty()) {
+
+		auto& pending = pendingGPUUploads_.front();
+		PublishUpload(pending.completed, pending.uploaded);
+		pendingGPUUploads_.pop_front();
+		pendingGPUCount_.fetch_sub(1, std::memory_order_relaxed);
+	}
 
 	// 完了画像の転送をframeへ分散する
 	std::deque<CompletedRequest> jobs{};
 	{
 		std::scoped_lock lock(mutex_);
 		size_t imageCount = 0;
+		uint64_t batchBytes = 0;
 		while (!pendingUploads_.empty()) {
 			const bool solidColor = pendingUploads_.front().texture.isSolidColor;
-			if (!solidColor && imageCount >= 2) { break; }
+			const size_t decodedBytes = pendingUploads_.front().texture.image.GetPixelsSize();
+			if (!solidColor && (imageCount >= 2 || (imageCount != 0 &&
+				(batchBytes >= kUploadBatchBudget || decodedBytes > kUploadBatchBudget - batchBytes)))) break;
 			// 起動用の1pixel画像は同じ更新で揃える
 			if (!solidColor) { ++imageCount; }
+			batchBytes += decodedBytes;
 			jobs.emplace_back(std::move(pendingUploads_.front()));
 			pendingUploads_.pop_front();
+			decodedBytes_ -= decodedBytes;
 		}
 	}
+	// 待機列の空きに合わせて次の画像をデコードする
+	decodedSpace_.notify_all();
 
 	// 記録されたジョブを処理する
 	for (auto& completed : jobs) {
@@ -85,65 +104,25 @@ void Engine::TextureUploadService::TickFinalize() {
 			}
 		}
 
-		GPUTextureResource uploaded{};
-		// 単色テクスチャのアップロード
-		if (job.isSolidColor) {
+		// 転送候補の所有を先に確保する
+		pendingGPUUploads_.emplace_back();
+		pendingGPUCount_.fetch_add(1, std::memory_order_relaxed);
+		auto& pending = pendingGPUUploads_.back();
+		pending.completed = std::move(completed);
+		auto& decoded = pending.completed.texture;
+		if (decoded.isSolidColor) {
 
-			uploaded = uploader_.UploadSolidColor1x1(job.solidRGBA[0], job.solidRGBA[1], job.solidRGBA[2], job.solidRGBA[3]);
+			pending.uploaded = uploader_.UploadSolidColor1x1(decoded.solidRGBA[0], decoded.solidRGBA[1],
+				decoded.solidRGBA[2], decoded.solidRGBA[3], true);
+		} else if (decoded.success) {
 
+			pending.uploaded = uploader_.UploadScratchImage(decoded.image, decoded.metadata, true);
 		}
-		// 画像テクスチャのアップロード
-		else if (job.success) {
-			uploaded = uploader_.UploadScratchImage(job.image, job.metadata);
-		}
-
-		// アップロード結果を反映する
-		std::scoped_lock lock(mutex_);
-		queuedKeys_.erase(job.key);
-		// GPU転送中に変更された要求も公開しない
-		if (!IsCurrentRequest(completed)) {
-			if (uploaded.valid) {
-				srvDescriptor_->Retire(uploaded.srvIndex, uploaded.resource);
-			}
-			continue;
-		}
-
-		// 再読込に失敗した場合は公開済みの画像を保持する
-		if (readyTextures_.contains(job.key) && !uploaded.valid) {
-			continue;
-		}
-
-		if (!uploaded.valid) {
-			failedKeys_.insert(job.key);
-			continue;
-		}
-		try {
-			uploaded.ownership = std::make_shared<const uint8_t>(0);
-			textureAccessTimes_[job.key] = std::chrono::steady_clock::now();
-			// 名前の準備も差し替え前に完了する
-			uploaded.textureName = job.key;
-			uploaded.resource->SetName(Algorithm::ConvertString(job.key).c_str());
-			srvDescriptor_->UpdateResourceName(uploaded.srvIndex, uploaded.resource.Get());
-			const auto desc = uploaded.resource->GetDesc();
-			Logger::Output(LogType::Engine,
-				"[TextureLoad][GPU] key={} srvIndex={} size={}x{} format={} status=準備完了",
-				job.key, uploaded.srvIndex, static_cast<uint32_t>(desc.Width), desc.Height, static_cast<uint32_t>(desc.Format));
-			auto existing = readyTextures_.find(job.key);
-			if (existing != readyTextures_.end()) {
-				// 使用中の旧DescriptorとResourceを一組で保持する
-				srvDescriptor_->Retire(existing->second.srvIndex, existing->second.resource);
-				existing->second = std::move(uploaded);
-			} else {
-				readyTextures_.emplace(job.key, std::move(uploaded));
-			}
-		} catch (...) {
-			// 公開前の新Descriptorだけを戻す
-			srvDescriptor_->Free(uploaded.srvIndex);
-			throw;
-		}
-		failedKeys_.erase(job.key);
-		++contentRevision_;
+		// CPU画像は転送元へコピーした後に解放する
+		decoded.image.Release();
 	}
+	// このframeで記録した画像を一度だけ提出する
+	uploader_.SubmitBatch();
 
 	// 進行中の読込が終わったキーを最新要求で再投入する
 	std::vector<DecodeRequest> deferredReloads{};
@@ -182,13 +161,18 @@ void Engine::TextureUploadService::TickFinalize() {
 void Engine::TextureUploadService::WaitAll() {
 
 	for (;;) {
-		decodeWorkers_.WaitIdle();
+		TickFinalize();
+		uploader_.FlushAndWait();
 		TickFinalize();
 		// 転送後に再投入した読込も完了まで待つ
-		std::scoped_lock lock(mutex_);
-		if (queuedKeys_.empty() && pendingUploads_.empty() && deferredReloadKeys_.empty()) {
-			return;
+		const auto workers = decodeWorkers_.GetStats();
+		{
+			std::scoped_lock lock(mutex_);
+			if (queuedKeys_.empty() && pendingUploads_.empty() && pendingGPUCount_.load(std::memory_order_relaxed) == 0 &&
+				deferredReloadKeys_.empty() && workers.inFlightCount == 0 && workers.queuedCount == 0) return;
 		}
+		// 完了画像を回収しながらWorkerの次の結果を待つ
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
 
@@ -336,9 +320,22 @@ void Engine::TextureUploadService::RequestReloadByFile(
 
 void Engine::TextureUploadService::Finalize() {
 
+	{
+		std::scoped_lock lock(mutex_);
+		acceptingDecodes_ = false;
+	}
+	// 待機中のWorkerも終了要求で解除する
+	decodedSpace_.notify_all();
 	decodeWorkers_.Stop();
+	// GPU転送を確定してから未公開候補を回収する
+	uploader_.Finalize();
 
 	if (srvDescriptor_) {
+		for (auto& pending : pendingGPUUploads_) {
+			if (pending.uploaded.srvIndex != UINT32_MAX) {
+				srvDescriptor_->Retire(pending.uploaded.srvIndex, pending.uploaded.resource);
+			}
+		}
 		for (auto& [key, texture] : readyTextures_) {
 			if (texture.srvIndex != UINT32_MAX) {
 				srvDescriptor_->Retire(texture.srvIndex, texture.resource);
@@ -348,6 +345,10 @@ void Engine::TextureUploadService::Finalize() {
 	{
 		std::scoped_lock lock(mutex_);
 		pendingUploads_.clear();
+		pendingGPUUploads_.clear();
+		pendingGPUCount_.store(0, std::memory_order_relaxed);
+		decodedBytes_ = 0;
+		readyAllocationBytes_ = 0;
 		if (!readyTextures_.empty()) ++contentRevision_;
 		readyTextures_.clear();
 		textureAccessTimes_.clear();
@@ -358,7 +359,6 @@ void Engine::TextureUploadService::Finalize() {
 		fileReloadRevisions_.clear();
 	}
 
-	uploader_.Finalize();
 	cacheAdapter_.Reset();
 	cacheCollectionTime_ = {};
 	srvDescriptor_ = nullptr;
@@ -375,7 +375,7 @@ const Engine::GPUTextureResource* Engine::TextureUploadService::GetTexture(const
 bool Engine::TextureUploadService::HasPendingRequests() const {
 
 	std::scoped_lock lock(mutex_);
-	return !queuedKeys_.empty() || !deferredReloadKeys_.empty();
+	return !queuedKeys_.empty() || !deferredReloadKeys_.empty() || pendingGPUCount_.load(std::memory_order_relaxed) != 0;
 }
 
 Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::string& key) const {
@@ -398,6 +398,12 @@ Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::st
 
 void Engine::TextureUploadService::DecodeTextureWorker(DecodeRequest&& request, uint32_t workerIndex) {
 
+	{
+		std::unique_lock lock(mutex_);
+		// 完了画像を積み続けず、転送待ちの容量に合わせる
+		decodedSpace_.wait(lock, [this] { return !acceptingDecodes_ || decodedBytes_ < kDecodedQueueBudget; });
+		if (!acceptingDecodes_) return;
+	}
 	const auto& job = request.description;
 	const auto startStats = decodeWorkers_.GetStats();
 	Logger::Output(LogType::Engine, "[TextureLoad][開始] Worker[{}/{}] processing={} queued={} key={} path={}",
@@ -426,6 +432,7 @@ void Engine::TextureUploadService::DecodeTextureWorker(DecodeRequest&& request, 
 	}
 	std::scoped_lock lock(mutex_);
 	pendingUploads_.push_back({ std::move(result), request.revision });
+	decodedBytes_ += pendingUploads_.back().texture.image.GetPixelsSize();
 }
 
 bool Engine::TextureUploadService::QueueDecode(const DecodeRequest& request) {

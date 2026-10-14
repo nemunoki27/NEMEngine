@@ -25,6 +25,7 @@ namespace Engine {
 		ComPtr<ID3D12Resource> resource;
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle{};
 		uint32_t srvIndex = UINT32_MAX;
+		uint64_t allocationBytes = 0;
 
 		// テクスチャ名
 		std::string textureName;

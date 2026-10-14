@@ -12,6 +12,7 @@
 // c++
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
@@ -44,6 +45,7 @@ namespace Engine {
 		uint64_t allocationBytes = 0;
 		uint64_t queuedCount = 0;
 		uint64_t decodedBytes = 0;
+		uint64_t uploadingCount = 0;
 	};
 
 	//============================================================================
@@ -92,7 +94,7 @@ namespace Engine {
 		// デコードとGPU公開が完了していない要求を確認する
 		bool HasPendingRequests() const;
 		// 公開資源と転送待ちの使用量を取得する
-		TextureCacheStatistics GetCacheStatistics(ID3D12Device* device) const;
+		TextureCacheStatistics GetCacheStatistics() const;
 		uint64_t GetContentRevision() const { return contentRevision_.load(std::memory_order_relaxed); }
 		// 指定ファイルの再読込要求の世代を取得する
 		uint64_t GetFileReloadRevision(const std::filesystem::path& fullPath) const;
@@ -117,6 +119,13 @@ namespace Engine {
 			uint64_t revision = 0;
 		};
 
+		// 転送Fenceの完了まで公開を保留する候補
+		struct PendingGPURequest {
+
+			CompletedRequest completed;
+			GPUTextureResource uploaded;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		std::atomic<uint64_t> contentRevision_ = 0;
@@ -132,7 +141,13 @@ namespace Engine {
 
 		// アップロードジョブのキューと完了したテクスチャのマップを保護するミューテックス
 		mutable std::mutex mutex_;
+		std::condition_variable decodedSpace_;
+		bool acceptingDecodes_ = false;
 		std::deque<CompletedRequest> pendingUploads_;
+		std::deque<PendingGPURequest> pendingGPUUploads_;
+		std::atomic<uint64_t> pendingGPUCount_ = 0;
+		uint64_t decodedBytes_ = 0;
+		uint64_t readyAllocationBytes_ = 0;
 		// キーとGPUテクスチャリソースのマップ
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
 		mutable std::unordered_map<std::string, std::chrono::steady_clock::time_point> textureAccessTimes_;
@@ -156,6 +171,8 @@ namespace Engine {
 		void PrepareRequest(DecodeRequest& request, std::vector<DecodeRequest>& toEnqueue);
 		// 保護中の要求と完了結果の世代を照合する
 		bool IsCurrentRequest(const CompletedRequest& completed) const;
+		// 転送済みの候補を要求世代と照合して公開する
+		void PublishUpload(const CompletedRequest& completed, GPUTextureResource& uploaded);
 		// 常駐予算と未使用画像の所有を確認する
 		void InitCacheTracking(ID3D12Device* device);
 		void CollectUnusedTextures();

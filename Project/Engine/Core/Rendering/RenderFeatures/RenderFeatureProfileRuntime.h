@@ -8,6 +8,7 @@
 // c++
 #include <string>
 #include <memory>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -64,6 +65,8 @@ namespace Engine {
 		void Rebuild(const RenderFeatureProfileAsset& profile);
 		// Viewと実行位置に合う計画を作成する
 		RenderFeatureExecutionPlan BuildPlan(RenderFeatureAnchor anchor, RenderViewKind viewKind) const;
+		// 構成と実行条件が同じ計画の所有を共有する
+		std::shared_ptr<const RenderFeatureExecutionPlan> GetPlan(RenderFeatureAnchor anchor, RenderViewKind viewKind) const;
 		// 通常描画から分離する対象か判定する
 		bool IsItemIsolated(const RenderItem& item) const;
 		// 指定Viewで通常描画から分離する対象か判定する
@@ -90,6 +93,9 @@ namespace Engine {
 		// 計画と参照表が共有する構成
 		std::shared_ptr<const RenderFeatureProfileAsset> profile_ = std::make_shared<const RenderFeatureProfileAsset>();
 		std::string diagnostic_{}; // 構成の検証結果
+		// 保存設定と実行時の有効状態が変わるまで計画を再利用する
+		mutable std::map<std::pair<RenderFeatureAnchor, RenderViewKind>, std::shared_ptr<const RenderFeatureExecutionPlan>> plans_;
+		mutable uint64_t planRevision_ = 0;
 		// Passから選択適用項目への参照を再構築時に解決する
 		std::unordered_map<uint64_t, const RenderFeatureHierarchyItem*> selectionGroupsByPass_{};
 		// 通常描画から除外する分離適用項目

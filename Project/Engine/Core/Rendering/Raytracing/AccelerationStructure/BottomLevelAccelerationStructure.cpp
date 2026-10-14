@@ -88,7 +88,7 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	}
 	if (!DxDREDDiagnostics::CheckDeviceState(device, "BLAS::Build")) throw std::runtime_error("Deviceが失われました");
 	// 候補の作成と記録が成功してから公開する
-	retirementQueue_->ReservePending(2 + kGraphicsFrameContextCount);
+	retirementQueue_->ReservePending(3 + kGraphicsFrameContextCount);
 	BottomLevelAccelerationStructure candidate;
 	candidate.SetRetirementQueue(*retirementQueue_);
 	candidate.BuildResources(device, commandList, input);
@@ -121,9 +121,9 @@ void Engine::BottomLevelAccelerationStructure::BuildResources(ID3D12Device8* dev
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
 	// スクラッチと結果のバッファを作成
-	const UINT64 scratchSize = allowUpdate_ ?
+	scratchSize_ = allowUpdate_ ?
 		(std::max)(prebuild.ScratchDataSizeInBytes, prebuild.UpdateScratchDataSizeInBytes) : prebuild.ScratchDataSizeInBytes;
-	scratch_.Create(device, scratchSize,
+	scratch_.Create(device, scratchSize_,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
 	result_.Create(device, prebuild.ResultDataMaxSizeInBytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
@@ -138,6 +138,15 @@ void Engine::BottomLevelAccelerationStructure::BuildResources(ID3D12Device8* dev
 
 	// UAVバリアを挿入してASの構築完了を待つ
 	result_.InsertUAVBarrier(commandList);
+	RetireStaticScratch();
+}
+
+void Engine::BottomLevelAccelerationStructure::RetireStaticScratch() {
+
+	if (!allowUpdate_ && scratch_.GetResource()) {
+		// 記録済みの構築が終わるまで回収窓口で保持する
+		retirementQueue_->Retire(scratch_.TakeResource());
+	}
 }
 
 void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
@@ -178,6 +187,11 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 
 	// refitで劣化したBVHを、GPUアドレスを変えずに初期品質へ戻す
 	FillGeometryDescs(input);
+	if (!scratch_.GetResource()) {
+		retirementQueue_->ReservePending(1);
+		scratch_.Create(device_, scratchSize_,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
+	}
 	inputs_.pGeometryDescs = geometryDescs_.data();
 	inputs_.Flags =
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
@@ -197,6 +211,7 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 		&buildDesc_, 0, nullptr);
 
 	result_.InsertUAVBarrier(commandList);
+	RetireStaticScratch();
 }
 
 Engine::BottomLevelAccelerationStructure::~BottomLevelAccelerationStructure() {
@@ -229,6 +244,7 @@ void Engine::BottomLevelAccelerationStructure::Swap(BottomLevelAccelerationStruc
 	std::swap(buildDesc_, other.buildDesc_);
 	std::swap(device_, other.device_);
 	std::swap(allowUpdate_, other.allowUpdate_);
+	std::swap(scratchSize_, other.scratchSize_);
 	std::swap(geometryDescs_, other.geometryDescs_);
 	std::swap(layoutHash_, other.layoutHash_);
 }
@@ -249,6 +265,7 @@ void Engine::BottomLevelAccelerationStructure::Release() {
 	buildDesc_ = {};
 	device_ = nullptr;
 	allowUpdate_ = false;
+	scratchSize_ = 0;
 	geometryDescs_.clear();
 	layoutHash_ = 0;
 }

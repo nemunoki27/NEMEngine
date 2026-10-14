@@ -56,6 +56,14 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 			Logger::Output(LogType::Engine, spdlog::level::err, "D3D12 ERROR id={} {}", static_cast<uint32_t>(id), text);
 		}, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &diagnosticsCookie_);
 	}
+	// 計測の解像度だけ変更しProject設定へ保存しない
+	wchar_t width[32]{}, height[32]{};
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_WIDTH", width, 32) > 0 &&
+		GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_HEIGHT", height, 32) > 0) {
+		graphicsCore.GetContext().SetGameSize(Vector2I(
+			static_cast<int32_t>(std::clamp(std::wcstoul(width, nullptr, 10), 1ul, 8192ul)),
+			static_cast<int32_t>(std::clamp(std::wcstoul(height, nullptr, 10), 1ul, 8192ul))));
+	}
 	application_->Init(graphicsCore);
 	// 長時間確認とScene反復は専用プロセスだけで行う
 	wchar_t setting[32]{};
@@ -85,6 +93,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 #endif
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
+		{ "graphicsFrameCount", GraphicsFrameState::GetActiveCount() },
 		{ "freezeAnimation", freezeAnimation_ },
 		{ "comparison", sceneSequence_.empty() ? "MeshShader" : "SceneSwitch" },
 		{ "quickCheck", quickCheck_ }, { "gpuValidation", gpuValidation },
@@ -150,6 +159,15 @@ void Engine::EditorRenderBenchmark::BeginPhase() {
 		!report_.contains("shadowSequence") && !report_.contains("transformSequence") ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
+	capturedIntervalCount_ = 0;
+	if (continuousCapture_ && holdSeconds_ >= 300u) {
+		// 長時間計測の全標本はファイルへ逐次保存する
+		const auto path = output_.parent_path() /
+			(output_.stem().string() + ".phase" + std::to_string(phase_) + ".frames.jsonl");
+		frameLog_.open(path, std::ios::out | std::ios::trunc);
+		if (!frameLog_) throw std::runtime_error("連続計測ファイルを開けません");
+		report_["sampleFiles"].push_back(path.filename().string());
+	}
 	phaseStarted_ = std::chrono::steady_clock::now();
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"描画比較を開始します phase={} MeshShader={}", phase_, features_->ShouldUseMeshShader());
@@ -346,7 +364,7 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	}
 	if (frames_.empty()) {
 
-		const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics(platform.GetDevice());
+		const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics();
 		sample["textures"] = { { "count", textures.textureCount }, { "allocationBytes", textures.allocationBytes },
 			{ "queuedCount", textures.queuedCount }, { "decodedBytes", textures.decodedBytes } };
 	}
@@ -363,6 +381,11 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 
 void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 
+	if (frameLog_.is_open()) {
+		frameLog_.flush();
+		if (!frameLog_) throw std::runtime_error("連続計測ファイルを保存できません");
+		frameLog_.close();
+	}
 	// 空SceneやGPU計測の欠落を性能結果として採用しない
 	if (std::none_of(frames_.begin(), frames_.end(), [](const auto& frame) {
 		return frame.at("gpuValid").template get<bool>() && !frame.at("passes").empty();
@@ -372,6 +395,7 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 	report_["phases"].push_back({ { "phase", phase_ },
 		{ "meshShader", features_->ShouldUseMeshShader() },
 		{ "frames", std::move(frames_) } });
+	if (continuousCapture_) report_["intervalCount"] = capturedIntervalCount_;
 	report_.erase("continuousFrames");
 	if (sceneSequence_.empty() || phase_ == 0u || phase_ + 1u == phaseCount_) CaptureViews(graphicsCore);
 	if (!JsonFile::Save(output_, report_)) {

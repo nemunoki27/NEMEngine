@@ -66,7 +66,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::Execute(
 	}
 
 	// 集めた要求を専用rendererへ渡してruntime用のScreenSpaceOutlineへ描く
-	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_, context.resources->GetRuntimeScreenSpaceOutline(),
+	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_, context.resources->PrepareScreenSpaceOutline(graphicsCore, false),
 		phases, compositeTarget, depthOverride);
 }
 
@@ -187,7 +187,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::RenderUIRequests(GraphicsCore& graph
 		return;
 	}
 	const std::array<RenderPhase, 1> phases = {phase};
-	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests, context.resources->GetRuntimeScreenSpaceOutline(),
+	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests, context.resources->PrepareScreenSpaceOutline(graphicsCore, false),
 		phases, target, nullptr);
 }
 

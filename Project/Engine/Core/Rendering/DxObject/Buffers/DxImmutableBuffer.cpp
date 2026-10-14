@@ -34,6 +34,19 @@ Engine::DxImmutableBuffer::~DxImmutableBuffer() {
 	Release();
 }
 
+void Engine::DxImmutableBuffer::Share(GraphicsResourceRetirement& retirement, ID3D12Resource* resource) {
+
+	if (!resource || resource->GetDesc().Dimension != D3D12_RESOURCE_DIMENSION_BUFFER) {
+		throw std::invalid_argument("共有する静的Bufferが無効です");
+	}
+	if (retirement_ && retirement_ != &retirement) throw std::logic_error("静的Bufferの回収先は変更できません");
+	// 旧所有を解除する前に共有先を保持する
+	ComPtr<ID3D12Resource> candidate = resource;
+	if (resource_) retirement.Retire(resource_);
+	resource_ = std::move(candidate);
+	retirement_ = &retirement;
+}
+
 Engine::DxImmutableBuffer::DxImmutableBuffer(DxImmutableBuffer&& other) noexcept {
 
 	Swap(other);

@@ -32,7 +32,9 @@ void Engine::TextureUploadService::CollectUnusedTextures() {
 	// 描画Cacheと転送中の要求が所有する画像は残す
 	for (const auto& [key, texture] : readyTextures_) {
 
-		if (key.find(":texture:") == std::string::npos || queuedKeys_.contains(key) ||
+		const bool assetTexture = key.find(":texture:") != std::string::npos;
+		const bool editorThumbnail = key.starts_with("editor:project:thumbnail:");
+		if ((!assetTexture && !editorThumbnail) || queuedKeys_.contains(key) ||
 			!texture.ownership || texture.ownership.use_count() != 1) continue;
 		const auto access = textureAccessTimes_.find(key);
 		if (access != textureAccessTimes_.end() && now - access->second >= std::chrono::seconds(5)) unused.push_back(key);
@@ -40,38 +42,33 @@ void Engine::TextureUploadService::CollectUnusedTextures() {
 	std::sort(unused.begin(), unused.end(), [&](const auto& left, const auto& right) {
 		return textureAccessTimes_.at(left) < textureAccessTimes_.at(right);
 	});
-	uint64_t releasedBytes = 0;
-	ComPtr<ID3D12Device> device;
+	uint64_t scheduledBytes = 0;
 	// 未使用画像を古い順にFence回収へ渡す
 	for (const auto& key : unused) {
 
 		auto found = readyTextures_.find(key);
-		if (!device && FAILED(found->second.resource->GetDevice(IID_PPV_ARGS(&device)))) break;
-		const auto description = found->second.resource->GetDesc();
-		releasedBytes += device->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;
 		srvDescriptor_->Retire(found->second.srvIndex, found->second.resource);
+		scheduledBytes += found->second.allocationBytes;
+		readyAllocationBytes_ -= found->second.allocationBytes;
 		readyTextures_.erase(found);
 		textureAccessTimes_.erase(key);
-		if (double(memory.CurrentUsage) - double(releasedBytes) <= double(memory.Budget) * 0.7) break;
+		if (double(memory.CurrentUsage) - double(scheduledBytes) <= double(memory.Budget) * 0.7) break;
 	}
-	if (releasedBytes == 0) return;
+	if (scheduledBytes == 0) return;
 	++contentRevision_;
-	Logger::Output(LogType::Engine, "[TextureCache] 未使用画像を回収しました bytes={} usage={} budget={}",
-		releasedBytes, memory.CurrentUsage, memory.Budget);
+	Logger::Output(LogType::Engine, "[TextureCache] 未使用画像の回収を予約しました bytes={} usage={} budget={}",
+		scheduledBytes, memory.CurrentUsage, memory.Budget);
 }
 
-Engine::TextureCacheStatistics Engine::TextureUploadService::GetCacheStatistics(ID3D12Device* device) const {
+Engine::TextureCacheStatistics Engine::TextureUploadService::GetCacheStatistics() const {
 
 	std::scoped_lock lock(mutex_);
 	TextureCacheStatistics statistics;
 	statistics.textureCount = readyTextures_.size();
 	statistics.queuedCount = queuedKeys_.size();
-	// GPUの割当単位を含めて公開画像を集計する
-	for (const auto& [key, texture] : readyTextures_) {
-
-		const auto description = texture.resource->GetDesc();
-		statistics.allocationBytes += device->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;
-	}
-	for (const auto& request : pendingUploads_) statistics.decodedBytes += request.texture.image.GetPixelsSize();
+	// 公開と待機列の変更時に集計した値を返す
+	statistics.allocationBytes = readyAllocationBytes_;
+	statistics.decodedBytes = decodedBytes_;
+	statistics.uploadingCount = pendingGPUCount_.load(std::memory_order_relaxed);
 	return statistics;
 }

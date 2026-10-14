@@ -38,7 +38,7 @@ namespace Engine {
 		// 回収窓口を接続する
 		void SetRetirementQueue(GraphicsResourceRetirement& queue);
 
-		// 必要容量まで全フレーム分のバッファを拡張する
+		// 必要容量まで稼働フレーム分のバッファを拡張する
 		bool EnsureCapacity(ID3D12Device* device, size_t requiredSize,
 			std::string_view resourceName, size_t minimumCapacity = 256);
 		// 現在フレームのマップ領域へ書き込む
@@ -65,6 +65,7 @@ namespace Engine {
 		// 容量拡張前のリソースは使用中のGPUから切り離されるまで保持する
 		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 		size_t capacity_ = 0;
+		uint32_t resourceCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

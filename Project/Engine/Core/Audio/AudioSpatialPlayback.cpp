@@ -15,7 +15,8 @@ void Engine::Audio::SetVoiceSpatial(uint64_t voiceID, const AudioSpatialState& s
 			// 2Dへ戻す場合も元の出力行列を復元する
 			if (inst.spatial.blend == 0.0f && spatial.blend == 0.0f) { return; }
 			inst.spatial = spatial;
-			device_.ApplySpatialMatrix(*inst.voice, inst.sound->GetFormat()->nChannels, inst.normalMatrix, spatial, listener_);
+			device_.ApplySpatialMatrix(*inst.voice, inst.sound->GetFormat()->nChannels,
+				inst.normalMatrix, spatial, listener_, inst.spatialScratch);
 			return;
 		}
 	}

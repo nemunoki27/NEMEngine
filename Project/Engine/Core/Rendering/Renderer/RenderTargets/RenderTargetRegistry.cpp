@@ -4,12 +4,13 @@
 //	include
 //============================================================================
 #include "RenderTargetSizing.h"
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 // c++
 #include <type_traits>
 #include <utility>
-#include <unordered_set>
+#include <algorithm>
 
 namespace {
 
@@ -128,6 +129,18 @@ void Engine::RenderTargetRegistry::BeginFrame() {
 	// そのフレームでの解決表だけリセットする
 	entries_.clear();
 	aliasTable_.clear();
+	// 使用されなくなった一時描画先を描画Fenceの回収へ渡す
+	const uint64_t frame = GraphicsFrameState::GetFrameSerial();
+	for (auto it = transients_.begin(); it != transients_.end();) {
+		if (!HasExpiredGraphicsResource(it->second.lastUsedFrame, frame)) {
+			++it;
+			continue;
+		}
+		if (it->second.surface) {
+			it->second.surface->Destroy();
+		}
+		it = transients_.erase(it);
+	}
 }
 
 void Engine::RenderTargetRegistry::RegisterOrUpdate(std::string alias, MultiRenderTarget* surface,
@@ -217,12 +230,12 @@ Engine::DepthTexture2D* Engine::RenderTargetRegistry::FindDepthByName(const std:
 std::vector<Engine::MultiRenderTarget*> Engine::RenderTargetRegistry::GatherUniqueSurfaces() const {
 
 	std::vector<MultiRenderTarget*> result{};
-	std::unordered_set<MultiRenderTarget*> visited{};
+	result.reserve(entries_.size());
 	for (const auto& entry : entries_) {
 		if (!entry.surface) {
 			continue;
 		}
-		if (visited.insert(entry.surface).second) {
+		if (std::find(result.begin(), result.end(), entry.surface) == result.end()) {
 			result.emplace_back(entry.surface);
 		}
 	}
@@ -336,6 +349,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::PublishTransient(const 
 		candidate.desc = desc;
 		candidate.resolvedWidth = createDesc.width;
 		candidate.resolvedHeight = createDesc.height;
+		candidate.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
 		candidate.surface = std::make_unique<MultiRenderTarget>();
 		candidate.surface->Create(context.device, &context.targets, &context.depths, &context.shaders, createDesc);
 		static_assert(std::is_nothrow_swappable_v<TransientEntry>);
@@ -358,6 +372,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::PublishTransient(const 
 	// レンダーターゲットセットを登録表に登録する
 	MultiRenderTarget* surface = found->second.surface.get();
 	RegisterOrUpdate(desc.name, surface, GetEffectiveColorNames(desc), GetEffectiveDepthName(desc));
+	found->second.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
 	return surface;
 }
 

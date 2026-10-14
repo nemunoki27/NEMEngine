@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+#include <psapi.h>
 
 namespace {
 
@@ -55,6 +56,7 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 			captureTimes_[pass.viewID + "|" + pass.name].push_back(pass.milliseconds);
 		}
 		if (profiler.GetGPUTotalMs() >= 50.0f) {
+			report_["stallCount"] = report_.value("stallCount", uint64_t(0)) + 1;
 
 			// 詳細な停止frameは末尾二百五十六件だけ残す
 			auto& stalls = report_["stalls"];
@@ -98,10 +100,27 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 	sample["gpuMemoryBudget"] = memory.Budget;
 	sample["srvDescriptors"] = graphicsCore.GetSRVDescriptor().GetUseDescriptorCount();
 	sample["retirementPending"] = platform.GetResourceRetirement().GetPendingCount();
-	const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics(platform.GetDevice());
+	// OSの集計値を取得しCPUメモリの増加も残す
+	PROCESS_MEMORY_COUNTERS_EX process{};
+	process.cb = sizeof(process);
+	sample["processMemoryValid"] = K32GetProcessMemoryInfo(GetCurrentProcess(),
+		reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&process), sizeof(process)) != FALSE;
+	sample["privateBytes"] = process.PrivateUsage;
+	sample["workingSetBytes"] = process.WorkingSetSize;
+	sample["peakWorkingSetBytes"] = process.PeakWorkingSetSize;
+	const auto& uploads = graphicsCore.GetBufferUploadService().GetStatistics();
+	sample["bufferUploads"] = {{"uploadedBytes", uploads.uploadedBytes}, {"uploadCount", uploads.uploadCount},
+		{"stagingCreationCount", uploads.stagingCreationCount}, {"pooledBytes", uploads.pooledBytes}};
+	const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics();
 	sample["textures"] = { {"count", textures.textureCount}, {"allocationBytes", textures.allocationBytes},
-		{"queuedCount", textures.queuedCount}, {"decodedBytes", textures.decodedBytes} };
+		{"queuedCount", textures.queuedCount}, {"decodedBytes", textures.decodedBytes}, {"uploadingCount", textures.uploadingCount} };
+	if (frameLog_.is_open()) {
+		frameLog_ << sample.dump() << '\n';
+		if (!frameLog_) throw std::runtime_error("連続計測標本を書き込めません");
+	}
 	frames_.push_back(std::move(sample));
+	++capturedIntervalCount_;
+	if (frameLog_.is_open() && frames_.size() > 30u) frames_.erase(frames_.begin());
 	captureTimes_.clear();
 	captureFirstCPUFrameID_ = 0;
 	captureFirstGPUFrameID_ = 0;
@@ -116,9 +135,10 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 	if (captureBucket_ % 30 == 0) {
 
 		// 中断時にも直近の経過を確認できるよう保存する
+		if (frameLog_.is_open()) frameLog_.flush();
 		const size_t first = frames_.size() > 30 ? frames_.size() - 30 : 0;
 		report_["continuousFrames"] = nlohmann::json(frames_.begin() + first, frames_.end());
-		report_["intervalCount"] = frames_.size();
+		report_["intervalCount"] = capturedIntervalCount_;
 		if (!JsonFile::Save(output_, report_)) throw std::runtime_error("連続計測結果を保存できません");
 	}
 }

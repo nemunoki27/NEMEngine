@@ -311,6 +311,11 @@ void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vec
 	views_.SetViewRect(viewArea, dstPos, dstSize, srcSize, coordinateSpace);
 }
 
+void Input::ClearViewRect(InputViewArea viewArea) {
+
+	views_.ClearViewRect(viewArea);
+}
+
 bool Engine::Input::HasViewRect(InputViewArea viewArea) const {
 
 	return views_.HasViewRect(viewArea);

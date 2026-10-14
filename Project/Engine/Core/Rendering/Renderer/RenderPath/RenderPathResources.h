@@ -100,6 +100,9 @@ namespace Engine {
 		// サイズに応じてレンダーターゲットを生成/再生成する
 		void Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height);
 		void Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height);
+		// Outlineの要求があるViewだけ中間描画先を用意する
+		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(GraphicsCore& graphicsCore, bool editorSelection);
+		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(const RenderTargetCreationContext& context, bool editorSelection);
 
 		// 破棄
 		void Destroy();

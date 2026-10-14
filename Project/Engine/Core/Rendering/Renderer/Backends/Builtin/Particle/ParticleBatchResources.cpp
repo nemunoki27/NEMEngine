@@ -49,19 +49,20 @@ void Engine::ParticleBatchResources::EnsureCustomParameterCapacity(uint32_t requ
 void Engine::ParticleBatchResources::UploadInstances(const std::vector<ParticleDrawInstanceData>& instances) {
 
 	instanceCount_ = static_cast<uint32_t>(instances.size());
+	// Batchごとの作業配列を次の転送でも使う
+	geometryScratch_.clear();
+	materialScratch_.clear();
 	if (instanceCount_ == 0) {
 		return;
 	}
-	std::vector<ParticleGeometryData> geometry;
-	std::vector<ParticleMaterialData> materials;
-	geometry.reserve(instances.size());
-	materials.reserve(instances.size());
+	geometryScratch_.reserve(instances.size());
+	materialScratch_.reserve(instances.size());
 	for (const ParticleDrawInstanceData& instance : instances) {
-		geometry.emplace_back(instance.geometry);
-		materials.emplace_back(instance.material);
+		geometryScratch_.emplace_back(instance.geometry);
+		materialScratch_.emplace_back(instance.material);
 	}
-	geometry_.Upload(std::span<const ParticleGeometryData>(geometry.data(), geometry.size()));
-	materials_.Upload(std::span<const ParticleMaterialData>(materials.data(), materials.size()));
+	geometry_.Upload(std::span<const ParticleGeometryData>(geometryScratch_));
+	materials_.Upload(std::span<const ParticleMaterialData>(materialScratch_));
 }
 
 void Engine::ParticleBatchResources::UploadCustomParameters(const std::vector<uint8_t>& data) {

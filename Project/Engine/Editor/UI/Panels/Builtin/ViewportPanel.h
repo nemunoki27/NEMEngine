@@ -83,5 +83,7 @@ namespace Engine {
 
 		// Viewport画像と操作を表示する
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
+		// 可視状態を記録して前フレームの入力領域を解除する
+		void UpdateVisibility(const EditorPanelContext& context, bool visible);
 	};
 } // Engine

@@ -300,7 +300,8 @@ void Engine::MeshGPUResourceManager::CollectUnusedMeshes() {
 			allocation(mesh.vertexSubMeshIndexSRV) + allocation(mesh.primitiveSubMeshIndexSRV) + allocation(mesh.meshletDrawSRV) +
 			allocation(mesh.meshletBoundsSRV) + allocation(mesh.meshletVertexIndexSRV) + allocation(mesh.packedMeshletVertexIndexSRV) +
 			allocation(mesh.meshletPrimitiveIndexSRV) + allocation(mesh.skinInfluenceSRV);
-		if (mesh.indexBuffer.GetResource()) {
+		if (mesh.indexBuffer.GetResource() && (!mesh.indexSRV.buffer ||
+			mesh.indexBuffer.GetResource() != mesh.indexSRV.buffer->GetResource())) {
 
 			const auto description = mesh.indexBuffer.GetResource()->GetDesc();
 			releasedBytes += device_->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;

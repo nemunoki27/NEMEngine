@@ -8,6 +8,7 @@
 // c++
 #include <algorithm>
 #include <cstdio>
+#include <string_view>
 #include <vector>
 
 // imgui
@@ -159,10 +160,17 @@ void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::G
 
 		lastFrameID_ = frameID;
 		for (auto& view : views_) {
-			view.totalMilliseconds = 0.0f;
+			// 描画を間引いたViewは直近の計測値を残す
+			const bool measured = times.empty() || std::any_of(times.begin(), times.end(), [&](const auto& time) {
+				const size_t slash = time.name.find('/');
+				const std::string_view name = slash != std::string::npos ?
+					std::string_view(time.name.data(), slash) : std::string_view{};
+				return time.viewID == view.viewID && name == view.name;
+			});
+			if (measured) view.totalMilliseconds = 0.0f;
 			for (auto& pass : view.passTimes) {
 				if (pass.missingSince < 0.0) pass.missingSince = now;
-				pass.time.frameID = 0;
+				if (measured) pass.time.frameID = 0;
 			}
 		}
 		for (const auto& time : times) {

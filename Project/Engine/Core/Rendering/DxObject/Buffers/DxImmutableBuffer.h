@@ -32,6 +32,8 @@ namespace Engine {
 		// DEFAULT heap本体を作成し、初期データ転送をBufferUploadServiceへ依頼する
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
 			std::span<const std::byte> data, D3D12_RESOURCE_STATES finalState);
+		// 同じ回収先で静的Bufferの所有を共有する
+		void Share(GraphicsResourceRetirement& retirement, ID3D12Resource* resource);
 
 		// 使用中の資源を描画完了まで保持する
 		void Release();

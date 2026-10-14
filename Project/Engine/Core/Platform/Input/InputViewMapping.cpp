@@ -16,6 +16,11 @@ void InputViewMapping::SetViewRect(InputViewArea viewArea, const Vector2& dstPos
 	}
 }
 
+void InputViewMapping::ClearViewRect(InputViewArea viewArea) {
+
+	viewRects_.erase(viewArea);
+}
+
 bool InputViewMapping::HasViewRect(InputViewArea viewArea) const {
 
 	return viewRects_.find(viewArea) != viewRects_.end();

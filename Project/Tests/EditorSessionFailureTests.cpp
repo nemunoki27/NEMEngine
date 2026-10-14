@@ -107,6 +107,16 @@ bool NEMTests::TestRenderPassesReflectionCache() {
 		!resources->empty() || !samplers->empty()) {
 		return false;
 	}
+	// 同じ公開世代を再利用し、新しいShaderだけを差し替える
+	cache.CacheReflection(first, MaterialPassKind::Draw, {variable}, {}, {}, 123);
+	const auto* data = cache.FindReflectionVariables(first, MaterialPassKind::Draw)->data();
+	cache.CacheReflection(first, MaterialPassKind::Draw, {variable}, {}, {}, 123);
+	if (!cache.HasReflection(first, MaterialPassKind::Draw, 123) || cache.HasReflection(first, MaterialPassKind::Draw, 124) ||
+		cache.FindReflectionVariables(first, MaterialPassKind::Draw)->data() != data) return false;
+	variable.name = "NextGeneration";
+	cache.CacheReflection(first, MaterialPassKind::Draw, {variable}, {resource}, {}, 124);
+	if (!cache.HasReflection(first, MaterialPassKind::Draw, 124) || variables->front().name != "NextGeneration" ||
+		resources->size() != 1) return false;
 	// Materialの削除は他のMaterialへ影響させない
 	cache.ClearReflection(first);
 	if (cache.FindReflectionVariables(first, MaterialPassKind::Draw) ||

@@ -53,7 +53,9 @@ namespace Engine {
 		// Shader単位で型情報を保持する
 		void CacheReflection(AssetID materialID, MaterialPassKind passKind,
 			const std::vector<ShaderConstantBufferVariable>& variables, const std::vector<ShaderResourceBinding>& resources,
-			const std::vector<ShaderResourceBinding>& samplers);
+			const std::vector<ShaderResourceBinding>& samplers, uint64_t pipelineID = 0);
+		// 現在のShader世代の型情報が公開済みか調べる
+		bool HasReflection(AssetID materialID, MaterialPassKind passKind, uint64_t pipelineID) const;
 		// Materialに属する型情報を破棄する
 		void ClearReflection(AssetID materialID);
 		// 全Shaderの型情報を破棄する

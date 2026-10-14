@@ -136,7 +136,8 @@ void Engine::RenderFeaturePass::Execute(
 		return;
 	}
 	const RenderFeatureProfileRuntime& runtime = *context.renderPassesRuntime;
-	const RenderFeatureExecutionPlan plan = runtime.BuildPlan(anchor_, context.kind);
+	const auto planOwner = runtime.GetPlan(anchor_, context.kind);
+	const RenderFeatureExecutionPlan& plan = *planOwner;
 	if (!plan.IsValid()) {
 		if (lastDiagnostic_ != plan.diagnostic) {
 			Logger::Output(LogType::Engine, spdlog::level::err, "[レンダー機能] {}", plan.diagnostic);
@@ -325,7 +326,8 @@ void Engine::RenderFeaturePass::Execute(
 				if (layout) {
 					service.CacheReflection(pass.material, pass.materialPass, layout->GetVariables(),
 						deps_.postProcessExecutor->GetLastExecutedSRVBindings(),
-						deps_.postProcessExecutor->GetLastExecutedSamplerBindings());
+						deps_.postProcessExecutor->GetLastExecutedSamplerBindings(),
+						deps_.postProcessExecutor->GetLastExecutedPipelineID());
 				}
 			} else {
 				RayTracingExecutionResources resources{};
@@ -340,7 +342,9 @@ void Engine::RenderFeaturePass::Execute(
 
 					return;
 				}
-				if (const ShaderReflectionInfo* reflection = deps_.rayTracingExecutor->GetLastReflection()) {
+				const uint64_t pipelineID = deps_.rayTracingExecutor->GetLastExecutedPipelineID();
+				if (const ShaderReflectionInfo* reflection = deps_.rayTracingExecutor->GetLastReflection();
+					reflection && !service.HasReflection(pass.material, pass.materialPass, pipelineID)) {
 
 					std::vector<ShaderConstantBufferVariable> variables{};
 					std::vector<ShaderResourceBinding> resourceBindings{};
@@ -356,7 +360,7 @@ void Engine::RenderFeaturePass::Execute(
 
 						(binding.kind == ShaderBindingKind::Sampler ? samplers : resourceBindings).emplace_back(binding);
 					}
-					service.CacheReflection(pass.material, pass.materialPass, variables, resourceBindings, samplers);
+					service.CacheReflection(pass.material, pass.materialPass, variables, resourceBindings, samplers, pipelineID);
 				}
 			}
 		}

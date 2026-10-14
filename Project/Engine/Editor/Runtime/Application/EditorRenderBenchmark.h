@@ -6,6 +6,7 @@
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
 #include <filesystem>
 #include <chrono>
+#include <fstream>
 #include <map>
 #include <vector>
 
@@ -80,6 +81,8 @@ namespace Engine {
 		std::chrono::steady_clock::time_point phaseStarted_;
 		nlohmann::json report_;
 		nlohmann::json frames_ = nlohmann::json::array();
+		std::ofstream frameLog_;
+		uint64_t capturedIntervalCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

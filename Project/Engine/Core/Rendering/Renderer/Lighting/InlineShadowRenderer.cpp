@@ -124,6 +124,7 @@ struct Engine::InlineShadowRenderer::Implementation {
 	std::unordered_map<std::string, std::unique_ptr<ViewState>> views;
 	FrameConstantBufferAllocator constants;
 	RegistryAutoBindTable autoBind;
+	std::vector<ComputeBindItem> bindingScratch;
 	uint64_t constantFrame = UINT64_MAX;
 
 	// 追跡と時間・空間フィルターのShaderを揃える
@@ -211,11 +212,15 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 		autoBind.BindCompute(context.bufferRegistry, list);
 	}
 	const auto allocation = constants.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), parameters);
-	std::vector<ComputeBindItem> bindings = {
-		{ "InlineShadowParameters", ComputeBindValueType::CBV, allocation.gpuAddress },
-		{ "gShadowOutput", ComputeBindValueType::UAV, state.buffers[output].GetGPUAddress(), state.buffers[output].GetUAVGPUHandle() },
-		{ "gShadowLightSources", ComputeBindValueType::SRV, state.sources.GetGPUAddress(), state.sources.GetGPUHandle() },
-	};
+	// 連続する影処理でバインド配列を再利用する
+	auto& bindings = bindingScratch;
+	bindings.clear();
+	bindings.reserve(16);
+	bindings.push_back({ "InlineShadowParameters", ComputeBindValueType::CBV, allocation.gpuAddress });
+	bindings.push_back({ "gShadowOutput", ComputeBindValueType::UAV,
+		state.buffers[output].GetGPUAddress(), state.buffers[output].GetUAVGPUHandle() });
+	bindings.push_back({ "gShadowLightSources", ComputeBindValueType::SRV,
+		state.sources.GetGPUAddress(), state.sources.GetGPUHandle() });
 	const auto bindTexture = [&](const char* name, RenderTexture2D* texture, bool writable = false) {
 		bindings.push_back({ name, writable ? ComputeBindValueType::UAV : ComputeBindValueType::SRV,
 			0, writable ? texture->GetUAVGPUHandle() : texture->GetSRVGPUHandle() });

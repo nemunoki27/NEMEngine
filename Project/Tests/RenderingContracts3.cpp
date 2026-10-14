@@ -210,8 +210,26 @@ namespace NEMTests {
 		const bool selectedView = runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Scene).nodes.empty() &&
 			!runtime.BuildPlan(other.anchor, Engine::RenderViewKind::Game).nodes.empty() && profile.sceneView;
 		overrides.ResetAll();
+		// 同じ構成は再利用し、変更後も旧計画の参照を保持する
+		const auto retainedPlan = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		const bool reused = retainedPlan == runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		overrides.SetParameter(second.id, parameterID, "ReflectionStrength", value);
+		const bool parameterOnly = retainedPlan == runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		overrides.SetEnabled(second.id, false);
+		const auto disabledPlan = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		const bool changed = disabledPlan != retainedPlan && disabledPlan->sceneColorOutput.pass == passID &&
+			retainedPlan->sceneColorOutput.pass == second.id;
+		overrides.SetViewEnabled(profile.guid, false, true);
+		const bool viewChanged = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game)->nodes.empty() &&
+			!runtime.GetPlan(second.anchor, Engine::RenderViewKind::Scene)->nodes.empty();
+		overrides.ResetAll();
+		profile.passes.front().name = "ChangedSnapshot";
+		runtime.Rebuild(profile);
+		const auto rebuiltPlan = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		const bool rebuilt = rebuiltPlan != retainedPlan && rebuiltPlan->nodes.front().pass->name == "ChangedSnapshot" &&
+			retainedPlan->nodes.front().pass->name != "ChangedSnapshot";
 		return valid && cleared && enabledByScript && disabledPassKeepsBypassNode && visibleEnabled && automatic && previous &&
-			selectedView && overrides.Find(passID) == nullptr;
+			selectedView && reused && parameterOnly && changed && viewChanged && rebuilt && overrides.Find(passID) == nullptr;
 	}
 
 	bool TestShaderPathDependencies() {

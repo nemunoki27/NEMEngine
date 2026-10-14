@@ -5,10 +5,12 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxMappedUploadBuffer.h>
 
 // c++
 #include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <deque>
 #include <span>
 #include <vector>
@@ -17,6 +19,15 @@
 #include <d3d12.h>
 
 namespace Engine {
+
+	// 転送の累計と再利用中の容量
+	struct BufferUploadStatistics {
+
+		uint64_t uploadedBytes = 0;
+		uint64_t uploadCount = 0;
+		uint64_t stagingCreationCount = 0;
+		uint64_t pooledBytes = 0;
+	};
 
 	//============================================================================
 	//	BufferUploadService class
@@ -44,7 +55,7 @@ namespace Engine {
 		void BeginBatch();
 
 		// DEFAULT heap destinationへの初期データ転送を記録する
-		// stagingを生成しCopyBufferRegionとBarrierを積む、実行はSubmitBatchで行う
+		// stagingへ書き込みCopyBufferRegionとBarrierを積む、実行はSubmitBatchで行う
 		void EnqueueBufferUpload(ID3D12Resource* destination,
 			std::span<const std::byte> sourceData, D3D12_RESOURCE_STATES finalState);
 		// 既存DEFAULT heapの指定範囲だけを更新し、前後の状態を復元する
@@ -66,6 +77,7 @@ namespace Engine {
 		GraphicsResourceRetirement& GetResourceRetirement() const;
 		bool HasOpenBatch() const { return batchOpened_; }
 		bool HasPendingUploads() const { return !pendingBatches_.empty(); }
+		const BufferUploadStatistics& GetStatistics() const { return statistics_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -80,6 +92,13 @@ namespace Engine {
 			std::vector<ComPtr<ID3D12Resource>> retainedResources;
 		};
 
+		// 同じBatch内で書き込み範囲を分ける転送元
+		struct UploadPage {
+
+			DxMappedUploadBuffer buffer;
+			size_t offset = 0;
+		};
+
 		// アロケータ/リストを使い回すためのリングコンテキスト
 		struct UploadFrameContext {
 
@@ -89,12 +108,16 @@ namespace Engine {
 			uint64_t lastFenceValue = 0;
 			// Submitまで保持する転送元と転送先
 			std::vector<ComPtr<ID3D12Resource>> retainedResources;
+			std::vector<UploadPage> pages;
+			std::chrono::steady_clock::time_point lastUsed{};
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		// アロケータReset待ちを避けるためのリング段数
 		static constexpr uint32_t kUploadContextCount = 3;
+		static constexpr size_t kUploadPageSize = 1024 * 1024;
+		BufferUploadStatistics statistics_{};
 
 		ID3D12Device* device_ = nullptr;
 		GraphicsResourceRetirement* retirement_ = nullptr;
@@ -125,5 +148,7 @@ namespace Engine {
 		uint64_t SignalSubmittedBatch();
 		// 全Submit分の完了を待つ
 		void WaitForAllUploads();
+		// 完了済みの未使用ページを回収する
+		void CollectUnusedPages(uint64_t completed);
 	};
 } // Engine

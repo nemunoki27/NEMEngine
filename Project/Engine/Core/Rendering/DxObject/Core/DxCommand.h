@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <vector>
 #include <optional>
+#include <span>
+#include <initializer_list>
 
 // directX
 #include <d3d12.h>
@@ -46,7 +48,8 @@ public:
 	void SetCurrentFrameFenceValue(uint64_t fenceValue);
 
 	// ルートで使用するディスクリプタヒープ配列をセットする
-	void SetDescriptorHeaps(const std::vector<ID3D12DescriptorHeap*>& descriptorHeaps);
+	void SetDescriptorHeaps(std::span<ID3D12DescriptorHeap* const> descriptorHeaps);
+	void SetDescriptorHeaps(std::initializer_list<ID3D12DescriptorHeap*> descriptorHeaps);
 
 	// レンダーターゲットの設定
 	void SetRenderTargets(const std::optional<RenderTarget>& renderTarget,
@@ -55,7 +58,7 @@ public:
 		const std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>& dsvHandle = std::nullopt);
 	void BindRenderTargets(const std::optional<RenderTarget>& renderTarget,
 		const std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>& dsvHandle = std::nullopt);
-	void BindRenderTargets(const std::vector<RenderTarget>& renderTargets,
+	void BindRenderTargets(std::span<const RenderTarget> renderTargets,
 		const std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>& dsvHandle = std::nullopt);
 
 	// 指定DSVをクリアする

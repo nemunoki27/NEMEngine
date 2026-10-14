@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
@@ -132,16 +133,49 @@ namespace {
 		return valid && fixture.IsEmpty();
 	}
 
+	bool CheckRegistryEviction(ID3D12Device* device) {
+		TargetCreationFixture fixture(device);
+		Engine::RenderTargetCreationContext context{device, fixture.targets, fixture.depths, fixture.shaders};
+		Engine::RenderTargetRegistry registry;
+		Engine::SceneRenderTargetDesc active{};
+		active.name = "Active";
+		active.colors.emplace_back();
+		active.colors.back().name = "ActiveColor";
+		Engine::SceneRenderTargetDesc stale = active;
+		stale.name = "Stale";
+		stale.colors.back().name = "StaleColor";
+		bool valid = registry.ResizeTransient(context, active, 4, 4) != nullptr &&
+			registry.ResizeTransient(context, stale, 4, 4) != nullptr;
+		valid &= fixture.targets.GetUseDescriptorCount() == 2 && fixture.shaders.GetUseDescriptorCount() == 2;
+		for (uint64_t frame = 0; frame < Engine::kGraphicsResourceReuseFrames; ++frame) {
+			Engine::GraphicsFrameState::BeginFrame(0);
+			registry.BeginFrame();
+			valid &= registry.ResizeTransient(context, active, 4, 4) != nullptr;
+		}
+		fixture.Drain();
+		valid &= fixture.targets.GetUseDescriptorCount() == 1 && fixture.shaders.GetUseDescriptorCount() == 1 &&
+			registry.FindColorByName("StaleColor") == nullptr &&
+			registry.FindColorByName("ActiveColor") != nullptr;
+		registry.Clear();
+		fixture.Drain();
+		return valid && fixture.IsEmpty();
+	}
+
 	bool CheckRenderPathReplacement(ID3D12Device* device) {
 
 		TargetCreationFixture fixture(device);
 		Engine::RenderTargetCreationContext context{device, fixture.targets, fixture.depths, fixture.shaders};
 		Engine::RenderPathResources resources;
 		resources.Resize(context, 4, 4);
+		// Outlineを使用するまで描画先を確保しない
+		bool valid = resources.IsValid() && !resources.GetRuntimeScreenSpaceOutline().IsValid() &&
+			!resources.GetEditorSelectionScreenSpaceOutline().IsValid();
+		resources.PrepareScreenSpaceOutline(context, false);
+		resources.PrepareScreenSpaceOutline(context, true);
 		const auto original = CaptureResources(resources);
 		auto* pyramid = &resources.GetDepthPyramid();
 		resources.GetDepthPyramid().MarkBuilt(37);
-		bool valid = resources.IsValid();
+		valid &= resources.IsValid();
 		{
 			// 最後のEditor Outlineまで生成してから不足させる
 			DescriptorOccupancy occupied(fixture.targets, 16);
@@ -171,5 +205,6 @@ namespace {
 
 bool NEMTests::CheckRenderTargetTransactions(ID3D12Device* device) {
 
-	return CheckRegistryReplacement(device) && CheckRenderPathReplacement(device);
+	return CheckRegistryReplacement(device) && CheckRegistryEviction(device) &&
+		CheckRenderPathReplacement(device);
 }

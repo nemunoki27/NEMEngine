@@ -40,6 +40,8 @@ namespace Engine {
 		bool enabled = true;
 		// 有効なビューの描画をこのフレームに実行するか
 		bool renderThisFrame = true;
+		// 既定の画面出力をこのフレームに描画するか
+		bool renderDefaultSurfaceThisFrame = true;
 
 		// 出力サイズ
 		uint32_t width = 0;
@@ -53,6 +55,9 @@ namespace Engine {
 		UUID preferredPerspectiveCameraUUID{};
 		// ManualCamera使用時の状態
 		ManualRenderCameraState manualCamera{};
+
+		// 出力先と描画要求から実行対象を判定する
+		bool ShouldRender(const ResolvedRenderView& view) const;
 	};
 
 	// 1フレーム分の描画要求

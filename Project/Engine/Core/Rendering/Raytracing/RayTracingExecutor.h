@@ -56,6 +56,7 @@ namespace Engine {
 
 		// 最後に実行したDXRシェーダーのReflectionを取得する
 		const ShaderReflectionInfo* GetLastReflection() const { return lastReflection_; }
+		uint64_t GetLastExecutedPipelineID() const { return lastExecutedPipelineID_; }
 
 	private:
 		//============================================================================
@@ -68,6 +69,7 @@ namespace Engine {
 		uint64_t allocatorFrameSerial_ = 0;
 		std::unordered_set<std::string> diagnostics_{};
 		const ShaderReflectionInfo* lastReflection_ = nullptr;
+		uint64_t lastExecutedPipelineID_ = 0;
 
 		// 同一エフェクトの同一エラーを1度だけ出力する
 		void ReportFailure(const RenderFeaturePassSettings& pass,

@@ -48,7 +48,7 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute([[maybe_unused]] Gra
 	DepthTexture2D* depth = context.resources->GetSceneMain() ?
 		context.resources->GetSceneMain()->GetDepthTexture() : nullptr;
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
-		context.resources->GetEditorSelectionScreenSpaceOutline(),
+		context.resources->PrepareScreenSpaceOutline(graphicsCore, true),
 		kEditorOutlinePhases, context.resources->GetSceneFinal(),
 		depth);
 #endif

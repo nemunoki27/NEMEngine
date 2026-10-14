@@ -14,10 +14,14 @@
 #include <Engine/Core/World/Scene/Serialization/SceneDocument.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
+#include <Engine/Core/Platform/Input/InputViewMapping.h>
 
 // c++
 #include <cmath>
 #include <cstring>
+// imgui
+#include <imgui_internal.h>
 
 namespace {
 
@@ -144,6 +148,90 @@ namespace {
 		return thumbnail.success && thumbnail.metadata.width == 32 && thumbnail.metadata.height == 16 &&
 			full.success && full.metadata.width == 128 && full.metadata.height == 64;
 	}
+}
+
+bool NEMTests::TestEditorViewportVisibility() {
+
+	using namespace Engine;
+	// 画面を隠してもCamera情報とRenderTexture出力を維持する
+	ECSWorld world;
+	const Entity camera = world.CreateEntity();
+	world.AddComponent<TransformComponent>(camera);
+	world.AddComponent<PerspectiveCameraComponent>(camera);
+	RenderViewRequest request{};
+	request.width = 800;
+	request.height = 600;
+	request.renderDefaultSurfaceThisFrame = false;
+	const auto hidden = RenderViewResolver::ResolveGameCameraViews(request, world);
+	if (hidden.size() != 1 || !hidden[0].perspective.valid || request.ShouldRender(hidden[0])) return false;
+	const auto historyKey = hidden[0].GetHistoryKey();
+	request.renderDefaultSurfaceThisFrame = true;
+	const auto shown = RenderViewResolver::ResolveGameCameraViews(request, world);
+	if (shown.size() != 1 || !request.ShouldRender(shown[0]) || shown[0].GetHistoryKey() != historyKey) return false;
+	world.GetComponent<PerspectiveCameraComponent>(camera).common.targetTexture = AssetID::New();
+	request.renderDefaultSurfaceThisFrame = false;
+	const auto textureViews = RenderViewResolver::ResolveGameCameraViews(request, world);
+	if (textureViews.size() != 1 || !textureViews[0].targetTexture || !request.ShouldRender(textureViews[0])) return false;
+	request.renderThisFrame = false;
+	if (request.ShouldRender(textureViews[0])) return false;
+
+	// 実際のドッキングタブでPanelの可視状態を確認する
+	ImGuiContext* previous = ImGui::GetCurrentContext();
+	ImGuiContext* gui = ImGui::CreateContext();
+	ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+	auto& io = ImGui::GetIO();
+	io.IniFilename = nullptr;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.DisplaySize = ImVec2(800.0f, 600.0f);
+	io.DeltaTime = 1.0f / 60.0f;
+	unsigned char* pixels = nullptr;
+	int width = 0, height = 0;
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+	bool gameVisible = false, sceneVisible = false;
+	const ImGuiID dockID = ImHashStr("VisibilityDock");
+	ImGui::NewFrame();
+	ImGui::DockBuilderAddNode(dockID, ImGuiDockNodeFlags_DockSpace);
+	ImGui::DockBuilderSetNodeSize(dockID, io.DisplaySize);
+	ImGui::DockBuilderDockWindow("VisibilityGame", dockID);
+	ImGui::DockBuilderDockWindow("VisibilityScene", dockID);
+	ImGui::DockBuilderFinish(dockID);
+	ImGui::EndFrame();
+	const auto draw = [&](const char* focused) {
+		ImGui::NewFrame();
+		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+		ImGui::SetNextWindowSize(io.DisplaySize);
+		ImGui::Begin("VisibilityHost", nullptr, ImGuiWindowFlags_NoTitleBar);
+		ImGui::DockSpace(dockID);
+		ImGui::End();
+		if (focused) ImGui::SetWindowFocus(focused);
+		gameVisible = ImGui::Begin("VisibilityGame");
+		ImGui::End();
+		sceneVisible = ImGui::Begin("VisibilityScene");
+		ImGui::End();
+		ImGui::Render();
+	};
+	draw(nullptr);
+	for (int frame = 0; frame < 3; ++frame) draw("VisibilityScene");
+	if (!sceneVisible || gameVisible) return false;
+	for (int frame = 0; frame < 3; ++frame) draw("VisibilityGame");
+	if (!gameVisible || sceneVisible) return false;
+
+	// 入力領域の解除が他のViewへ影響しないことを確認する
+	InputViewMapping mapping;
+	InputDeviceState input{};
+	input.mousePos = Vector2(10.0f, 10.0f);
+	mapping.SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f),
+		Vector2(200.0f, 200.0f), InputViewCoordinateSpace::Client);
+	mapping.SetViewRect(InputViewArea::Scene, Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f),
+		Vector2(100.0f, 100.0f), InputViewCoordinateSpace::Client);
+	if (!mapping.IsMouseOnView(InputViewArea::Game, input)) return false;
+	mapping.ClearViewRect(InputViewArea::Game);
+	mapping.ClearViewRect(InputViewArea::Game);
+	if (mapping.HasViewRect(InputViewArea::Game) || mapping.IsMouseOnView(InputViewArea::Game, input) ||
+		mapping.GetMousePosInView(InputViewArea::Game, input) || !mapping.IsMouseOnView(InputViewArea::Scene, input)) return false;
+	mapping.SetViewRect(InputViewArea::Game, Vector2(0.0f, 0.0f), Vector2(100.0f, 100.0f),
+		Vector2(200.0f, 200.0f), InputViewCoordinateSpace::Client);
+	return mapping.GetMousePosInView(InputViewArea::Game, input) == Vector2(20.0f, 20.0f);
 }
 
 bool NEMTests::TestEditorAssetWorkflow() {

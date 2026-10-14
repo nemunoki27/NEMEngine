@@ -9,6 +9,7 @@
 #include "GPURenderTextureBindingTests.h"
 #include "GPUParticleShapeTests.h"
 #include "GPUFontPublicationTests.h"
+#include "GPUUploadReuseTests.h"
 
 //============================================================================
 //	include
@@ -144,6 +145,10 @@ namespace {
 			source.SetRetirementQueue(retirement);
 			valid &= source.EnsureCapacity(device, sizeof(values), "RetirementTest");
 			valid &= !source.EnsureCapacity(device, sizeof(values), "RetirementTest");
+			valid &= source.GetResource(frameCount - 1) != nullptr;
+			if (frameCount < Engine::kGraphicsFrameContextCount) {
+				valid &= source.GetResource(frameCount) == nullptr;
+			}
 			source.Write(nullptr, 0);
 			source.Write(values.data(), sizeof(values));
 			commands->CopyBufferRegion(frameReadback.Get(), sizeof(values) * (frameCount - 1),
@@ -158,7 +163,26 @@ namespace {
 			source.Release();
 			source.Release();
 		}
-		valid &= retirement.GetPendingCount() == structuredRetained + 9 * Engine::kGraphicsFrameContextCount;
+		valid &= retirement.GetPendingCount() == structuredRetained + 3 * (1 + 2 + 3);
+		{
+			// 稼働フレーム数だけ増えても既存の転送先を保つ
+			Engine::GraphicsFrameState::SetActiveCount(1);
+			Engine::GraphicsFrameState::BeginFrame(0);
+			Engine::DxFrameMappedUploadBuffer source;
+			source.SetRetirementQueue(retirement);
+			valid &= source.EnsureCapacity(device, 64, "FrameCountTest");
+			ID3D12Resource* first = source.GetResource(0);
+			valid &= source.GetResource(1) == nullptr;
+			Engine::GraphicsFrameState::SetActiveCount(2);
+			Engine::GraphicsFrameState::BeginFrame(1);
+			valid &= source.EnsureCapacity(device, 64, "FrameCountTest");
+			valid &= source.GetResource(0) == first && source.GetResource(1) != nullptr;
+			valid &= source.GetResource(2) == nullptr;
+			Engine::GraphicsFrameState::SetActiveCount(3);
+			Engine::GraphicsFrameState::BeginFrame(2);
+			valid &= source.EnsureCapacity(device, 64, "FrameCountTest");
+			valid &= source.GetResource(0) == first && source.GetResource(2) != nullptr;
+		}
 		ComPtr<ID3D12Resource> viewReadback;
 		valid &= RecordViewOwnerRetirement(device, commands.Get(), renderTargets, depths, descriptors, viewReadback);
 		ComPtr<ID3D12Resource> asReadback;
@@ -301,6 +325,7 @@ namespace {
 				defaultBuffer.Init(device, &descriptors, &uploads);
 				uploadBuffer.Init(device, &descriptors);
 				defaultBuffer.UploadCurrentFrame({});
+				valid &= descriptors.GetUseDescriptorCount() == frameCount;
 				uploadBuffer.Upload(std::span<const uint32_t>{});
 				for (uint32_t count : { 1u, 65u, 129u }) {
 					const std::vector<uint32_t> values(count, count);
@@ -327,6 +352,20 @@ namespace {
 			retirement.Collect(UINT64_MAX);
 			valid &= descriptors.GetUseDescriptorCount() == retained;
 			uploads.FlushAndWait();
+			retirement.Collect(10);
+			valid &= retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0;
+		}
+		{
+			Engine::DefaultStructuredInstanceBuffer<uint32_t> buffer;
+			buffer.Init(device, &descriptors, &uploads);
+			for (uint32_t frameCount = 1; frameCount <= 3; ++frameCount) {
+				Engine::GraphicsFrameState::SetActiveCount(frameCount);
+				Engine::GraphicsFrameState::BeginFrame(frameCount - 1);
+				buffer.UploadCurrentFrame({});
+				valid &= buffer.GetResource() != nullptr && descriptors.GetUseDescriptorCount() == frameCount;
+			}
+			buffer.Release();
+			retirement.Seal(10);
 			retirement.Collect(10);
 			valid &= retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0;
 		}
@@ -476,6 +515,10 @@ static bool RunGPURetirement(bool hardware, bool compatibleHardware) {
 	valid &= NEMTests::RunTest("CheckUploadOwnerLifetime", [&] { return CheckUploadOwnerLifetime(device.Get(), queue.Get(), uploads); });
 	valid &= NEMTests::RunTest("CheckOwnerRetirement", [&] { return CheckOwnerRetirement(device.Get(), uploads); });
 	valid &= NEMTests::RunTest("CheckDifferentialBufferUpdates", [&] { return NEMTests::CheckDifferentialBufferUpdates(device.Get(), queue.Get()); });
+	Engine::GraphicsFrameState::SetActiveCount(2);
+	valid &= NEMTests::RunTest("CheckUploadPageReuse", [&] { return NEMTests::CheckUploadPageReuse(device.Get(), queue.Get()); });
+	valid &= NEMTests::RunTest("CheckSharedIndexLifetime", [&] { return NEMTests::CheckSharedIndexLifetime(device.Get(), queue.Get()); });
+	valid &= NEMTests::RunTest("CheckAsyncUploadLifetime", [&] { return NEMTests::CheckAsyncUploadLifetime(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckBufferCacheRetirement", [&] { return NEMTests::CheckBufferCacheRetirement(device.Get(), queue.Get()); });
 	Engine::GraphicsFrameState::SetActiveCount(previousCount);
 	Engine::GraphicsFrameState::SetCurrentIndex(previousIndex);

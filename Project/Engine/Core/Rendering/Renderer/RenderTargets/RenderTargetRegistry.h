@@ -100,6 +100,7 @@ namespace Engine {
 			SceneRenderTargetDesc desc{};
 			uint32_t resolvedWidth = 0;
 			uint32_t resolvedHeight = 0;
+			uint64_t lastUsedFrame = UINT64_MAX;
 			std::unique_ptr<MultiRenderTarget> surface{};
 		};
 

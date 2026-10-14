@@ -252,7 +252,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView || !context.activeWorld) {
+	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView ||
+		!editorState_.sceneViewportVisible || !context.activeWorld) {
 		return;
 	}
 

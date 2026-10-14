@@ -31,10 +31,16 @@ public:
 	DxUploadCommand& operator=(const DxUploadCommand&) = delete;
 
 	// アップロード用のキュー/アロケータ/リスト/フェンスを作成する
-	void Create(ID3D12Device* device);
+	void Create(ID3D12Device* device, ID3D12CommandQueue* queue = nullptr);
 
 	// 転送用コマンドをキューへ提出し完了させる
 	void ExecuteCommands(std::span<const ComPtr<ID3D12Resource>> resources);
+	// 記録するコマンドの転送元と転送先を保持する
+	void RetainResources(std::span<const ComPtr<ID3D12Resource>> resources);
+	// 記録済みの転送を提出する
+	void SubmitCommands(std::span<const ComPtr<ID3D12Resource>> resources = {});
+	// 完了済みの転送だけを確定して次の記録を準備する
+	bool TryFinalize();
 
 	// 提出済みの転送を完了させる
 	void FlushAndWait();
@@ -70,6 +76,8 @@ private:
 
 	// 内部ヘルパ:コマンドアロケータ/リストをリセットする
 	void ResetCommand();
+	// 提出済みの転送にFence値を対応付ける
+	void SignalCommands();
 };
 
 }; // Engine

@@ -72,6 +72,9 @@ namespace Engine {
 		// 順序付きの描画構成とEntityの更新世代を照合する
 		bool MatchesBatch(const RenderSceneBatch& batch, std::span<const RenderItem* const> items,
 			const MeshGPUResource& gpuMesh) const;
+		// 構成を維持したままスキニングパレットだけ更新する
+		bool RefreshSkinningPose(const RenderSceneBatch& batch,
+			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh);
 		// 色だけが変わったインスタンスのパラメータを更新する
 		uint32_t RefreshMaterialColors();
 		// 構成再抽出後も一致するバッチは行列だけ同期する
@@ -242,6 +245,7 @@ namespace Engine {
 
 		// スキニング用の毎バッチ再利用するデータ
 		std::vector<WellForGPU> paletteScratch_{};
+		std::vector<WellForGPU> paletteCandidateScratch_{};
 
 		std::unordered_map<MeshEntityLookupKey, uint32_t,
 			MeshEntityLookupKeyHash> skinnedVertexOffsetMap_{};

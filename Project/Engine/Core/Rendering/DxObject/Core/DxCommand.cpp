@@ -116,10 +116,16 @@ void DxCommand::SetCurrentFrameFenceValue(uint64_t fenceValue) {
 //============================================================================
 //	GraphicsCommand
 //============================================================================
-void DxCommand::SetDescriptorHeaps(const std::vector<ID3D12DescriptorHeap*>& descriptorHeaps) {
+void DxCommand::SetDescriptorHeaps(std::span<ID3D12DescriptorHeap* const> descriptorHeaps) {
 
 	commandList_->SetDescriptorHeaps(
 		static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+}
+
+void DxCommand::SetDescriptorHeaps(std::initializer_list<ID3D12DescriptorHeap*> descriptorHeaps) {
+
+	// 呼出し中だけ参照し一時vectorを作らない
+	SetDescriptorHeaps(std::span<ID3D12DescriptorHeap* const>(descriptorHeaps.begin(), descriptorHeaps.size()));
 }
 
 void DxCommand::SetRenderTargets(const std::optional<RenderTarget>& renderTarget,
@@ -148,14 +154,7 @@ void DxCommand::SetRenderTargets(const std::optional<RenderTarget>& renderTarget
 void DxCommand::SetRenderTargets(const std::vector<RenderTarget>& renderTargets,
 	const std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>& dsvHandle) {
 
-	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles;
-	handles.reserve(renderTargets.size());
-	for (const auto& renderTarget : renderTargets) {
-
-		handles.push_back(renderTarget.rtvHandle);
-	}
-	commandList_->OMSetRenderTargets(static_cast<UINT>(handles.size()),
-		handles.data(), FALSE, dsvHandle.has_value() ? &dsvHandle.value() : nullptr);
+	BindRenderTargets(std::span<const RenderTarget>(renderTargets), dsvHandle);
 
 	// すべてのRTVをクリア
 	for (const auto& renderTarget : renderTargets) {
@@ -184,17 +183,17 @@ void Engine::DxCommand::BindRenderTargets(const std::optional<RenderTarget>& ren
 	}
 }
 
-void Engine::DxCommand::BindRenderTargets(const std::vector<RenderTarget>& renderTargets,
+void Engine::DxCommand::BindRenderTargets(std::span<const RenderTarget> renderTargets,
 	const std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>& dsvHandle) {
 
-	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles;
-	handles.reserve(renderTargets.size());
-	for (const auto& renderTarget : renderTargets) {
-
-		handles.push_back(renderTarget.rtvHandle);
+	if (renderTargets.size() > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT) {
+		throw std::invalid_argument("描画先の数がGPUの上限を超えています");
 	}
+	// RTVの上限内の固定領域へ並べる
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> handles{};
+	for (size_t index = 0; index < renderTargets.size(); ++index) handles[index] = renderTargets[index].rtvHandle;
 
-	commandList_->OMSetRenderTargets(static_cast<UINT>(handles.size()), handles.data(),
+	commandList_->OMSetRenderTargets(static_cast<UINT>(renderTargets.size()), handles.data(),
 		FALSE, dsvHandle.has_value() ? &dsvHandle.value() : nullptr);
 }
 

@@ -23,6 +23,8 @@ namespace Engine {
 
 		void SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vector2& dstSize, const Vector2& srcSize,
 			InputViewCoordinateSpace coordinateSpace);
+		// 非表示になったViewの入力領域を解除する
+		void ClearViewRect(InputViewArea viewArea);
 
 		bool HasViewRect(InputViewArea viewArea) const;
 

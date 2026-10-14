@@ -21,8 +21,35 @@ namespace Engine {
 
 		if (!retirementQueue_) throw std::logic_error("Upload Bufferの回収窓口が設定されていません");
 		requiredSize = (std::max)(requiredSize, minimumCapacity);
-		if (requiredSize <= capacity_) {
+		const uint32_t activeCount = GraphicsFrameState::GetActiveCount();
+		if (requiredSize == 0 && capacity_ == 0) {
 			return false;
+		}
+		if (requiredSize <= capacity_ && activeCount <= resourceCount_) {
+			return false;
+		}
+
+		// フレーム数だけ増えた場合は既存Bufferを保持する
+		if (requiredSize <= capacity_) {
+			std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> resources{};
+			std::array<uint8_t*, kGraphicsFrameContextCount> mapped{};
+			for (uint32_t index = resourceCount_; index < activeCount; ++index) {
+				DxUtils::CreateUploadBufferResource(device, resources[index], capacity_);
+				const HRESULT result = resources[index]->Map(0, nullptr, reinterpret_cast<void**>(&mapped[index]));
+				if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxFrameMappedUploadBuffer::Map")) {
+					throw std::runtime_error("Upload BufferのMapに失敗しました");
+				}
+				if (!resourceName.empty()) {
+					const std::string name = std::string(resourceName) + "[" + std::to_string(index) + "]";
+					resources[index]->SetName(Algorithm::ConvertString(name).c_str());
+				}
+			}
+			for (uint32_t index = resourceCount_; index < activeCount; ++index) {
+				resources_[index] = std::move(resources[index]);
+				mappedData_[index] = mapped[index];
+			}
+			resourceCount_ = activeCount;
+			return true;
 		}
 
 		size_t newCapacity = (std::max)({ capacity_, minimumCapacity, size_t{ 1 } });
@@ -31,8 +58,8 @@ namespace Engine {
 		}
 		std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> resources;
 		std::array<uint8_t*, kGraphicsFrameContextCount> mapped{};
-		// 全frameの確保とMapを済ませてから公開する
-		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+		// 稼働frameの確保とMapを済ませてから公開する
+		for (uint32_t index = 0; index < activeCount; ++index) {
 			DxUtils::CreateUploadBufferResource(device, resources[index], newCapacity);
 			const HRESULT result = resources[index]->Map(0, nullptr, reinterpret_cast<void**>(&mapped[index]));
 			if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxFrameMappedUploadBuffer::Map")) {
@@ -43,7 +70,7 @@ namespace Engine {
 				resources[index]->SetName(Algorithm::ConvertString(name).c_str());
 			}
 		}
-		retirementQueue_->ReservePending(kGraphicsFrameContextCount);
+		retirementQueue_->ReservePending(resourceCount_);
 		for (auto& resource : resources_) {
 			if (resource) retirementQueue_->Retire(resource);
 		}
@@ -53,6 +80,7 @@ namespace Engine {
 		resources_ = std::move(resources);
 		mappedData_ = mapped;
 		capacity_ = newCapacity;
+		resourceCount_ = activeCount;
 		return true;
 	}
 
@@ -78,6 +106,7 @@ namespace Engine {
 		}
 		mappedData_ = {};
 		capacity_ = 0;
+		resourceCount_ = 0;
 	}
 }
 
@@ -107,6 +136,7 @@ void Engine::DxFrameMappedUploadBuffer::Swap(DxFrameMappedUploadBuffer& other) n
 	std::swap(mappedData_, other.mappedData_);
 	std::swap(retirementQueue_, other.retirementQueue_);
 	std::swap(capacity_, other.capacity_);
+	std::swap(resourceCount_, other.resourceCount_);
 }
 
 void Engine::DxFrameMappedUploadBuffer::SetRetirementQueue(GraphicsResourceRetirement& queue) {

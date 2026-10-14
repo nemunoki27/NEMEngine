@@ -50,6 +50,7 @@ namespace Engine {
 		bool IsBuilt() const { return result_.GetResource() != nullptr; }
 
 		ID3D12Resource* GetResource() const { return result_.GetResource(); }
+		UINT64 GetRetainedScratchBytes() const { return scratch_.GetResource() ? scratchSize_ : 0; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -73,6 +74,7 @@ namespace Engine {
 		ID3D12Device8* device_ = nullptr;
 		// 更新を許可するか
 		bool allowUpdate_ = false;
+		UINT64 scratchSize_ = 0;
 		// 更新時に変えられないジオメトリレイアウト
 		uint64_t layoutHash_ = 0;
 
@@ -87,6 +89,8 @@ namespace Engine {
 
 		// ジオメトリ記述とローカル行列の設定
 		void FillGeometryDescs(const RaytracingBLASInput& input);
+		// 静的ASの作業領域をGPU完了後に回収する
+		void RetireStaticScratch();
 		// 更新可否を判定するレイアウトHashを計算
 		static uint64_t ComputeLayoutHash(const RaytracingBLASInput& input);
 	};

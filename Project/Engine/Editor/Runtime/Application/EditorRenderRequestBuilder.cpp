@@ -57,6 +57,10 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		const EditorLayoutState& layout = editorManager_.GetLayoutState();
+		const EditorState& editorState = editorManager_.GetEditorState();
+		// 非表示中も同じCameraの履歴と描画資源を保持する
+		sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
+		manualSceneCamera = editorManager_.GetSceneViewCameraState();
 		if (layout.hidePanels) {
 
 			// HidePanels中はReleaseと同じくGameViewだけを描画対象にする
@@ -64,21 +68,20 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			showSceneView = false;
 		} else {
 
-			showGameView = layout.showGameView;
-			showSceneView = layout.showSceneView;
-			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
-			manualSceneCamera = editorManager_.GetSceneViewCameraState();
-			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
-			request.drawSceneView2DCameraBounds = editorManager_.ShouldDrawSceneView2DCameraBounds();
+			showGameView = layout.showGameView && editorState.gameViewportVisible;
+			showSceneView = layout.showSceneView && editorState.sceneViewportVisible;
+			request.drawSceneViewDefaultGrid = showSceneView &&
+				editorManager_.ShouldDrawSceneViewDefaultGrid();
+			request.drawSceneView2DCameraBounds = showSceneView &&
+				editorManager_.ShouldDrawSceneView2DCameraBounds();
 		}
 
 		// 操作対象は毎frame、副Viewは負荷に応じて更新する
 		renderGameView = showGameView;
 		renderSceneView = showSceneView;
-		if (showGameView && showSceneView && !layout.hidePanels) {
+		if (renderGameView && renderSceneView && !layout.hidePanels) {
 
 			const bool renderSecondaryView = ShouldRenderSecondaryView();
-			const EditorState& editorState = editorManager_.GetEditorState();
 			const bool gameViewPrimary = editorState.gameViewportHovered ||
 				(worldManager_.IsPlaying() && !editorState.sceneViewportHovered);
 			if (gameViewPrimary) {
@@ -92,10 +95,12 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	{
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
 		viewRequest.kind = RenderViewKind::Game;
-		viewRequest.enabled = showGameView;
-		viewRequest.renderThisFrame = renderGameView;
-		viewRequest.width = showGameView ? fixedRenderWidth : 0;
-		viewRequest.height = showGameView ? fixedRenderHeight : 0;
+		// Camera情報とRenderTexture出力はPanel非表示中も維持する
+		viewRequest.enabled = true;
+		viewRequest.renderThisFrame = true;
+		viewRequest.renderDefaultSurfaceThisFrame = renderGameView;
+		viewRequest.width = fixedRenderWidth;
+		viewRequest.height = fixedRenderHeight;
 		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
 		viewRequest.preferredOrthographicCameraUUID = UUID{};
 		viewRequest.preferredPerspectiveCameraUUID = UUID{};
@@ -104,10 +109,11 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	{
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
 		viewRequest.kind = RenderViewKind::Scene;
-		viewRequest.enabled = showSceneView;
+		viewRequest.enabled = BuildConfig::kEditorEnabled;
 		viewRequest.renderThisFrame = renderSceneView;
-		viewRequest.width = showSceneView ? fixedRenderWidth : 0;
-		viewRequest.height = showSceneView ? fixedRenderHeight : 0;
+		viewRequest.renderDefaultSurfaceThisFrame = renderSceneView;
+		viewRequest.width = viewRequest.enabled ? fixedRenderWidth : 0;
+		viewRequest.height = viewRequest.enabled ? fixedRenderHeight : 0;
 		viewRequest.manualCamera = manualSceneCamera;
 
 		// Entity Cameraが指定されている場合だけWorld側のカメラを使う

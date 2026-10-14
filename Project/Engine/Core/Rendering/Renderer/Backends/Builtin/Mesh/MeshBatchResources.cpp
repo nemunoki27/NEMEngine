@@ -99,6 +99,7 @@ void Engine::MeshBatchResources::Finalize() {
 	subMeshScratch_.clear();
 	outlineScratch_.clear();
 	paletteScratch_.clear();
+	paletteCandidateScratch_.clear();
 	skinnedVertexOffsetMap_.clear();
 	instanceCount_ = 0;
 	skinnedInstanceCount_ = 0;

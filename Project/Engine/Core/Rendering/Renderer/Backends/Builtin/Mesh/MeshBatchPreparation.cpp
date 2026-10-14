@@ -171,15 +171,20 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 
 			resources = it->second.resources.get();
 			resources->UpdateView(*context.view, context.cullingView, context.lodView);
-			if (it->second.lastUploadFrame != frameIndex_ ||
-				it->second.transformRevision != context.batch->GetSourceTransformRevision() ||
-				!resources->MatchesBatch(*context.batch, outPrepared.items, *outPrepared.gpuMesh)) {
+			if (resources->UsesFallbackTexture() ||
+				!resources->MatchesBatch(*context.batch, outPrepared.items, *outPrepared.gpuMesh) ||
+				!resources->RefreshSkinningPose(*context.batch, outPrepared.items, *outPrepared.gpuMesh)) {
 
 				resources->UploadBatchData(context, *context.batch,
 					outPrepared.items, *outPrepared.gpuMesh);
-				it->second.lastUploadFrame = frameIndex_;
-				it->second.transformRevision = context.batch->GetSourceTransformRevision();
+			} else {
+				resources->RefreshMaterialColors();
+				if (it->second.transformRevision != context.batch->GetSourceTransformRevision()) {
+					resources->RefreshBatchTransforms(outPrepared.items);
+				}
+				resources->UploadCachedBatchData();
 			}
+			it->second.transformRevision = context.batch->GetSourceTransformRevision();
 			it->second.lastUsedFrame = frameIndex_;
 		} else {
 
@@ -190,7 +195,6 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			entry.resources->UploadBatchData(context, *context.batch,
 				outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
-			entry.lastUploadFrame = frameIndex_;
 			entry.transformRevision = context.batch->GetSourceTransformRevision();
 			resources = entry.resources.get();
 			skinnedBatchCache_.emplace(key, std::move(entry));

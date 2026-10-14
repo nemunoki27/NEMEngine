@@ -66,6 +66,7 @@ void Engine::RayTracingExecutor::Release() {
 	diagnostics_.clear();
 	allocatorFrameSerial_ = 0;
 	lastReflection_ = nullptr;
+	lastExecutedPipelineID_ = 0;
 }
 
 void Engine::RayTracingExecutor::ReportFailure(
@@ -134,6 +135,7 @@ bool Engine::RayTracingExecutor::Execute(
 
 	const ShaderReflectionInfo& reflection = pipeline->GetReflection();
 	lastReflection_ = &reflection;
+	lastExecutedPipelineID_ = pipeline->GetUniqueID();
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 
 		const RootBindingLocation* location = pipeline->FindBindingByName(

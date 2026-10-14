@@ -18,6 +18,7 @@ namespace Engine {
 	class RenderAssetReloadService;
 	struct SceneInstance;
 	struct ResolvedRenderView;
+	struct RenderFrameRequest;
 
 	//============================================================================
 	//	RenderScenePreparation class
@@ -34,7 +35,7 @@ namespace Engine {
 			RenderAssetReloadService* materialStates);
 		// Viewに必要なMeshを要求する
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, MeshRenderBackend* meshBackend,
-			const SceneInstance* activeScene, std::span<const ResolvedRenderView> gameViews,
+			const SceneInstance* activeScene, const RenderFrameRequest& request, std::span<const ResolvedRenderView> gameViews,
 			const ResolvedRenderView& sceneView);
 	private:
 		//========================================================================

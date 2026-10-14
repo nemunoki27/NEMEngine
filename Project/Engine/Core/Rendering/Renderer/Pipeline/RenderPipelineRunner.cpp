@@ -257,7 +257,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// 一時領域の容量を保ってMesh要求を組み立てる
 	scenePreparation_.RequestMeshes(
-		graphicsCore, request.assetDatabase, meshBackend, activeScene, gameCameraViews_, sceneViewState_.view);
+		graphicsCore, request.assetDatabase, meshBackend, activeScene, request, gameCameraViews_, sceneViewState_.view);
 
 	// スクリプトのScreenPointToRay用にGameViewカメラのスナップショットを更新する
 	GameViewCameraSnapshot::Snapshot cameraSnapshot{};
@@ -282,7 +282,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view, bool clearDefaultSurface) {
 		const RenderViewRequest* viewRequest = request.FindView(kind);
-		if (!view.valid || !viewRequest || !viewRequest->renderThisFrame) {
+		if (!viewRequest || !viewRequest->ShouldRender(view)) {
 			return;
 		}
 

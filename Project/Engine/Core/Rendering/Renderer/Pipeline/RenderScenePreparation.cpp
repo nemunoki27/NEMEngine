@@ -5,6 +5,7 @@
 //============================================================================
 #include "RenderAssetReloadService.h"
 #include "RenderPipelineUtility.h"
+#include <Engine/Core/Rendering/Renderer/Views/RenderFrameTypes.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -24,20 +25,22 @@ void RenderScenePreparation::Extract(ECSWorld& world, RenderExtractorRegistry& e
 }
 
 void RenderScenePreparation::RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase,
-	MeshRenderBackend* meshBackend, const SceneInstance* activeScene,
+	MeshRenderBackend* meshBackend, const SceneInstance* activeScene, const RenderFrameRequest& request,
 	std::span<const ResolvedRenderView> gameViews, const ResolvedRenderView& sceneView) {
 
 	visibleMeshSet_.clear();
 	visibleMeshSet_.reserve(renderBatch_.GetItems().size());
 
-	// ビューごとに可視なメッシュアセットIDを収集
+	// このフレームに描画するViewからMeshを収集する
 	if (meshBackend && activeScene) {
+		const RenderViewRequest* gameRequest = request.FindView(RenderViewKind::Game);
+		const RenderViewRequest* sceneRequest = request.FindView(RenderViewKind::Scene);
 		for (const ResolvedRenderView& gameView : gameViews) {
-			if (gameView.valid) {
+			if (gameRequest && gameRequest->ShouldRender(gameView)) {
 				CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView, visibleMeshSet_);
 			}
 		}
-		if (sceneView.valid) {
+		if (sceneRequest && sceneRequest->ShouldRender(sceneView)) {
 			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneView, visibleMeshSet_);
 		}
 	}

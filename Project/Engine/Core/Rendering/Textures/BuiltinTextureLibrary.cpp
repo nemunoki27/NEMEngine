@@ -31,7 +31,7 @@ void Engine::BuiltinTextureLibrary::Init(TextureUploadService& uploadService) {
 	uploadService_->RequestSolidColor1x1(kErrorKey, 255, 20, 147, 255);
 
 	// 描画の代替画像を起動時にGPUへ反映
-	uploadService_->TickFinalize();
+	uploadService_->WaitAll();
 	Assert::Call(GetWhiteTexture() != nullptr, "BuiltinTextureLibrary: WhiteTexture の作成に失敗しました");
 	Assert::Call(GetNeutralDisplacementTexture() != nullptr,
 		"BuiltinTextureLibrary: NeutralDisplacementTexture の作成に失敗しました");

@@ -20,6 +20,7 @@ namespace Engine {
 	class PipelineState;
 	class PipelineStateCache;
 	class RenderAssetLibrary;
+	class RenderTexture2D;
 	struct RenderFrameRequest;
 	struct SceneExecutionContext;
 
@@ -115,16 +116,17 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// パラメータレイアウトキャッシュを全削除するシェーダーリロード時に呼ぶ処理
-		void ClearParameterLayoutCache() { parameterLayoutCache_.clear(); }
+		void ClearParameterLayoutCache();
 
 		// 最後に実行されたマテリアルのIDを取得する
 		AssetID GetLastExecutedMaterial() const { return lastExecutedMaterial_; }
 		// 最後に実行されたパラメータレイアウトを取得する
 		const MaterialParameterLayout* GetLastExecutedLayout() const { return lastExecutedLayout_; }
 		// 最後に実行されたSRVバインディングを取得する
-		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const { return lastExecutedSRVBindings_; }
+		const std::vector<ShaderResourceBinding>& GetLastExecutedSRVBindings() const;
 		// 最後に実行されたSamplerバインディングを取得する
-		const std::vector<ShaderResourceBinding>& GetLastExecutedSamplerBindings() const { return lastExecutedSamplerBindings_; }
+		const std::vector<ShaderResourceBinding>& GetLastExecutedSamplerBindings() const;
+		uint64_t GetLastExecutedPipelineID() const { return lastExecutedPipelineID_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -138,18 +140,28 @@ namespace Engine {
 			MaterialParameterLayout layout;
 			bool hasFrameConstantsByName = false;
 			bool hasFrameConstantsByRegister = false;
+			std::vector<ShaderResourceBinding> resources;
+			std::vector<ShaderResourceBinding> samplers;
+			uint64_t lastUsedSerial = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		FrameConstantBufferAllocator constantBufferAllocator_{};
-		std::unordered_map<const PipelineState*, PipelineCacheEntry> parameterLayoutCache_{};
+		std::unordered_map<uint64_t, PipelineCacheEntry> parameterLayoutCache_{};
+		std::vector<RenderTexture2D*> outputTextureScratch_{};
 		float elapsedTime_ = 0.0f;
 		uint32_t frameIndex_ = 0;
 
 		AssetID lastExecutedMaterial_{};
 		const MaterialParameterLayout* lastExecutedLayout_ = nullptr;
-		std::vector<ShaderResourceBinding> lastExecutedSRVBindings_{};
-		std::vector<ShaderResourceBinding> lastExecutedSamplerBindings_{};
+		const PipelineCacheEntry* lastExecutedEntry_ = nullptr;
+		uint64_t lastExecutedPipelineID_ = 0;
+		const std::vector<ShaderResourceBinding> emptyBindings_;
+
+		//--------- functions ----------------------------------------------------
+
+		// 公開済みPipelineの型情報と共通定数の割当を再利用する
+		PipelineCacheEntry& GetPipelineEntry(const PipelineState& pipeline);
 	};
 } // Engine

@@ -18,7 +18,11 @@ bool Engine::RenderFeatureRuntimeOverrides::SetEnabled(
 	if (!passID) {
 		return false;
 	}
-	overrides_[passID].enabled = enabled;
+	auto& value = overrides_[passID].enabled;
+	if (value != enabled) {
+		value = enabled;
+		++planRevision_;
+	}
 	return true;
 }
 
@@ -35,7 +39,12 @@ bool Engine::RenderFeatureRuntimeOverrides::SetGroupEnabled(
 	if (groupName.empty()) {
 		return false;
 	}
-	groupEnabledOverrides_[std::string(groupName)] = enabled;
+	const std::string name(groupName);
+	const auto previous = groupEnabledOverrides_.find(name);
+	if (previous == groupEnabledOverrides_.end() || previous->second != enabled) {
+		groupEnabledOverrides_.insert_or_assign(name, enabled);
+		++planRevision_;
+	}
 	return true;
 }
 
@@ -98,11 +107,16 @@ bool Engine::RenderFeatureRuntimeOverrides::ClearParameter(
 bool Engine::RenderFeatureRuntimeOverrides::ResetPass(
 	UUID passID) {
 
-	return passID && overrides_.erase(passID) != 0;
+	const auto found = overrides_.find(passID);
+	if (!passID || found == overrides_.end()) return false;
+	if (found->second.enabled.has_value()) ++planRevision_;
+	overrides_.erase(found);
+	return true;
 }
 
 void Engine::RenderFeatureRuntimeOverrides::ResetAll() {
 
+	if (!overrides_.empty() || !viewOverrides_.empty() || !groupEnabledOverrides_.empty()) ++planRevision_;
 	overrides_.clear();
 	viewOverrides_.clear();
 	groupEnabledOverrides_.clear();
@@ -132,7 +146,13 @@ Engine::RenderFeatureRuntimeOverrides::GetInstance() {
 
 void Engine::RenderFeatureRuntimeOverrides::SetViewEnabled(AssetID profile, bool gameView, bool sceneView) {
 
-	if (profile) viewOverrides_[profile] = {gameView, sceneView};
+	if (!profile) return;
+	const std::pair<bool, bool> value{gameView, sceneView};
+	const auto previous = viewOverrides_.find(profile);
+	if (previous == viewOverrides_.end() || previous->second != value) {
+		viewOverrides_.insert_or_assign(profile, value);
+		++planRevision_;
+	}
 }
 
 bool Engine::RenderFeatureRuntimeOverrides::IsViewEnabled(AssetID profile, bool sceneView, bool savedValue) const {

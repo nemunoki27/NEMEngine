@@ -40,6 +40,8 @@ namespace Engine {
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
 			std::span<const uint16_t> data,
 			D3D12_RESOURCE_STATES finalState = D3D12_RESOURCE_STATE_INDEX_BUFFER);
+		// 32bitの静的SRV BufferをIndex描画にも使用する
+		void Share32BitResource(GraphicsResourceRetirement& retirement, ID3D12Resource* resource, uint32_t indexCount);
 
 		//--------- accessor -----------------------------------------------------
 

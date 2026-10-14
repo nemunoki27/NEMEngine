@@ -124,9 +124,14 @@ void Engine::RenderFeatureProfileService::RebuildRuntime() {
 
 void Engine::RenderFeatureProfileService::CacheReflection(AssetID materialID, MaterialPassKind passKind,
 	const std::vector<ShaderConstantBufferVariable>& variables, const std::vector<ShaderResourceBinding>& resources,
-	const std::vector<ShaderResourceBinding>& samplers) {
+	const std::vector<ShaderResourceBinding>& samplers, uint64_t pipelineID) {
 
-	reflectionCache_.CacheReflection(materialID, passKind, variables, resources, samplers);
+	reflectionCache_.CacheReflection(materialID, passKind, variables, resources, samplers, pipelineID);
+}
+
+bool Engine::RenderFeatureProfileService::HasReflection(AssetID materialID, MaterialPassKind passKind, uint64_t pipelineID) const {
+
+	return reflectionCache_.HasReflection(materialID, passKind, pipelineID);
 }
 
 void Engine::RenderFeatureProfileService::ClearReflection(AssetID materialID) {

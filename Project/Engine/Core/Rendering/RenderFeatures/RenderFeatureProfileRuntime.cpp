@@ -106,6 +106,25 @@ void Engine::RenderFeatureProfileRuntime::Rebuild(const RenderFeatureProfileAsse
 	groupLineages_.swap(groupLineages);
 	passLineages_.swap(passLineages);
 	diagnostic_.swap(diagnostic);
+	plans_.clear();
+}
+
+std::shared_ptr<const Engine::RenderFeatureExecutionPlan> Engine::RenderFeatureProfileRuntime::GetPlan(
+	RenderFeatureAnchor anchor, RenderViewKind viewKind) const {
+
+	const uint64_t revision = RenderFeatureRuntimeOverrides::GetInstance().GetPlanRevision();
+	if (planRevision_ != revision) {
+
+		// 有効状態の変更後に旧計画を次の描画へ使わない
+		plans_.clear();
+		planRevision_ = revision;
+	}
+	const std::pair key{anchor, viewKind};
+	const auto found = plans_.find(key);
+	if (found != plans_.end()) return found->second;
+	auto plan = std::make_shared<const RenderFeatureExecutionPlan>(BuildPlan(anchor, viewKind));
+	plans_.emplace(key, plan);
+	return plan;
 }
 
 Engine::RenderFeatureExecutionPlan Engine::RenderFeatureProfileRuntime::BuildPlan(

@@ -65,10 +65,13 @@ std::vector<float> AudioDevice::GetOutputMatrix(IXAudio2SourceVoice& voice, uint
 }
 
 void AudioDevice::ApplySpatialMatrix(IXAudio2SourceVoice& voice, uint32_t channels,
-	const std::vector<float>& normalMatrix, const AudioSpatialState& source, const AudioListenerState& listener) const {
+	const std::vector<float>& normalMatrix, const AudioSpatialState& source, const AudioListenerState& listener,
+	AudioSpatialMatrixScratch& scratch) const {
 
 	float blend = std::isfinite(source.blend) ? std::clamp(source.blend, 0.0f, 1.0f) : 0.0f;
-	std::vector<float> matrix = normalMatrix;
+	// 前回の作業領域へ既定の出力行列を戻す
+	scratch.matrix.assign(normalMatrix.begin(), normalMatrix.end());
+	auto& matrix = scratch.matrix;
 	// Listenerがない場合も2D成分は保持する
 	float gain = CalculateAudioDistanceGain(source, listener);
 	if (blend > 0.0f && gain > 0.0f) {
@@ -81,7 +84,8 @@ void AudioDevice::ApplySpatialMatrix(IXAudio2SourceVoice& voice, uint32_t channe
 		emitter.OrientFront = { 0.0f, 0.0f, 1.0f };
 		emitter.OrientTop = { 0.0f, 1.0f, 0.0f };
 		emitter.ChannelCount = channels;
-		std::vector<float> azimuths(channels);
+		auto& azimuths = scratch.azimuths;
+		azimuths.resize(channels);
 		for (uint32_t i = 0; i < channels; ++i) {
 			azimuths[i] = X3DAUDIO_2PI * static_cast<float>(i) / static_cast<float>(channels);
 		}
@@ -92,7 +96,8 @@ void AudioDevice::ApplySpatialMatrix(IXAudio2SourceVoice& voice, uint32_t channe
 		emitter.pVolumeCurve = &curve;
 		emitter.pLFECurve = &curve;
 		emitter.CurveDistanceScaler = 1.0f;
-		std::vector<float> spatial(matrix.size());
+		auto& spatial = scratch.spatial;
+		spatial.assign(matrix.size(), 0.0f);
 		X3DAUDIO_DSP_SETTINGS settings{};
 		settings.SrcChannelCount = channels;
 		settings.DstChannelCount = outputChannels_;

@@ -99,6 +99,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	Engine::BottomLevelAccelerationStructure source;
 	source.SetRetirementQueue(retirement);
 	source.Build(device8.Get(), commands, input);
+	if (source.GetRetainedScratchBytes() == 0) return false;
 	std::vector<Engine::RaytracingTLASInstance> instances(1);
 	instances[0].blas = source.GetResource();
 	Engine::TopLevelAccelerationStructure top;
@@ -190,6 +191,17 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	profiler.BeginFrame(0, 0);
 	if (profiler.GetRenderingStatistics().tlasBuildCount != 0 || profiler.GetRenderingStatistics().tlasSkipCount != 1) return false;
 	if (state.GetContentGeneration() != stableContentGeneration) return false;
+	// 静的BLASは構築後に作業領域だけを回収へ渡す
+	Engine::BottomLevelAccelerationStructure staticBLAS;
+	staticBLAS.SetRetirementQueue(retirement);
+	input.allowUpdate = false;
+	staticBLAS.Build(device8.Get(), commands, input);
+	if (!staticBLAS.IsBuilt() || staticBLAS.GetRetainedScratchBytes() != 0) return false;
+	ID3D12Resource* staticResource = staticBLAS.GetResource();
+	staticBLAS.Rebuild(commands, input);
+	if (staticBLAS.GetResource() != staticResource || staticBLAS.GetRetainedScratchBytes() != 0) return false;
+	staticBLAS.Release();
+	input.allowUpdate = true;
 	if (canQuery) {
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);

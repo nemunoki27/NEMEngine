@@ -138,13 +138,15 @@ void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
 
 	for (const auto& viewRequest : request.views) {
-		if (!viewRequest.enabled) {
+		// 非表示の画面資源は再生成せず保持する
+		if (!viewRequest.enabled || !viewRequest.renderThisFrame || !viewRequest.renderDefaultSurfaceThisFrame) {
 			continue;
 		}
 		viewportRenderService_->SyncSurface(graphicsCore, viewRequest.kind, viewRequest.width, viewRequest.height);
 	}
+	const RenderViewRequest* gameRequest = request.FindView(RenderViewKind::Game);
 	for (const ResolvedRenderView& view : gameCameraViews_) {
-		if (!view.targetTexture) {
+		if (!view.targetTexture || !gameRequest || !gameRequest->ShouldRender(view)) {
 			continue;
 		}
 		const RenderTextureAsset* asset = renderAssetLibrary_.LoadRenderTexture(view.targetTexture);
@@ -250,7 +252,7 @@ void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 	}
 	if (gameViewState_.view.valid) activeViews.emplace(gameViewState_.view.GetHistoryKey());
 	if (sceneViewState_.view.valid) activeViews.emplace(sceneViewState_.view.GetHistoryKey());
-	// 非表示や削除されたCameraの履歴を保持しない
+	// 無効化や削除されたCameraの履歴を解放する
 	std::erase_if(cameraStates_, [&](const auto& state) { return !activeViews.contains(state.first); });
 	colorPipelineProcessor_.RetainViews(activeViews);
 	renderPath_.RetainViews(activeViews);

@@ -36,6 +36,46 @@ bool Engine::MeshBatchResources::MatchesBatch(const RenderSceneBatch& batch,
 	return batchIdentity_.Matches(batch, items, gpuMesh);
 }
 
+bool Engine::MeshBatchResources::RefreshSkinningPose(const RenderSceneBatch& batch,
+	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) {
+
+	if (!gpuMesh.isSkinned || !skinning_) return false;
+	uint64_t poseHash = 1469598103934665603ull;
+	Algorithm::HashCombine(poseHash, gpuMesh.reloadGeneration);
+	uint32_t skinnedCount = 0;
+	for (const RenderItem* item : items) {
+		if (!item || !batch.GetPayload<MeshRenderPayload>(*item) || !item->world) continue;
+		const ECSWorld& world = *item->world;
+		const auto* runtime = TryGetSkinnedAnimationRuntime(world, item->entity);
+		if (!runtime || !runtime->initialized || runtime->palette.size() != gpuMesh.boneCount) continue;
+		uint32_t vertexOffset = 0;
+		if (!FindSkinnedVertexOffset(item->world, item->entity, vertexOffset) ||
+			vertexOffset != skinnedCount * gpuMesh.vertexCount) return false;
+		Algorithm::HashCombine(poseHash, static_cast<uint64_t>(item->entity.index));
+		Algorithm::HashCombine(poseHash, static_cast<uint64_t>(item->entity.generation));
+		Algorithm::HashCombine(poseHash, runtime->poseGeneration);
+		++skinnedCount;
+	}
+	if (skinnedCount != skinnedInstanceCount_) return false;
+	Algorithm::HashCombine(poseHash, skinnedCount);
+	if (poseHash == currentSkinningPoseHash_) return true;
+	// 新しいポーズだけを公開し、前の頂点結果を失効させる
+	paletteCandidateScratch_.clear();
+	paletteCandidateScratch_.reserve(paletteScratch_.size());
+	for (const RenderItem* item : items) {
+		if (!item || !batch.GetPayload<MeshRenderPayload>(*item) || !item->world) continue;
+		const ECSWorld& world = *item->world;
+		const auto* runtime = TryGetSkinnedAnimationRuntime(world, item->entity);
+		if (!runtime || !runtime->initialized || runtime->palette.size() != gpuMesh.boneCount) continue;
+		paletteCandidateScratch_.insert(paletteCandidateScratch_.end(),
+			runtime->palette.begin(), runtime->palette.end());
+	}
+	paletteScratch_.swap(paletteCandidateScratch_);
+	currentSkinningPoseHash_ = poseHash;
+	skinningDispatched_ = false;
+	return true;
+}
+
 uint32_t Engine::MeshBatchResources::RefreshMaterialColors() {
 
 	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);

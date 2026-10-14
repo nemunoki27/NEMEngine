@@ -15,6 +15,13 @@
 
 namespace Engine {
 
+	// Voiceごとの出力行列を次の更新でも使う
+	struct AudioSpatialMatrixScratch {
+		std::vector<float> matrix;
+		std::vector<float> spatial;
+		std::vector<float> azimuths;
+	};
+
 	//============================================================================
 	//	AudioDevice class
 	//	XAudio2とマスターボイスを所有する
@@ -35,7 +42,7 @@ namespace Engine {
 		std::vector<float> GetOutputMatrix(IXAudio2SourceVoice& voice, uint32_t channels) const;
 		// 既定の2D行列と3D定位を混合する
 		void ApplySpatialMatrix(IXAudio2SourceVoice& voice, uint32_t channels, const std::vector<float>& normalMatrix,
-			const AudioSpatialState& source, const AudioListenerState& listener) const;
+			const AudioSpatialState& source, const AudioListenerState& listener, AudioSpatialMatrixScratch& scratch) const;
 
 		//--------- accessor -----------------------------------------------------
 

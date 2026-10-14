@@ -10,6 +10,9 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
 
+// c++
+#include <array>
+
 namespace {
 
 	void DispatchInternal(Engine::GraphicsCore& graphicsCore, Engine::SceneExecutionContext& context,
@@ -50,8 +53,8 @@ namespace {
 		} else if (surface.depthOverride) {
 
 			// 色サーフェスのRTVと外部DSVを明示的に組み合わせてバインドする
-			std::vector<Engine::RenderTarget> renderTargets{};
-			renderTargets.reserve(target->GetColorCount());
+			std::array<Engine::RenderTarget, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> renderTargets{};
+			size_t targetCount = 0;
 			for (uint32_t i = 0; i < target->GetColorCount(); ++i) {
 
 				auto* color = target->GetColorTexture(i);
@@ -59,12 +62,12 @@ namespace {
 					continue;
 				}
 				color->Transition(*dxCommand, D3D12_RESOURCE_STATE_RENDER_TARGET);
-				renderTargets.emplace_back(color->GetRenderTarget());
+				renderTargets[targetCount++] = color->GetRenderTarget();
 			}
 			if (depth) {
 				depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 			}
-			dxCommand->BindRenderTargets(renderTargets,
+			dxCommand->BindRenderTargets(std::span<const Engine::RenderTarget>(renderTargets.data(), targetCount),
 				depth ? std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>(depth->GetDSVCPUHandle()) : std::nullopt);
 		} else {
 

@@ -177,6 +177,9 @@ namespace Engine {
 
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
+		// Panel内容の可視状態を次の描画要求へ渡す
+		bool sceneViewportVisible = true;
+		bool gameViewportVisible = true;
 		// SceneView/GameViewのImageが最前面でホバーされているか、ViewportPanelが毎フレーム更新する
 		bool sceneViewportHovered = false;
 		bool gameViewportHovered = false;

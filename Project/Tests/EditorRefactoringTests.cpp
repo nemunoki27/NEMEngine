@@ -7,6 +7,7 @@
 #include "HierarchyCommandContractTests.h"
 #include "CurveEditorContractTests.h"
 #include "ShaderGraphScenePreviewTests.h"
+#include "EditorAssetWorkflowTests.h"
 
 //============================================================================
 //	include
@@ -437,7 +438,22 @@ bool TestEditorContracts() {
 	stable.Update(reordered, 3, true, 0.2, false);
 	if (stable.GetViews()[0].passTimes.size() != 3) return false;
 
-	if (!TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
+	// 副Viewを間引いたフレームでは直近の計測値を維持する
+	Engine::ConsoleGPUPassTooltipState alternating;
+	const std::array<Engine::FrameProfiler::GPUPassTime, 1> game{{{"Game/Opaque", 1.5f, 1, "GameCamera"}}};
+	const std::array<Engine::FrameProfiler::GPUPassTime, 1> gameAgain{{{"Game/Opaque", 1.7f, 3, "GameCamera"}}};
+	const std::array<Engine::FrameProfiler::GPUPassTime, 1> scene{{{"Scene/Opaque", 2.0f, 2, "SceneCamera"}}};
+	alternating.Update(game, 1, true, 0.0);
+	alternating.Update(scene, 2, true, 0.1);
+	if (alternating.GetViews().size() != 2 || alternating.GetViews()[0].passTimes[0].time.frameID != 1 ||
+		alternating.GetViews()[0].totalMilliseconds != 1.5f) return false;
+	alternating.Update(gameAgain, 3, true, 0.2);
+	alternating.Update(scene, 4, true, 0.3);
+	if (alternating.GetViews()[0].passTimes[0].time.frameID != 3) return false;
+	alternating.Update(scene, 5, true, 3.4);
+	if (alternating.GetViews().size() != 1 || alternating.GetViews()[0].name != "Scene") return false;
+
+	if (!NEMTests::TestEditorViewportVisibility() || !TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
 		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestPerformanceGridCommandHistory() ||

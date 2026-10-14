@@ -23,7 +23,6 @@
 
 // c++
 #include <algorithm>
-#include <unordered_set>
 
 //============================================================================
 //	PostProcessExecutor classMethods
@@ -42,14 +41,42 @@ void Engine::PostProcessExecutor::BeginFrame(float deltaTime) {
 	elapsedTime_ += deltaTime;
 	++frameIndex_;
 	constantBufferAllocator_.BeginFrame();
+	lastExecutedEntry_ = nullptr;
+	lastExecutedLayout_ = nullptr;
+	lastExecutedPipelineID_ = 0;
+	// 未使用のShaderレイアウトを保持し続けない
+	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+	std::erase_if(parameterLayoutCache_, [serial](const auto& entry) {
+		return HasExpiredGraphicsResource(entry.second.lastUsedSerial, serial);
+	});
 }
 
 void Engine::PostProcessExecutor::Release() {
 
 	constantBufferAllocator_.Release();
-	parameterLayoutCache_.clear();
+	ClearParameterLayoutCache();
+	outputTextureScratch_.clear();
 	elapsedTime_ = 0.0f;
 	frameIndex_ = 0;
+}
+
+void Engine::PostProcessExecutor::ClearParameterLayoutCache() {
+
+	// 借用を解除してから所有する型情報を破棄する
+	lastExecutedEntry_ = nullptr;
+	lastExecutedLayout_ = nullptr;
+	lastExecutedPipelineID_ = 0;
+	parameterLayoutCache_.clear();
+}
+
+const std::vector<Engine::ShaderResourceBinding>& Engine::PostProcessExecutor::GetLastExecutedSRVBindings() const {
+
+	return lastExecutedEntry_ ? lastExecutedEntry_->resources : emptyBindings_;
+}
+
+const std::vector<Engine::ShaderResourceBinding>& Engine::PostProcessExecutor::GetLastExecutedSamplerBindings() const {
+
+	return lastExecutedEntry_ ? lastExecutedEntry_->samplers : emptyBindings_;
 }
 
 bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_unused]] const RenderFrameRequest& request,
@@ -167,16 +194,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	}
 
 	// パイプラインキャッシュを解決し、フレーム定数バインドの有無も初回のみ解決してキャッシュする
-	auto layoutIt = parameterLayoutCache_.find(pipelineState);
-	if (layoutIt == parameterLayoutCache_.end()) {
-
-		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection, kParameterConstantsName);
-		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
-		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
-		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
-	}
-	PipelineCacheEntry& cacheEntry = layoutIt->second;
+	PipelineCacheEntry& cacheEntry = GetPipelineEntry(*pipelineState);
 
 	// 共通フレーム、ポストプロセス実行情報のバッファデータを構築してバインド
 	if (cacheEntry.hasFrameConstantsByName || cacheEntry.hasFrameConstantsByRegister) {
@@ -252,18 +270,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 
 	lastExecutedMaterial_ = desc.material;
 	lastExecutedLayout_ = parameterLayout.IsValid() ? &parameterLayout : nullptr;
-	lastExecutedSRVBindings_.clear();
-	lastExecutedSamplerBindings_.clear();
-	for (const auto& binding : reflection.resources) {
-		if (binding.kind == ShaderBindingKind::SRV &&
-			binding.name != kSourceColorName &&
-			binding.name != kSourceDepthName) {
-			lastExecutedSRVBindings_.push_back(binding);
-		}
-		if (binding.kind == ShaderBindingKind::Sampler) {
-			lastExecutedSamplerBindings_.push_back(binding);
-		}
-	}
+	lastExecutedEntry_ = &cacheEntry;
+	lastExecutedPipelineID_ = pipelineState->GetUniqueID();
 	// 追加されたバインドデータをバインディング
 	ComputeRootBinder binder{ *pipelineState };
 	binder.Bind(commandList, binds);
@@ -288,16 +296,22 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 
 	// 名前付き出力を含む全UAVの書き込み完了を後続Passへ公開する
-	std::unordered_set<RenderTexture2D*> outputTextures{ destColor };
+	// 同じ出力へのUAVバリアは一度だけ発行する
+	outputTextureScratch_.clear();
+	outputTextureScratch_.reserve(desc.outputTargets.size() + 1);
+	outputTextureScratch_.push_back(destColor);
 	for (const auto& [name, targetName] : desc.outputTargets) {
 
 		if (RenderTexture2D* output =
 			context.targetRegistry->FindColorByName(targetName)) {
 
-			outputTextures.insert(output);
+			if (std::find(outputTextureScratch_.begin(), outputTextureScratch_.end(), output) ==
+				outputTextureScratch_.end()) {
+				outputTextureScratch_.push_back(output);
+			}
 		}
 	}
-	for (RenderTexture2D* output : outputTextures) {
+	for (RenderTexture2D* output : outputTextureScratch_) {
 
 		dxCommand->UAVBarrier(output->GetResource());
 		output->Transition(*dxCommand,
@@ -337,32 +351,37 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
-
-	// PostProcessParameters CBufferの変数一覧を取得する
-	auto layoutIt = parameterLayoutCache_.find(pipelineState);
-	if (layoutIt == parameterLayoutCache_.end()) {
-		PipelineCacheEntry entry{};
-		entry.layout.Build(reflection, kParameterConstantsName);
-		entry.hasFrameConstantsByName = (pipelineState->FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
-		entry.hasFrameConstantsByRegister = (pipelineState->FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
-		layoutIt = parameterLayoutCache_.emplace(pipelineState, std::move(entry)).first;
-	}
-	outVars = layoutIt->second.layout.GetVariables();
-
-	// gSourceColor / gSourceDepthを除くユーザー向けSRVを収集する
-	outSRVs.clear();
-	outSamplers.clear();
-	for (const auto& binding : reflection.resources) {
-		if (binding.kind == ShaderBindingKind::SRV &&
-			binding.name != kSourceColorName &&
-			binding.name != kSourceDepthName) {
-			outSRVs.push_back(binding);
-		}
-		if (binding.kind == ShaderBindingKind::Sampler) {
-			outSamplers.push_back(binding);
-		}
-	}
+	// 描画と同じ型情報から編集用の値を取得する
+	const auto& entry = GetPipelineEntry(*pipelineState);
+	outVars = entry.layout.GetVariables();
+	outSRVs = entry.resources;
+	outSamplers = entry.samplers;
 
 	return true;
+}
+
+Engine::PostProcessExecutor::PipelineCacheEntry& Engine::PostProcessExecutor::GetPipelineEntry(const PipelineState& pipeline) {
+
+	auto layoutIt = parameterLayoutCache_.find(pipeline.GetUniqueID());
+	if (layoutIt == parameterLayoutCache_.end()) {
+
+		PipelineCacheEntry entry{};
+		entry.layout.Build(pipeline.GetComputeReflection(), kParameterConstantsName);
+		entry.hasFrameConstantsByName = (pipeline.FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
+		entry.hasFrameConstantsByRegister = (pipeline.FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
+		// Shaderの公開世代ごとに編集用の型情報も揃える
+		for (const auto& binding : pipeline.GetComputeReflection().resources) {
+
+			if (binding.kind == ShaderBindingKind::SRV && binding.name != kSourceColorName && binding.name != kSourceDepthName) {
+				entry.resources.emplace_back(binding);
+			} else if (binding.kind == ShaderBindingKind::Sampler) {
+				entry.samplers.emplace_back(binding);
+			}
+		}
+		layoutIt = parameterLayoutCache_.emplace(pipeline.GetUniqueID(), std::move(entry)).first;
+	}
+	PipelineCacheEntry& cacheEntry = layoutIt->second;
+	cacheEntry.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
+
+	return cacheEntry;
 }

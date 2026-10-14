@@ -2,6 +2,7 @@
 
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDescriptor.h>
 #include <stdexcept>
+#include <algorithm>
 
 //============================================================================
 //	GraphicsFrameContext classMethods
@@ -35,7 +36,11 @@ bool Engine::HasExpiredGraphicsResource(uint64_t lastUsedSerial, uint64_t frameS
 void Engine::GraphicsResourceRetirement::ReservePending(size_t additionalCount) {
 
 	if (additionalCount > pending_.max_size() - pending_.size()) throw std::length_error("GPU回収候補が多すぎます");
-	pending_.reserve(pending_.size() + additionalCount);
+	const size_t required = pending_.size() + additionalCount;
+	if (required <= pending_.capacity()) return;
+	// 小さい回収の追加ごとに保持領域を作り直さない
+	const size_t growth = pending_.capacity() <= pending_.max_size() / 2 ? pending_.capacity() * 2 : pending_.max_size();
+	pending_.reserve((std::max)(required, growth));
 }
 
 void Engine::GraphicsResourceRetirement::Retire(ComPtr<ID3D12Object> object,
@@ -72,6 +77,11 @@ void Engine::GraphicsResourceRetirement::Collect(uint64_t completedFenceValue) {
 			}
 		}
 		pendingCount_ -= batches_.front().entries.size();
+		// 完了したBatchの領域を次の回収候補に使う
+		if (pending_.empty() && pending_.capacity() < batches_.front().entries.capacity()) {
+			pending_.swap(batches_.front().entries);
+			pending_.clear();
+		}
 		batches_.pop_front();
 	}
 }

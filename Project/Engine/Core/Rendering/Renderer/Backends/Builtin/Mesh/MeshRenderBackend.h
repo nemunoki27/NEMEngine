@@ -106,7 +106,6 @@ namespace Engine {
 
 			std::unique_ptr<MeshBatchResources> resources{};
 			uint64_t lastUsedFrame = 0;
-			uint64_t lastUploadFrame = 0;
 			uint64_t transformRevision = 0;
 		};
 		// スキニング頂点のGPUリソースを検索するためのキー

@@ -358,14 +358,14 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 		};
 
 	// SceneViewは従来通り、ギズモ操作中はピックしない
-	if (layoutState_.showSceneView && !editorState_.useSceneGizmo) {
+	if (layoutState_.showSceneView && editorState_.sceneViewportVisible && !editorState_.useSceneGizmo) {
 		if (executePick(InputViewArea::Scene, RenderViewKind::Scene)) {
 			return;
 		}
 	}
 
 	// GameViewにもSceneViewと同じTLASピックだけを通し、マニピュレーターは表示しない
-	if (layoutState_.showGameView) {
+	if (layoutState_.showGameView && editorState_.gameViewportVisible) {
 		executePick(InputViewArea::Game, RenderViewKind::Game);
 	}
 }
