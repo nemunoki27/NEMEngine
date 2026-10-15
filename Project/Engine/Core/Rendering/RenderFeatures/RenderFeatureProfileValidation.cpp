@@ -138,6 +138,17 @@ bool Engine::RenderFeatureProfileValidation::Validate(const RenderFeatureProfile
 			return false;
 		}
 
+		if (pass.type == RenderFeaturePassType::Bloom) {
+			const bool hdrPosition = pass.anchor == RenderFeatureAnchor::AfterTransparent ||
+				pass.anchor == RenderFeatureAnchor::AfterPostProcessUI || pass.anchor == RenderFeatureAnchor::BeforeBlit;
+			const bool outputValid = pass.outputs.empty() || (pass.outputs.size() == 1 && pass.outputs[0].name == "Color" &&
+				pass.outputs[0].shaderResource == "gDestColor" && pass.outputs[0].format == RenderFeatureTextureFormat::Inherit &&
+				pass.outputs[0].widthScale == 1.0f && pass.outputs[0].heightScale == 1.0f && !pass.outputs[0].history);
+			if (!hdrPosition || !outputValid || pass.adaptiveResolution) {
+				diagnostic = "Bloomは透明描画後からトーンマップ前に全解像度で実行してください";
+				return false;
+			}
+		}
 		std::unordered_set<std::string> outputNames{};
 		std::unordered_set<std::string> outputResources{};
 		const std::vector<RenderFeatureOutputSettings> defaultOutputs =

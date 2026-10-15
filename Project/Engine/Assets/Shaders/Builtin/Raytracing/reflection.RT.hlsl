@@ -2,6 +2,8 @@
 //	include
 //============================================================================
 #include "../Mesh/Common/deferredGBuffer.hlsli"
+#include "../Lighting/Baked/bakedLightingRuntime.hlsli"
+#include "../Common/descriptorHeapCompatibility.hlsli"
 
 // RTライブラリ内で固定SRVとライトバッファが衝突しないようレジスタを差し替える
 #define NEM_LIGHT_COUNTS_REGISTER b1
@@ -55,6 +57,10 @@ cbuffer RaytracingViewConstants : register(b0) {
 	uint gHasSkybox;
 	float gIBLIntensity;
 	uint gFrameIndex;
+	uint gEnvironmentSpecularIndex;
+	uint gEnvironmentBRDFIndex;
+	uint gPhysicalEnvironmentEnabled;
+	uint gEnvironmentIrradianceIndex;
 };
 
 struct ReflectionPayload {
@@ -230,16 +236,22 @@ float3 EvaluateSkyReflection(float3 direction) {
 	return sky * gSkyIntensity;
 }
 
-float3 EvaluateReflectionEnvironment(float3 direction) {
+float3 EvaluateReflectionEnvironment(float3 direction, float3 position, float roughness) {
 
+	float3 capture;
+	float coverage;
+	SampleBakedReflection(position, direction, roughness, capture, coverage);
 	if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
-		TextureCube<float4> skybox = ResourceDescriptorHeap[
-			NonUniformResourceIndex(gSkyboxCubemapIndex)];
-		return skybox.SampleLevel(gEnvironmentSampler, direction, 0.0f).rgb *
-			gSkyboxColor.rgb * gSkyIntensity;
+		uint index = gEnvironmentSpecularIndex != kNoTexture ? gEnvironmentSpecularIndex : gSkyboxCubemapIndex;
+		TextureCube<float4> skybox = NEM_TEXTURECUBE(index);
+		uint width, height, mipCount;
+		skybox.GetDimensions(0, width, height, mipCount);
+		float mip = gPhysicalEnvironmentEnabled != 0u ? roughness * max(float(mipCount) - 1.0f, 0.0f) : 0.0f;
+		float3 environment = skybox.SampleLevel(gEnvironmentSampler, direction, mip).rgb * gSkyboxColor.rgb * gSkyIntensity;
+		return lerp(environment, capture, coverage);
 	}
-	return EvaluateSkyReflection(direction);
+	return lerp(EvaluateSkyReflection(direction), capture, coverage);
 }
 
 float3 EstimateWorldNormalFromDepth(
@@ -622,7 +634,7 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 float3 EvaluateRaytracingSurfaceLighting(
 	float3 worldPosition,
 	ResolvedPBRMaterial material,
-	uint renderFlags) {
+	uint renderFlags, uint receiverEntity = 0u) {
 
 	if ((renderFlags & MESH_INSTANCE_FLAG_LIGHTING) == 0u) {
 		return material.baseColor.rgb + material.emissive;
@@ -697,14 +709,23 @@ float3 EvaluateRaytracingSurfaceLighting(
 	float3 ambient = 0.0f.xxx;
 	if ((renderFlags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) {
 
-		if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
+		float3 indirect;
+		if (SampleBakedIndirect(worldPosition, material.N, renderFlags, receiverEntity, indirect)) {
+			ambient = indirect * material.baseColor.rgb * (1.0f - material.metallic) * (1.0f - F0);
+		} else if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 			TextureCube<float4> skybox = ResourceDescriptorHeap[
 				NonUniformResourceIndex(gSkyboxCubemapIndex)];
-			float3 irradiance = skybox.SampleLevel(
-				gEnvironmentSampler, material.N, 5.0f).rgb;
+			float3 irradiance;
+			if (gPhysicalEnvironmentEnabled != 0u && gEnvironmentIrradianceIndex != kNoTexture) {
+				TextureCube<float4> diffuseEnvironment = ResourceDescriptorHeap[NonUniformResourceIndex(gEnvironmentIrradianceIndex)];
+				irradiance = diffuseEnvironment.SampleLevel(gEnvironmentSampler, material.N, 0.0f).rgb;
+			} else {
+				irradiance = skybox.SampleLevel(gEnvironmentSampler, material.N, 5.0f).rgb;
+			}
 			ambient = irradiance * gSkyboxColor.rgb * gIBLIntensity *
 				material.baseColor.rgb * material.ao;
+			if (gPhysicalEnvironmentEnabled != 0u) ambient *= (1.0f - material.metallic) * (1.0f - F0);
 		} else {
 
 			ambient = 0.03f * material.baseColor.rgb * material.ao;
@@ -743,7 +764,7 @@ void ReflectionClosestHit(
 
 	payload.hit = 1u;
 	payload.color = EvaluateRaytracingSurfaceLighting(
-		worldPosition, material, instanceData.renderFlags);
+		worldPosition, material, instanceData.renderFlags, instanceData._pad.x);
 	payload.worldPosition = worldPosition;
 	payload.hitDistance = RayTCurrent();
 	payload.worldNormal = material.N;
@@ -876,11 +897,16 @@ void ReflectionRayGen() {
 			++hitSampleCount;
 		} else {
 			incomingRadiance =
-				EvaluateReflectionEnvironment(reflectionDirection);
+				EvaluateReflectionEnvironment(reflectionDirection, worldPos, roughness);
 		}
 		accumulatedHitDistance += payload.hit != 0u ?
 			payload.hitDistance : gMaxReflectionDistance;
 		float3 sampleWeight = FresnelSchlick(VdotH, F0);
+		if (gPhysicalEnvironmentEnabled != 0u && gEnvironmentBRDFIndex != kNoTexture) {
+			Texture2D<float4> brdf = NEM_TEXTURE2D(gEnvironmentBRDFIndex);
+			float2 integral = brdf.SampleLevel(gEnvironmentSampler, float2(NdotV, roughness), 0.0f).rg;
+			sampleWeight = F0 * integral.x + integral.y;
+		}
 		reflectedRadiance += ClampReflectionSample(
 			incomingRadiance * sampleWeight);
 		++acceptedSampleCount;

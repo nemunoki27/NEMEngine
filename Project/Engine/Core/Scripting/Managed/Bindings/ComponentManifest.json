@@ -429,6 +429,52 @@
           "value": 1
         }
       ]
+    },
+    {
+      "managedType": "MeshRenderFlags",
+      "nativeType": "MeshRenderFlags",
+      "members": [
+        {
+          "name": "None",
+          "value": 0
+        },
+        {
+          "name": "Lighting",
+          "value": 1
+        },
+        {
+          "name": "CastShadow",
+          "value": 2
+        },
+        {
+          "name": "ReceiveShadow",
+          "value": 4
+        },
+        {
+          "name": "ReceiveIBL",
+          "value": 8
+        },
+        {
+          "name": "CastReflection",
+          "value": 16
+        },
+        {
+          "name": "ReceiveReflection",
+          "value": 32
+        },
+        {
+          "name": "ReceiveLightmap",
+          "value": 64
+        },
+        {
+          "name": "ReceiveLightProbes",
+          "value": 128
+        },
+        {
+          "name": "Default",
+          "value": 63
+        }
+      ]
     }
   ],
   "components": [
@@ -1157,6 +1203,12 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "ContributeBakedLighting",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "nativeMember": "contributeBakedLighting"
         }
       ]
     },
@@ -1440,6 +1492,19 @@
           "managedName": "EnableZPrepass",
           "nativeMember": "enableZPrepass",
           "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ContributeBakedLighting",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "nativeMember": "contributeBakedLighting"
+        },
+        {
+          "managedName": "RenderFlags",
+          "nativeMember": "renderFlags",
+          "kind": "Enum",
+          "enumType": "MeshRenderFlags",
           "access": "ReadWrite"
         }
       ]
@@ -2063,6 +2128,12 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "ContributeBakedLighting",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "nativeMember": "contributeBakedLighting"
         }
       ]
     },
@@ -2399,6 +2470,13 @@
           "kind": "Vector3",
           "access": "ReadWrite",
           "visibility": "Internal"
+        },
+        {
+          "managedName": "RenderFlags",
+          "nativeMember": "renderFlags",
+          "kind": "Enum",
+          "enumType": "MeshRenderFlags",
+          "access": "ReadWrite"
         }
       ]
     },
@@ -2809,6 +2887,12 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "ContributeBakedLighting",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "nativeMember": "contributeBakedLighting"
         }
       ]
     },
@@ -3529,6 +3613,12 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "ContributeBakedLighting",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "nativeMember": "contributeBakedLighting"
         }
       ]
     },
@@ -3647,6 +3737,50 @@
           "managedName": "UseLimits",
           "nativeMember": "useLimits",
           "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "registryName": "ReflectionProbe",
+      "nativeType": "ReflectionProbeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/ReflectionProbeComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.ReflectionProbe",
+      "reason": "ベイクする環境反射の範囲を指定",
+      "managedType": "ReflectionProbe",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Shape",
+          "nativeMember": "shape",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Radius",
+          "nativeMember": "radius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Extents",
+          "nativeMember": "extents",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
           "access": "ReadWrite"
         },
         {

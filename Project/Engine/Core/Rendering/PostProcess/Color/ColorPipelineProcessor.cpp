@@ -117,17 +117,11 @@ void Engine::ColorPipelineProcessor::Release() {
 	constantBufferAllocator_.Release();
 }
 
-bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
-	const SceneExecutionContext& context, MultiRenderTarget* source,
-	MultiRenderTarget* dest, RenderAssetLibrary& assetLibrary,
-	PipelineStateCache& pipelineCache, const ColorPipelineSettings& settings,
-	bool updateExposure) {
+bool Engine::ColorPipelineProcessor::PrepareExposure(GraphicsCore& graphicsCore,
+	const SceneExecutionContext& context, MultiRenderTarget* source, RenderAssetLibrary& assetLibrary,
+	PipelineStateCache& pipelineCache, const ColorPipelineSettings& settings) {
 
-	if (!source || !dest || !source->GetColorTexture(0) ||
-		!dest->GetColorTexture(0)) {
-		return false;
-	}
-
+	if (!source || !source->GetColorTexture(0)) return false;
 	ViewExposureState& state = GetViewState(context.view->GetHistoryKey());
 	if (!state.bufferInitialized) {
 		state.exposureBuffer.Init(graphicsCore.GetDXObject().GetDevice(),
@@ -141,6 +135,9 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 		state.world = context.world;
 		state.initialized = false;
 	}
+	// 同じCameraの同じフレームでは測定と定数の確保を繰り返さない
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (state.initialized && state.lastUpdatedFrame == frameSerial) return true;
 	const bool resetExposure = !state.initialized;
 	const ColorPipelineConstants constants = BuildConstants(
 		graphicsCore, context, *source, settings, resetExposure);
@@ -151,8 +148,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-	if (constants.postProcessEnabled != 0.0f && ((updateExposure && state.lastUpdatedFrame != frameSerial) || resetExposure)) {
+	if (constants.postProcessEnabled != 0.0f && (state.lastUpdatedFrame != frameSerial || resetExposure)) {
 
 		if (!UpdateExposure(graphicsCore, context, *source,
 			assetLibrary, pipelineCache, state, constants, allocation.gpuAddress)) {
@@ -163,6 +159,30 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	}
 	// 再有効化時は古い自動露出を引き継がない
 	if (constants.postProcessEnabled == 0.0f) state.initialized = false;
+
+	return true;
+}
+
+bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
+	const SceneExecutionContext& context, MultiRenderTarget* source,
+	MultiRenderTarget* dest, RenderAssetLibrary& assetLibrary,
+	PipelineStateCache& pipelineCache, const ColorPipelineSettings& settings,
+	bool updateExposure) {
+
+	if (!source || !dest || !source->GetColorTexture(0) ||
+		!dest->GetColorTexture(0)) {
+		return false;
+	}
+
+	// 先にBloomが測定していれば同じ露出を再利用する
+	ViewExposureState& state = GetViewState(context.view->GetHistoryKey());
+	if ((updateExposure || !state.initialized || state.world != context.world ||
+			!context.postProcessCamera.postProcessEnabled) &&
+		!PrepareExposure(graphicsCore, context, source, assetLibrary, pipelineCache, settings)) return false;
+	const auto constants = BuildConstants(graphicsCore, context, *source, settings, false);
+	const auto allocation = constantBufferAllocator_.AllocateAndUpload(
+		graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice(), constants);
+	if (!allocation.gpuAddress) return false;
 
 	const bool drawn = DrawToneMap(graphicsCore, *source, *dest,
 		assetLibrary, pipelineCache, state, allocation.gpuAddress, context);

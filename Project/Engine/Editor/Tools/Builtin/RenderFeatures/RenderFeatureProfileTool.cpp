@@ -4,10 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/Rendering/PostProcess/Bloom/BloomSettings.h>
 
 // c++
 #include <algorithm>
@@ -22,10 +24,13 @@
 void Engine::RenderFeatureProfileTool::OpenEditorTool() {
 
 	openWindow_ = true;
+	requestCameraProfile_ = true;
 }
 
 void Engine::RenderFeatureProfileTool::OpenAsset(AssetID assetID) {
 
+	// Projectから開いたAssetはCameraの設定へ切り替えない
+	requestCameraProfile_ = false;
 	RequestAssetSwitch(assetID);
 	openWindow_ = true;
 }
@@ -53,6 +58,14 @@ Engine::EditorToolCloseResult Engine::RenderFeatureProfileTool::ConsumePendingEd
 
 void Engine::RenderFeatureProfileTool::DrawEditorTool(const EditorToolContext& context) {
 
+	if (requestCameraProfile_ && context.panelContext && context.panelContext->renderPipeline) {
+		// メニューから開くときは描画中のCameraに合わせる
+		const auto& view = context.panelContext->renderPipeline->GetResolvedView(RenderViewKind::Game);
+		if (const auto* camera = view.FindOutputCamera()) {
+			RequestAssetSwitch(camera->renderPasses);
+		}
+		requestCameraProfile_ = false;
+	}
 	if (openWindow_) {
 		DrawWindow(context);
 	}
@@ -88,6 +101,25 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		RequestAssetSwitch(profileAsset);
 	}
 
+	if (context.panelContext && context.panelContext->renderPipeline) {
+		// 編集対象とCameraの参照先を区別する
+		const auto& view = context.panelContext->renderPipeline->GetResolvedView(RenderViewKind::Game);
+		const auto* camera = view.FindOutputCamera();
+		const AssetID cameraProfile = camera ? camera->renderPasses : AssetID{};
+		AssetDatabase* database = context.toolContext.assetDatabase;
+		const AssetMeta* meta = database ? database->Find(cameraProfile) : nullptr;
+		MyGUI::Text("GameViewの設定", meta ? meta->assetPath : cameraProfile ? ToString(cameraProfile) : "未設定");
+		if (editSession_.GetProfileID() && editSession_.GetProfileID() != cameraProfile) {
+			ImGui::TextWrapped("この設定はGameViewの主Cameraに使用されていません");
+			if (cameraProfile && ImGui::Button("Cameraで使用中の設定を開く")) {
+				RequestAssetSwitch(cameraProfile);
+			}
+		}
+		if (camera && !camera->postProcessEnabled) {
+			ImGui::TextDisabled("Cameraのポストプロセス設定は無効です");
+		}
+	}
+
 	if (!editSession_.GetProfileID()) {
 		ImGui::TextDisabled("ProjectからRender Passesを選択してください");
 		ImGui::End();
@@ -110,7 +142,10 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 			}
 			ImGui::SameLine();
 			ImGui::TextUnformatted(pass.name.c_str());
-			ImGui::SameLine();
+			if (pass.type == RenderFeaturePassType::Bloom) {
+				MaterialParameterSet parameters = pass.parameterOverrides;
+				DrawBloomSettings(context, pass, parameters);
+			}
 			ImGui::PopID();
 		}
 		ImGui::End();
@@ -260,48 +295,67 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 	bool changed = false;
 	RenderFeaturePassSettings& editablePass = *selected;
 	changed |= MyGUI::InputText("名前", editablePass.name).valueChanged;
-	changed |= MyGUI::EnumCombo("種類", editablePass.type).valueChanged;
-	changed |= MyGUI::EnumCombo("実行位置", editablePass.anchor).valueChanged;
+	if (MyGUI::EnumCombo("種類", editablePass.type).valueChanged) {
+		changed = true;
+		if (editablePass.type == RenderFeaturePassType::Bloom) {
+			// Bloomの入出力は内部で一組として管理する
+			editablePass.material = {};
+			editablePass.materialPass = MaterialPassKind::PostProcess;
+			editablePass.anchor = RenderFeatureAnchor::AfterTransparent;
+			editablePass.outputs = {RenderFeatureOutputSettings{}};
+			editablePass.adaptiveResolution = false;
+			editablePass.parameterOverrides.clear();
+			editablePass.passInputs.clear();
+			editablePass.sceneInputs.clear();
+			editablePass.textureOverrides.clear();
+			editablePass.samplerOverrides.clear();
+			WriteBloomSettings(editablePass.parameterOverrides, BloomSettings{});
+		}
+	}
+	const bool bloom = editablePass.type == RenderFeaturePassType::Bloom;
+	changed |= bloom ? DrawBloomAnchor(editablePass.anchor) : MyGUI::EnumCombo("実行位置", editablePass.anchor).valueChanged;
 	if (editablePass.anchor == RenderFeatureAnchor::AfterToneMap) {
 		ImGui::TextDisabled("トーンマッピング後、ScreenUIの前にビューへ描画します");
 	}
 	changed |= DrawSelectedPassApplicationSettings(context, profile, editablePass);
 
-	AssetEditSetting setting{};
-	AssetID selectedAsset = editablePass.material;
-	if (MyGUI::AssetReferenceField(
-			"マテリアル", selectedAsset, context.toolContext.assetDatabase, {AssetType::Material, AssetType::Shader}, setting)
-			.valueChanged) {
+	if (!bloom) {
+		AssetEditSetting setting{};
+		AssetID selectedAsset = editablePass.material;
+		if (MyGUI::AssetReferenceField(
+				"マテリアル", selectedAsset, context.toolContext.assetDatabase, {AssetType::Material, AssetType::Shader}, setting)
+				.valueChanged) {
 
-		if (!selectedAsset) {
-			editablePass.material = {};
-			changed = true;
-		} else {
-			const AssetMeta* meta =
-				context.toolContext.assetDatabase ? context.toolContext.assetDatabase->Find(selectedAsset) : nullptr;
-			const AssetType assetType = meta ? meta->type : AssetType::Unknown;
-			const std::string_view assetPath = meta ? std::string_view(meta->assetPath) : std::string_view{};
-			const AssetID materialID = editSession_.ResolvePassMaterial(context, selectedAsset, assetType, assetPath);
-			if (materialID) {
-				editablePass.material = materialID;
-				if (assetType == AssetType::Shader) {
-					editablePass.type = RenderFeaturePassType::Compute;
-					editablePass.materialPass = MaterialPassKind::PostProcess;
+			if (!selectedAsset) {
+				editablePass.material = {};
+				changed = true;
+			} else {
+				const AssetMeta* meta =
+					context.toolContext.assetDatabase ? context.toolContext.assetDatabase->Find(selectedAsset) : nullptr;
+				const AssetType assetType = meta ? meta->type : AssetType::Unknown;
+				const std::string_view assetPath = meta ? std::string_view(meta->assetPath) : std::string_view{};
+				const AssetID materialID = editSession_.ResolvePassMaterial(context, selectedAsset, assetType, assetPath);
+				if (materialID) {
+					editablePass.material = materialID;
+					if (assetType == AssetType::Shader) {
+						editablePass.type = RenderFeaturePassType::Compute;
+						editablePass.materialPass = MaterialPassKind::PostProcess;
+					}
+					changed = true;
 				}
+			}
+		}
+		changed |= MyGUI::EnumCombo("マテリアルパス", editablePass.materialPass).valueChanged;
+		if (editablePass.type == RenderFeaturePassType::RayTracing) {
+			int32_t rayGeneration = static_cast<int32_t>(editablePass.rayGenerationIndex);
+			if (MyGUI::DragInt("Ray Generation", rayGeneration, {.minValue = 0}).valueChanged) {
+
+				editablePass.rayGenerationIndex = static_cast<uint32_t>(rayGeneration);
 				changed = true;
 			}
 		}
-	}
-	changed |= MyGUI::EnumCombo("マテリアルパス", editablePass.materialPass).valueChanged;
-	if (editablePass.type == RenderFeaturePassType::RayTracing) {
-		int32_t rayGeneration = static_cast<int32_t>(editablePass.rayGenerationIndex);
-		if (MyGUI::DragInt("Ray Generation", rayGeneration, {.minValue = 0}).valueChanged) {
 
-			editablePass.rayGenerationIndex = static_cast<uint32_t>(rayGeneration);
-			changed = true;
-		}
 	}
-
 	const auto sourceKindLabel = [](RenderFeatureSourceKind kind) {
 		switch (kind) {
 		case RenderFeatureSourceKind::PreviousPass:
@@ -337,6 +391,10 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 		editSession_.SetDirty();
 	}
 	ImGui::Separator();
+	if (bloom) {
+		DrawBloomSettings(context, editablePass, editablePass.parameterOverrides);
+		return;
+	}
 	DrawOutputs(editablePass);
 	DrawResources(context, editablePass);
 

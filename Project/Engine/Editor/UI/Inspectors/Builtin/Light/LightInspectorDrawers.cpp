@@ -14,6 +14,9 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 
 	// 光源の編集値を取得
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("固定ライトとしてベイク", draft.contributeBakedLighting);
+	});
 
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);
@@ -56,6 +59,9 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 
 	// 光源の編集値を取得
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("固定ライトとしてベイク", draft.contributeBakedLighting);
+	});
 
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);
@@ -95,6 +101,9 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 
 	// 光源の編集値を取得
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("固定ライトとしてベイク", draft.contributeBakedLighting);
+	});
 
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);
@@ -145,6 +154,9 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 
 	// 光源の編集値を取得
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("固定ライトとしてベイク", draft.contributeBakedLighting);
+	});
 
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);

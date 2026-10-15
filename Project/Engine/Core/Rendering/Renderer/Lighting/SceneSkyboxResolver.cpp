@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -41,6 +42,15 @@ Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
 	info.cubemapAssetID = skybox->cubemapTexture;
 	info.color = skybox->color;
 	info.iblIntensity = skybox->iblIntensity;
+	info.physicalEnvironmentEnabled = skybox->physicalEnvironmentEnabled;
+	if (info.physicalEnvironmentEnabled && graphicsCore.GetDXObject().GetDxCommand()->IsRecording()) {
+		// RTと通常描画で同じ生成世代を参照する
+		auto& specular = graphicsCore.GetEnvironmentSpecularMap();
+		specular.Update(graphicsCore, info.cubemapAssetID, info.cubemapIndex, cubemap->ownership);
+		info.specularIndex = specular.GetCubemapIndex();
+		info.brdfIndex = specular.GetBRDFIndex();
+		info.irradianceIndex = specular.GetIrradianceIndex();
+	}
 	info.found = true;
 	return info;
 }

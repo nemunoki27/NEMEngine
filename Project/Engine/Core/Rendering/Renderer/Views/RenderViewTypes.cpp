@@ -23,10 +23,7 @@ const Engine::ResolvedCameraView* Engine::ResolvedRenderView::FindCamera(RenderC
 
 std::string Engine::ResolvedRenderView::GetHistoryKey() const {
 
-	const ResolvedCameraView* camera = FindCamera(RenderCameraDomain::Perspective);
-	if (!camera) {
-		camera = FindCamera(RenderCameraDomain::Orthographic);
-	}
+	const ResolvedCameraView* camera = FindOutputCamera();
 	const Entity entity = camera ? camera->sourceCamera : Entity::Null();
 	// 同じEntity番号でもWorldと世代が異なれば共有しない
 	return std::to_string(historyWorldRevision) + "_" + std::to_string(static_cast<uint32_t>(kind)) + "_" +
@@ -43,9 +40,13 @@ uint32_t Engine::ResolvedRenderView::GetCullingMask(RenderCameraDomain domain) c
 		return camera->cullingMask;
 	}
 	// 分割画面では2Dと画面UIにも出力Cameraのマスクを使う
-	const ResolvedCameraView* outputCamera = FindCamera(RenderCameraDomain::Perspective);
-	if (!outputCamera) {
-		outputCamera = FindCamera(RenderCameraDomain::Orthographic);
-	}
+	const ResolvedCameraView* outputCamera = FindOutputCamera();
 	return outputCamera ? camera->cullingMask & outputCamera->cullingMask : camera->cullingMask;
+}
+
+const Engine::ResolvedCameraView* Engine::ResolvedRenderView::FindOutputCamera() const {
+
+	// 3Dの出力設定を優先し、3Dがなければ2Dを使う
+	const ResolvedCameraView* camera = FindCamera(RenderCameraDomain::Perspective);
+	return camera ? camera : FindCamera(RenderCameraDomain::Orthographic);
 }

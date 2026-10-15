@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureResourceUtility.h"
+#include <Engine/Core/Rendering/PostProcess/Bloom/BloomExecutor.h>
 #include "RenderFeaturePassTargets.h"
 #include "RenderFeatureSelectionSession.h"
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -244,7 +245,10 @@ void Engine::RenderFeaturePass::Execute(
 			executionPrimaryAlias = desc.name;
 			targets.outputTargets[targets.primaryOutput.shaderResource] = executionPrimaryTarget;
 		}
-		const bool bypassPass = skipSelection || (runtimeOverride && runtimeOverride->enabled == false) ||
+		const auto bloomSettings = pass.type == RenderFeaturePassType::Bloom ?
+			ReadBloomSettings(pass.parameterOverrides, runtimeOverride ? &runtimeOverride->parameters : nullptr) : BloomSettings{};
+		const bool bloomDisabled = pass.type == RenderFeaturePassType::Bloom && bloomSettings.intensity == 0.0f;
+		const bool bypassPass = bloomDisabled || skipSelection || (runtimeOverride && runtimeOverride->enabled == false) ||
 								rayTracingUnavailable || rayTracingMaterialsPending;
 		if (bypassPass) {
 
@@ -278,7 +282,13 @@ void Engine::RenderFeaturePass::Execute(
 
 				inputs[name] = reference.pass ? MakeOutputAlias(reference) : sceneColorAlias;
 			}
-			if (pass.type == RenderFeaturePassType::Compute) {
+			if (pass.type == RenderFeaturePassType::Bloom) {
+				// 複数のCompute処理を1つのPassとして合成する
+				if (!BloomExecutor::Execute(graphicsCore, context, deps_, pass.id, sourceAlias, executionPrimaryAlias, bloomSettings)) {
+					Logger::Output(LogType::Engine, spdlog::level::err, "[Bloom] 描画に失敗しました パス={}", pass.name);
+					return;
+				}
+			} else if (pass.type == RenderFeaturePassType::Compute) {
 				PostProcessExecutionDesc desc{};
 				desc.allowInlineRayTracing = options_.allowInlineRayTracing;
 				desc.material = pass.material;

@@ -59,6 +59,10 @@ namespace Engine {
 		uint32_t hasSkybox = 0;
 		float iblIntensity = 1.0f;
 		uint32_t frameIndex = 0;
+		uint32_t environmentSpecularIndex = UINT32_MAX;
+		uint32_t environmentBRDFIndex = UINT32_MAX;
+		uint32_t physicalEnvironmentEnabled = 0;
+		uint32_t environmentIrradianceIndex = UINT32_MAX;
 	};
 	static_assert(sizeof(RaytracingViewConstantsGPU) % 16 == 0,
 		"RaytracingViewConstantsGPU must be 16 byte aligned");

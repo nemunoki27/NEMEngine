@@ -13,6 +13,11 @@ namespace Engine::BuiltinAssets {
 	//============================================================================
 	namespace Materials {
 
+		inline constexpr AssetID BloomPrefilter{ 0x4e454d4153534554ull, 0x424c4f4f4d040001ull };
+		inline constexpr AssetID BloomDownsample{ 0x4e454d4153534554ull, 0x424c4f4f4d040002ull };
+		inline constexpr AssetID BloomUpsample{ 0x4e454d4153534554ull, 0x424c4f4f4d040003ull };
+		inline constexpr AssetID BloomComposite{ 0x4e454d4153534554ull, 0x424c4f4f4d040004ull };
+
 		inline constexpr AssetID DefaultSprite{ 0x4e454d4153534554ull, 0xef1a0db1d6ef57acull };
 		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0x39346ff93864d791ull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x317efcbf7aca8e61ull };
@@ -100,6 +105,11 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
 		inline constexpr AssetID DeferredLightingShadowed{ 0x4e454d4153534554ull, 0x4c49474854000002ull };
 		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
+		inline constexpr AssetID EnvironmentSpecular{ 0x4e454d4153534554ull, 0x454e5649524f0001ull };
+		inline constexpr AssetID EnvironmentBRDF{ 0x4e454d4153534554ull, 0x454e5649524f0002ull };
+		inline constexpr AssetID BakedLightingTrace{ 0x4e454d4153534554ull, 0x42414b454c540001ull };
+		inline constexpr AssetID DeferredLightingBaked{ 0x4e454d4153534554ull, 0x42414b454c540002ull };
+		inline constexpr AssetID DeferredLightingShadowedBaked{ 0x4e454d4153534554ull, 0x42414b454c540003ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
 		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
 		inline constexpr AssetID InlineShadowTrace{ 0x4e454d4153534554ull, 0x5348445700000001ull };
@@ -108,7 +118,8 @@ namespace Engine::BuiltinAssets {
 		// 固定描画パスが製品実行で必要とするシェーダー
 		inline constexpr AssetID FixedRuntime[] = {
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
-			SkyboxIrradiance, DepthVisualize, Skybox,
+			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
+			DeferredLightingBaked, DeferredLightingShadowedBaked,
 			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
 		};
 
@@ -126,6 +137,7 @@ namespace Engine::BuiltinAssets {
 			Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
 			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,
 			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,
+			Materials::BloomPrefilter, Materials::BloomDownsample, Materials::BloomUpsample, Materials::BloomComposite,
 			Materials::ToneMapToView, Materials::OutputTransform, Materials::RaytracingReflection,
 			Materials::ReflectionSpatial, Materials::ReflectionTemporal, Materials::ReflectionComposite,
 			Materials::AmbientOcclusion, Materials::AmbientOcclusionFilter,

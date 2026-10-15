@@ -93,6 +93,7 @@ namespace NEMTests {
 	bool TestRenderPassesReflectionCache();
 	bool TestPostProcessSourceExtension();
 	bool TestPostProcessPublication();
+	bool TestPostProcessLivePreview();
 	bool TestCanvasNavigationTable();
 	bool TestGPURetirement(bool hardware = false);
 }

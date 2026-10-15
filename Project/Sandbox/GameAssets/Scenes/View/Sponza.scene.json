@@ -19,6 +19,7 @@
                         "g": 0.633996844291687,
                         "r": 0.8680850863456726
                     },
+                    "contributeBakedLighting": false,
                     "decay": 0.0,
                     "enabled": true,
                     "intensity": 32.0,
@@ -240,6 +241,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -248,6 +250,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -272,14 +276,20 @@
                             "material": "",
                             "materialInstance": [
                                 {
+                                    "id": "31d4f90ec37c453f",
+                                    "name": "emissiveIntensity",
+                                    "semantic": "EmissiveIntensity",
+                                    "value": 0.0
+                                },
+                                {
                                     "id": "77f5c18e246c6638",
                                     "name": "color",
                                     "semantic": "BaseColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.2459031343460083,
-                                        "g": 0.8255318999290466,
-                                        "r": 0.3840274512767792
+                                        "b": 1.0,
+                                        "g": 1.0,
+                                        "r": 1.0
                                     }
                                 },
                                 {
@@ -288,22 +298,22 @@
                                     "semantic": "EmissiveColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.0,
-                                        "g": 0.0,
-                                        "r": 0.0
+                                        "b": 1.0,
+                                        "g": 1.0,
+                                        "r": 1.0
                                     }
                                 },
                                 {
                                     "id": "c65b493a4e9d7f55",
                                     "name": "roughness",
                                     "semantic": "Roughness",
-                                    "value": 0.17000000178813934
+                                    "value": 0.0
                                 },
                                 {
                                     "id": "df9e0c473a8555c8",
                                     "name": "metallic",
                                     "semantic": "Metallic",
-                                    "value": 0.9800000190734863
+                                    "value": 1.0
                                 }
                             ],
                             "name": "球",
@@ -342,9 +352,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 61.58216857910156,
-                        "y": 6.830559253692627,
-                        "z": 15.812809944152832
+                        "x": 93.5146484375,
+                        "y": 5.823081970214844,
+                        "z": 4.761654853820801
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -371,6 +381,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -379,6 +390,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -10012,6 +10025,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -10020,6 +10034,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -14827,15 +14843,15 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -0.5589346885681152,
-                        "y": -0.034113477915525436,
-                        "z": -0.4424419403076172
+                        "x": -0.34851551055908203,
+                        "y": -0.0341133251786232,
+                        "z": -0.4016580581665039
                     },
                     "localRotation": {
                         "w": 0.8999386429786682,
-                        "x": 2.9023352327097086e-18,
+                        "x": 4.715720689808165e-18,
                         "y": -0.4360165297985077,
-                        "z": 3.006248763185917e-18
+                        "z": 4.438397222511493e-18
                     },
                     "localScale": {
                         "x": 0.3700001835823059,
@@ -14855,13 +14871,14 @@
                         "g": 1.0,
                         "r": 1.0
                     },
+                    "contributeBakedLighting": false,
                     "direction": {
-                        "x": 0.35135626792907715,
-                        "y": -0.9196090698242188,
-                        "z": 0.1756926327943802
+                        "x": -0.14135193824768066,
+                        "y": -0.9785618782043457,
+                        "z": 0.1497873216867447
                     },
                     "enabled": true,
-                    "intensity": 4.369999885559082,
+                    "intensity": 15.760000228881836,
                     "shadowAngularRadius": 0.27000001072883606,
                     "shadowStrength": 1.0
                 },
@@ -14910,6 +14927,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -14918,6 +14936,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -17477,6 +17497,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -17485,6 +17506,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -17509,21 +17532,27 @@
                             "material": "",
                             "materialInstance": [
                                 {
+                                    "id": "31d4f90ec37c453f",
+                                    "name": "emissiveIntensity",
+                                    "semantic": "EmissiveIntensity",
+                                    "value": 4.0
+                                },
+                                {
                                     "id": "77f5c18e246c6638",
                                     "name": "color",
                                     "semantic": "BaseColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.6000000238418579,
-                                        "g": 0.6000000238418579,
-                                        "r": 0.6000000238418579
+                                        "b": 0.2299681305885315,
+                                        "g": 1.0,
+                                        "r": 0.04255318641662598
                                     }
                                 },
                                 {
                                     "id": "93c33e46dc8a4e8e",
                                     "name": "baseColorTexture",
                                     "semantic": "BaseColorTexture",
-                                    "value": "4e454d4153534554c2ea9f4498073ab3"
+                                    "value": ""
                                 },
                                 {
                                     "id": "c4617cc0ecd319d1",
@@ -17531,10 +17560,22 @@
                                     "semantic": "EmissiveColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.0,
-                                        "g": 0.0,
-                                        "r": 0.0
+                                        "b": 0.2299681305885315,
+                                        "g": 1.0,
+                                        "r": 0.04255318641662598
                                     }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.5
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
                                 }
                             ],
                             "name": "Mesh_0",
@@ -17573,9 +17614,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -14.021382331848145,
-                        "y": 5.682758808135986,
-                        "z": 11.336522102355957
+                        "x": 63.12154006958008,
+                        "y": 4.071656227111816,
+                        "z": -20.1860408782959
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -17584,9 +17625,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 5.110599517822266,
-                        "y": 5.110599517822266,
-                        "z": 5.110599517822266
+                        "x": 3.168571710586548,
+                        "y": 3.168571710586548,
+                        "z": 3.168571710586548
                     }
                 }
             },
@@ -17635,9 +17676,9 @@
                                 "z": 6.309710443019867e-08
                             },
                             "saturation": {
-                                "x": 1.1000065803527832,
-                                "y": 1.1000065803527832,
-                                "z": 1.1000065803527832
+                                "x": 1.0000063180923462,
+                                "y": 1.0000063180923462,
+                                "z": 1.0000063180923462
                             },
                             "temperature": 8000.0,
                             "tint": 0.0
@@ -17753,20 +17794,20 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 63.263999938964844,
-                        "y": 17.36199951171875,
-                        "z": -4.64422082901001
+                        "x": -24.058801651000977,
+                        "y": 25.829660415649414,
+                        "z": -4.668733596801758
                     },
                     "localRotation": {
-                        "w": 0.7059840559959412,
-                        "x": 0.041943181306123734,
-                        "y": 0.705740213394165,
-                        "z": -0.041928697377443314
+                        "w": 0.7059839963912964,
+                        "x": 0.041942618787288666,
+                        "y": 0.7057403326034546,
+                        "z": -0.04192821681499481
                     },
                     "localScale": {
-                        "x": 1.0000126361846924,
-                        "y": 1.000011682510376,
-                        "z": 1.000011682510376
+                        "x": 1.000009536743164,
+                        "y": 1.000012755393982,
+                        "z": 1.0000149011611938
                     }
                 }
             },
@@ -17790,12 +17831,13 @@
                 "SkyboxRenderer": {
                     "color": {
                         "a": 1.0,
-                        "b": 0.1151290163397789,
-                        "g": 0.12493771314620972,
-                        "r": 0.14468085765838623
+                        "b": 0.16492530703544617,
+                        "g": 0.17289948463439941,
+                        "r": 0.1872340440750122
                     },
                     "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
-                    "iblIntensity": 0.6299999952316284,
+                    "iblIntensity": 0.4099999964237213,
+                    "physicalEnvironmentEnabled": true,
                     "renderingLayerMask": 1,
                     "visible": true
                 },
@@ -17831,6 +17873,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -17839,6 +17882,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -18391,7 +18436,7 @@
                                     "id": "31d4f90ec37c453f",
                                     "name": "emissiveIntensity",
                                     "semantic": "EmissiveIntensity",
-                                    "value": 1.0
+                                    "value": 21.459999084472656
                                 },
                                 {
                                     "id": "77f5c18e246c6638",
@@ -18399,9 +18444,9 @@
                                     "semantic": "BaseColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.0,
-                                        "g": 0.0,
-                                        "r": 0.0
+                                        "b": 0.23529399931430817,
+                                        "g": 0.7058820128440857,
+                                        "r": 1.0
                                     }
                                 },
                                 {
@@ -18493,6 +18538,7 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
+                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -18501,6 +18547,8 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
+                    "receiveLightProbes": false,
+                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -18525,14 +18573,20 @@
                             "material": "",
                             "materialInstance": [
                                 {
+                                    "id": "31d4f90ec37c453f",
+                                    "name": "emissiveIntensity",
+                                    "semantic": "EmissiveIntensity",
+                                    "value": 4.0
+                                },
+                                {
                                     "id": "77f5c18e246c6638",
                                     "name": "color",
                                     "semantic": "BaseColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.6000000238418579,
-                                        "g": 0.6000000238418579,
-                                        "r": 0.6000000238418579
+                                        "b": 0.8638297915458679,
+                                        "g": 0.11395203322172165,
+                                        "r": 0.6181251406669617
                                     }
                                 },
                                 {
@@ -18541,9 +18595,9 @@
                                     "semantic": "EmissiveColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.0,
-                                        "g": 0.0,
-                                        "r": 0.0
+                                        "b": 0.8638297915458679,
+                                        "g": 0.11395203322172165,
+                                        "r": 0.6181251406669617
                                     }
                                 }
                             ],
@@ -18583,9 +18637,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 55.26527404785156,
-                        "y": 6.717897891998291,
-                        "z": -7.907340049743652
+                        "x": 59.479007720947266,
+                        "y": 6.108950614929199,
+                        "z": -33.54468536376953
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -18594,9 +18648,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 6.96999979019165,
-                        "y": 6.96999979019165,
-                        "z": 6.96999979019165
+                        "x": 5.994199752807617,
+                        "y": 5.994199752807617,
+                        "z": 5.994199752807617
                     }
                 }
             },
@@ -18604,6 +18658,8 @@
         }
     ],
     "Header": {
+        "bakedLighting": "",
+        "bakedLightingEnabled": false,
         "name": "Sponza",
         "subScenes": [
             {

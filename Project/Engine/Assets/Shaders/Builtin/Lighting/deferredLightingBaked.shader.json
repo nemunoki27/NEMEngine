@@ -1,0 +1,11 @@
+{
+  "name": "deferredLightingBaked",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "4e454d4153534554d9917a9805d3373a",
+      "entry": "mainBaked",
+      "profile": "ps_6_0"
+    }
+  ]
+}

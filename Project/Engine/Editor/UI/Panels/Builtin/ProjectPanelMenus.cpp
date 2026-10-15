@@ -11,6 +11,7 @@
 #include <Engine/Editor/Utility/EditorShell.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -21,7 +22,7 @@
 #include <array>
 
 void Engine::ProjectPanel::DrawDirectoryContextMenu(
-	[[maybe_unused]] AssetDatabase& database, const ProjectDirectoryNode& node) {
+	const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	if (!ImGui::BeginPopupContextWindow(
 			"ProjectDirectoryContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
@@ -33,6 +34,7 @@ void Engine::ProjectPanel::DrawDirectoryContextMenu(
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
 	}
+	DrawPasteAssetMenuItem(context, database, node.virtualPath);
 	ImGui::EndPopup();
 }
 
@@ -52,6 +54,7 @@ void Engine::ProjectPanel::DrawFolderContextMenu(
 
 		BeginRenameDirectory(node);
 	}
+	DrawPasteAssetMenuItem(context, database, node.virtualPath);
 	if (ImGui::BeginMenu("作成")) {
 
 		DrawCreateMenuItems(node.virtualPath);
@@ -100,6 +103,12 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 		context.editorState->SelectAsset(asset.assetID);
 		HandleAssetDoubleClick(context, asset);
 	}
+	if (ImGui::MenuItem("コピー")) {
+
+		// 貼り付けるまではファイルを作成しない
+		copiedAssetID_ = asset.assetID;
+	}
+	DrawPasteAssetMenuItem(context, database, Algorithm::PathToUTF8(Algorithm::PathFromUTF8(asset.assetPath).parent_path()));
 	if (ImGui::MenuItem("複製")) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset, context.editorContext->sceneStorage);
@@ -152,6 +161,38 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 		}
 	}
 	ImGui::EndPopup();
+}
+
+void Engine::ProjectPanel::DrawPasteAssetMenuItem(
+	const EditorPanelContext& context, AssetDatabase& database, const std::string& directoryVirtualPath) {
+
+	const AssetMeta* meta = copiedAssetID_ ? database.Find(copiedAssetID_) : nullptr;
+	if (!ImGui::MenuItem("貼り付け", nullptr, false, meta != nullptr)) {
+		return;
+	}
+
+	// 名前変更や移動後の情報をIDから取得する
+	const ProjectAssetEntry* asset = assetIndex_.FindAssetByPath(meta->assetPath);
+	ProjectAssetIndex sourceIndex;
+	if (!asset) {
+		const ProjectAssetSource source = meta->assetPath.starts_with("Engine/") ?
+			ProjectAssetSource::Engine : ProjectAssetSource::Game;
+		if (sourceIndex.Rebuild(database, source)) {
+			asset = sourceIndex.FindAssetByPath(meta->assetPath);
+		}
+	}
+	if (!asset) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[Project] コピー元のアセットが見つかりません");
+		return;
+	}
+
+	// 複製と同じ処理で付随ファイルとSceneも扱う
+	const ProjectAssetFileResult result = ProjectAssetFileUtility::CopyAsset(
+		*asset, assetSource_, directoryVirtualPath, context.editorContext->sceneStorage);
+	if (!result.success) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[Project] {}", result.message);
+	}
+	RefreshAfterFileOperation(database, result);
 }
 
 void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {

@@ -6,6 +6,7 @@
 //============================================================================
 #include "meshShaderSharedTypes.hlsli"
 #include "../../Common/descriptorHeapCompatibility.hlsli"
+#include "../../Common/normalEncoding.hlsli"
 
 //============================================================================
 //	output
@@ -175,17 +176,7 @@ uint3 UnpackPrimitiveIndex(uint packedIndex) {
 
 float3 DecodeOctNormal(uint packedNormal) {
 
-	int sx = (int)(packedNormal << 16) >> 16;
-	int sy = (int)packedNormal >> 16;
-	float2 f = float2(sx, sy) / 32767.0f;
-	float3 n = float3(f.x, f.y, 1.0f - abs(f.x) - abs(f.y));
-	if (n.z < 0.0f) {
-
-		float2 old = n.xy;
-		n.x = (1.0f - abs(old.y)) * (old.x >= 0.0f ? 1.0f : -1.0f);
-		n.y = (1.0f - abs(old.x)) * (old.y >= 0.0f ? 1.0f : -1.0f);
-	}
-	return normalize(n);
+	return DecodePackedDirection(packedNormal);
 }
 
 MeshVertex DecodePackedVertex(MeshPackedVertex vertex) {

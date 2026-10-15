@@ -1,0 +1,141 @@
+{
+    "gameView": true,
+    "guid": "4e454d4153534554525450524f46494c",
+    "hierarchy": [
+        {
+            "id": "446d68c2c960ee52",
+            "type": "Pass"
+        },
+        {
+            "id": "e5c893b80cabcad4",
+            "type": "Pass"
+        }
+    ],
+    "name": "Classroom",
+    "passes": [
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gpuBudgetMs": 2.0,
+            "id": "446d68c2c960ee52",
+            "material": "d2827571ebe9ec8433dfde5afde335ea",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "FXAA",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "a7c895c372b27b7f",
+                    "name": "edgeThreshold",
+                    "semantic": "None",
+                    "value": 0.24500000476837158
+                },
+                {
+                    "id": "d395fda651867350",
+                    "name": "strength",
+                    "semantic": "None",
+                    "value": 1.0
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneInputs": {},
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gpuBudgetMs": 2.0,
+            "id": "e5c893b80cabcad4",
+            "material": "14a21036280256472a3862919c1edb3b",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "lightShaft",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "052165ef2b8013db",
+                    "name": "density",
+                    "semantic": "None",
+                    "value": 0.0020000000949949026
+                },
+                {
+                    "id": "1b9a034624b9a4aa",
+                    "name": "intensity",
+                    "semantic": "None",
+                    "value": 0.36000001430511475
+                },
+                {
+                    "id": "1e4984ef2e958a4c",
+                    "name": "tint",
+                    "semantic": "None",
+                    "value": [
+                        0.9900000095367432,
+                        0.6700000166893005,
+                        0.7699999809265137
+                    ]
+                },
+                {
+                    "id": "5928775f0f66057d",
+                    "name": "anisotropy",
+                    "semantic": "None",
+                    "value": 0.6299999952316284
+                },
+                {
+                    "id": "7c314e706d951238",
+                    "name": "threshold",
+                    "semantic": "None",
+                    "value": 0.0
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneInputs": {},
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        }
+    ],
+    "sceneView": true,
+    "version": 2
+}

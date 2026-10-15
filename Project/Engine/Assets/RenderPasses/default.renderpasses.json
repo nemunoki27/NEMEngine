@@ -1,8 +1,142 @@
 {
-    "hierarchy": [],
-    "name": "Default Render Passes",
-    "passes": [],
-    "version": 2,
     "gameView": true,
-    "sceneView": true
+    "guid": "4e454d4153534554525450524f46494c",
+    "hierarchy": [
+        {
+            "id": "446d68c2c960ee52",
+            "type": "Pass"
+        },
+        {
+            "id": "e6a6ec2a7a1d3003",
+            "type": "Pass"
+        }
+    ],
+    "name": "Default Render Passes",
+    "passes": [
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gpuBudgetMs": 2.0,
+            "id": "446d68c2c960ee52",
+            "material": "d2827571ebe9ec8433dfde5afde335ea",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "FXAA",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "a7c895c372b27b7f",
+                    "name": "edgeThreshold",
+                    "semantic": "None",
+                    "value": 0.24500000476837158
+                },
+                {
+                    "id": "d395fda651867350",
+                    "name": "strength",
+                    "semantic": "None",
+                    "value": 1.0
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneInputs": {},
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gpuBudgetMs": 2.0,
+            "id": "e6a6ec2a7a1d3003",
+            "material": "",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Bloom",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "1b9a034624b9a4aa",
+                    "name": "intensity",
+                    "semantic": "None",
+                    "value": 2.0
+                },
+                {
+                    "id": "1e4984ef2e958a4c",
+                    "name": "tint",
+                    "semantic": "None",
+                    "value": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    }
+                },
+                {
+                    "id": "4a94c51b5f6a6081",
+                    "name": "scatter",
+                    "semantic": "None",
+                    "value": 0.5400000214576721
+                },
+                {
+                    "id": "7c314e706d951238",
+                    "name": "threshold",
+                    "semantic": "None",
+                    "value": 1.0
+                },
+                {
+                    "id": "bca304d08c7edb5a",
+                    "name": "softKnee",
+                    "semantic": "None",
+                    "value": 1.0
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneInputs": {},
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Bloom"
+        }
+    ],
+    "sceneView": true,
+    "version": 2
 }

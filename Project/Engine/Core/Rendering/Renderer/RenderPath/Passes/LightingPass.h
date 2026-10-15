@@ -8,10 +8,12 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
+#include <Engine/Core/Rendering/Lighting/Baked/BakedLightingRuntime.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/DirectionalShadowMapRenderer.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/InlineShadowRenderer.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -97,16 +99,29 @@ namespace Engine {
 			std::array<Matrix4x4, 4> shadowViewProjections{};
 			Vector4 shadowCascadeSplits = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 			Vector4 shadowDepthRanges = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+			uint32_t environmentSpecularIndex = UINT32_MAX;
+			uint32_t environmentBRDFIndex = UINT32_MAX;
+			uint32_t physicalEnvironmentEnabled = 0;
+			uint32_t _environmentPad = 0;
+		};
+		struct DirectionalShadowConstants {
+
+			std::array<Matrix4x4, 4> viewProjections{};
+			Vector4 cascadeSplits{};
+			uint32_t available = 0;
+			uint32_t lightIndex = UINT32_MAX;
+			float depthBias = 0.00002f;
+			float padding = 0.0f;
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
-		std::unique_ptr<PipelineState> pipeline_{};
-		std::unique_ptr<PipelineState> pipelineShadowed_{};
-		bool initialized_ = false;
+		std::array<std::unique_ptr<PipelineState>, 2> pipeline_{};
+		std::array<std::unique_ptr<PipelineState>, 2> pipelineShadowed_{};
+		std::array<bool, 2> initialized_{};
 		// shadow版PSOが構築できたか、inlineRT非対応環境では作れないので分けて持つ
-		bool shadowedAvailable_ = false;
+		std::array<bool, 2> shadowedAvailable_{};
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
 		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>, kGraphicsFrameContextCount>
@@ -131,14 +146,20 @@ namespace Engine {
 
 		// skyboxのcubemapから作る拡散IBL用の放射照度cubemap
 		SkyboxIrradianceMap irradianceMap_{};
+		BakedLightingRuntime bakedLighting_{};
 		const RenderPipelineDeps& deps_;
 		DirectionalShadowMapRenderer directionalShadows_;
 		InlineShadowRenderer inlineShadows_;
+		ViewConstantBuffer<DirectionalShadowConstants> directionalShadowConstants_{"DirectionalShadowConstants"};
 
 		//--------- functions ----------------------------------------------------
 
 		// 初回描画時にパイプラインを生成する
-		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat);
+		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat, bool baked);
+		// 実行するShaderの影入力から必要なCascadeを判定する
+		bool RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const SceneExecutionContext& context);
+		// 同じViewの影を後段の散乱計算へ公開する
+		void PublishDirectionalShadows(GraphicsCore& graphicsCore, SceneExecutionContext& context, bool available);
 		// フレーム内で再利用する定数バッファを確保する
 		DxConstBuffer<LightingConstants>& AllocateConstantBuffer(GraphicsCore& graphicsCore);
 		// GBufferのSRVを対応スロットへバインドする

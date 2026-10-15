@@ -303,7 +303,9 @@ bool Engine::RenderFeatureProfileRuntime::IsPassConfiguredActive(
 	const RenderFeaturePassRuntimeOverride* runtimeOverride = RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
 	// 無効化したPassも主入力を引き継ぐため計画へ残す
 	const bool enabled = pass.enabled || (runtimeOverride && runtimeOverride->enabled == true);
-	return enabled && pass.material && IsEnabledForView(*profile_, viewKind) && IsPassHierarchyEnabled(pass.id);
+	// Bloomは内部の標準Materialを使う
+	return enabled && (pass.type == RenderFeaturePassType::Bloom || pass.material) &&
+		IsEnabledForView(*profile_, viewKind) && IsPassHierarchyEnabled(pass.id);
 }
 
 bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(const RenderFeatureHierarchyItem& group) const {

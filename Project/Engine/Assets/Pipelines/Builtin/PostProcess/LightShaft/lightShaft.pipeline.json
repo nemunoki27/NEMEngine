@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "lightShaftPipeline",
+    "sourceShader": "Engine/Assets/Shaders/Builtin/PostProcess/LightShaft/lightShaft.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "8a089d4b7f57ba6e35b60c7d977693a9"
+        }
+    ]
+}

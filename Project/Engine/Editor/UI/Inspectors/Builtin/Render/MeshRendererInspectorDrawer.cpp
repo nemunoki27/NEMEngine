@@ -102,6 +102,11 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		drawRenderFlagField("IBLを受ける", MeshRenderFlags::ReceiveIBL);
 		drawRenderFlagField("反射に映す", MeshRenderFlags::CastReflection);
 		drawRenderFlagField("反射を受ける", MeshRenderFlags::ReceiveReflection);
+		drawRenderFlagField("Lightmapを受ける", MeshRenderFlags::ReceiveLightmap);
+		drawRenderFlagField("Light Probesを受ける", MeshRenderFlags::ReceiveLightProbes);
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("固定背景としてベイク", draft.contributeBakedLighting);
+		});
 	}
 
 	// 一番下に全サブメッシュ同時編集UIを置く

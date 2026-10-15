@@ -78,7 +78,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 		sourceRadius = max(sourceSize.x, sourceSize.y) * 0.5f;
 	}
 	if (!directional) direction = toLight / max(lightDistance, 0.001f);
-	if (dot(normal, direction) <= 0.0f || lightDistance <= 0.001f) {
+	if (lightDistance <= 0.001f) {
 		gShadowOutput[offset] = 0.0f.xx; return;
 	}
 	float3 tangent;
@@ -106,8 +106,11 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 			toLight + (rectangular ? right * rectangleSample.x * sourceSize.x + up * rectangleSample.y * sourceSize.y :
 				(tangent * disk.x + bitangent * disk.y) * sourceRadius);
 		float distance = directional ? shadowMaxDistance : length(sampleDirection);
-		float hitDistance;
-		bool hit = TraceShadowRay(origin, normalize(sampleDirection), distance, hitDistance);
+		float3 rayDirection = normalize(sampleDirection);
+		float hitDistance = 0.0f;
+		// 面の裏側から来る光を遮蔽なしとして扱わない
+		bool hit = dot(normal, rayDirection) <= 0.0f;
+		if (!hit) hit = TraceShadowRay(origin, rayDirection, distance, hitDistance);
 		occlusion += hit ? 1.0f : 0.0f;
 		blockerDistance += hitDistance;
 	}

@@ -307,10 +307,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.assetDatabase = request.assetDatabase;
 	const ResolvedRenderView& extensionView = kind == RenderViewKind::Scene && gameViewState_.view.valid ?
 		gameViewState_.view : view;
-	const ResolvedCameraView* extensionCamera = extensionView.FindCamera(RenderCameraDomain::Perspective);
-	if (!extensionCamera) {
-		extensionCamera = extensionView.FindCamera(RenderCameraDomain::Orthographic);
-	}
+	const ResolvedCameraView* extensionCamera = extensionView.FindOutputCamera();
 	const AssetID extensionID = extensionCamera ? extensionCamera->renderPasses : AssetID{};
 	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderPassesRevision(extensionID);
 	if (cameraState.renderPassesAsset != extensionID ||

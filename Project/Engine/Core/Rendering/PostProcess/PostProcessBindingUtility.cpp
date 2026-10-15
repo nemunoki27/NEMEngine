@@ -95,6 +95,10 @@ namespace Engine {
 				}
 			}
 		}
+		// 中間Colorにも現在のCameraのScene深度を接続する
+		if (context.targetRegistry) {
+			if (auto* depth = context.targetRegistry->FindDepthByName(RenderTargetNames::kSceneDepth)) return depth;
+		}
 		return source.GetDepthTexture();
 	}
 
@@ -137,6 +141,12 @@ namespace Engine {
 			resolvedName = kSourceDepthName;
 		}
 		else if (!binding.name.empty()) {
+			// 先行Passが公開したTextureも同じViewから参照する
+			if (const auto* buffer = context.bufferRegistry.Find(binding.name); buffer && buffer->srvGPUHandle.ptr) {
+				outBindItems.push_back({binding.name, ComputeBindValueType::SRV, 0, buffer->srvGPUHandle,
+					binding.bindPoint, binding.space});
+				return true;
+			}
 			const auto resolveGraphSource = [&]() -> std::string_view {
 
 				if (binding.name == ShaderGraphBindingNames::kSceneColor) return RenderTargetNames::kSceneColorOpaque;

@@ -189,6 +189,11 @@ namespace {
 	}
 }
 
+uint32_t Engine::MeshUploadPreparation::PackDirection(const Vector3& direction) {
+
+	return EncodeOctNormal(direction);
+}
+
 Engine::MeshUploadData Engine::MeshUploadPreparation::Build(const ImportedMeshAsset& imported) {
 
 	// worker上で描画用配列と境界球を確定する

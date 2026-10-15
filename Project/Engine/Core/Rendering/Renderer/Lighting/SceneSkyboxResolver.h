@@ -31,6 +31,10 @@ namespace Engine {
 		Color4 color = Color4::White();
 		// 拡散IBL環境光の強さ
 		float iblIntensity = 1.0f;
+		bool physicalEnvironmentEnabled = false;
+		uint32_t specularIndex = UINT32_MAX;
+		uint32_t brdfIndex = UINT32_MAX;
+		uint32_t irradianceIndex = UINT32_MAX;
 		// 有効なskyboxが見つかったか
 		bool found = false;
 	};

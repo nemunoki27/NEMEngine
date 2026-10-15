@@ -21,6 +21,22 @@ namespace NEMTests {
 		left.historyWorldRevision = 1;
 		left.perspective.valid = true;
 		left.perspective.sourceCamera = Entity{1, 1};
+		// 編集画面も描画と同じCameraの設定を選ぶ
+		left.perspective.renderPasses = AssetID{101, 102};
+		left.orthographic.valid = true;
+		left.orthographic.renderPasses = AssetID{103, 104};
+		if (left.FindOutputCamera() != &left.perspective) {
+			return false;
+		}
+		left.perspective.valid = false;
+		if (left.FindOutputCamera() != &left.orthographic) {
+			return false;
+		}
+		left.orthographic.valid = false;
+		if (left.FindOutputCamera()) {
+			return false;
+		}
+		left.perspective.valid = true;
 		ResolvedRenderView right = left;
 		right.perspective.sourceCamera = Entity{2, 1};
 		RenderCameraHistory history{};

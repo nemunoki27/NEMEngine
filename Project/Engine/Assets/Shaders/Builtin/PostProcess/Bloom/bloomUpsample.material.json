@@ -1,0 +1,23 @@
+{
+    "name": "bloomUpsampleMaterial",
+    "domain": "Compute",
+    "parameters": {
+        "threshold": 1,
+        "softKnee": 0.5,
+        "intensity": 0.6,
+        "scatter": 0.7,
+        "tint": {
+            "r": 1,
+            "g": 1,
+            "b": 1,
+            "a": 1
+        }
+    },
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "4e454d4153534554424c4f4f4d030003",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

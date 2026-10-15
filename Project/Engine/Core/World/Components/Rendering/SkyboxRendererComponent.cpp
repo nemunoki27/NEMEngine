@@ -11,6 +11,7 @@ void Engine::from_json(const nlohmann::json& in, SkyboxRendererComponent& compon
 		component.color = Color4::FromJson(in["color"]);
 	}
 	component.iblIntensity = in.value("iblIntensity", component.iblIntensity);
+	component.physicalEnvironmentEnabled = in.value("physicalEnvironmentEnabled", component.physicalEnvironmentEnabled);
 	component.visible = in.value("visible", component.visible);
 	component.renderingLayerMask = in.value("renderingLayerMask", component.renderingLayerMask) & kRenderingLayerMaskBits;
 }
@@ -20,6 +21,7 @@ void Engine::to_json(nlohmann::json& out, const SkyboxRendererComponent& compone
 	out["cubemapTexture"] = ToAssetReferenceJson(component.cubemapTexture);
 	out["color"] = component.color.ToJson();
 	out["iblIntensity"] = component.iblIntensity;
+	out["physicalEnvironmentEnabled"] = component.physicalEnvironmentEnabled;
 	out["visible"] = component.visible;
 	out["renderingLayerMask"] = component.renderingLayerMask & kRenderingLayerMaskBits;
 }

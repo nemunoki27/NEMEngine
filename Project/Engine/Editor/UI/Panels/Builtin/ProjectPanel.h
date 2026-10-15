@@ -116,9 +116,8 @@ namespace Engine {
 		ProjectAssetFileResult pendingFileOperationResult_{};
 		// ファイル操作後の再構築が保留されているか
 		bool hasPendingFileOperationRefresh_ = false;
-		// Ctrl+C/Ctrl+Vのコピペで控えるアセットの内部クリップボード
-		ProjectAssetEntry copiedAsset_{};
-		bool hasCopiedAsset_ = false;
+		// 右クリックでコピーしたアセットのID
+		AssetID copiedAssetID_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -155,12 +154,16 @@ namespace Engine {
 		// アセットのドラッグソースを描画する
 		void DrawAssetDragDropSource(const ProjectAssetEntry& asset, ImGuiDragDropFlags flags = ImGuiDragDropFlags_None);
 		// 空白部分の右クリックメニューを描画する
-		void DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
+		void DrawDirectoryContextMenu(
+			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// フォルダ右クリックメニューを描画する
 		void DrawFolderContextMenu(
 			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// アセット右クリックメニューを描画する
 		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
+		// コピーしたアセットを指定フォルダーへ貼り付ける
+		void DrawPasteAssetMenuItem(
+			const EditorPanelContext& context, AssetDatabase& database, const std::string& directoryVirtualPath);
 		// フォルダーとアセット共通のGit設定を描画する
 		void DrawGitContextMenu(const std::filesystem::path& path, bool directory);
 		// 新規作成用の名前入力ポップアップを描画する

@@ -1,0 +1,10 @@
+{
+    "name": "bloomPrefilterPipeline",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "4e454d4153534554424c4f4f4d020001"
+        }
+    ]
+}

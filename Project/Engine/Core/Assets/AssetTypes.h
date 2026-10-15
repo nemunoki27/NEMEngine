@@ -42,6 +42,7 @@ namespace Engine {
 		RenderPasses = 16,
 		DefaultAsset,
 		AnimationController,
+		BakedLighting,
 	};
 
 	// アセット参照の診断種別

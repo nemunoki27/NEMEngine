@@ -34,11 +34,12 @@ namespace {
 		if (name == "blurhorizontal" || name == "blurvertical") {
 			return {{"radius", 1.0f}};
 		}
-		if (name == "bloomprefilter") {
-			return {{"threshold", 1.0f}, {"knee", 0.5f}, {"intensity", 1.0f}};
+		if (name == "fxaa") {
+			return {{"strength", 1.0f}, {"edgeThreshold", 0.125f}, {"minimumThreshold", 0.0312f}, {"subpixelStrength", 1.0f}};
 		}
-		if (name == "bloomcomposite") {
-			return {{"intensity", 0.75f}};
+		if (name == "lightshaft") {
+			return {{"intensity", 1.0f}, {"density", 0.002f}, {"maxDistance", 600.0f}, {"anisotropy", 0.35f},
+				{"tint", {1.0f, 1.0f, 1.0f}}, {"sampleCount", 64u}};
 		}
 		return nlohmann::json::object();
 	}

@@ -47,6 +47,10 @@ namespace Engine {
 		// GPUバッファとDescriptorを解放する
 		void Release();
 
+		// Bloom前の画像からCameraの露出を一度だけ更新する
+		bool PrepareExposure(GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+			MultiRenderTarget* source, RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache,
+			const ColorPipelineSettings& settings);
 		// sourceを露出とカラー設定に従ってToneMapしdestへ描画する
 		bool ToneMap(GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 			MultiRenderTarget* source, MultiRenderTarget* dest,

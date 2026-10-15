@@ -5,6 +5,7 @@
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/pbrMath.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
+#include "Baked/bakedLightingRuntime.hlsli"
 
 //============================================================================
 //	GBuffer入力
@@ -89,6 +90,10 @@ cbuffer DeferredLightingConstants : register(b1) {
 	float4x4 shadowViewProjections[4];
 	float4 shadowCascadeSplits;
 	float4 shadowDepthRanges;
+	uint environmentSpecularIndex;
+	uint environmentBRDFIndex;
+	uint physicalEnvironmentEnabled;
+	uint _environmentPad;
 };
 
 Texture2D<float> gDirectionalShadowMap0 : register(t13);
@@ -116,49 +121,7 @@ float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
 	return saturate(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x].x);
 }
 
-float ComputeDistanceAttenuation(float dist, float range, float decay) {
-
-	if (range <= 0.0001f || dist >= range) {
-		return 0.0f;
-	}
-
-	float x = saturate(dist / range);
-	float smooth = 1.0f - x * x;
-	smooth *= smooth;
-
-	float d = max(decay, 0.0f);
-	float distanceFalloff = 1.0f / max(pow(max(dist, 1.0f), d), 1.0f);
-
-	return smooth * distanceFalloff;
-}
-
-// バーンドアで矩形外側へ広がる光の範囲と境界の鋭さを制御する
-float ComputeRectBarnAttenuation(RectLight light, float3 worldPos) {
-
-	float3 fromLight = worldPos - light.pos;
-	float forward = dot(fromLight, light.direction);
-	if (forward <= 0.0f) {
-		return 0.0f;
-	}
-	if (light.barnDoorLength <= 0.0001f) {
-		return 1.0f;
-	}
-
-	float spread = tan(radians(clamp(
-		light.barnDoorAngle, 0.0f, 89.0f))) * forward;
-	float widthLimit = max(light.sourceWidth, 0.0f) * 0.5f + spread;
-	float heightLimit = max(light.sourceHeight, 0.0f) * 0.5f + spread;
-	float lateralX = abs(dot(fromLight, light.right));
-	float lateralY = abs(dot(fromLight, light.up));
-	float edgeSoftness = max(
-		forward / (1.0f + light.barnDoorLength * 4.0f), 0.001f);
-
-	float widthAttenuation =
-		1.0f - smoothstep(widthLimit, widthLimit + edgeSoftness, lateralX);
-	float heightAttenuation =
-		1.0f - smoothstep(heightLimit, heightLimit + edgeSoftness, lateralY);
-	return widthAttenuation * heightAttenuation;
-}
+#include "lightAttenuation.hlsli"
 
 float3 EvaluatePBRLight(float3 N, float3 V, float3 L, float3 radiance,
 	float3 albedo, float metallic, float roughness, float3 F0) {
@@ -392,11 +355,11 @@ bool LoadScreenSpaceDepthDelta(float2 uv, float sampleDepth,
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float3 emissive, uint flags,
-	bool useShadow);
+	bool useShadow, bool useBaked);
 
 // 粗いMarchで見つけた交差区間を二分探索して縞状の欠落を防ぐ
 bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
-	bool useShadow,
+	bool useShadow, bool useBaked,
 	out float3 reflectionColor) {
 
 	reflectionColor = 0.0f.xxx;
@@ -468,7 +431,7 @@ bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
 				reflectionColor = EvaluateSurfaceLighting(
 					hitPixel, hitWorldPos, hitNormal, normalize(-direction),
 					hitAlbedo, hitMaterial.r, max(hitMaterial.g, 0.04f),
-					hitMaterial.b, hitEmissive, hitFlags, useShadow);
+					hitMaterial.b, hitEmissive, hitFlags, useShadow, useBaked);
 				return true;
 			}
 		}
@@ -594,7 +557,7 @@ float TraceDirectionalShadowMap(float3 worldPos, float3 worldNormal) {
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float3 emissive, uint flags,
-	bool useShadow) {
+	bool useShadow, bool useBaked) {
 
 	if ((flags & kMaterialFlagLighting) == 0u) {
 		return albedo + emissive;
@@ -684,14 +647,21 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 
 	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
 
-		if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
+		float3 bakedIndirect;
+		if (useBaked && SampleBakedIndirect(worldPos, N, flags, uint(gWorldPos.Load(int3(pixel, 0)).w), bakedIndirect)) {
+			// ベイク済みの遮蔽と環境光を重複適用しない
+			color += bakedIndirect * albedo * (1.0f - metallic) * (1.0f - F0);
+		} else if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
 
 			TextureCube<float4> irradianceMap =
 				NEM_TEXTURECUBE(irradianceCubemapIndex);
 			float3 irradiance =
 				irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
+			// 金属の拡散光と反射分を重複加算しない
+			float3 diffuseWeight = physicalEnvironmentEnabled != 0u ?
+				(1.0f - FresnelSchlick(saturate(dot(N, V)), F0)) * (1.0f - metallic) : 1.0f.xxx;
 			color += irradiance * skyboxColor.rgb * iblIntensity *
-				albedo * ao;
+				albedo * ao * diffuseWeight;
 		} else {
 
 			color += ambientIntensity * albedo * ao;
@@ -702,35 +672,39 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 
 // SSRが見つからない範囲はSkyboxのReflection Captureで補う
 float3 ResolveEnvironmentReflection(float3 worldPos, float3 N, float3 V,
-	float roughness, bool useShadow) {
+	float roughness, bool useShadow, bool useBaked) {
 
 	float3 reflectionDirection = normalize(reflect(-V, N));
 	float3 result = 0.0f.xxx;
 	if (roughness < 0.85f &&
 		TraceScreenSpaceReflection(
 			worldPos + N * 0.05f, reflectionDirection,
-			useShadow, result)) {
+			useShadow, useBaked, result)) {
 
 		return result;
 	}
+	float3 captureColor = 0.0f;
+	float captureCoverage = 0.0f;
+	if (useBaked) SampleBakedReflection(worldPos, reflectionDirection, roughness, captureColor, captureCoverage);
 	if (hasSkybox == 0u || skyboxCubemapIndex == kNoCubemap) {
-		return result;
+		return captureColor * captureCoverage;
 	}
 
-	TextureCube<float4> cubemap = NEM_TEXTURECUBE(skyboxCubemapIndex);
+	uint cubemapIndex = environmentSpecularIndex != kNoCubemap ? environmentSpecularIndex : skyboxCubemapIndex;
+	TextureCube<float4> cubemap = NEM_TEXTURECUBE(cubemapIndex);
 	uint width;
 	uint height;
 	uint mipLevels;
 	cubemap.GetDimensions(0u, width, height, mipLevels);
 	float mip = roughness * max(float(mipLevels) - 1.0f, 0.0f);
-	return cubemap.SampleLevel(gSampler, reflectionDirection, mip).rgb *
-		skyboxColor.rgb * iblIntensity;
+	float3 skyReflection = cubemap.SampleLevel(gSampler, reflectionDirection, mip).rgb * skyboxColor.rgb * iblIntensity;
+	return lerp(skyReflection, captureColor, captureCoverage);
 }
 
 //============================================================================
 //	全ピクセルのマテリアル計算
 //============================================================================
-float4 ResolvePixel(VSOutput input, bool useShadow) {
+float4 ResolvePixel(VSOutput input, bool useShadow, bool useBaked) {
 
 	int3 pixel = int3(input.position.xy, 0);
 
@@ -756,7 +730,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		max(ambientOcclusionIntensity, 0.0f));
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
-		roughness, ao * ambientAO, emissive, flags, useShadow);
+		roughness, ao * ambientAO, emissive, flags, useShadow, useBaked);
 
 	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
 	if ((flags & kMaterialFlagLighting) != 0u &&
@@ -765,9 +739,14 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 
 		float NdotV = saturate(dot(N, V));
 		float3 environment = ResolveEnvironmentReflection(
-			worldPos, N, V, roughness, useShadow);
-		color += environment * FresnelSchlick(NdotV, F0) *
-			(1.0f - roughness * 0.75f) * ao * reflectionIntensity;
+			worldPos, N, V, roughness, useShadow, useBaked);
+		float3 reflectionWeight = FresnelSchlick(NdotV, F0) * (1.0f - roughness * 0.75f);
+		if (physicalEnvironmentEnabled != 0u && environmentBRDFIndex != kNoCubemap) {
+			Texture2D<float4> brdf = NEM_TEXTURE2D(environmentBRDFIndex);
+			float2 integral = brdf.SampleLevel(gSampler, float2(NdotV, roughness), 0.0f).rg;
+			reflectionWeight = F0 * integral.x + integral.y;
+		}
+		color += environment * reflectionWeight * ao * reflectionIntensity;
 	}
 
 	return float4(color, 1.0f);
@@ -778,12 +757,23 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 //============================================================================
 float4 main(VSOutput input) : SV_TARGET0 {
 
-	return ResolvePixel(input, false);
+	return ResolvePixel(input, false, false);
 }
 //============================================================================
 //	mainShadowed、影あり
 //============================================================================
 float4 mainShadowed(VSOutput input) : SV_TARGET0 {
 
-	return ResolvePixel(input, true);
+	return ResolvePixel(input, true, false);
+}
+
+// ベイクなしのEntryから探索処理を除外する
+float4 mainBaked(VSOutput input) : SV_TARGET0 {
+
+	return ResolvePixel(input, false, true);
+}
+
+float4 mainShadowedBaked(VSOutput input) : SV_TARGET0 {
+
+	return ResolvePixel(input, true, true);
 }

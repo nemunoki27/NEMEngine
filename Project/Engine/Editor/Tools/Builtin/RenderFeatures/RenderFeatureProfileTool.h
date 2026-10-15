@@ -94,6 +94,7 @@ namespace Engine {
 		};
 
 		bool openWindow_ = false;										  // 編集画面の表示状態
+		bool requestCameraProfile_ = false;								  // メニューから開くときのCamera設定選択
 		bool pendingClose_ = false;										  // 未保存確認後の終了要求
 		std::optional<AssetID> pendingAsset_{};							  // 選択解除を含む未保存確認後の切替先
 		RenderFeatureEditSession editSession_;							  // 編集値と保存状態
@@ -122,6 +123,10 @@ namespace Engine {
 			const EditorToolContext& context, RenderFeatureProfileAsset& profile, RenderFeaturePassSettings& pass);
 		// 選択Groupの設定を編集する
 		void DrawSelectedGroupDetail(const EditorToolContext& context, RenderFeatureProfileAsset& profile);
+		// Bloomの強度と抽出と広がりを編集する
+		void DrawBloomSettings(const EditorToolContext& context, const RenderFeaturePassSettings& pass, MaterialParameterSet& parameters);
+		// Bloomを実行するHDR位置を選ぶ
+		bool DrawBloomAnchor(RenderFeatureAnchor& anchor);
 		// Passの出力設定を編集する
 		void DrawOutputs(RenderFeaturePassSettings& pass);
 		// Passの入力資源を編集する

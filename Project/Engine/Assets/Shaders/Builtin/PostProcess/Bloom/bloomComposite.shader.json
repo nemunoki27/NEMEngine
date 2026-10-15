@@ -1,0 +1,11 @@
+{
+    "name": "bloomCompositeShader",
+    "stages": [
+        {
+            "stage": "CS",
+            "file": "Engine/Assets/Shaders/Builtin/PostProcess/Bloom/bloomComposite.CS.hlsl",
+            "entry": "main",
+            "profile": "cs_6_0"
+        }
+    ]
+}

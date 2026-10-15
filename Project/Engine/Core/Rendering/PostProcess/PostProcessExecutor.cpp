@@ -168,7 +168,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	// リフレクション情報からバッファをバインドする
 	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
 	for (const ShaderResourceBinding& binding : reflection.resources) {
-		if (!IsResourceBinding(binding)) {
+		if (!IsResourceBinding(binding) && binding.kind != ShaderBindingKind::CBV) {
 			continue;
 		}
 		if (binding.name == "gNEMGlobalTexture2D" ||
@@ -190,6 +190,16 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 				return false;
 			}
 			continue;
+		}
+		if (binding.kind == ShaderBindingKind::CBV && binding.name != kFrameConstantsName &&
+			binding.name != kParameterConstantsName && !(binding.space == 0 && binding.bindPoint <= 1)) {
+			// ライト等の共通定数を同じViewの登録内容から取得する
+			const auto* buffer = context.bufferRegistry.Find(binding.name);
+			if (!buffer || !buffer->gpuAddress) {
+				Logger::Output(LogType::Engine, logHeader + "定数Bufferを解決できません binding=" + binding.name);
+				return false;
+			}
+			binds.push_back({binding.name, ComputeBindValueType::CBV, buffer->gpuAddress, {}, binding.bindPoint, binding.space});
 		}
 	}
 

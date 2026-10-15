@@ -1,0 +1,11 @@
+{
+  "name": "environmentBRDF",
+  "stages": [
+    {
+      "profile": "cs_6_0",
+      "entry": "main",
+      "stage": "CS",
+      "file": "4e454d4153534554454e5649524f0012"
+    }
+  ]
+}

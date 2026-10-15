@@ -79,7 +79,10 @@ struct RectLight {
 	uint2 _pad0;
 };
 // ライト数
-cbuffer LightCounts : register(b0) {
+#ifndef NEM_LIGHT_COUNTS_REGISTER
+#define NEM_LIGHT_COUNTS_REGISTER b0
+#endif
+cbuffer LightCounts : register(NEM_LIGHT_COUNTS_REGISTER) {
 
 	uint directionalCount;
 	uint pointCount;

@@ -195,6 +195,12 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveReflection)) {
 				instance.flags |= kMeshInstanceFlagReceiveReflection;
 			}
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveLightmap)) {
+				instance.flags |= kMeshInstanceFlagReceiveLightmap;
+			}
+			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveLightProbes)) {
+				instance.flags |= kMeshInstanceFlagReceiveLightProbes;
+			}
 			if (renderer) {
 				instance.flags |=
 					(renderer->renderingLayerMask &

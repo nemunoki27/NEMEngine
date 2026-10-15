@@ -141,7 +141,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(
 	int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
 
 	if (!ImGui::BeginTable("##ProjectGrid", columnCount, ImGuiTableFlags_SizingFixedFit)) {
-		DrawDirectoryContextMenu(database, node);
+		DrawDirectoryContextMenu(context, database, node);
 		return;
 	}
 
@@ -165,32 +165,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(
 	ImGui::Button("ドラッグアンドドロップしてプレファブ化", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
 	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
 	DrawProjectItemMoveDropTarget(database, node.virtualPath);
-	DrawDirectoryContextMenu(database, node);
-
-	// Ctrl+C/Ctrl+Vで選択アセットのコピーと現在ディレクトリへの貼り付けを行う
-	// パネルにフォーカスがあり、リネーム等のテキスト入力中でないときだけ受け付ける
-	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive()) {
-
-		const ImGuiIO& io = ImGui::GetIO();
-		// 選択中アセットを内部クリップボードへ控える
-		if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false) && selectedAsset_) {
-			for (const ProjectAssetEntry& asset : node.assets) {
-				if (asset.assetID == selectedAsset_) {
-
-					copiedAsset_ = asset;
-					hasCopiedAsset_ = true;
-					break;
-				}
-			}
-		}
-		// 控えたアセットを現在ディレクトリへコピーする、ペースト先は元と別フォルダでもよい
-		if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false) && hasCopiedAsset_) {
-
-			ProjectAssetFileResult result = ProjectAssetFileUtility::CopyAsset(
-				copiedAsset_, assetSource_, selectedDirectory_, context.editorContext->sceneStorage);
-			RefreshAfterFileOperation(database, result);
-		}
-	}
+	DrawDirectoryContextMenu(context, database, node);
 }
 
 void Engine::ProjectPanel::DrawFolderGridItem(

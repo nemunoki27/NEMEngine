@@ -143,5 +143,7 @@ namespace Engine {
 		uint32_t GetCullingMask(RenderCameraDomain domain) const;
 		// 指定した投影方式のカメラビューを返す
 		const ResolvedCameraView* FindCamera(RenderCameraDomain domain) const;
+		// 出力設定を持つCameraを描画時の優先順で返す
+		const ResolvedCameraView* FindOutputCamera() const;
 	};
 } // Engine

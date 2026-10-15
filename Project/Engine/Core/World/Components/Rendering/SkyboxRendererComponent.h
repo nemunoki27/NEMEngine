@@ -22,6 +22,8 @@ namespace Engine {
 		Color4 color = Color4::White();
 		// cubemapから作る拡散IBL環境光の強さ
 		float iblIntensity = 1.0f;
+		// GGX環境光と金属の拡散抑制を使う
+		bool physicalEnvironmentEnabled = false;
 		// Cameraの描画対象レイヤー
 		uint32_t renderingLayerMask = 1u;
 		// 表示フラグ

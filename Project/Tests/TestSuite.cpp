@@ -1,4 +1,5 @@
 #include "TestSuite.h"
+#include "BloomTests.h"
 
 //============================================================================
 //	include
@@ -236,8 +237,10 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestPerformanceGridWorldEnd", TestPerformanceGridWorldEnd) ||
 		!RunTest("TestEditorTransactionRollback", TestEditorTransactionRollback) ||
 		!RunTest("TestRenderPassesReflectionCache", TestRenderPassesReflectionCache) ||
+		!RunTest("TestBloomSettings", TestBloomSettings) ||
 		!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension) ||
-		!RunTest("TestPostProcessPublication", TestPostProcessPublication)) {
+		!RunTest("TestPostProcessPublication", TestPostProcessPublication) ||
+		!RunTest("TestPostProcessLivePreview", TestPostProcessLivePreview)) {
 		std::cerr << "RenderFeature profile failed\n";
 		return 22;
 	}

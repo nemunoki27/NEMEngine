@@ -1,10 +1,12 @@
 #include "TestSelection.h"
+#include "BloomTests.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include "TestRunner.h"
 #include "GPUCompatibilityTests.h"
+#include "BakedLightingTests.h"
 #include "TestContracts.h"
 #include "ApplicationPlatformTests.h"
 #include "FoundationTests.h"
@@ -29,6 +31,13 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--bloom") {
+		return RunTest("TestBloomSettings", TestBloomSettings) && RunTest("TestBloomGPU", TestBloomGPU) ? 0 : 66;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--baked-lighting") {
+		return RunTest("TestBakedLightingCPU", TestBakedLightingCPU) && RunTest("TestBakedLightingGPU", TestBakedLightingGPU) ? 0 : 65;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--scene-transactions") {
 		return RunTest("TestSceneSnapshotTransactions", TestSceneSnapshotTransactions) ? 0 : 56;
 	}
@@ -43,6 +52,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor-asset-workflow") {
 		return RunTest("TestEditorAssetWorkflow", TestEditorAssetWorkflow) ? 0 : 53;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--project-asset-copy") {
+		return RunTest("TestProjectAssetCopyTransaction", TestProjectAssetCopyTransaction) ? 0 : 53;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--fbx-import") {
 		return RunTest("TestFBXImport", TestFBXImport) ? 0 : 52;
@@ -277,11 +289,14 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--render-features") {
 
 		if (!RunTest("TestRenderTargetSizing", TestRenderTargetSizing) ||
+			!RunTest("TestRenderCameraHistory", TestRenderCameraHistory) ||
+			!RunTest("TestRenderPassesSelectionRequests", TestRenderPassesSelectionRequests) ||
 			!RunTest("TestRenderFeatureRuntimeOverrides", TestRenderFeatureRuntimeOverrides) ||
 			!RunTest("TestShaderPathDependencies", TestShaderPathDependencies) ||
 			!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
 			!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension) ||
-			!RunTest("TestPostProcessPublication", TestPostProcessPublication)) {
+			!RunTest("TestPostProcessPublication", TestPostProcessPublication) ||
+			!RunTest("TestPostProcessLivePreview", TestPostProcessLivePreview)) {
 			std::cerr << "Render Feature test failed\n";
 			return 22;
 		}

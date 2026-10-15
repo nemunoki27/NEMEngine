@@ -1,0 +1,11 @@
+{
+    "name": "bloomDownsampleShader",
+    "stages": [
+        {
+            "stage": "CS",
+            "file": "Engine/Assets/Shaders/Builtin/PostProcess/Bloom/bloomDownsample.CS.hlsl",
+            "entry": "main",
+            "profile": "cs_6_0"
+        }
+    ]
+}

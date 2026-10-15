@@ -1,4 +1,5 @@
 #include "RenderFeatureProfileTool.h"
+#include <Engine/Core/Rendering/PostProcess/Bloom/BloomSettings.h>
 
 //============================================================================
 //	include
@@ -74,6 +75,10 @@ void Engine::RenderFeatureProfileTool::DrawPassList(const EditorToolContext& con
 				? (type == RenderFeaturePassType::Compute ? MaterialPassKind::PostProcess : MaterialPassKind::RayTracing)
 				: materialPass;
 		pass.outputs.emplace_back();
+		if (type == RenderFeaturePassType::Bloom) {
+			pass.materialPass = MaterialPassKind::PostProcess;
+			WriteBloomSettings(pass.parameterOverrides, BloomSettings{});
+		}
 		selectedPass_ = pass.id;
 		selectedGroup_ = {};
 		selectedPasses_ = {pass.id};
@@ -280,7 +285,8 @@ void Engine::RenderFeatureProfileTool::DrawPassList(const EditorToolContext& con
 
 		if (ImGui::BeginMenu("追加")) {
 			for (const auto [type, label] : {std::pair{RenderFeaturePassType::Compute, "Compute"},
-					 std::pair{RenderFeaturePassType::RayTracing, "DispatchRays"}}) {
+					 std::pair{RenderFeaturePassType::RayTracing, "DispatchRays"},
+					 std::pair{RenderFeaturePassType::Bloom, "Bloom"}}) {
 
 				if (ImGui::MenuItem(label)) {
 					addPass(type, label);

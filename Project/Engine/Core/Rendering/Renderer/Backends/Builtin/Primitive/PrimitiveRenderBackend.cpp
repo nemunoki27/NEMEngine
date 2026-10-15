@@ -53,6 +53,7 @@ namespace {
 		flags |=
 			(renderingLayerMask &
 				Engine::kRenderingLayerMaskBits) << 8;
+		if (Engine::HasMeshRenderFlag(renderFlags, Engine::MeshRenderFlags::ReceiveLightProbes)) flags |= 1u << 7;
 		return flags;
 	}
 

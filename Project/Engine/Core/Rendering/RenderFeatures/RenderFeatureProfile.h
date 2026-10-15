@@ -82,6 +82,7 @@ namespace Engine {
 
 		Compute,
 		RayTracing,
+		Bloom,
 	};
 
 	// レンダー処理順ツリーの項目種別
