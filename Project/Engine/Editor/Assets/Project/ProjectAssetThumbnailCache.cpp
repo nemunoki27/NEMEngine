@@ -95,6 +95,11 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	customExtensionIcons_[".materialsettings.json"] = configIcon;
 	customExtensionIcons_[".txt"] = {
 		"text.png", EditorTextureHelper::MakeEditorTexturePath("File", "text.png") };
+	// モデルの付随ファイルを専用アイコンで表示する
+	customExtensionIcons_[".mtl"] = {
+		"mtl.png", EditorTextureHelper::MakeEditorTexturePath("File", "mtl.png") };
+	customExtensionIcons_[".bin"] = {
+		"bin.png", EditorTextureHelper::MakeEditorTexturePath("File", "bin.png") };
 
 	for (const auto& [type, icon] : defaultIcons_) {
 

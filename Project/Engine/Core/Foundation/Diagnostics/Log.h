@@ -77,6 +77,10 @@ namespace Engine {
 		static void Flush(LogType type);
 		static void FlushAll();
 		static std::vector<LogEntry> GetRecentLogs(LogType type);
+		// メモリに保持するログ件数を変更する
+		static void SetRecentLogLimit(std::size_t limit);
+		// メモリに保持するログ件数を取得する
+		static std::size_t GetRecentLogLimit();
 
 		// スコープ滞在時間を自動記録
 		class ScopedOutput final {
@@ -133,7 +137,7 @@ namespace Engine {
 		static inline std::filesystem::path logDir_ = "./Log";
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };
-		static constexpr std::size_t kRecentLogLimit_ = 30;
+		static inline std::size_t recentLogLimit_ = 30;
 		static inline std::array<std::deque<LogEntry>, static_cast<std::size_t>(LogType::Count)> recentLogs_;
 	};
 

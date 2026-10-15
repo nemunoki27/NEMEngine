@@ -7,12 +7,11 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/Utility/EditorShell.h>
 
 // c++
 #include <algorithm>
-#include <cstdio>
-#include <vector>
 
 namespace {
 
@@ -66,9 +65,14 @@ namespace {
 
 	void DrawLogTab(Engine::LogType type, const char* childID) {
 
+		// 表示件数に合わせてログの保持数を変更する
+		int32_t displayCount = static_cast<int32_t>(Engine::Logger::GetRecentLogLimit());
+		if (Engine::MyGUI::DragInt("ログ表示数", displayCount,
+			{ .dragSpeed = 1.0f, .minValue = 1, .maxValue = 10000 }).valueChanged) {
+			displayCount = std::clamp(displayCount, 1, 10000);
+			Engine::Logger::SetRecentLogLimit(static_cast<std::size_t>(displayCount));
+		}
 		const auto logs = Engine::Logger::GetRecentLogs(type);
-
-		ImGui::TextDisabled("Showing latest %zu logs (max 30)", logs.size());
 
 		ImGui::Separator();
 		ImGui::BeginChild(childID, ImVec2(0.0f, 0.0f), false);
@@ -76,9 +80,6 @@ namespace {
 
 		if (logs.empty()) {
 			ImGui::TextDisabled("No logs.");
-			ImGui::SetWindowFontScale(1.0f);
-			ImGui::EndChild();
-			return;
 		}
 
 		for (int i = static_cast<int>(logs.size()) - 1; i >= 0; --i) {
@@ -90,49 +91,15 @@ namespace {
 		}
 
 		ImGui::SetWindowFontScale(1.0f);
-		ImGui::EndChild();
-	}
-
-	void DrawDescriptorUsage(const char* label, const Engine::BaseDescriptor& descriptor, float width) {
-
-		ImGui::BeginChild(label, ImVec2(width, 0.0f), true);
-		ImGui::Text("%s: %u / %u", label, descriptor.GetUseDescriptorCount(), descriptor.GetMaxDescriptorCount());
-		ImGui::Separator();
-
-		if (descriptor.GetUseDescriptorCount() == 0) {
-			ImGui::TextDisabled("No descriptors.");
-			ImGui::EndChild();
-			return;
-		}
-
-		for (uint32_t index = 0; index < descriptor.GetHighWaterMark(); ++index) {
-			if (!descriptor.IsAllocated(index)) {
-				continue;
+		// ログ欄の右クリックから保存先を開く
+		if (ImGui::BeginPopupContextWindow("LogContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+			if (ImGui::MenuItem("ログをエクスプローラーで開く")) {
+				Engine::EditorShell::OpenDirectory(Engine::Logger::GetLogDir());
 			}
-
-			const std::string_view name = descriptor.GetResourceName(index);
-			ImGui::Text("index%u: %s", index, name.empty() ? "Unknown" : name.data());
+			ImGui::EndPopup();
 		}
 
 		ImGui::EndChild();
-	}
-
-	void DrawGPUResourceTab(Engine::GraphicsCore* graphicsCore) {
-
-		if (!graphicsCore) {
-			ImGui::TextDisabled("GraphicsCore is not available.");
-			return;
-		}
-
-		const ImVec2 region = ImGui::GetContentRegionAvail();
-		const float spacing = ImGui::GetStyle().ItemSpacing.x;
-		const float childWidth = (region.x - spacing * 2.0f) / 3.0f;
-
-		DrawDescriptorUsage("SRV", graphicsCore->GetSRVDescriptor(), childWidth);
-		ImGui::SameLine();
-		DrawDescriptorUsage("RTV", graphicsCore->GetRTVDescriptor(), childWidth);
-		ImGui::SameLine();
-		DrawDescriptorUsage("DSV", graphicsCore->GetDSVDescriptor(), childWidth);
 	}
 }
 
@@ -259,12 +226,6 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 				if (ImGui::BeginTabItem("Log")) {
 
 					DrawLogTab(Engine::LogType::Engine, "##EngineLogList");
-					ImGui::EndTabItem();
-				}
-				if (ImGui::BeginTabItem("GPUResource")) {
-
-					DrawGPUResourceTab(context.graphicsCore);
-
 					ImGui::EndTabItem();
 				}
 				ImGui::EndTabBar();

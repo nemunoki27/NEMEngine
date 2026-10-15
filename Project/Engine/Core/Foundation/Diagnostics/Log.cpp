@@ -245,6 +245,25 @@ std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
 	return std::vector<LogEntry>(recentLogs_[index].begin(), recentLogs_[index].end());
 }
 
+void Logger::SetRecentLogLimit(std::size_t limit) {
+
+	std::scoped_lock lock(mutex_);
+	recentLogLimit_ = limit == 0 ? 1 : limit;
+
+	// 保持数を減らした分だけ古いログを破棄する
+	for (auto& logs : recentLogs_) {
+		while (recentLogLimit_ < logs.size()) {
+			logs.pop_front();
+		}
+	}
+}
+
+std::size_t Logger::GetRecentLogLimit() {
+
+	std::scoped_lock lock(mutex_);
+	return recentLogLimit_;
+}
+
 void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message) {
 
 	std::scoped_lock lock(mutex_);
@@ -256,7 +275,7 @@ void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std:
 	auto& logs = recentLogs_[index];
 	logs.push_back(LogEntry{ level, std::move(message) });
 
-	while (kRecentLogLimit_ < logs.size()) {
+	while (recentLogLimit_ < logs.size()) {
 		logs.pop_front();
 	}
 }
