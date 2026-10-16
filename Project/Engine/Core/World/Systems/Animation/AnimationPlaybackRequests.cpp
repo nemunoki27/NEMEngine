@@ -24,7 +24,7 @@ void Engine::AnimationPlaybackRequests::PrepareDirectClip(AnimationPlayerCompone
 		Logger::Output(LogType::Engine, spdlog::level::warn, "Animation Clipを再生できません ID={}", ToString(clipID));
 		return;
 	}
-	// Controllerを変更せず、このComponentの実行状態へ追加する
+	// 単独Clipを実行用グループへ設定
 	AnimationState state;
 	state.name = "Clip";
 	state.clip = clipID;
@@ -101,8 +101,5 @@ bool Engine::AnimationPlaybackRequests::ApplyRequestedTime(AnimationPlayerCompon
 		runtime.playing = playing && !runtime.finished;
 		runtime.terminalPosePending = true;
 	}
-	player.runtimeController.evaluatedState = player.runtimeCurrentGroup;
-	player.runtimeController.previousNormalizedTime = player.runtimeCurrentClips.empty() ? 0.0f :
-		static_cast<float>(player.runtimeCurrentClips.front().normalizedTime);
 	return true;
 }

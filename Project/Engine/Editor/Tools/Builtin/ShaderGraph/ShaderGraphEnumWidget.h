@@ -39,7 +39,7 @@ namespace Engine::ShaderGraphWidgets {
 			if (!prefix.empty() && name.starts_with(prefix)) {
 				name.remove_prefix(prefix.size());
 			}
-			return name.data();
+			return Engine::ImGuiUtility::GetDisplayName(name.data());
 		};
 		result.valueChanged = ImGui::Combo(
 			"##Value", &currentIndex, itemGetter, nullptr, static_cast<int32_t>(Engine::EnumAdapter<T>::GetEnumCount()));

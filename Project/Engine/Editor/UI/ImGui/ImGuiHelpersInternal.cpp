@@ -51,19 +51,19 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& label, 
 	}
 
 	ImGui::SetNextItemWidth(itemWidth);
-	if (!ImGui::BeginCombo(("EasingType##" + label).c_str(), previewLabel)) {
+	if (!ImGui::BeginCombo(("イージング##" + label).c_str(), Engine::ImGuiUtility::GetDisplayName(previewLabel))) {
 		return;
 	}
 
-	if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
+	if (ImGui::Button("線形", ImVec2(itemWidth, 24.0f))) {
 		easingType = EasingType::Linear;
 	}
 
 	ImGui::PushItemWidth(itemWidth);
-	if (ImGui::BeginCombo("EaseIn", "")) {
+	if (ImGui::BeginCombo("加速", "")) {
 		for (int i = 0; i < IM_ARRAYSIZE(easeInOptions); ++i) {
 			const bool selected = static_cast<int>(easingType) == baseIn + i;
-			if (ImGui::Selectable(easeInOptions[i], selected)) {
+			if (ImGui::Selectable(Engine::ImGuiUtility::GetDisplayName(easeInOptions[i]), selected)) {
 				easingType = static_cast<EasingType>(baseIn + i);
 			}
 			if (selected) {
@@ -73,10 +73,10 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& label, 
 		ImGui::EndCombo();
 	}
 
-	if (ImGui::BeginCombo("EaseOut", "")) {
+	if (ImGui::BeginCombo("減速", "")) {
 		for (int i = 0; i < IM_ARRAYSIZE(easeOutOptions); ++i) {
 			const bool selected = static_cast<int>(easingType) == baseOut + i;
-			if (ImGui::Selectable(easeOutOptions[i], selected)) {
+			if (ImGui::Selectable(Engine::ImGuiUtility::GetDisplayName(easeOutOptions[i]), selected)) {
 				easingType = static_cast<EasingType>(baseOut + i);
 			}
 			if (selected) {
@@ -86,10 +86,10 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& label, 
 		ImGui::EndCombo();
 	}
 
-	if (ImGui::BeginCombo("EaseInOut", "")) {
+	if (ImGui::BeginCombo("加速と減速", "")) {
 		for (int i = 0; i < IM_ARRAYSIZE(easeInOutOptions); ++i) {
 			const bool selected = static_cast<int>(easingType) == baseInOut + i;
-			if (ImGui::Selectable(easeInOutOptions[i], selected)) {
+			if (ImGui::Selectable(Engine::ImGuiUtility::GetDisplayName(easeInOutOptions[i]), selected)) {
 				easingType = static_cast<EasingType>(baseInOut + i);
 			}
 			if (selected) {

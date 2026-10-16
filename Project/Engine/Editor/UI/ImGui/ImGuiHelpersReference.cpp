@@ -25,6 +25,7 @@ namespace Engine {
 			case AssetType::Font:             return ".font";
 			case AssetType::Audio:            return ".wav/.mp3";
 			case AssetType::AnimationClip:    return ".animclip";
+			case AssetType::ParticleEffect:   return ".effect";
 			case AssetType::Prefab:           return ".prefab";
 			case AssetType::Scene:            return ".scene";
 			case AssetType::Shader:           return ".hlsl/.shader";
@@ -55,17 +56,17 @@ namespace Engine {
 			// アセットが未設定の場合は受付拡張子を添える
 			if (!assetID) {
 				const std::string hint = BuildAcceptedExtensionsHint(acceptedTypes);
-				return hint.empty() ? "None (Drop asset here)" : std::format("None (Drop {} here)", hint);
+				return hint.empty() ? "未設定" : std::format("未設定（{}）", hint);
 			}
 			// データベースがない場合はIDのみ表示
 			if (!assetDatabase) { return std::format("GUID: {}", Engine::ToString(assetID)); }
 
 			const AssetMeta* meta = assetDatabase->Find(assetID);
 			// アセットが見つからないリンク切れ
-			if (!meta) { return std::format("Missing Asset | GUID: {}", Engine::ToString(assetID)); }
+			if (!meta) { return std::format("アセットが見つかりません | GUID: {}", Engine::ToString(assetID)); }
 
 			// アセット名を表示
-			return std::format("Name: {}", MakeAssetDisplayNameFromPath(meta->assetPath));
+			return std::format("名前: {}", MakeAssetDisplayNameFromPath(meta->assetPath));
 		}
 
 		// アセット参照のツールチップテキストを構築する
@@ -73,39 +74,39 @@ namespace Engine {
 			const std::initializer_list<AssetType>& acceptedTypes) {
 			if (!assetID) {
 				const std::string hint = BuildAcceptedExtensionsHint(acceptedTypes);
-				return hint.empty() ? "Drop asset here" : std::format("Drop asset here\nAccepted: {}", hint);
+				return hint.empty() ? "アセットをドロップしてください" : std::format("アセットをドロップしてください\n対応拡張子: {}", hint);
 			}
 			if (!assetDatabase) { return std::format("GUID: {}", Engine::ToString(assetID)); }
 			const AssetMeta* meta = assetDatabase->Find(assetID);
-			if (!meta) { return std::format("Missing Asset\nGUID: {}", Engine::ToString(assetID)); }
+			if (!meta) { return std::format("アセットが見つかりません\nGUID: {}", Engine::ToString(assetID)); }
 			// パスとGUIDを含む詳細情報をツールチップに表示
-			return std::format("Name : {}\nPath : {}\nGUID : {}", MakeAssetDisplayNameFromPath(meta->assetPath), meta->assetPath, Engine::ToString(assetID));
+			return std::format("名前: {}\nパス: {}\nGUID: {}", MakeAssetDisplayNameFromPath(meta->assetPath), meta->assetPath, Engine::ToString(assetID));
 		}
 
 		// エンティティ参照のラベルテキストを構築する
 		std::string BuildEntityReferenceLabel(UUID entityUUID, ECSWorld* world) {
-			if (!entityUUID) { return "None (Drop entity here)"; }
+			if (!entityUUID) { return "未設定（エンティティをドロップ）"; }
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
-			if (!world->IsAlive(entity)) { return std::format("Missing Entity | UUID: {}", Engine::ToString(entityUUID)); }
+			if (!world->IsAlive(entity)) { return std::format("エンティティが見つかりません | UUID: {}", Engine::ToString(entityUUID)); }
 
 			if (NameComponent* name = world->TryGetComponent<NameComponent>(entity)) {
-				return std::format("Name: {}", name->name);
+				return std::format("名前: {}", name->name);
 			}
-			return std::format("Entity ({})", Engine::ToString(entityUUID));
+			return std::format("エンティティ（{}）", Engine::ToString(entityUUID));
 		}
 
 		// エンティティ参照のツールチップテキストを構築する
 		std::string BuildEntityReferenceTooltip(UUID entityUUID, ECSWorld* world) {
-			if (!entityUUID) { return "Drop hierarchy entity here"; }
+			if (!entityUUID) { return "ヒエラルキーからエンティティをドロップしてください"; }
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
-			if (!world->IsAlive(entity)) { return std::format("Missing Entity\nUUID: {}", Engine::ToString(entityUUID)); }
+			if (!world->IsAlive(entity)) { return std::format("エンティティが見つかりません\nUUID: {}", Engine::ToString(entityUUID)); }
 
 			if (NameComponent* name = world->TryGetComponent<NameComponent>(entity)) {
-				return std::format("Name : {}\nUUID : {}", name->name, Engine::ToString(entityUUID));
+				return std::format("名前: {}\nUUID: {}", name->name, Engine::ToString(entityUUID));
 			}
 			return std::format("UUID : {}", Engine::ToString(entityUUID));
 		}
@@ -127,7 +128,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 		const AssetMeta* defaultMeta = assetDatabase ? assetDatabase->Find(setting.defaultAssetID) : nullptr;
 		const std::string defaultName = defaultMeta ?
 			MakeAssetDisplayNameFromPath(defaultMeta->assetPath) : Engine::ToString(setting.defaultAssetID);
-		displayText = std::format("Default: {}", defaultName);
+		displayText = std::format("既定: {}", defaultName);
 	}
 
 	// プレビュー画像の解決で設定がなければデータベースから検索

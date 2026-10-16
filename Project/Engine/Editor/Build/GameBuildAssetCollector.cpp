@@ -288,6 +288,9 @@ void GameBuildAssetCollector::ProcessAssets() {
 void GameBuildAssetCollector::AddFixedRuntimeFiles() {
 
 	AddLogicalFile("Engine/Assets/Config/windowSettings.exeConfig.json");
+	// 面光源テーブルの配布条件と取り込み元を同梱する
+	AddLogicalFile("Engine/Assets/Textures/Lighting/LTC/LICENSE.txt");
+	AddLogicalFile("Engine/Assets/Textures/Lighting/LTC/SOURCE.json");
 	for (const Engine::AssetID shaderID : Engine::BuiltinAssets::Shaders::FixedRuntime) {
 		AddAsset(shaderID, true);
 	}

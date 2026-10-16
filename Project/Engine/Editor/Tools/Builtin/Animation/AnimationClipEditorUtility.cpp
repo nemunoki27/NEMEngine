@@ -130,7 +130,7 @@ namespace Engine::AnimationClipEditorUtility {
 		case AnimationValueType::Quaternion:
 			// Quaternionは角度だけを生成対象にする
 			if (channelCount >= 2) {
-				options = {{"Angle", {1u}}};
+				options = {{"角度", {1u}}};
 			}
 			break;
 		case AnimationValueType::Color3:
@@ -140,7 +140,7 @@ namespace Engine::AnimationClipEditorUtility {
 			break;
 		case AnimationValueType::Color4:
 			if (channelCount >= 4) {
-				options = {{"RGB", {0u, 1u, 2u}}, {"Alpha", {3u}}};
+				options = {{"RGB", {0u, 1u, 2u}}, {"アルファ", {3u}}};
 			}
 			break;
 		case AnimationValueType::Float:
@@ -193,10 +193,10 @@ namespace Engine::AnimationClipEditorUtility {
 		case AnimationClipDetectedDimension::Mode3D:
 			return "3D";
 		case AnimationClipDetectedDimension::Mixed:
-			return "Mixed";
+			return "混在";
 		case AnimationClipDetectedDimension::Unknown:
 		default:
-			return "Unknown";
+			return "不明";
 		}
 	}
 

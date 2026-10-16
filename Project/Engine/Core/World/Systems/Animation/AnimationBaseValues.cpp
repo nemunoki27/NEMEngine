@@ -40,7 +40,6 @@ namespace Engine::AnimationBaseValues {
 			}
 		};
 		captureGroups(player.groups);
-		captureGroups(player.runtimeControllerGroups);
 		if (!player.runtimeDirectGroup.name.empty()) captureGroups({ player.runtimeDirectGroup });
 
 		// 向き相対クリップは基準の位置/回転が必須なので、未アニメでも捕捉しておく

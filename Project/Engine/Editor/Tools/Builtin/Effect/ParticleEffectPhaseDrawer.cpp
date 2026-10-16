@@ -151,7 +151,7 @@ bool ParticleEffectPhaseDrawer::Draw(const EditorToolContext& context,
 					changed = true;
 					statusMessage_.clear();
 				} else {
-					statusMessage_ = "Particleマテリアルを設定できません: " + message;
+					statusMessage_ = "パーティクルマテリアルを設定できません: " + message;
 				}
 			}
 		}
@@ -183,7 +183,7 @@ bool ParticleEffectPhaseDrawer::DrawPhaseParentSection(ParticleEffectGroup& grou
 		return false;
 	}
 
-	changed |= MyGUI::Checkbox("所有Entityへ追従", settings.useEmitter);
+	changed |= MyGUI::Checkbox("所有エンティティへ追従", settings.useEmitter);
 	changed |= MyGUI::Checkbox("親の回転を無視", settings.ignoreParentRotation);
 	changed |= MyGUI::Checkbox("親のスケールを無視", settings.ignoreParentScale);
 
@@ -226,11 +226,12 @@ bool ParticleEffectPhaseDrawer::DrawPhaseModules(const EditorToolContext& contex
 		bool hasAny = false;
 		for (const ParticleModuleRegistry::Descriptor& descriptor : moduleDescriptors) {
 
-			if (!addModuleSearchFilter_.Matches(descriptor.id)) {
+			if (!addModuleSearchFilter_.Matches(descriptor.id) &&
+				!addModuleSearchFilter_.Matches(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) {
 				continue;
 			}
 			hasAny = true;
-			if (ImGui::MenuItem(descriptor.id.c_str())) {
+			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) {
 
 				ParticleEffectModuleEntry entry{};
 				entry.id = descriptor.id;
@@ -255,13 +256,13 @@ bool ParticleEffectPhaseDrawer::DrawPhaseModules(const EditorToolContext& contex
 
 		ParticleEffectModuleEntry& entry = phase.modules[i];
 		ImGui::PushID(i);
-		if (ImGui::Selectable(entry.id.c_str(), i == selectedModule)) {
+		if (ImGui::Selectable(ImGuiUtility::GetDisplayName(entry.id.c_str()), i == selectedModule)) {
 			selectedModule = i;
 		}
 		if (ImGui::BeginDragDropSource()) {
 
 			ImGui::SetDragDropPayload(kModuleReorderPayloadType, &i, sizeof(i));
-			ImGui::TextUnformatted(entry.id.c_str());
+			ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(entry.id.c_str()));
 			ImGui::EndDragDropSource();
 		}
 		if (ImGui::BeginDragDropTarget()) {
@@ -303,7 +304,7 @@ bool ParticleEffectPhaseDrawer::DrawPhaseModules(const EditorToolContext& contex
 		ParticleEffectModuleEntry& entry = phase.modules[selectedModule];
 
 		// モジュール名表示
-		std::string moduleName = "モジュール名: " + entry.id;
+		std::string moduleName = std::string("モジュール名: ") + ImGuiUtility::GetDisplayName(entry.id.c_str());
 		ImGui::TextUnformatted(moduleName.c_str());
 		ImGui::Separator();
 		// キャッシュされたモジュールリストの中から選択IDで引く

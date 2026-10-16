@@ -52,6 +52,8 @@ RWStructuredBuffer<float4> gBakeOutput : register(u0);
 RWStructuredBuffer<BakedProbe> gBakeProbeOutput : register(u1);
 SamplerState gBakeSampler : register(s0);
 
+#include "../rectAreaLight.hlsli"
+
 // Frame番号に依存しない乱数系列を使う
 uint BakeHash(uint value) {
 
@@ -205,11 +207,15 @@ float3 BakeDirect(float3 position, float3 normal, inout uint seed, float3 view, 
 		float3 delta = emitter - position;
 		float distance = length(delta);
 		float3 direction = delta / max(distance, 1e-6f);
-		float cosine = saturate(dot(normal, direction)) * saturate(dot(light.direction, -direction)) * ComputeRectBarnAttenuation(light, position);
-		if (cosine > 0.0f && distance < light.attenuationRadius) irradiance += light.color.rgb * light.intensity * cosine *
-			ComputeDistanceAttenuation(length(light.pos - position), light.attenuationRadius, light.decay) *
-			BakeShadow(origin, direction, max(distance - normalBias, normalBias), light.shadowStrength) *
-			BakeLightResponse(normal, view, direction, albedo, metallic, roughness, capture);
+		float3 contribution = EvaluateRectSampleIrradiance(light, position, normal, emitter);
+		if (any(contribution > 0.0f)) {
+
+			// Captureだけ表面のBRDFを含め、間接光は入射照度を保存する
+			float3 response = capture ? kEnvironmentPI * EvaluateRectAreaBRDF(normal, view, direction,
+				albedo, metallic, roughness, lerp(0.04f.xxx, albedo, metallic)) : 1.0f.xxx;
+			irradiance += contribution * response *
+				BakeShadow(origin, direction, max(distance - normalBias, normalBias), light.shadowStrength);
+		}
 	}
 	return irradiance / kEnvironmentPI;
 }

@@ -37,8 +37,8 @@ namespace Engine {
 		// Toolの登録情報
 		ToolDescriptor descriptor_{
 			.id = "engine.script_exception_list",
-			.name = "Script Exception List",
-			.category = "Scripting",
+			.name = "スクリプト例外一覧",
+			.category = "スクリプト",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

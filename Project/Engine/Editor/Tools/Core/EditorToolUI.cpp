@@ -59,7 +59,7 @@ namespace {
 	}
 
 	const char* OwnerLabel(Engine::ToolOwner owner) {
-		return owner == Engine::ToolOwner::Game ? "Game" : "Engine";
+		return owner == Engine::ToolOwner::Game ? "ゲーム" : "エンジン";
 	}
 
 	void DrawToolTooltip(const Engine::ToolDescriptor& desc, bool enabled) {

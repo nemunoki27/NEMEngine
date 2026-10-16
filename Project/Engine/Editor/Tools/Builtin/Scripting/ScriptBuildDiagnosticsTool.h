@@ -39,8 +39,8 @@ namespace Engine {
 
 		ToolDescriptor descriptor_{
 			.id = "engine.script_build_diagnostics",
-			.name = "Compiler Error List",
-			.category = "Scripting",
+			.name = "スクリプトビルド診断",
+			.category = "スクリプト",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 0,

@@ -38,6 +38,10 @@ namespace Engine {
 		void SaveClipToSelectedAsset(const EditorToolContext& context);
 		// 編集値を破棄して保存済みClipを読み込む
 		void RevertClipFromSelectedAsset(const EditorToolContext& context);
+		// ツールから新規アセットを作成して選択する
+		bool CreateClip(const EditorToolContext& context, const std::string& name);
+		// 同種アセットの設定を未保存の編集値へ取り込む
+		bool ImportSettings(const EditorToolContext& context, AssetID sourceAsset);
 		// 現在値を既定値にしてPropertyを追加する
 		void AddPropertyTrack(const AnimationPropertyDescriptor& desc, ECSWorld& world, const Entity& entity);
 		// 現在のWorldから対象Entityを解決する
@@ -148,6 +152,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 読込済みの編集値とプレビュー状態を差し替える
+		void ApplyLoadedClip(const EditorToolContext& context, AnimationClipAsset loaded, bool dirty);
 		// 対象Entityの描画次元を調べる
 		AnimationClipDetectedDimension DetectTargetDimension(const EditorToolContext& context) const;
 		// Curve表示時刻を同期する

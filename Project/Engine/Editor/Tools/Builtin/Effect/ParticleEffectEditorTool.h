@@ -85,7 +85,8 @@ namespace Engine {
 		// ウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
 		void DrawPendingEdits(const EditorToolContext& context);
-		void DrawHistory(const EditorToolContext& context);
+		// 履歴操作のキー入力を処理する
+		void HandleHistoryShortcuts(const EditorToolContext& context);
 		// アセットの選択と新規作成と保存を描画する
 		void DrawAssetSection(const EditorToolContext& context);
 		// グループの発生設定を描画する、変更があればtrue

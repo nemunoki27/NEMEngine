@@ -14,13 +14,13 @@ bool ParticleEmissiveModuleDrawer::Draw(IParticleModule& module) {
 	auto settings = concrete->GetSettings();
 
 	bool changed = false;
-	ImGui::PushID("Color");
+	ImGui::PushID("色");
 	changed |= MyGUI::ColorEdit("開始色", settings.startColor).valueChanged;
 	changed |= MyGUI::ColorEdit("終了色", settings.endColor).valueChanged;
 	changed |= ParticleGUI::DrawInterpolationEasing(settings.colorEasingType);
 	ImGui::PopID();
 
-	ImGui::PushID("Intensity");
+	ImGui::PushID("強度");
 	changed |= MyGUI::DragFloat("開始強度", settings.startIntensity, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("終了強度", settings.endIntensity, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= ParticleGUI::DrawInterpolationEasing(settings.intensityEasingType);

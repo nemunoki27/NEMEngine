@@ -7,7 +7,6 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 #include <Engine/Core/Animation/Playback/AnimationPlaybackTypes.h>
-#include <Engine/Core/Animation/Controllers/AnimationControllerAsset.h>
 
 // c++
 #include <cstdint>
@@ -62,13 +61,6 @@ namespace Engine {
 		bool playInEditMode = false;
 		// 全体の再生速度倍率
 		float globalSpeed = 1.0f;
-		AssetID controller{};
-
-		AssetID runtimeControllerAsset{};
-		uint64_t runtimeControllerGeneration = 0;
-		AnimationControllerRuntime runtimeController;
-		std::vector<AnimationGroup> runtimeControllerGroups;
-		bool runtimeControllerStopped = false;
 		AnimationGroup runtimeDirectGroup;
 
 		// 再生中グループのクリップごとの再生状態、同時再生の実体

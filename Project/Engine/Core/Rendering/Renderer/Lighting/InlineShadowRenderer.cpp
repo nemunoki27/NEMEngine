@@ -202,6 +202,10 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 	auto* list = command.GetCommandList();
 	auto& pipeline = *pipelines[stage];
 	auto* gbuffer = context.resources->GetSceneMain();
+	// Computeで参照するGBufferを読み取り状態へ揃える
+	for (uint32_t attachment : {1u, 2u, 5u, 6u}) {
+		gbuffer->GetColorTexture(attachment)->Transition(command, kShaderRead);
+	}
 	state.buffers[output].Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	if (stage != 0) state.buffers[input].Transition(command, kShaderRead);
 	list->SetComputeRootSignature(pipeline.GetRootSignature());

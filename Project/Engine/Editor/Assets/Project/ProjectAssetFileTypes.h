@@ -27,7 +27,6 @@ namespace Engine {
 		ShaderGraph,
 		RenderPasses,
 		RenderTexture,
-		AnimationController,
 	};
 
 	//============================================================================

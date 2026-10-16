@@ -66,7 +66,7 @@ void Engine::ShaderGraphKeywordEditor::Draw(ShaderGraphEditSession& session) {
 	}
 	session.MarkDirty(MyGUI::Checkbox("実行時切り替え", keyword.runtimeToggle));
 	if (ImGui::BeginItemTooltip()) {
-		ImGui::TextUnformatted(keyword.runtimeToggle ? "Material Instanceから値を変更する動的分岐"
+		ImGui::TextUnformatted(keyword.runtimeToggle ? "マテリアルインスタンスから値を変更する動的分岐"
 													 : "既定値をHLSLへ埋め込み、保存時に再コンパイル");
 		ImGui::EndTooltip();
 	}

@@ -74,7 +74,6 @@ void Engine::from_json(const nlohmann::json& in, RectLightComponent& component) 
 		in.value("attenuationRadius", component.attenuationRadius);
 	component.sourceWidth = in.value("sourceWidth", component.sourceWidth);
 	component.sourceHeight = in.value("sourceHeight", component.sourceHeight);
-	component.decay = in.value("decay", component.decay);
 	component.barnDoorAngle =
 		in.value("barnDoorAngle", component.barnDoorAngle);
 	component.barnDoorLength =
@@ -93,7 +92,6 @@ void Engine::to_json(nlohmann::json& out, const RectLightComponent& component) {
 	out["attenuationRadius"] = component.attenuationRadius;
 	out["sourceWidth"] = component.sourceWidth;
 	out["sourceHeight"] = component.sourceHeight;
-	out["decay"] = component.decay;
 	out["barnDoorAngle"] = component.barnDoorAngle;
 	out["barnDoorLength"] = component.barnDoorLength;
 	out["shadowStrength"] = component.shadowStrength;

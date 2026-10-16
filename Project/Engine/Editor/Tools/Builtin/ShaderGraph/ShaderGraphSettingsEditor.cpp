@@ -25,7 +25,7 @@ bool Engine::ShaderGraphSettingsEditor::Draw() {
 	// Graphの名前と精度を編集する
 	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphSettings");
 	editSession_.MarkDirty(MyGUI::InputText("名前", editSession_.GetDraft().name).valueChanged);
-	ImGui::Text("種類: %s", EnumAdapter<ShaderGraphDomain>::ToString(editSession_.GetDraft().domain));
+	ImGui::Text("種類: %s", ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphDomain>::ToString(editSession_.GetDraft().domain)));
 	editSession_.MarkDirty(MyGUI::EnumCombo("既定精度", editSession_.GetDraft().defaultPrecision).valueChanged);
 	if (editSession_.GetDraft().domain != ShaderGraphDomain::Surface) {
 		return false;

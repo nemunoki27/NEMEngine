@@ -25,7 +25,7 @@ void Engine::ScriptExecutionOrderTool::DrawEditorTool(const EditorToolContext& c
 
 void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("スクリプト実行順", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("スクリプト実行順").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

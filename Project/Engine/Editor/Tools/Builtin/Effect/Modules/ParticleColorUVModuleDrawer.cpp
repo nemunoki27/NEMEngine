@@ -38,7 +38,7 @@ bool ParticleColorUVModuleDrawer::DrawOffsetSettings(ParticleColorUVModule::Sett
 		return false;
 	}
 
-	ImGui::PushID("Offset");
+	ImGui::PushID("移動量");
 	bool changed = false;
 	changed |= MyGUI::EnumCombo("更新方法", settings.updateType).valueChanged;
 	if (settings.updateType == ParticleUVUpdateType::Scroll) {
@@ -77,7 +77,7 @@ bool ParticleColorUVModuleDrawer::DrawScaleSettings(ParticleColorUVModule::Setti
 		return false;
 	}
 
-	ImGui::PushID("Scale");
+	ImGui::PushID("スケール");
 	bool changed = false;
 	changed |= MyGUI::DragVector2("開始スケール", settings.startScale, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragVector2("終了スケール", settings.endScale, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
@@ -109,7 +109,7 @@ bool ParticleColorUVModuleDrawer::DrawRotationSettings(ParticleColorUVModule::Se
 		return false;
 	}
 
-	ImGui::PushID("Rotation");
+	ImGui::PushID("回転");
 	bool changed = false;
 	changed |= MyGUI::DragVector2("UVピボット", settings.pivot, ParticleGUI::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("開始回転", settings.startRotation, ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;

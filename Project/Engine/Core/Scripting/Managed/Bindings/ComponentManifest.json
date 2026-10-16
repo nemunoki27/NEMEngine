@@ -565,13 +565,6 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "runtimeAnimatorController",
-          "nativeMember": "controller",
-          "kind": "AssetRef",
-          "assetType": "RuntimeAnimatorController",
-          "access": "ReadWrite"
-        },
-        {
           "managedName": "DirectClipRequest",
           "nativeMember": "runtimeDirectClipRequest",
           "kind": "AssetRef",
@@ -3581,12 +3574,6 @@
         {
           "managedName": "SourceHeight",
           "nativeMember": "sourceHeight",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Decay",
-          "nativeMember": "decay",
           "kind": "Float",
           "access": "ReadWrite"
         },

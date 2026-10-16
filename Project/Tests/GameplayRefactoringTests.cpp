@@ -1,7 +1,7 @@
 #include "GameplayRefactoringTests.h"
+#include "AnimationPlaybackTests.h"
 #include "InputConfigurationTests.h"
 #include "AnimationSnapshotTests.h"
-#include "AnimationControllerPlaybackTests.h"
 #include "SkeletonAnimationTests.h"
 #include "AnimationClipPreviewTests.h"
 #include "ParticleEffectRuntimeTests.h"
@@ -15,7 +15,6 @@
 //============================================================================
 #include <Engine/Core/Animation/Evaluation/AnimationTrackSampling.h>
 #include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
-#include <Engine/Core/Animation/Controllers/AnimationControllerAsset.h>
 #include <Engine/Core/Platform/Input/InputViewMapping.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextLayoutBuilder.h>
 #include <Engine/Core/World/Systems/Animation/AnimationEventCollection.h>
@@ -175,72 +174,6 @@ namespace {
 		}
 		particle.age = 10.0f;
 		return ParticleModuleExecution::AdvancePhaseOnLifeEnd(particle, phases) && particle.age == particle.lifetime;
-	}
-
-	bool TestAnimationController() {
-
-		AnimationControllerAsset controller;
-		controller.defaultState = "Idle";
-		controller.states = {{"Idle", {}}, {"Run", {}}};
-		controller.parameters = {
-			{"Go", AnimationControllerParameterType::Trigger, false},
-			{"Speed", AnimationControllerParameterType::Float, 0.0f},
-		};
-		controller.transitions = {
-			{"Idle", "Run",
-				{{"Go", AnimationControllerConditionMode::If}, {"Speed", AnimationControllerConditionMode::Greater, 1.0f}},
-				0.2f},
-			{"Run", "Idle", {}, 0.1f, true, 1.5f},
-		};
-		std::string error;
-		if (!AnimationControllerEvaluator::Validate(controller, error)) {
-			return false;
-		}
-		AnimationControllerRuntime runtime;
-		AnimationControllerEvaluator::Reset(controller, runtime);
-		// 不成立の遷移ではTriggerを消費しない
-		if (!AnimationControllerEvaluator::SetParameter(controller, runtime, "Go", true) ||
-			AnimationControllerEvaluator::SetParameter(controller, runtime, "Speed", true) ||
-			AnimationControllerEvaluator::Evaluate(controller, runtime, 0.0f) ||
-			!std::get<bool>(*AnimationControllerEvaluator::GetParameter(runtime, "Go"))) {
-			return false;
-		}
-		if (!AnimationControllerEvaluator::SetParameter(controller, runtime, "Speed", 2.0f) ||
-			AnimationControllerEvaluator::Evaluate(controller, runtime, 0.0f) != 0 || runtime.state != "Run" ||
-			std::get<bool>(*AnimationControllerEvaluator::GetParameter(runtime, "Go"))) {
-			return false;
-		}
-		// Exit Timeは境界に達したframeから成立する
-		if (AnimationControllerEvaluator::Evaluate(controller, runtime, 1.4f) ||
-			AnimationControllerEvaluator::Evaluate(controller, runtime, 1.5f) != 1 || runtime.state != "Idle") {
-			return false;
-		}
-		const nlohmann::json saved = controller;
-		const auto loaded = saved.get<AnimationControllerAsset>();
-		if (nlohmann::json(loaded) != saved) {
-			return false;
-		}
-		// Exit Time通過後の条件成立は次の周回まで待つ
-		AnimationControllerAsset looping = controller;
-		looping.transitions = {{"Idle", "Run", {{"Go", AnimationControllerConditionMode::If}}, 0.1f, true, 0.5f}};
-		AnimationControllerEvaluator::Reset(looping, runtime);
-		if (AnimationControllerEvaluator::Evaluate(looping, runtime, 0.5f)) {
-			return false;
-		}
-		AnimationControllerEvaluator::SetParameter(looping, runtime, "Go", true);
-		if (AnimationControllerEvaluator::Evaluate(looping, runtime, 0.6f) ||
-			AnimationControllerEvaluator::Evaluate(looping, runtime, 1.5f) != 0) {
-			return false;
-		}
-		// Any Stateは一覧内の位置によらず状態別の遷移より優先する
-		looping.states.push_back({"Other", {}});
-		looping.transitions = {{"Idle", "Run", {}}, {"", "Other", {}}};
-		AnimationControllerEvaluator::Reset(looping, runtime);
-		if (AnimationControllerEvaluator::Evaluate(looping, runtime, 0.0f) != 1 || runtime.state != "Other") {
-			return false;
-		}
-		controller.states.push_back(controller.states.front());
-		return !AnimationControllerEvaluator::Validate(controller, error) && !error.empty();
 	}
 
 	bool TestAnimationEvaluation() {
@@ -441,8 +374,8 @@ bool TestGameplayContracts() {
 		std::cerr << "Particle execution contract failed\n";
 		return false;
 	}
-	if (!TestAnimationController() || !TestAnimationEvaluation() || !NEMTests::TestAnimationSnapshot() ||
-		!NEMTests::TestAnimationControllerPlayback() || !NEMTests::TestSkeletonAnimation() ||
+	if (!NEMTests::TestAnimationPlayback() || !TestAnimationEvaluation() || !NEMTests::TestAnimationSnapshot() ||
+		!NEMTests::TestSkeletonAnimation() ||
 		!NEMTests::TestAnimationClipPreview()) {
 		std::cerr << "Animation evaluation contract failed\n";
 		return false;

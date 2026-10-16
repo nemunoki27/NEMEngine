@@ -132,8 +132,6 @@ project "NEMTests"
     files {
         path.join(NEM_PROJECT_ROOT, "Tests/**.h"),
         path.join(NEM_PROJECT_ROOT, "Tests/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationControllerEditSession.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationControllerPreviewSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipEditSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipAssetSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipPreviewSession.cpp"),
@@ -182,6 +180,7 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneDirtyState.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorRequestSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersPopup.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpers.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneEditScope.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorState.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/CompositeEditorCommand.cpp"),

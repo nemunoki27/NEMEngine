@@ -37,86 +37,8 @@ static const uint kNoTexture = 0xFFFFFFFF;
 #define NEM_LIGHTING_SAMPLER_REGISTER s0
 #endif
 
-cbuffer LightCounts : register(NEM_LIGHT_COUNTS_REGISTER) {
+#include "../../Lighting/lightTypes.hlsli"
 
-	uint directionalCount;
-	uint pointCount;
-	uint spotCount;
-	uint rectCount;
-
-	uint localCount;
-	uint3 _lightCountPad;
-};
-struct DirectionalLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float shadowStrength;
-	float shadowAngularRadius;
-	uint _alignmentPadding0;
-	uint _pad1;
-};
-struct PointLight {
-
-	float4 color;
-
-	float3 pos;
-	float intensity;
-
-	float radius;
-	float decay;
-	float shadowStrength;
-	float shadowRadius;
-
-	uint _alignmentPadding0;
-	uint3 _pad1;
-};
-struct SpotLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float3 pos;
-	float distance;
-
-	float decay;
-	float cosAngle;
-	float cosFalloffStart;
-	float shadowStrength;
-
-	float shadowRadius;
-	uint _alignmentPadding0;
-	uint2 _pad0;
-};
-struct RectLight {
-
-	float4 color;
-
-	float3 direction;
-	float intensity;
-
-	float3 pos;
-	float attenuationRadius;
-
-	float3 right;
-	float sourceWidth;
-
-	float3 up;
-	float sourceHeight;
-
-	float decay;
-	float barnDoorAngle;
-	float barnDoorLength;
-	float shadowStrength;
-
-	uint _alignmentPadding0;
-	uint3 _pad0;
-};
 StructuredBuffer<DirectionalLight> gDirectionalLights :
 	register(NEM_DIRECTIONAL_LIGHTS_REGISTER);
 StructuredBuffer<PointLight> gPointLights :
@@ -132,22 +54,5 @@ SamplerState gSampler : register(NEM_LIGHTING_SAMPLER_REGISTER);
 //	距離減衰
 //============================================================================
 #include "../../Lighting/lightAttenuation.hlsli"
-
-// 矩形面を安定して積分するための固定サンプル
-static const uint kRectLightSampleCount = 4u;
-static const float2 kRectLightSamples[kRectLightSampleCount] = {
-	float2(-0.375f, -0.125f),
-	float2(0.125f, -0.375f),
-	float2(-0.125f, 0.375f),
-	float2(0.375f, 0.125f)
-};
-
-float3 GetRectLightSamplePosition(RectLight light, uint sampleIndex) {
-
-	float2 sampleUV = kRectLightSamples[sampleIndex];
-	return light.pos +
-		light.right * (sampleUV.x * max(light.sourceWidth, 0.0f)) +
-		light.up * (sampleUV.y * max(light.sourceHeight, 0.0f));
-}
 
 #endif // NEM_LIGHTING_COMMON_HLSLI

@@ -57,7 +57,7 @@ bool Engine::ShaderGraphAssetAuthoring::Import(AssetDatabase& database, const Sh
 
 	const AssetMeta* meta = database.Find(source);
 	if (!meta || source == destinationID) {
-		status = "別のMaterialまたはShaderGraphを指定してください";
+		status = "別のマテリアルまたはシェーダーグラフを指定してください";
 		return false;
 	}
 	// 共通の型互換判定で参照先を読み込む

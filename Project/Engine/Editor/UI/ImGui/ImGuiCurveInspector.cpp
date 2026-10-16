@@ -21,10 +21,10 @@ namespace Engine::CurveEditorUtility {
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
 		ImGui::SetWindowFontScale(kCurveEditorFontScale);
 
-		ImGui::TextUnformatted("Key");
+		ImGui::TextUnformatted("キー");
 		ImGui::Separator();
 		if (state.selectedKeys.empty()) {
-			ImGui::TextDisabled("No key selected");
+			ImGui::TextDisabled("キーを選択してください");
 			ImGui::SetWindowFontScale(previousFontScale);
 			ImGui::EndChild();
 			return;
@@ -39,7 +39,7 @@ namespace Engine::CurveEditorUtility {
 			ImGui::TextUnformatted("RGB");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			float time = keyR.time;
-			if (ImGui::DragFloat("Time", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (ImGui::DragFloat("時刻", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				time = ClampKeyTime(state, time);
 				keyR.time = time;
 				keyG.time = time;
@@ -47,7 +47,7 @@ namespace Engine::CurveEditorUtility {
 				result.valueChanged = true;
 			}
 			float color[3] = {keyR.value, keyG.value, keyB.value};
-			if (ImGui::ColorEdit3("Color", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_PickerHueWheel)) {
+			if (ImGui::ColorEdit3("色", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_PickerHueWheel)) {
 				keyR.value = color[0];
 				keyG.value = color[1];
 				keyB.value = color[2];
@@ -71,14 +71,14 @@ namespace Engine::CurveEditorUtility {
 		if (IsColorCurveSet(channels) && IsAlphaSelection(channels, selection)) {
 			Engine::CurveChannel& channel = channels[3];
 			Engine::CurveKey& key = channel.keys[selection.keyIndex];
-			ImGui::TextUnformatted("Alpha");
+			ImGui::TextUnformatted("アルファ");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Value", &key.value, 0.01f, 0.0f, 1.0f, "%.3f")) {
+			if (ImGui::DragFloat("値", &key.value, 0.01f, 0.0f, 1.0f, "%.3f")) {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
@@ -103,28 +103,28 @@ namespace Engine::CurveEditorUtility {
 			if (quaternionAxisKeys && selection.keyIndex < quaternionAxisKeys->size()) {
 				axisSetting = &(*quaternionAxisKeys)[selection.keyIndex];
 			}
-			ImGui::TextUnformatted("Axis");
+			ImGui::TextUnformatted("軸");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Time", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (ImGui::DragFloat("時刻", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				axisKey.time = ClampKeyTime(state, axisKey.time);
 				result.valueChanged = true;
 			}
 
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::Checkbox("Custom Axis", &axisSetting->useCustomAxis)) {
+			if (ImGui::Checkbox("任意の軸", &axisSetting->useCustomAxis)) {
 				result.valueChanged = true;
 			}
 			if (axisSetting->useCustomAxis) {
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("Axis X", &axisSetting->customAxis.x, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (ImGui::DragFloat("軸X", &axisSetting->customAxis.x, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("Axis Y", &axisSetting->customAxis.y, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (ImGui::DragFloat("軸Y", &axisSetting->customAxis.y, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("Axis Z", &axisSetting->customAxis.z, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (ImGui::DragFloat("軸Z", &axisSetting->customAxis.z, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 			} else {
@@ -134,11 +134,11 @@ namespace Engine::CurveEditorUtility {
 				for (uint32_t axisIndex = 0; axisIndex < axisSetting->axes.size(); ++axisIndex) {
 					ImGui::PushID(static_cast<int>(axisIndex));
 					ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-					if (Engine::ImGuiUtility::EnumCombo<Engine::Axis>("Axis", &axisSetting->axes[axisIndex])) {
+					if (Engine::ImGuiUtility::EnumCombo<Engine::Axis>("軸", &axisSetting->axes[axisIndex])) {
 						result.valueChanged = true;
 					}
 					ImGui::SameLine();
-					if (ImGui::Button("Delete")) {
+					if (ImGui::Button("削除")) {
 						axisSetting->axes.erase(axisSetting->axes.begin() + axisIndex);
 						if (axisSetting->axes.empty()) {
 							axisSetting->axes.emplace_back(Engine::Axis::X);
@@ -149,7 +149,7 @@ namespace Engine::CurveEditorUtility {
 					}
 					ImGui::PopID();
 				}
-				if (ImGui::Button("Add Axis")) {
+				if (ImGui::Button("軸を追加")) {
 					axisSetting->axes.emplace_back(Engine::Axis::X);
 					result.valueChanged = true;
 				}
@@ -169,14 +169,14 @@ namespace Engine::CurveEditorUtility {
 		if (IsQuaternionAngleSelection(channels, selection)) {
 			Engine::CurveChannel& channel = channels[1];
 			Engine::CurveKey& key = channel.keys[selection.keyIndex];
-			ImGui::TextUnformatted("Angle");
+			ImGui::TextUnformatted("角度");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("Angle", &key.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
+			if (ImGui::DragFloat("角度", &key.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
@@ -193,7 +193,7 @@ namespace Engine::CurveEditorUtility {
 		}
 
 		if (channels.size() <= selection.channelIndex || channels[selection.channelIndex].keys.size() <= selection.keyIndex) {
-			ImGui::TextDisabled("Invalid selection");
+			ImGui::TextDisabled("選択が無効です");
 			ImGui::SetWindowFontScale(previousFontScale);
 			ImGui::EndChild();
 			return;
@@ -201,14 +201,14 @@ namespace Engine::CurveEditorUtility {
 
 		Engine::CurveChannel& channel = channels[selection.channelIndex];
 		Engine::CurveKey& key = channel.keys[selection.keyIndex];
-		ImGui::TextUnformatted(channel.name.c_str());
+		ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(channel.name.c_str()));
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (ImGui::DragFloat("Time", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+		if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 			key.time = ClampKeyTime(state, key.time);
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (ImGui::DragFloat("Value", &key.value, 0.01f, state.visibleValueMin, state.visibleValueMax, "%.3f")) {
+		if (ImGui::DragFloat("値", &key.value, 0.01f, state.visibleValueMin, state.visibleValueMax, "%.3f")) {
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);

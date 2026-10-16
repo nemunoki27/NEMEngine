@@ -112,7 +112,6 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
-	systemContext_.animationControllerManager = &animationControllerManager_;
 	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	StartPlayWorld();
 	PreloadReleaseResources(graphicsCore);
@@ -206,7 +205,6 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
-	systemContext_.animationControllerManager = &animationControllerManager_;
 	RefreshActiveWorldContext();
 
 	const bool skipFirstAdvance = playWorldJustStarted_;

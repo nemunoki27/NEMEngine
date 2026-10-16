@@ -43,6 +43,9 @@ namespace Engine {
 		const GPUTextureResource* GetNeutralDisplacementTexture() const;
 		// 読込失敗時のテクスチャを借用する
 		const GPUTextureResource* GetErrorTexture() const;
+		// 面光源のLTCテーブルを借用する
+		const GPUTextureResource* GetRectLTCMatrix() const;
+		const GPUTextureResource* GetRectLTCAmplitude() const;
 	private:
 		//============================================================================
 		//	private Methods

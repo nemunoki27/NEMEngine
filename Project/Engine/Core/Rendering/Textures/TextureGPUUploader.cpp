@@ -185,13 +185,13 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadSolidColor1x1(
 		return result;
 	}
 
-	// コピー後のリソースバリアを設定する
-	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
+	// 全MipをShaderから参照できる状態にして公開する
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = result.resource.Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	barrier.Transition.StateAfter =
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 
@@ -296,13 +296,13 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadScratchImage(
 		return result;
 	}
 
-	// コピー後のリソースバリアを設定する
-	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
+	// 全MipをShaderから参照できる状態にして公開する
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = result.resource.Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	barrier.Transition.StateAfter =
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 

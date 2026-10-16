@@ -1,6 +1,6 @@
 namespace NEMEngine;
 
-// Controllerの状態再生と直接Clip再生を操作する
+// グループ再生と直接Clip再生を操作する
 public sealed partial class Animator {
 
     public void Play(string stateName, int layer = -1, float normalizedTime = float.NegativeInfinity) {
@@ -28,7 +28,7 @@ public sealed partial class Animator {
         SetPlaybackRequest(stateName, fixedTransitionDuration, false, fixedTimeOffset, false);
     }
 
-    // Controllerの構成を変えずに単独Clipを再生する
+    // 保存済みグループを変更せずに単独Clipを再生
     public void PlayClip(AnimationClip clip, float normalizedTime = 0.0f) {
 
         ArgumentNullException.ThrowIfNull(clip);
@@ -73,7 +73,7 @@ public sealed partial class Animator {
 
     private static void ValidateLayer(int layer) {
 
-        // 現在のControllerは単一Layerを使う
+        // グループ再生は単一Layerを使う
         if (layer != -1 && layer != 0) throw new ArgumentOutOfRangeException(nameof(layer));
     }
 

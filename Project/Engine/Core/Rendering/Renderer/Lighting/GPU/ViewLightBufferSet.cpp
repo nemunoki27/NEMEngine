@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 // c++
@@ -25,6 +26,12 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
+
+	builtinTextures_ = &graphicsCore.GetBuiltinTextureLibrary();
+
+	// 全Viewで同じ面光源テーブルを参照する
+	rectLTCMatrixIndex_ = graphicsCore.GetBuiltinTextureLibrary().GetRectLTCMatrix()->srvIndex;
+	rectLTCAmplitudeIndex_ = graphicsCore.GetBuiltinTextureLibrary().GetRectLTCAmplitude()->srvIndex;
 
 	// バッファを初期化
 	lightCounts_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
@@ -64,6 +71,7 @@ void Engine::ViewLightBufferSet::Release() {
 	clusterHeaders_.Release();
 	clusterLightIndices_.Release();
 	data_.Reset();
+	builtinTextures_ = nullptr;
 	uploadedSerials_.fill(0);
 
 	initialized_ = false;
@@ -77,13 +85,24 @@ void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
 
 void Engine::ViewLightBufferSet::UploadCachedBuffers() {
 
+	// 再読込で変わったDescriptorを古い転送世代へ残さない
+	const uint32_t matrixIndex = builtinTextures_->GetRectLTCMatrix()->srvIndex;
+	const uint32_t amplitudeIndex = builtinTextures_->GetRectLTCAmplitude()->srvIndex;
+	if (rectLTCMatrixIndex_ != matrixIndex || rectLTCAmplitudeIndex_ != amplitudeIndex) {
+		rectLTCMatrixIndex_ = matrixIndex;
+		rectLTCAmplitudeIndex_ = amplitudeIndex;
+		uploadedSerials_.fill(0);
+	}
 	const uint32_t frameIndex =
 		GraphicsFrameState::GetCurrentIndex();
 	if (uploadedSerials_[frameIndex] == data_.dataSerial_) {
 		return;
 	}
 
-	lightCounts_.Upload(data_.lightCountsScratch_);
+	LightCountsGPU counts = data_.lightCountsScratch_;
+	counts.rectLTCMatrixIndex = rectLTCMatrixIndex_;
+	counts.rectLTCAmplitudeIndex = rectLTCAmplitudeIndex_;
+	lightCounts_.Upload(counts);
 	directionalLights_.Upload(data_.directionalScratch_);
 	pointLights_.Upload(data_.pointScratch_);
 	rectLights_.Upload(data_.rectScratch_);

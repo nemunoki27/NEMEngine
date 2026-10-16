@@ -1,5 +1,10 @@
 #include "IEditorTool.h"
 
+//============================================================================
+//	include
+//============================================================================
+#include <imgui_internal.h>
+
 using namespace Engine;
 
 void Engine::IEditorTool::BeginEditorToolFrame(const EditorToolContext& context) {
@@ -10,6 +15,24 @@ void Engine::IEditorTool::BeginEditorToolFrame(const EditorToolContext& context)
 void Engine::IEditorTool::EndEditorToolFrame() {
 
 	renderResources_.EndEditorToolFrame();
+}
+
+std::string Engine::IEditorTool::MakeWindowName(const char* identity, const char* previousName) const {
+
+	const std::string name = GetDescriptor().name + "###" + identity;
+	const ImGuiID windowID = ImHashStr(name.c_str());
+	if (!ImGui::FindWindowByID(windowID) && !ImGui::FindWindowSettingsByID(windowID)) {
+		// 日本語化前の位置とドッキング先を新しい表示名へ移す
+		if (const auto* oldSettings = ImGui::FindWindowSettingsByID(ImHashStr(previousName ? previousName : identity))) {
+			const ImGuiWindowSettings saved = *oldSettings;
+			auto* settings = ImGui::CreateNewWindowSettings(name.c_str());
+			*settings = saved;
+			settings->ID = windowID;
+			settings->WantApply = true;
+			settings->WantDelete = false;
+		}
+	}
+	return name;
 }
 
 EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::string& name,

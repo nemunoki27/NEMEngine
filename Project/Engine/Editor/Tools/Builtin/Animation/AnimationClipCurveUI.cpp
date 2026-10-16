@@ -50,7 +50,7 @@ void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& 
 	session.NormalizeSelectedTrackIndex();
 
 	if (session.GetSelectedTrackIndex() < 0) {
-		ImGui::TextDisabled("Select property track.");
+		ImGui::TextDisabled("プロパティトラックを選択してください");
 		return;
 	}
 
@@ -60,7 +60,7 @@ void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& 
 	}
 
 	if (track.channels.empty()) {
-		ImGui::TextDisabled("Visible curve track is empty.");
+		ImGui::TextDisabled("表示できるカーブがありません");
 		return;
 	}
 
@@ -113,7 +113,7 @@ void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& 
 		for (CurveChannel& channel : track.channels) {
 			CurveChannelRef ref{};
 			ref.channel = &channel;
-			ref.displayName = channel.name;
+			ref.displayName = ImGuiUtility::GetDisplayName(channel.name.c_str());
 			channelRefs.emplace_back(std::move(ref));
 		}
 		result = MyGUI::CurveEditor("AnimationClipCurveEditor", channelRefs, session.GetCurveState(), curveSetting);
@@ -170,7 +170,7 @@ void Engine::AnimationClipEditorUI::DrawKeyInspectorUI(AnimationClipEditSession&
 	CurveChannel& channel = track.channels[selection.channelIndex];
 	CurveKey& key = channel.keys[selection.keyIndex];
 
-	ImGui::Text("チャンネル: %s", channel.name.c_str());
+	ImGui::Text("チャンネル: %s", ImGuiUtility::GetDisplayName(channel.name.c_str()));
 	bool changed = false;
 	float time = key.time;
 	if (MyGUI::DragFloat("キー時間", time, {.dragSpeed = 0.001f, .minValue = 0.0f, .maxValue = 10000.0f}).valueChanged) {
@@ -248,11 +248,11 @@ void Engine::AnimationClipEditorUI::DrawKeyInspectorUI(AnimationClipEditSession&
 				CurveInterpolationMode::Spline,
 			};
 
-			if (ImGui::BeginCombo("##Value", EnumAdapter<CurveInterpolationMode>::ToString(interpolation))) {
+			if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<CurveInterpolationMode>::ToString(interpolation)))) {
 				for (CurveInterpolationMode mode : kNonQuaternionInterpolations) {
 
 					const bool selected = interpolation == mode;
-					if (ImGui::Selectable(EnumAdapter<CurveInterpolationMode>::ToString(mode), selected)) {
+					if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<CurveInterpolationMode>::ToString(mode)), selected)) {
 						key.interpolation = mode;
 						changed = true;
 					}
@@ -356,11 +356,11 @@ void Engine::AnimationClipEditorUI::DrawEventListUI(AnimationClipEditSession& se
 					.valueChanged) {
 				session.MarkClipDirty();
 			}
-			if (MyGUI::DragInt("intパラメータ", event.intParam, {.dragSpeed = 1.0f, .minValue = -1000000, .maxValue = 1000000})
+			if (MyGUI::DragInt("整数パラメータ", event.intParam, {.dragSpeed = 1.0f, .minValue = -1000000, .maxValue = 1000000})
 					.valueChanged) {
 				session.MarkClipDirty();
 			}
-			if (MyGUI::InputText("stringパラメータ", event.stringParam).valueChanged) {
+			if (MyGUI::InputText("文字列パラメータ", event.stringParam).valueChanged) {
 				session.MarkClipDirty();
 			}
 			if (ImGui::Button("イベントを削除", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {

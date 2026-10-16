@@ -36,9 +36,9 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::Draw(IParticleModule& module
 	if (!types.empty() && MyGUI::BeginPropertyRow("対象形状")) {
 
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		if (ImGui::BeginCombo("##Value", EnumAdapter<PrimitiveType>::ToString(types[currentIndex]))) {
+		if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<PrimitiveType>::ToString(types[currentIndex])))) {
 			for (int32_t i = 0; i < static_cast<int32_t>(types.size()); ++i) {
-				if (ImGui::Selectable(EnumAdapter<PrimitiveType>::ToString(types[i]), i == currentIndex)) {
+				if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<PrimitiveType>::ToString(types[i])), i == currentIndex)) {
 
 					settings_.shape = types[i];
 					ParticleShapeAnimation::EnsureParameters(settings_);
@@ -108,7 +108,7 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawParameter(
 				setting.size = ImVec2(0.0f, 260.0f);
 				setting.fixedTimeRange = true;
 				ParameterUIState& uiState = uiStates_[key];
-				changed |= MyGUI::CurveEditor("Curve", parameter.curveW,
+				changed |= MyGUI::CurveEditor("カーブ", parameter.curveW,
 					uiState.curveState, setting).valueChanged;
 				if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
@@ -170,7 +170,7 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawColorParameter(
 				setting.size = ImVec2(0.0f, 260.0f);
 				setting.fixedTimeRange = true;
 				ParameterUIState& uiState = uiStates_[key];
-				changed |= MyGUI::CurveEditor("Curve", std::span(refs),
+				changed |= MyGUI::CurveEditor("カーブ", std::span(refs),
 					uiState.curveState, setting).valueChanged;
 				if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 

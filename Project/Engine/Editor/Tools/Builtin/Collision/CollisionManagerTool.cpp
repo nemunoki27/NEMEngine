@@ -39,7 +39,7 @@ void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& conte
 
 void Engine::CollisionManagerTool::DrawWindow([[maybe_unused]] const EditorToolContext& context) {
 
-	if (!ImGui::Begin("衝突設定", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("衝突設定").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -78,7 +78,7 @@ void Engine::CollisionManagerTool::DrawWindow([[maybe_unused]] const EditorToolC
 		dirty_ = true;
 	}
 	bool queriesHitTriggers = settings.GetQueriesHitTriggers();
-	if (ImGui::Checkbox("物理クエリでTriggerを検出", &queriesHitTriggers)) {
+	if (ImGui::Checkbox("物理クエリでトリガーを検出", &queriesHitTriggers)) {
 		settings.SetQueriesHitTriggers(queriesHitTriggers);
 		dirty_ = true;
 	}

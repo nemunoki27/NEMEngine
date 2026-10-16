@@ -18,6 +18,7 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	class BuiltinTextureLibrary;
 
 	//============================================================================
 	//	ViewLightBufferSet class
@@ -66,6 +67,9 @@ namespace Engine {
 		StructuredInstanceBuffer<uint32_t> clusterLightIndices_{ "gLightClusterIndices" };
 
 		ViewLightData data_;
+		BuiltinTextureLibrary* builtinTextures_ = nullptr;
+		uint32_t rectLTCMatrixIndex_ = UINT32_MAX;
+		uint32_t rectLTCAmplitudeIndex_ = UINT32_MAX;
 		std::array<uint64_t, kGraphicsFrameContextCount> uploadedSerials_{};
 
 		// 初期化フラグ

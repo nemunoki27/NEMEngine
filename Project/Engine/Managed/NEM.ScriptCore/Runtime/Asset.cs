@@ -95,11 +95,6 @@ public sealed class AnimationClip : Asset {
     internal AnimationClip(AssetGUID id) : base(id) { }
 }
 
-[NativeAssetType("AnimationController")]
-public sealed class RuntimeAnimatorController : Asset {
-    internal RuntimeAnimatorController(AssetGUID id) : base(id) { }
-}
-
 [NativeAssetType("ParticleEffect")]
 public sealed class ParticleEffect : Asset {
     internal ParticleEffect(AssetGUID id) : base(id) { }

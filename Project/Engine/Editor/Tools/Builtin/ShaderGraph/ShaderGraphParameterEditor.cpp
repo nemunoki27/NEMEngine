@@ -96,7 +96,7 @@ void Engine::ShaderGraphParameterEditor::DrawValue(
 			session.MarkDirty();
 		}
 	}
-	session.MarkDirty(MyGUI::EnumCombo("Semantic", parameter.semantic).valueChanged);
+	session.MarkDirty(MyGUI::EnumCombo("用途", parameter.semantic).valueChanged);
 
 	switch (parameter.type) {
 	case ShaderGraphValueType::Float: {

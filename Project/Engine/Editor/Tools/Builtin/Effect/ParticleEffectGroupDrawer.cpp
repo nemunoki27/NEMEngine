@@ -112,9 +112,9 @@ bool ParticleEffectGroupDrawer::Draw(const EditorToolContext& context, ParticleE
 			if (!shapes.empty() && MyGUI::BeginPropertyRow("発生形状")) {
 
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				if (ImGui::BeginCombo("##Value", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex]))) {
+				if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex])))) {
 					for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
-						if (ImGui::Selectable(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i]), i == currentIndex)) {
+						if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i])), i == currentIndex)) {
 
 							group.emitter.shape = shapes[i];
 							changed = true;
@@ -180,14 +180,14 @@ bool ParticleEffectGroupDrawer::Draw(const EditorToolContext& context, ParticleE
 						changed = true;
 						statusMessage_.clear();
 					} else {
-						statusMessage_ = "Particleマテリアルを設定できません: " + message;
+						statusMessage_ = "パーティクルマテリアルを設定できません: " + message;
 					}
 				}
 			}
 			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
 			changed |= InspectorDrawerCommon::DrawLayerMaskField(*context.panelContext,
-				"Rendering Layer", group.renderingLayerMask).valueChanged;
+				"描画レイヤー", group.renderingLayerMask).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };

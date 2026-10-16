@@ -19,6 +19,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -38,7 +39,7 @@ namespace {
 	// アセットパスから表示名を作る
 	std::string MakeNameFromPath(const char* assetPath) {
 
-		std::string stem = Engine::Algorithm::PathToUTF8(Engine::Algorithm::PathFromUTF8(assetPath).stem());
+		const std::string stem = Engine::ProjectAssetPath::SplitAssetFileName(Engine::Algorithm::PathFromUTF8(assetPath)).first;
 		return stem.empty() ? std::string("Entity") : stem;
 	}
 

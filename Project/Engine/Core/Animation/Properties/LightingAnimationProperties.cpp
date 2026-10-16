@@ -55,9 +55,6 @@ void Engine::RegisterLightingAnimationProperties(AnimationPropertyRegistry& regi
 	Register(registry, "RectLight", "sourceHeight", "RectLight.sourceHeight", AnimationValueType::Float,
 		HasComponent<RectLightComponent>, GetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>,
 		SetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>);
-	Register(registry, "RectLight", "decay", "RectLight.decay", AnimationValueType::Float, HasComponent<RectLightComponent>,
-		GetMember<RectLightComponent, float, &RectLightComponent::decay>,
-		SetMember<RectLightComponent, float, &RectLightComponent::decay>);
 	Register(registry, "RectLight", "barnDoorAngle", "RectLight.barnDoorAngle", AnimationValueType::Float,
 		HasComponent<RectLightComponent>, GetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>,
 		SetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>);

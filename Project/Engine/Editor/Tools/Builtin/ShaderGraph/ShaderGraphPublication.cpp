@@ -29,7 +29,7 @@ namespace {
 			return false;
 		}
 		if (expectedID && change.metadata.guid != expectedID) {
-			status = "保存先のGraphと選択中のGUIDが一致しません";
+			status = "保存先のグラフと選択中のGUIDが一致しません";
 			return false;
 		}
 		if (!expectedID && change.fileRevision != "missing") {
@@ -93,7 +93,7 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 
 	ShaderGraphArtifact artifact{};
 	if (!ShaderGraphArtifactCache::Compile(graph, assetID, artifact, &database, &diagnostics)) {
-		status = diagnostics.empty() ? "派生Shaderを生成できませんでした" : diagnostics.front().message;
+		status = diagnostics.empty() ? "派生シェーダーを生成できませんでした" : diagnostics.front().message;
 		return false;
 	}
 

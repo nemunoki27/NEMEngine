@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "guid": "4e454d41535345544c54430000000002",
+  "type": "Texture",
+  "importer": "TextureImporter",
+  "importerVersion": 2,
+  "settings": {
+    "preset": "Data",
+    "colorSpace": "Linear",
+    "filter": "Bilinear",
+    "addressU": "Clamp",
+    "addressV": "Clamp",
+    "generateMipmaps": false,
+    "alphaColorBleed": false
+  }
+}

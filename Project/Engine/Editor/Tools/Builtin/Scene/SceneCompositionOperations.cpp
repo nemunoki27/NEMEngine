@@ -43,13 +43,13 @@ bool Engine::SceneCompositionOperations::ApplyChanges(const EditorToolContext& c
 			scenes->SynchronizeSubScenes(
 				*assetDatabase, SceneSystem{}, *world, instanceID);
 		}
-		statusMessage = "SubScene設定を適用できません";
+		statusMessage = "サブシーン設定を適用できません";
 		statusError = true;
 		return false;
 	}
 
 	context.panelContext->host->RequestMarkSceneDirty();
-	statusMessage = "SubScene設定を更新しました";
+	statusMessage = "サブシーン設定を更新しました";
 	statusError = false;
 	return true;
 }

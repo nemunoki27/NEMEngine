@@ -336,8 +336,6 @@ namespace Engine {
 		using CollisionSetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, const void*, int32_t);
 		// 指定Clipの再生時間を返す
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
-		using SetAnimatorParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, int32_t, float, int32_t);
-		using GetAnimatorParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, int32_t, float*, int32_t*);
 		// 指定Clipの再生を要求する
 		using PlaySkinnedAnimationCallback = void(__cdecl*)(ManagedNativeEntity, const char*);
 		using GetSkinnedAnimationRuntimeStateCallback = int32_t(__cdecl*)(

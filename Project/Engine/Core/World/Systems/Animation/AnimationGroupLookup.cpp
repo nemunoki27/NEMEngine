@@ -38,10 +38,6 @@ namespace Engine::AnimationGroupLookup {
 			return nullptr;
 		}
 		if (name == player.runtimeDirectGroup.name) return &player.runtimeDirectGroup;
-		// Controllerの状態は共有Assetの実行snapshotから参照する
-		for (const AnimationGroup& group : player.runtimeControllerGroups) {
-			if (group.name == name) return &group;
-		}
 		for (const AnimationGroup& group : player.groups) {
 			if (group.name == name) {
 				return &group;

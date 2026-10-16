@@ -33,6 +33,12 @@ function NEM_ApplyDefaultCppSettings()
     multiprocessorcompile "On"
     buildoptions { "/utf-8", "/FS" }
 
+    -- ソース単位で依存関係を追跡し、古いオブジェクトの混在を防ぐ
+    vsprops {
+        UseMultiToolTask = "true",
+        EnforceProcessCountAcrossBuilds = "true",
+    }
+
     -- VS2022を明示したいときだけ固定
     filter "action:vs2022"
         toolset "v143"

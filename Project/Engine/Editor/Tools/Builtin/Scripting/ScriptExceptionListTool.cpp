@@ -40,25 +40,25 @@ void Engine::ScriptExceptionListTool::DrawEditorTool(const EditorToolContext& co
 
 void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("Script Exception List", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("Script Exception List").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
 
 	ManagedScriptExceptionStore& store = ManagedScriptExceptionStore::GetInstance();
 
-	ImGui::TextWrapped("Scriptの例外を表示します。Error Pauseが有効なら実行状態を保持して一時停止します。");
-	ImGui::TextDisabled("identity は scriptTypeID の Stable GUID。表示名は識別には使いません。");
+	ImGui::TextWrapped("スクリプトの例外を表示します。例外時の一時停止が有効なら実行状態を保持します");
+	ImGui::TextDisabled("スクリプト型の識別には固定GUIDを使用します");
 
 	// 表示を絞り込み、履歴を削除する
 	ImGui::SetNextItemWidth(200.0f);
-	ImGui::InputTextWithHint("##excFilter", "type/message で検索", textFilter_, sizeof(textFilter_));
+	ImGui::InputTextWithHint("##excFilter", "型名・メッセージで検索", textFilter_, sizeof(textFilter_));
 	ImGui::SameLine();
-	if (ImGui::Button("Clear")) {
+	if (ImGui::Button("消去")) {
 		store.Clear();
 	}
 	ImGui::SameLine();
-	ImGui::TextDisabled("count: %llu (bounded %llu)", static_cast<unsigned long long>(store.Count()),
+	ImGui::TextDisabled("件数: %llu（保持上限 %llu）", static_cast<unsigned long long>(store.Count()),
 		static_cast<unsigned long long>(ManagedScriptExceptionStore::kMaxEntries));
 	ImGui::Separator();
 
@@ -70,11 +70,11 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 		ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
 	if (ImGui::BeginTable("##excTable", 5, tableFlags)) {
 
-		ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-		ImGui::TableSetupColumn("Callback", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-		ImGui::TableSetupColumn("Entity", ImGuiTableColumnFlags_WidthFixed, 120.0f);
-		ImGui::TableSetupColumn("Exception", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("時刻", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+		ImGui::TableSetupColumn("呼び出し", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+		ImGui::TableSetupColumn("型", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+		ImGui::TableSetupColumn("エンティティ", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+		ImGui::TableSetupColumn("例外", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableHeadersRow();
 
 		for (const ManagedScriptException& exc : store.Entries()) {
@@ -98,7 +98,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			ImGui::TableSetColumnIndex(2);
 			ImGui::TextUnformatted(shortType.c_str());
 			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip("%s\nscriptTypeID: %s\nslot: %llu", exc.typeName.c_str(),
+				ImGui::SetTooltip("%s\nスクリプト型ID: %s\nスロット: %llu", exc.typeName.c_str(),
 					exc.scriptTypeID.empty() ? "(unresolved)" : exc.scriptTypeID.c_str(),
 					static_cast<unsigned long long>(exc.scriptSlotID));
 			}
@@ -129,7 +129,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			if (ImGui::TreeNodeEx("##exc", ImGuiTreeNodeFlags_SpanAvailWidth, "%s", header.c_str())) {
 
 				if (exc.frames.empty()) {
-					ImGui::TextDisabled("stack frame 情報はありません。");
+					ImGui::TextDisabled("呼び出し履歴がありません");
 				}
 				for (size_t f = 0; f < exc.frames.size(); ++f) {
 

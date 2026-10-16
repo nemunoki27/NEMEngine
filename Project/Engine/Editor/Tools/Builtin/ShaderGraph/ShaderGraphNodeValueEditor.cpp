@@ -139,7 +139,7 @@ void Engine::ShaderGraphNodeValueEditor::DrawNodeValueTypeButton(ShaderGraphNode
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgActive));
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 	const bool pressed =
-		ImGui::Button(EnumAdapter<ShaderGraphValueType>::ToString(node.valueType), ImVec2(width, ImGui::GetFrameHeight()));
+		ImGui::Button(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(node.valueType)), ImVec2(width, ImGui::GetFrameHeight()));
 	ImGui::PopStyleVar();
 	ImGui::PopStyleColor(3);
 
@@ -222,7 +222,7 @@ void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& sessi
 
 				continue;
 			}
-			if (ImGui::Selectable(EnumAdapter<ShaderGraphValueType>::ToString(valueType), node.valueType == valueType)) {
+			if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(valueType)), node.valueType == valueType)) {
 
 				node.valueType = valueType;
 				node.value = DefaultValueForGraphType(valueType);

@@ -122,7 +122,7 @@ namespace Engine::CurveEditorUtility {
 							result.valueChanged = true;
 							result.selectionChanged = true;
 						}
-						if (HasAlphaChannel(channels) && ImGui::MenuItem("Alpha")) {
+						if (HasAlphaChannel(channels) && ImGui::MenuItem("アルファ")) {
 							const float alpha = (std::clamp)(channels[3].Evaluate(time), 0.0f, 1.0f);
 							const uint32_t newKeyIndex = channels[3].AddKey(time, alpha);
 							state.ClearSelection();

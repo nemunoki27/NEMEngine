@@ -22,7 +22,7 @@ namespace Engine {
 		// 色
 		Color4 color = Color4::White();
 
-		// 強さ
+		// 光源全体の出力
 		float intensity = 1.0f;
 		// 減衰半径
 		float attenuationRadius = 10.0f;
@@ -30,8 +30,6 @@ namespace Engine {
 		float sourceWidth = 2.0f;
 		// 光源高さ
 		float sourceHeight = 2.0f;
-		// 減衰
-		float decay = 1.0f;
 		// バーンドア角度
 		float barnDoorAngle = 88.0f;
 		// バーンドア長さ

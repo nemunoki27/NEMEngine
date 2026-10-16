@@ -109,8 +109,8 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 		return MyGUI::ColorEdit("色", draft.color);
 		});
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("強度", draft.intensity,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
+		return MyGUI::DragFloat("総出力", draft.intensity,
+			{ .dragSpeed = 0.1f,.minValue = 0.0f,.maxValue = 1000000.0f });
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("減衰半径", draft.attenuationRadius,
@@ -122,10 +122,6 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("光源高さ", draft.sourceHeight,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("減衰", draft.decay,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
 		});
 	DrawField(anyItemActive, [&]() {

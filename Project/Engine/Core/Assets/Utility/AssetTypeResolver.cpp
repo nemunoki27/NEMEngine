@@ -20,7 +20,6 @@ namespace {
 	};
 
 	constexpr std::array kCompoundAssetSuffixes = {
-		CompoundAssetSuffix{ ".animcontroller.json", Engine::AssetType::AnimationController },
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
 		CompoundAssetSuffix{ ".rendertexture.json", Engine::AssetType::RenderTexture },
 		CompoundAssetSuffix{ ".renderpasses.json", Engine::AssetType::RenderPasses },
@@ -119,7 +118,6 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::Prefab:
 	case AssetType::Material:
 	case AssetType::AnimationClip:
-	case AssetType::AnimationController:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
 	case AssetType::ParticleEffect:

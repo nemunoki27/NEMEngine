@@ -84,7 +84,6 @@ void Engine::BuiltinLightExtractor<Engine::RectLightComponent>::Extract(
 		item.attenuationRadius = light.attenuationRadius;
 		item.sourceWidth = light.sourceWidth;
 		item.sourceHeight = light.sourceHeight;
-		item.decay = light.decay;
 		item.barnDoorAngle = light.barnDoorAngle;
 		item.barnDoorLength = light.barnDoorLength;
 		item.shadowStrength = light.shadowStrength;

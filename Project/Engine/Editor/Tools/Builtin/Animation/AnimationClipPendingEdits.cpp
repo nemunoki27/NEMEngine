@@ -49,20 +49,26 @@ void Engine::AnimationClipTool::RequestClipSwitch(const EditorToolContext& conte
 
 void Engine::AnimationClipTool::DrawPendingEdits(const EditorToolContext& context) {
 
-	if (!pendingClose_ && !pendingClip_) return;
-	ImGui::OpenPopup("Animation Clipの未保存編集");
-	if (!MyGUI::BeginPopupModal("Animation Clipの未保存編集", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+	if (!pendingClose_ && !pendingClip_ && !pendingCreate_ && !pendingImport_) return;
+	ImGui::OpenPopup("アニメーションクリップの未保存編集");
+	if (!MyGUI::BeginPopupModal("アニメーションクリップの未保存編集", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
 	ImGui::TextWrapped("%s", "変更を保存しますか？");
 	const auto finish = [&]() {
 
 		session_.EndPreviewAndRestore();
-		if (pendingClip_) {
+		if (pendingCreate_) {
+			if (!session_.CreateClip(context, *pendingCreate_)) return;
+		} else if (pendingImport_) {
+			if (!session_.ImportSettings(context, *pendingImport_)) return;
+		} else if (pendingClip_) {
 
 			session_.GetClipAssetID() = *pendingClip_;
 			session_.LoadClipFromSelectedAsset(context);
 		}
 		if (pendingClose_) openWindow_ = false;
 		pendingClip_.reset();
+		pendingCreate_.reset();
+		pendingImport_.reset();
 		pendingClose_ = false;
 		if (resolvingClose_) closeResult_ = EditorToolCloseResult::Accepted;
 		resolvingClose_ = false;
@@ -76,13 +82,16 @@ void Engine::AnimationClipTool::DrawPendingEdits(const EditorToolContext& contex
 	ImGui::SameLine();
 	if (ImGui::Button("破棄")) {
 
-		session_.RevertClipFromSelectedAsset(context);
+		// 作成と取り込みの失敗時は編集中の値へ戻れるようにする
+		if (!pendingCreate_ && !pendingImport_) session_.RevertClipFromSelectedAsset(context);
 		finish();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("キャンセル")) {
 
 		pendingClip_.reset();
+		pendingCreate_.reset();
+		pendingImport_.reset();
 		pendingClose_ = false;
 		if (resolvingClose_) closeResult_ = EditorToolCloseResult::Cancelled;
 		resolvingClose_ = false;

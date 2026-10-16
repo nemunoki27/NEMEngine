@@ -44,7 +44,7 @@ void Engine::LightingBakeTool::StartBake(const EditorToolContext& context) try {
 	SceneSystem scenes;
 	const UUID instance = UUID::New();
 	if (!scenes.LoadScene(scenePath_, savedWorld, &database, sourceScene_, instance)) {
-		status_ = "保存済みSceneを読み込めません";
+		status_ = "保存済みシーンを読み込めません";
 		return;
 	}
 	// 保存値から階層とワールド行列を確定する
@@ -64,7 +64,7 @@ void Engine::LightingBakeTool::StartBake(const EditorToolContext& context) try {
 	// 未保存の固定背景を保存済み入力と混在させない
 	auto input = BakedLightingInputBuilder::Capture(database, savedWorld, sourceScene_, instance);
 	if (!BakedLightingInputBuilder::IsCurrent(input.preparation.data, *context.GetWorld(), context.toolContext.activeSceneInstanceID)) {
-		status_ = "固定背景またはライトに未保存の編集があります Sceneを保存してください";
+		status_ = "固定背景またはライトに未保存の編集があります シーンを保存してください";
 		return;
 	}
 	BakedLightingSettings settings;
@@ -87,12 +87,12 @@ void Engine::LightingBakeTool::Publish(const EditorToolContext& context) try {
 	auto& database = *context.toolContext.assetDatabase;
 	const auto result = context.panelContext->graphicsCore->GetLightingBake().GetResult();
 	if (!result || sourceScene_ != context.toolContext.activeSceneAsset) {
-		status_ = "ベイク元のSceneを開いてください";
+		status_ = "ベイク元のシーンを開いてください";
 		return;
 	}
 	if (StorageFileUtility::FileRevision(scenePath_) != sceneRevision_ ||
 		!BakedLightingInputBuilder::IsCurrent(*result, *context.GetWorld(), context.toolContext.activeSceneInstanceID)) {
-		status_ = "ベイク中にSceneが変更されています 再ベイクしてください";
+		status_ = "ベイク中にシーンが変更されています 再ベイクしてください";
 		return;
 	}
 	BakedLightingInputBuilder::ValidateAssets(*result, database, true);
@@ -112,34 +112,34 @@ void Engine::LightingBakeTool::Publish(const EditorToolContext& context) try {
 void Engine::LightingBakeTool::DrawEditorTool(const EditorToolContext& context) {
 
 	if (!openWindow_) return;
-	if (!ImGui::Begin("照明ベイク", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("照明ベイク").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
 	if (!context.panelContext || !context.panelContext->graphicsCore || !context.toolContext.sceneInstances ||
 		!context.toolContext.assetDatabase || !context.CanEditScene() || !context.toolContext.activeSceneAsset) {
-		ImGui::TextDisabled("編集可能なActive Sceneがありません");
+		ImGui::TextDisabled("編集可能なアクティブシーンがありません");
 		ImGui::End();
 		return;
 	}
 	auto* instance = context.toolContext.sceneInstances->Find(context.toolContext.activeSceneInstanceID);
 	auto& baker = context.panelContext->graphicsCore->GetLightingBake();
-	MyGUI::Text("Scene", instance->header.name);
+	MyGUI::Text("シーン", instance->header.name);
 	bool changed = MyGUI::Checkbox("ベイク照明を使用", instance->header.bakedLightingEnabled);
 	changed |= MyGUI::AssetReferenceField("保存結果", instance->header.bakedLighting,
 		context.toolContext.assetDatabase, {AssetType::BakedLighting}).valueChanged;
 	if (changed) context.panelContext->host->RequestMarkSceneDirty();
 	ImGui::Separator();
 	ImGui::BeginDisabled(baker.IsRunning());
-	MyGUI::DragInt("Atlasサイズ", atlasSize_, {.minValue = 64, .maxValue = 2048});
+	MyGUI::DragInt("アトラスサイズ", atlasSize_, {.minValue = 64, .maxValue = 2048});
 	MyGUI::DragInt("サンプル数", sampleCount_, {.minValue = 16, .maxValue = 4096});
 	MyGUI::DragInt("拡散反射回数", bounceCount_, {.minValue = 1, .maxValue = 8});
-	MyGUI::DragFloat("Probe間隔", probeSpacing_, {.minValue = 0.1f});
-	MyGUI::DragInt("Captureサイズ", captureSize_, {.minValue = 16, .maxValue = 128});
-	MyGUI::DragInt("Frameの作業量", workBudget_, {.minValue = 256, .maxValue = 8192});
+	MyGUI::DragFloat("プローブ間隔", probeSpacing_, {.minValue = 0.1f});
+	MyGUI::DragInt("反射キャプチャサイズ", captureSize_, {.minValue = 16, .maxValue = 128});
+	MyGUI::DragInt("フレームの作業量", workBudget_, {.minValue = 256, .maxValue = 8192});
 	MyGUI::DragFloat("面のオフセット", normalBias_, {.dragSpeed = 0.001f, .minValue = 0.0001f});
 	const float width = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-	if (ImGui::Button("Sceneを保存", ImVec2(width, 0.0f))) context.panelContext->host->RequestSaveScene();
+	if (ImGui::Button("シーンを保存", ImVec2(width, 0.0f))) context.panelContext->host->RequestSaveScene();
 	ImGui::SameLine();
 	const bool supported = context.panelContext->graphicsCore->GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath();
 	ImGui::BeginDisabled(!supported);
@@ -153,7 +153,7 @@ void Engine::LightingBakeTool::DrawEditorTool(const EditorToolContext& context) 
 	}
 	const auto result = baker.GetResult();
 	if (result && result != published_) {
-		MyGUI::TextFloat("実際のProbe間隔", result->probeSpacing);
+		MyGUI::TextFloat("実際のプローブ間隔", result->probeSpacing);
 		if (ImGui::Button("結果を保存", ImVec2(-1.0f, 0.0f))) Publish(context);
 	}
 	const std::string message = !status_.empty() ? status_ : baker.GetStatus();

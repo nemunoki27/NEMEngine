@@ -41,10 +41,13 @@ namespace Engine {
 
 		// ファイルを書かず作成先と結果のパスを決める
 		static ProjectAssetFileResult PlanCreate(ProjectAssetSource source, const std::string& directoryVirtualPath,
-			ProjectAssetFileKind kind, const std::string& requestedName);
+			ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique = true);
 		// 指定ディレクトリにアセットまたはフォルダを作成する
 		static ProjectAssetFileResult Create(ProjectAssetSource source, const std::string& directoryVirtualPath,
-			ProjectAssetFileKind kind, const std::string& requestedName);
+			ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique = true);
+		// ツールで作成したアセットを索引へ登録する
+		static AssetID CreateRegisteredAsset(AssetDatabase& database, const std::string& directoryVirtualPath,
+			ProjectAssetFileKind kind, const std::string& name, std::string& diagnostic);
 		// 指定アセットを同じディレクトリに複製する
 		static ProjectAssetFileResult DuplicateAsset(
 			const ProjectAssetEntry& asset, const std::shared_ptr<SceneAssetStorage>& storage);

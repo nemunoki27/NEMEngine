@@ -26,6 +26,8 @@ SamplerState gSampler : register(s0);
 //	ライト
 //============================================================================
 #include "lightShaderData.hlsli"
+#include "lightAttenuation.hlsli"
+#include "rectAreaLight.hlsli"
 
 struct LightClusterHeader {
 
@@ -121,7 +123,6 @@ float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
 	return saturate(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x].x);
 }
 
-#include "lightAttenuation.hlsli"
 
 float3 EvaluatePBRLight(float3 N, float3 V, float3 L, float3 radiance,
 	float3 albedo, float metallic, float roughness, float3 F0) {
@@ -227,15 +228,8 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 	uint flags, bool useShadow, uint2 pixel) {
 
 	RectLight light = gRectLights[lightIndex];
-	float centerDistance = length(light.pos - worldPos);
-	float attenuation = ComputeDistanceAttenuation(
-		centerDistance, light.attenuationRadius, light.decay);
-	float barnAttenuation =
-		ComputeRectBarnAttenuation(light, worldPos);
-	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
-
+	if (ComputeRectRangeAttenuation(light, worldPos) * ComputeRectBarnAttenuation(light, worldPos) <= 0.0f ||
+		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
@@ -246,28 +240,7 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 
-	float3 result = 0.0f.xxx;
-	[unroll]
-	for (uint sampleIndex = 0u;
-		sampleIndex < kMaximumSoftShadowSampleCount; ++sampleIndex) {
-
-		float3 samplePos = GetRectLightSamplePosition(
-			light, kRectLightSamples[sampleIndex]);
-		float3 toLight = samplePos - worldPos;
-		float sampleDistance = length(toLight);
-		if (sampleDistance <= 1e-5f) {
-			continue;
-		}
-
-		float3 L = toLight / sampleDistance;
-		float sourceFacing =
-			saturate(dot(-L, light.direction));
-		float3 radiance = light.color.rgb * light.intensity *
-			attenuation * barnAttenuation * sourceFacing * shadow;
-		result += EvaluatePBRLight(
-			N, V, L, radiance, albedo, metallic, roughness, F0);
-	}
-	return result / float(kMaximumSoftShadowSampleCount);
+	return shadow * EvaluateRectAreaPBR(light, worldPos, N, V, albedo, metallic, roughness, F0);
 }
 
 bool ResolveLightCluster(int2 pixel, float3 worldPos,

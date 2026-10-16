@@ -53,6 +53,12 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle2D{ 0x4e454d4153534554ull, 0xeff0000000000008ull };
 	}
 
+	namespace Textures {
+
+		inline constexpr AssetID RectLTCMatrix{ 0x4e454d4153534554ull, 0x4c54430000000001ull };
+		inline constexpr AssetID RectLTCAmplitude{ 0x4e454d4153534554ull, 0x4c54430000000002ull };
+	}
+
 	namespace Effects {
 
 		// パーティクルの既定エフェクト
@@ -147,7 +153,7 @@ namespace Engine::BuiltinAssets {
 			Materials::DefaultParticle, Materials::DefaultParticle2D, Effects::DefaultParticle,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
-			Pipelines::ParticleTrail, RenderPasses::Default,
+			Pipelines::ParticleTrail, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,
 			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial,
 		};
 	}

@@ -12,6 +12,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
 // c++
 #include <fstream>
@@ -25,21 +26,21 @@ namespace {
 	const char* BuildStateLabel(State state) {
 
 		switch (state) {
-		case State::Idle: return "Idle";
-		case State::Debouncing: return "Debouncing";
-		case State::MetadataSyncing: return "MetadataSyncing";
-		case State::Building: return "Building";
-		case State::BuildSucceeded: return "BuildSucceeded";
-		case State::BuildFailed: return "BuildFailed";
-		case State::Staging: return "Staging";
-		case State::ReloadPending: return "ReloadPending";
-		case State::Reloading: return "Reloading";
-		case State::ReloadSucceeded: return "ReloadSucceeded";
-		case State::ReloadFailed: return "ReloadFailed";
-		case State::FallbackLoading: return "FallbackLoading";
-		case State::FallbackSucceeded: return "FallbackSucceeded";
-		case State::FallbackFailed: return "FallbackFailed";
-		default: return "Unknown";
+		case State::Idle: return Engine::ImGuiUtility::GetDisplayName("Idle");
+		case State::Debouncing: return Engine::ImGuiUtility::GetDisplayName("Debouncing");
+		case State::MetadataSyncing: return Engine::ImGuiUtility::GetDisplayName("MetadataSyncing");
+		case State::Building: return Engine::ImGuiUtility::GetDisplayName("Building");
+		case State::BuildSucceeded: return Engine::ImGuiUtility::GetDisplayName("BuildSucceeded");
+		case State::BuildFailed: return Engine::ImGuiUtility::GetDisplayName("BuildFailed");
+		case State::Staging: return Engine::ImGuiUtility::GetDisplayName("Staging");
+		case State::ReloadPending: return Engine::ImGuiUtility::GetDisplayName("ReloadPending");
+		case State::Reloading: return Engine::ImGuiUtility::GetDisplayName("Reloading");
+		case State::ReloadSucceeded: return Engine::ImGuiUtility::GetDisplayName("ReloadSucceeded");
+		case State::ReloadFailed: return Engine::ImGuiUtility::GetDisplayName("ReloadFailed");
+		case State::FallbackLoading: return Engine::ImGuiUtility::GetDisplayName("FallbackLoading");
+		case State::FallbackSucceeded: return Engine::ImGuiUtility::GetDisplayName("FallbackSucceeded");
+		case State::FallbackFailed: return Engine::ImGuiUtility::GetDisplayName("FallbackFailed");
+		default: return Engine::ImGuiUtility::GetDisplayName("Unknown");
 		}
 	}
 
@@ -47,11 +48,11 @@ namespace {
 	const char* ProcessKindLabel(Engine::ManagedBuildProcessKind kind) {
 
 		switch (kind) {
-		case Engine::ManagedBuildProcessKind::MetadataSync: return "MetadataSync";
-		case Engine::ManagedBuildProcessKind::Build: return "Build";
-		case Engine::ManagedBuildProcessKind::ProjectRefresh: return "ProjectRefresh";
-		case Engine::ManagedBuildProcessKind::IDELaunch: return "IDELaunch";
-		default: return "Other";
+		case Engine::ManagedBuildProcessKind::MetadataSync: return Engine::ImGuiUtility::GetDisplayName("MetadataSync");
+		case Engine::ManagedBuildProcessKind::Build: return Engine::ImGuiUtility::GetDisplayName("Build");
+		case Engine::ManagedBuildProcessKind::ProjectRefresh: return Engine::ImGuiUtility::GetDisplayName("ProjectRefresh");
+		case Engine::ManagedBuildProcessKind::IDELaunch: return Engine::ImGuiUtility::GetDisplayName("IDELaunch");
+		default: return Engine::ImGuiUtility::GetDisplayName("Other");
 		}
 	}
 
@@ -59,9 +60,9 @@ namespace {
 	const char* ALCStatusLabel(Engine::ALCUnloadStatus status) {
 
 		switch (status) {
-		case Engine::ALCUnloadStatus::UnloadSucceeded: return "UnloadSucceeded";
-		case Engine::ALCUnloadStatus::LeakSuspected: return "LeakSuspected";
-		default: return "Unknown";
+		case Engine::ALCUnloadStatus::UnloadSucceeded: return Engine::ImGuiUtility::GetDisplayName("UnloadSucceeded");
+		case Engine::ALCUnloadStatus::LeakSuspected: return Engine::ImGuiUtility::GetDisplayName("LeakSuspected");
+		default: return Engine::ImGuiUtility::GetDisplayName("Unknown");
 		}
 	}
 
@@ -124,7 +125,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawEditorTool(const EditorToolContext&
 
 void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("Compiler Error List", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("Compiler Error List").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -138,48 +139,48 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 	// ビルド状態と再実行操作を表示
 	if (service) {
 		const ManagedScriptBuildService::Snapshot snapshot = service->GetSnapshot();
-		ImGui::Text("State: %s  | build #%llu  reload #%llu",
+		ImGui::Text("状態: %s  | ビルド #%llu  再読み込み #%llu",
 			BuildStateLabel(snapshot.state),
 			static_cast<unsigned long long>(snapshot.buildID),
 			static_cast<unsigned long long>(snapshot.reloadID));
-		ImGui::Text("pending changes: %s | reload deferred(Play): %s | LKG usable: %s | LKG update failed: %s",
-			snapshot.hasPendingSourceChanges ? "yes" : "no",
-			snapshot.reloadDeferredByPlayMode ? "yes" : "no",
-			snapshot.hasUsableLastKnownGood ? "yes" : "no",
-			snapshot.lastKnownGoodUpdateFailed ? "yes" : "no");
-		ImGui::Text("ALC unload: %s | last success: %s",
+		ImGui::Text("未反映の変更: %s | 再生終了後に反映: %s | 正常ビルドを利用可能: %s | 退避失敗: %s",
+			snapshot.hasPendingSourceChanges ? "あり" : "なし",
+			snapshot.reloadDeferredByPlayMode ? "あり" : "なし",
+			snapshot.hasUsableLastKnownGood ? "あり" : "なし",
+			snapshot.lastKnownGoodUpdateFailed ? "あり" : "なし");
+		ImGui::Text("アセンブリ解放: %s | 直近の成功: %s",
 			ALCStatusLabel(snapshot.alcUnloadStatus),
-			snapshot.lastSuccessfulBuildTime.empty() ? "(none)" : snapshot.lastSuccessfulBuildTime.c_str());
+			snapshot.lastSuccessfulBuildTime.empty() ? "なし" : snapshot.lastSuccessfulBuildTime.c_str());
 		if (!snapshot.lastFailureSummary.empty()) {
-			ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 1.0f), "last failure: %s", snapshot.lastFailureSummary.c_str());
+			ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 1.0f), "直近の失敗: %s", snapshot.lastFailureSummary.c_str());
 		}
 
-		if (ImGui::Button("Rebuild")) { service->RequestRebuild(); }
+		if (ImGui::Button("再ビルド")) { service->RequestRebuild(); }
 		ImGui::SameLine();
-		if (ImGui::Button("Retry")) { service->RequestRetry(); }
+		if (ImGui::Button("再試行")) { service->RequestRetry(); }
 		ImGui::SameLine();
-		if (ImGui::Button("Metadata Sync")) { service->RequestMetadataSync(); }
+		if (ImGui::Button("メタデータ同期")) { service->RequestMetadataSync(); }
 		ImGui::SameLine();
-		if (ImGui::Button("Refresh IDE Project")) { RefreshIDEProject(); }
+		if (ImGui::Button("IDEプロジェクトを更新")) { RefreshIDEProject(); }
 	} else {
-		ImGui::TextDisabled("build service が利用できません。");
+		ImGui::TextDisabled("ビルドサービスを利用できません");
 	}
 	ImGui::Separator();
 
 	// 診断の表示条件とクリア操作を表示
 	ManagedBuildDiagnosticStore& store = ManagedBuildDiagnosticStore::GetInstance();
-	ImGui::Checkbox("Errors", &showErrors_);
+	ImGui::Checkbox("エラー", &showErrors_);
 	ImGui::SameLine();
-	ImGui::Checkbox("Warnings", &showWarnings_);
+	ImGui::Checkbox("警告", &showWarnings_);
 	ImGui::SameLine();
-	ImGui::Checkbox("Latest build only", &latestBuildOnly_);
+	ImGui::Checkbox("最新ビルドのみ", &latestBuildOnly_);
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(180.0f);
-	ImGui::InputTextWithHint("##diagFilter", "message/file で検索", textFilter_, sizeof(textFilter_));
+	ImGui::InputTextWithHint("##diagFilter", "メッセージ・ファイルで検索", textFilter_, sizeof(textFilter_));
 	ImGui::SameLine();
-	if (ImGui::Button("Clear")) { store.Clear(); }
+	if (ImGui::Button("消去")) { store.Clear(); }
 	ImGui::SameLine();
-	ImGui::TextDisabled("E:%llu W:%llu (bounded %llu)",
+	ImGui::TextDisabled("エラー:%llu 警告:%llu（保持上限 %llu）",
 		static_cast<unsigned long long>(store.ErrorCount()),
 		static_cast<unsigned long long>(store.WarningCount()),
 		static_cast<unsigned long long>(ManagedBuildDiagnosticStore::kMaxEntries));
@@ -195,11 +196,11 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		| ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
 	if (ImGui::BeginTable("##diagTable", 5, tableFlags)) {
 
-		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-		ImGui::TableSetupColumn("Code", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-		ImGui::TableSetupColumn("File", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("Line", ImGuiTableColumnFlags_WidthFixed, 50.0f);
-		ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("工程", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+		ImGui::TableSetupColumn("コード", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+		ImGui::TableSetupColumn("ファイル", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("行", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+		ImGui::TableSetupColumn("内容", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableHeadersRow();
 
 		int rowID = 0;

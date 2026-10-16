@@ -38,7 +38,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const char* GetName() const override { return "Remove Component"; }
+		const char* GetName() const override { return "コンポーネントを削除"; }
 	private:
 		//============================================================================
 		//	private Methods

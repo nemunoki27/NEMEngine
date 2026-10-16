@@ -152,7 +152,7 @@ void Engine::AnimationClipEditorUI::DrawPropertyTreeUI(AnimationClipEditSession&
 		if (missing) {
 			ImGui::PopStyleColor();
 			if (ImGui::BeginItemTooltip()) {
-				ImGui::TextUnformatted("Target Entity does not have this property.");
+				ImGui::TextUnformatted("対象エンティティにこのプロパティがありません");
 				ImGui::EndTooltip();
 			}
 		}

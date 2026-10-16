@@ -6,6 +6,7 @@
 //============================================================================
 #include "lightingCommon.hlsli"
 #include "../../Common/pbrMath.hlsli"
+#include "../../Lighting/rectAreaLight.hlsli"
 
 //============================================================================
 //	バッファ非依存のPBR共通、MeshとPrimitiveで共有する
@@ -171,37 +172,7 @@ float3 EvaluatePBRSpotLight(SpotLight light, float3 worldPos, float3 N, float3 V
 float3 EvaluatePBRRectLight(RectLight light, float3 worldPos, float3 N, float3 V,
 	float3 albedo, float metallic, float roughness, float3 F0, float diffuseWeight = 1.0f) {
 
-	float centerDistance = length(light.pos - worldPos);
-	float attenuation = ComputeDistanceAttenuation(
-		centerDistance, light.attenuationRadius, light.decay);
-	float barnAttenuation =
-		ComputeRectBarnAttenuation(light, worldPos);
-	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
-
-	float3 result = 0.0f.xxx;
-	[unroll]
-	for (uint sampleIndex = 0u;
-		sampleIndex < kRectLightSampleCount; ++sampleIndex) {
-
-		float3 samplePos =
-			GetRectLightSamplePosition(light, sampleIndex);
-		float3 toLight = samplePos - worldPos;
-		float sampleDistance = length(toLight);
-		if (sampleDistance <= 1e-5f) {
-			continue;
-		}
-
-		float3 L = toLight / sampleDistance;
-		float sourceFacing =
-			saturate(dot(-L, light.direction));
-		float3 radiance = light.color.rgb * light.intensity *
-			attenuation * barnAttenuation * sourceFacing;
-		result += EvaluatePBRRadiance(
-			N, V, L, radiance, albedo, metallic, roughness, F0, diffuseWeight);
-	}
-	return result / float(kRectLightSampleCount);
+	return EvaluateRectAreaPBR(light, worldPos, N, V, albedo, metallic, roughness, F0, diffuseWeight);
 }
 
 #endif // NEM_PBR_SHADING_HLSLI

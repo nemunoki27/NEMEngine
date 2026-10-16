@@ -1,9 +1,14 @@
 #include "EditorAssetWorkflowTests.h"
+#include "TestFixtures.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/Assets/Project/ProjectAssetDocumentFactory.h>
+#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
+#include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Editor/Assets/Project/EditorSceneDefaults.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
@@ -20,10 +25,39 @@
 // c++
 #include <cmath>
 #include <cstring>
+#include <fstream>
 // imgui
 #include <imgui_internal.h>
 
 namespace {
+
+	// 作成した文書とmetaを揃え、同名の内容を上書きしない
+	bool CheckToolAssetCreation() {
+
+		using namespace Engine;
+		NEMTests::TestDirectory directory("ToolAssetCreation", RuntimePaths::GetGameAssetsRoot());
+		AssetDatabase database;
+		database.Init();
+		const std::string virtualDirectory = RuntimePaths::ToAssetPath(directory.GetPath());
+		std::string diagnostic;
+		const AssetID clipID = ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
+			ProjectAssetFileKind::AnimationClip, "Motion", diagnostic);
+		AnimationClipAsset clip;
+		if (!clipID || !LoadAnimationClipAsset(database.ResolveFullPath(clipID), clip) || clip.name != "Motion") return false;
+		if (ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
+			ProjectAssetFileKind::AnimationClip, "Motion", diagnostic) || diagnostic.empty()) return false;
+		if (ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
+			ProjectAssetFileKind::AnimationClip, "../Invalid", diagnostic)) return false;
+		std::ofstream(directory.GetPath() / "Orphan.animclip.json.meta") << "{}";
+		if (ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
+			ProjectAssetFileKind::AnimationClip, "Orphan", diagnostic) ||
+			std::filesystem::exists(directory.GetPath() / "Orphan.animclip.json")) return false;
+
+		// 複合拡張子だけを除き、名前の途中のピリオドを保つ
+		return ProjectAssetPath::SplitAssetFileName(Algorithm::PathFromUTF8("火花.v2.effect.json")).first == "火花.v2" &&
+			ProjectAssetPath::SplitAssetFileName("Fire.effect").first == "Fire" &&
+			ProjectAssetPath::SplitAssetFileName("cube.obj").first == "cube";
+	}
 
 	// 色付きモデルと画像付きモデルのプレビュー設定を確認する
 	bool CheckModelPreviewMaterials() {
@@ -125,6 +159,42 @@ namespace {
 		draw(-1.0f);
 		draw(-1.0f);
 		return scroll == 0.0f;
+	}
+
+	// ラベルだけを縮小し、入力欄の文字サイズは維持する
+	bool CheckPropertyLabels() {
+
+		ImGuiContext* previous = ImGui::GetCurrentContext();
+		ImGuiContext* context = ImGui::CreateContext();
+		Engine::ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(context); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = ImVec2(800.0f, 600.0f);
+		io.DeltaTime = 1.0f / 60.0f;
+		io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;
+		io.Fonts->AddFontDefault();
+		for (float scale : {1.0f, 1.5f}) {
+			for (float width : {80.0f, 168.0f, 220.0f}) {
+
+				ImGui::GetStyle().FontScaleMain = scale;
+				ImGui::NewFrame();
+				ImGui::SetNextWindowSize(ImVec2(400.0f, 180.0f));
+				ImGui::Begin("PropertyLabels", nullptr, ImGuiWindowFlags_NoSavedSettings);
+				const float fontSize = ImGui::GetFontSize();
+				const bool row = Engine::MyGUI::BeginPropertyRow("Long property label with a complete visible name",
+					{ .labelWidth = width });
+				if (!row) return false;
+				const float labelEnd = ImGui::GetItemRectMax().x;
+				const float separator = ImGui::GetCurrentTable()->Columns[0].MaxX;
+				const bool valid = labelEnd <= separator - 1.0f && ImGui::GetFontSize() == fontSize;
+				ImGui::InputFloat("##Value", &io.DeltaTime);
+				Engine::MyGUI::EndPropertyRow();
+				ImGui::End();
+				ImGui::EndFrame();
+				if (!valid) return false;
+			}
+		}
+		return true;
 	}
 
 	// サムネイルだけ縮小し、通常画像のサイズは保つ
@@ -237,6 +307,7 @@ bool NEMTests::TestEditorViewportVisibility() {
 bool NEMTests::TestEditorAssetWorkflow() {
 
 	using namespace Engine;
+	if (!CheckToolAssetCreation()) return false;
 	const auto scene = nlohmann::json::parse(ProjectAssetDocumentFactory::BuildFileContent(ProjectAssetFileKind::Scene, "NewScene"));
 	if (!SceneDocument::ValidateSceneFileRoot(scene) || !SceneDocument::ValidateSerializedLocalFileIDs(scene) ||
 		scene["Entities"].size() != 2 || scene["Entities"][0]["LocalFileID"] == scene["Entities"][1]["LocalFileID"]) {
@@ -246,7 +317,7 @@ bool NEMTests::TestEditorAssetWorkflow() {
 	if (camera.common.renderPasses != BuiltinAssets::RenderPasses::Default ||
 		!scene["Entities"][1]["Components"].contains("DirectionalLight")) { return false; }
 	return CheckNormal(DXGI_FORMAT_BC5_UNORM) && CheckNormal(DXGI_FORMAT_BC5_SNORM) &&
-		CheckThumbnail() && CheckInspectorInput() && CheckModelPreviewMaterials();
+		CheckPropertyLabels() && CheckThumbnail() && CheckInspectorInput() && CheckModelPreviewMaterials();
 }
 
 // Bistroの実画像を編集せず、法線用途とData用途を読み分ける

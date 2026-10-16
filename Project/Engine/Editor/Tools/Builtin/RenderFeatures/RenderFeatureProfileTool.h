@@ -86,7 +86,7 @@ namespace Engine {
 		// ツール一覧への登録情報
 		ToolDescriptor descriptor_{
 			.id = "engine.render_features",
-			.name = "Render Passes",
+			.name = "レンダーパス",
 			.category = "レンダリング",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,

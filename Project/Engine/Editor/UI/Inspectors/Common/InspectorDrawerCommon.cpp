@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/GPU/LightGPUConversion.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
@@ -250,13 +251,14 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 
 		const auto& rectLight = world.GetComponent<RectLightComponent>(entity);
 		const Vector3 center = transform.worldMatrix.GetTranslationValue();
-		const Vector3 direction = LightExtract::GetWorldDirection(Vector3(1.0f, 0.0f, 0.0f), transform.worldMatrix);
-		const Vector3 right = LightExtract::GetWorldDirection(Vector3(0.0f, 1.0f, 0.0f), transform.worldMatrix);
-		const Vector3 up = LightExtract::GetWorldDirection(Vector3(0.0f, 0.0f, 1.0f), transform.worldMatrix);
-		const Vector3 halfRight =
-			right * (rectLight.sourceWidth * 0.5f);
-		const Vector3 halfUp =
-			up * (rectLight.sourceHeight * 0.5f);
+		// 描画時と同じ光源軸でワイヤーを表示する
+		const RectLightGPU geometry = LightGPUConversion::ToGPU(RectLightItem{
+			.direction = LightExtract::GetWorldDirection(Vector3(1.0f, 0.0f, 0.0f), transform.worldMatrix),
+			.right = LightExtract::GetWorldDirection(Vector3(0.0f, 1.0f, 0.0f), transform.worldMatrix)
+		});
+		const Vector3 direction = geometry.direction;
+		const Vector3 halfRight = geometry.right * (rectLight.sourceWidth * 0.5f);
+		const Vector3 halfUp = geometry.up * (rectLight.sourceHeight * 0.5f);
 		const Vector3 corner0 = center - halfRight - halfUp;
 		const Vector3 corner1 = center + halfRight - halfUp;
 		const Vector3 corner2 = center + halfRight + halfUp;

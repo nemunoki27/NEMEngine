@@ -43,7 +43,7 @@ void Engine::MaterialEditorTool::DrawEditorTool(const EditorToolContext& context
 
 void Engine::MaterialEditorTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("Material", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("Material").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -111,7 +111,7 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 	drawSlot("Primitive2D", settings.GetPrimitive2D(), settings.GetPrimitive2DOrBuiltin(),
 		[&](AssetID id) { settings.SetPrimitive2D(id); });
 	drawSlot(
-		"Raytracing Reflection",
+		"レイトレーシング反射",
 		settings.GetRaytracingReflection(),
 		settings.GetRaytracingReflectionOrBuiltin(),
 		[&](AssetID id) {
@@ -134,26 +134,26 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	{
 		AssetEditSetting setting{};
 		if (creationSession_.GetDraft().createType != MaterialCreateType::Particle) {
-			MyGUI::AssetReferenceField("VertexShader 必須", creationSession_.GetDraft().createVS, assetDatabase, { AssetType::Shader }, setting);
+			MyGUI::AssetReferenceField("頂点シェーダー 必須", creationSession_.GetDraft().createVS, assetDatabase, { AssetType::Shader }, setting);
 		}
 		MyGUI::AssetReferenceField(creationSession_.GetDraft().createType == MaterialCreateType::Mesh ?
 			"不透明PixelShader 必須" : "PixelShader 必須", creationSession_.GetDraft().createPS, assetDatabase, { AssetType::Shader }, setting);
-		MyGUI::InputText("PSエントリー", creationSession_.GetDraft().createPSEntry);
+		MyGUI::InputText("ピクセルシェーダー関数", creationSession_.GetDraft().createPSEntry);
 		if (creationSession_.GetDraft().createType == MaterialCreateType::Mesh) {
 
-			MyGUI::AssetReferenceField("MeshShader 任意", creationSession_.GetDraft().createMS, assetDatabase, { AssetType::Shader }, setting);
-			MyGUI::AssetReferenceField("AmplificationShader 任意", creationSession_.GetDraft().createAS, assetDatabase, { AssetType::Shader }, setting);
+			MyGUI::AssetReferenceField("メッシュシェーダー 任意", creationSession_.GetDraft().createMS, assetDatabase, { AssetType::Shader }, setting);
+			MyGUI::AssetReferenceField("増幅シェーダー 任意", creationSession_.GetDraft().createAS, assetDatabase, { AssetType::Shader }, setting);
 			MyGUI::Checkbox("半透明パスを作成", creationSession_.GetDraft().createTransparentPass);
 			if (creationSession_.GetDraft().createTransparentPass) {
-				MyGUI::AssetReferenceField("半透明PixelShader 必須", creationSession_.GetDraft().createTransparentPS,
+				MyGUI::AssetReferenceField("半透明ピクセルシェーダー 必須", creationSession_.GetDraft().createTransparentPS,
 					assetDatabase, { AssetType::Shader }, setting);
-				MyGUI::InputText("半透明PSエントリー", creationSession_.GetDraft().createTransparentPSEntry);
+				MyGUI::InputText("半透明ピクセルシェーダー関数", creationSession_.GetDraft().createTransparentPSEntry);
 			}
 		}
 		// Lineは太線展開のGeometryShaderが必須
 		if (creationSession_.GetDraft().createType == MaterialCreateType::Line) {
 
-			MyGUI::AssetReferenceField("GeometryShader 必須", creationSession_.GetDraft().createGS, assetDatabase, { AssetType::Shader }, setting);
+			MyGUI::AssetReferenceField("ジオメトリシェーダー 必須", creationSession_.GetDraft().createGS, assetDatabase, { AssetType::Shader }, setting);
 		}
 
 		// 既存マテリアルをドロップするとそのパイプライン設定を下の編集欄へ取り込む
@@ -205,13 +205,13 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 			.minValue = 1,
 			.maxValue = 16,
 			});
-		MyGUI::DragFloat("Mip LODバイアス", settings.samplerMipLODBias);
+		MyGUI::DragFloat("ミップLODバイアス", settings.samplerMipLODBias);
 		MyGUI::DragFloat("最小LOD", settings.samplerMinLOD);
 		MyGUI::DragFloat("最大LOD", settings.samplerMaxLOD);
 		ImGui::PopID();
 	};
 	if (creationSession_.GetDraft().createSourceUsesShaderGraph) {
-		ImGui::TextDisabled("Shader Graph Materialの描画設定はShader Graph側で編集します");
+		ImGui::TextDisabled("シェーダーグラフのマテリアル描画設定はグラフ側で編集します");
 	}
 	ImGui::BeginDisabled(creationSession_.GetDraft().createSourceUsesShaderGraph);
 	drawPipelineSettings("DrawPipeline", creationSession_.GetDraft().createType == MaterialCreateType::Mesh ?
@@ -232,7 +232,7 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		!creationSession_.GetDraft().createPSEntry.empty() && (!needsTransparentPS || !creationSession_.GetDraft().createTransparentPSEntry.empty()) &&
 		!creationSession_.GetDraft().createRelativePath.empty();
 	ImGui::BeginDisabled(!canCreate);
-	if (ImGui::Button("Create", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+	if (ImGui::Button("作成", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		creationSession_.CreateMaterialAssets(context);
 	}
 	ImGui::EndDisabled();

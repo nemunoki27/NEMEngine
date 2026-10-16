@@ -57,10 +57,6 @@ void Engine::AnimationPlayerInspectorDrawer::DrawFields(const EditorPanelContext
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("Controller", draft.controller,
-			context.editorContext->assetDatabase, { AssetType::AnimationController });
-		});
 
 	//============================================================================
 	//	基本設定

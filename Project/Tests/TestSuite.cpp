@@ -1,5 +1,6 @@
 #include "TestSuite.h"
 #include "BloomTests.h"
+#include "RectLightTests.h"
 
 //============================================================================
 //	include
@@ -24,6 +25,7 @@ using namespace NEMTests;
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
 
+	if (!RunTest("TestRectLightCPU", TestRectLightCPU)) { return 67; }
 	if (!RunTest("TestEditorContracts", TestEditorContracts)) {
 		return 43;
 	}

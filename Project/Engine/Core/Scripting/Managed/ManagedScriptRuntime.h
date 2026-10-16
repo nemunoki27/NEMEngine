@@ -623,12 +623,6 @@ namespace Engine {
 		static int32_t __cdecl CopyUserSettingsRootCallback(char* buffer, int32_t capacity);
 		// Audioの再生を開始する
 		static void __cdecl AudioPlayCallback(ManagedNativeEntity entity);
-		// AnimatorのParameterを設定する
-		static int32_t __cdecl SetAnimatorParameterCallback(ManagedNativeEntity entity, const char* name, int32_t type,
-			float number, int32_t integer);
-		// AnimatorのParameterを取得する
-		static int32_t __cdecl GetAnimatorParameterCallback(ManagedNativeEntity entity, const char* name, int32_t type,
-			float* number, int32_t* integer);
 		// Audioを一度だけ重ねて再生する
 		static void __cdecl AudioPlayOneShotCallback(ManagedNativeEntity entity, ManagedAssetGUID clipID, float volumeScale);
 		// Audioの再生を一時停止する

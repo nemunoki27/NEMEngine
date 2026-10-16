@@ -17,7 +17,6 @@ void Engine::from_json(const nlohmann::json& in, AnimationPlayerComponent& compo
 	component.playOnStart = in.value("playOnStart", true);
 	component.playInEditMode = in.value("playInEditMode", false);
 	component.globalSpeed = in.value("globalSpeed", 1.0f);
-	component.controller = ParseAssetID(in, "animationController");
 
 	component.groups.clear();
 	if (in.contains("groups") && in["groups"].is_array()) {
@@ -35,7 +34,6 @@ void Engine::to_json(nlohmann::json& out, const AnimationPlayerComponent& compon
 	out["playOnStart"] = component.playOnStart;
 	out["playInEditMode"] = component.playInEditMode;
 	out["globalSpeed"] = component.globalSpeed;
-	out["animationController"] = ToAssetReferenceJson(component.controller);
 
 	out["groups"] = nlohmann::json::array();
 	for (const auto& group : component.groups) {

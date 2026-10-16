@@ -11,7 +11,6 @@
 
 // imgui
 #include <imgui.h>
-#include <imgui_internal.h>
 
 namespace Engine {
 
@@ -64,7 +63,7 @@ namespace Engine {
 				ImGui::TableSetColumnIndex(1);
 				ImGui::TextUnformatted(row.name.c_str());
 				if (instances_) {
-					ImGui::TextDisabled("World %u:%u / Entity %u:%u / Slot %llu",
+					ImGui::TextDisabled("ワールド %u:%u / エンティティ %u:%u / スロット %llu",
 						row.owner.entity.world.index, row.owner.entity.world.generation,
 						row.owner.entity.index, row.owner.entity.generation,
 						static_cast<unsigned long long>(row.owner.slotID));
@@ -88,20 +87,8 @@ namespace Engine {
 		if (!openWindow_) {
 			return;
 		}
-		constexpr const char* windowName = "スクリプトプロファイラー###Script Profiler";
-		const ImGuiID windowID = ImHashStr(windowName);
-		if (!ImGui::FindWindowByID(windowID) && !ImGui::FindWindowSettingsByID(windowID)) {
-			// 表示名の変更前に保存された位置とドッキング先を引き継ぐ
-			if (const auto* oldSettings = ImGui::FindWindowSettingsByID(ImHashStr("Script Profiler"))) {
-				const ImGuiWindowSettings saved = *oldSettings;
-				auto* settings = ImGui::CreateNewWindowSettings(windowName);
-				*settings = saved;
-				settings->ID = windowID;
-				settings->WantApply = true;
-				settings->WantDelete = false;
-			}
-		}
-		if (!ImGui::Begin(windowName, &openWindow_)) {
+		const std::string windowName = MakeWindowName("Script Profiler", "スクリプトプロファイラー");
+		if (!ImGui::Begin(windowName.c_str(), &openWindow_)) {
 			ImGui::End();
 			return;
 		}
@@ -117,15 +104,15 @@ namespace Engine {
 		}
 		ImGui::SameLine();
 		ImGui::TextDisabled("直近 %u / 300 フレーム", profiler.FrameCount());
-		ImGui::TextWrapped("単位: ms。Native呼び出しを含むCPU時間。後段のコマンド適用・描画・GPU時間は含みません。");
-		ImGui::TextWrapped("雨の通常更新はRainBlockManagerScript.LateUpdateに含まれます。詳細対象でControllerを選ぶと明示区間を確認できます。");
+		ImGui::TextWrapped("単位: ms。ネイティブ呼び出しを含むCPU時間です。後段のコマンド適用・描画・GPU時間は含みません");
+		ImGui::TextWrapped("雨の通常更新はRainBlockManagerScript.LateUpdateに含まれます。詳細対象でコントローラーを選ぶと明示区間を確認できます。");
 
 		std::set<std::string> types;
 		for (const auto& [id, owner] : profiler.Owners()) {
 			types.insert(owner.typeName);
 		}
-		if (ImGui::BeginCombo("詳細計測対象", profiler.DetailType().empty() ? "OFF" : profiler.DetailType().c_str())) {
-			if (ImGui::Selectable("OFF", profiler.DetailType().empty())) {
+		if (ImGui::BeginCombo("詳細計測対象", profiler.DetailType().empty() ? "無効" : profiler.DetailType().c_str())) {
+			if (ImGui::Selectable("無効", profiler.DetailType().empty())) {
 				Configure(profiler.IsEnabled(), {}, 0);
 			}
 			for (const auto& type : types) {
@@ -142,10 +129,10 @@ namespace Engine {
 				}
 				for (const auto& [id, owner] : profiler.Owners()) {
 					if (owner.typeName != profiler.DetailType()) { continue; }
-					const std::string label = "World " + std::to_string(owner.entity.world.index) +
+					const std::string label = "ワールド " + std::to_string(owner.entity.world.index) +
 						":" + std::to_string(owner.entity.world.generation) +
-						" / Entity " + std::to_string(owner.entity.index) + ":" + std::to_string(owner.entity.generation) +
-						" / Slot " + std::to_string(owner.slotID);
+						" / エンティティ " + std::to_string(owner.entity.index) + ":" + std::to_string(owner.entity.generation) +
+						" / スロット " + std::to_string(owner.slotID);
 					if (ImGui::Selectable(label.c_str(), profiler.DetailOwner() == id)) {
 						Configure(profiler.IsEnabled(), profiler.DetailType(), id);
 					}
@@ -154,7 +141,7 @@ namespace Engine {
 			}
 		}
 		ImGui::InputTextWithHint("##profileFilter", "型名で検索", filter_, sizeof(filter_));
-		ImGui::Checkbox("Entity別に表示", &instances_);
+		ImGui::Checkbox("エンティティ別に表示", &instances_);
 		if (ImGui::Combo("降順", &sort_, "最新時間\0平均時間\0最大時間\0呼び出し回数\0")) {
 			lastRefresh_ = -1;
 		}
@@ -170,9 +157,9 @@ namespace Engine {
 			if (detail) {
 				ImGui::TextWrapped("子区間を含む時間と除いた時間を表示します。未計測の関数は自動分類しません。一覧と詳細を加算しないでください。");
 			}
-			if (ImGui::BeginTable(detail ? "details" : "callbacks", 7,
+			if (ImGui::BeginTable(detail ? "詳細" : "呼び出し", 7,
 				ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
-				for (const char* column : { "型 / 区間", "Callback / Entity", "最新ms", "平均ms", "最大ms", "最新Self ms", "回数 最新/平均" }) {
+				for (const char* column : { "型 / 区間", "呼び出し / エンティティ", "最新ms", "平均ms", "最大ms", "最新の自身時間 ms", "回数 最新/平均" }) {
 					ImGui::TableSetupColumn(column);
 				}
 				ImGui::TableHeadersRow();

@@ -173,10 +173,8 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
 	callbacks.copyUserSettingsRoot = &ManagedScriptRuntime::CopyUserSettingsRootCallback;
-	// 音声とAnimatorの操作を接続する
+	// 音声の操作を接続する
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
-	callbacks.setAnimatorParameter = &ManagedScriptRuntime::SetAnimatorParameterCallback;
-	callbacks.getAnimatorParameter = &ManagedScriptRuntime::GetAnimatorParameterCallback;
 	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
 	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
 	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;

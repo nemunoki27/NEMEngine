@@ -79,7 +79,6 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Audio].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "audio.dds");
 	defaultIcons_[AssetType::AnimationClip].textureKey = "animationClip.dds";
 	defaultIcons_[AssetType::AnimationClip].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "animationClip.dds");
-	defaultIcons_[AssetType::AnimationController] = defaultIcons_[AssetType::AnimationClip];
 	defaultIcons_[AssetType::ParticleEffect].textureKey = "particleEffect.png";
 	defaultIcons_[AssetType::ParticleEffect].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "particleEffect.png");
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";

@@ -84,7 +84,7 @@ void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& cont
 void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context) {
 
 	const bool wasOpen = openWindow_;
-	const bool visible = ImGui::Begin("シェーダーグラフ", &openWindow_, ImGuiWindowFlags_MenuBar);
+	const bool visible = ImGui::Begin(MakeWindowName("シェーダーグラフ").c_str(), &openWindow_, ImGuiWindowFlags_MenuBar);
 	commandPanelFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 	if (!visible) {
 

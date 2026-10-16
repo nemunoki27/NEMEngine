@@ -45,18 +45,18 @@ Engine::AssetID Engine::RenderFeatureEditSession::ResolvePassMaterial(
 		return assetID;
 	}
 	if (!IsPassMaterialSource(assetType, assetPath)) {
-		statusMessage_ = "Materialまたは.cs.hlslを指定してください";
+		statusMessage_ = "マテリアルまたは.cs.hlslを指定してください";
 		statusError_ = true;
 		return {};
 	}
 
 	const AssetID materialID = PostProcessAssetGenerator::EnsureUserAsset(database, std::string(assetPath));
 	if (!materialID) {
-		statusMessage_ = "Compute Shader用アセットを生成できません";
+		statusMessage_ = "コンピュートシェーダー用アセットを生成できません";
 		statusError_ = true;
 		return {};
 	}
-	statusMessage_ = "Compute Shader用アセットを生成しました";
+	statusMessage_ = "コンピュートシェーダー用アセットを生成しました";
 	statusError_ = false;
 	return materialID;
 }
@@ -107,7 +107,7 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 
 	const AssetMeta* sourceMeta = database->Find(sourceProfile);
 	if (!sourceMeta || sourceMeta->type != AssetType::RenderPasses) {
-		statusMessage_ = "Render Passesを指定してください";
+		statusMessage_ = "レンダーパスを指定してください";
 		statusError_ = true;
 		return false;
 	}

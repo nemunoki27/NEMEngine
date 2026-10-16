@@ -132,7 +132,7 @@ namespace Engine {
 			const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
 			if (ImGui::BeginPopupContextItem()) {
 
-				if (ImGui::MenuItem("Remove Component")) {
+				if (ImGui::MenuItem("コンポーネントを削除")) {
 					if (context.host) {
 						context.host->ExecuteEditorCommand(
 							std::make_unique<RemoveComponentCommand>(entity, session_.GetComponentTypeName()));

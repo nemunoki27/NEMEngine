@@ -69,7 +69,7 @@ void Engine::PerformanceCheckTool::DrawEditorTool(const EditorToolContext& conte
 void Engine::PerformanceCheckTool::DrawWindow(const EditorToolContext& context) {
 
 	ImGui::SetNextWindowSize(ImVec2(480.0f, 0.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::Begin("パフォーマンスチェック", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("パフォーマンスチェック").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

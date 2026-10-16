@@ -56,8 +56,5 @@ namespace Engine {
 		// Editプレビュー中のbase値、inspectorのcommitでcomponent runtimeが消えるためsystem側でUUID単位に保持する
 		std::unordered_map<UUID, std::vector<AnimationPreviewBaseValue>> editPreviewBase_;
 
-		//--------- functions ----------------------------------------------------
-
-		void EvaluateController(AnimationPlayerComponent& player, SystemContext& context);
 	};
 } // Engine

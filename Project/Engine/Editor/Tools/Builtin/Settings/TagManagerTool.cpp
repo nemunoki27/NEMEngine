@@ -29,7 +29,7 @@ void Engine::TagManagerTool::DrawEditorTool(const EditorToolContext& context) {
 
 void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("タグ・描画レイヤー", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("タグ・描画レイヤー").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -73,7 +73,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 		| ImGuiTableFlags_SizingStretchProp;
 	if (ImGui::BeginTable("##TagTable", 2, tableFlags)) {
 
-		ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("タグ", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("操作", ImGuiTableColumnFlags_WidthFixed, 180.0f);
 		ImGui::TableHeadersRow();
 
@@ -148,12 +148,12 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	}
 
 	ImGui::Separator();
-	if (ImGui::CollapsingHeader("Rendering Layer")) {
-		if (ImGui::Button("Layer設定を保存")) {
+	if (ImGui::CollapsingHeader("描画レイヤー")) {
+		if (ImGui::Button("レイヤー設定を保存")) {
 			context.panelContext->renderingLayerSettings->Save();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("Layer設定を再読込")) {
+		if (ImGui::Button("レイヤー設定を再読み込み")) {
 			context.panelContext->renderingLayerSettings->Reload();
 		}
 		if (context.panelContext->renderingLayerSettings->IsDirty()) {

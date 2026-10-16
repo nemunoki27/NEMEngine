@@ -263,14 +263,14 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 
 	if (openWindow_) {
 
-		if (!ImGui::Begin("SceneViewCamera", &openWindow_)) {
+		if (!ImGui::Begin(MakeWindowName("SceneViewCamera").c_str(), &openWindow_)) {
 			ImGui::End();
 			return;
 		}
 
 		ImGui::SeparatorText("2D");
 		{
-			ImGui::PushID("SceneViewCamera2D");
+			ImGui::PushID("2Dシーンビューカメラ");
 
 			if (ImGui::Button("リセット")) {
 				settings_.cameraState.transform2D.pos = kDefault2DPosition;
@@ -293,20 +293,20 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 		}
 		ImGui::SeparatorText("3D");
 		{
-			ImGui::PushID("SceneViewCamera3D");
+			ImGui::PushID("3Dシーンビューカメラ");
 
 			// パラメータリセット
-			if (ImGui::Button("Reset Camera")) {
+			if (ImGui::Button("カメラをリセット")) {
 				settings_.cameraState.perspectiveFovY = Math::RadToDeg(0.54f);
 				settings_.cameraState.perspectiveNearClip = 0.1f;
 				settings_.cameraState.perspectiveFarClip = 4000.0f;
 				settings_.cameraState.perspectiveCullingMask = -1;
 			}
 
-			ImGui::DragFloat("perspectiveFovY", &settings_.cameraState.perspectiveFovY, 0.1f, 1.0f, 179.0f);
-			ImGui::DragFloat("perspectiveNearClip", &settings_.cameraState.perspectiveNearClip, 0.01f);
-			ImGui::DragFloat("perspectiveFarClip", &settings_.cameraState.perspectiveFarClip, 1.0f);
-			ImGui::DragInt("perspectiveCullingMask", &settings_.cameraState.perspectiveCullingMask);
+			ImGui::DragFloat("垂直画角", &settings_.cameraState.perspectiveFovY, 0.1f, 1.0f, 179.0f);
+			ImGui::DragFloat("近クリップ", &settings_.cameraState.perspectiveNearClip, 0.01f);
+			ImGui::DragFloat("遠クリップ", &settings_.cameraState.perspectiveFarClip, 1.0f);
+			ImGui::DragInt("描画レイヤー", &settings_.cameraState.perspectiveCullingMask);
 
 			ImGui::PopID();
 		}

@@ -14890,7 +14890,7 @@
                     "name": "DirectionalLight"
                 },
                 "SceneObject": {
-                    "activeSelf": true,
+                    "activeSelf": false,
                     "localFileId": "4a3caedc8fbbe1d0",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
@@ -17535,7 +17535,7 @@
                                     "id": "31d4f90ec37c453f",
                                     "name": "emissiveIntensity",
                                     "semantic": "EmissiveIntensity",
-                                    "value": 4.0
+                                    "value": 6.0
                                 },
                                 {
                                     "id": "77f5c18e246c6638",
@@ -17560,9 +17560,9 @@
                                     "semantic": "EmissiveColor",
                                     "value": {
                                         "a": 1.0,
-                                        "b": 0.2299681305885315,
+                                        "b": 0.19574451446533203,
                                         "g": 1.0,
-                                        "r": 0.04255318641662598
+                                        "r": 0.0
                                     }
                                 },
                                 {
@@ -17614,9 +17614,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 63.12154006958008,
-                        "y": 4.071656227111816,
-                        "z": -20.1860408782959
+                        "x": -2.108607292175293,
+                        "y": 4.477953910827637,
+                        "z": -1.7145345211029053
                     },
                     "localRotation": {
                         "w": 1.0,

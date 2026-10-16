@@ -13,6 +13,8 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
 
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
+
 // c++
 #include <algorithm>
 #include <array>
@@ -72,7 +74,7 @@ void Engine::ShaderGraphCanvasMenu::Draw() {
 			}
 		} else {
 			if (node != editSession_.GetDraft().nodes.end()) {
-				ImGui::TextUnformatted(GetShaderGraphNodeName(node->kind).data());
+				ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node->kind).data()));
 			}
 			ImGui::Separator();
 			if (node != editSession_.GetDraft().nodes.end() && IsPreviewableNode(node->kind)) {
@@ -162,7 +164,7 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 			ShaderGraphValueType::Integer,
 		};
 		for (ShaderGraphValueType type : constantTypes) {
-			if (ImGui::MenuItem(EnumAdapter<ShaderGraphValueType>::ToString(type))) {
+			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(type)))) {
 				AddConstantNode(type, createNodePosition_);
 			}
 		}
@@ -187,8 +189,9 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 				continue;
 			}
 			const std::string searchable =
-				Algorithm::ToLower(std::string(descriptor.name) + " " + std::string(descriptor.category));
-			if (searchable.find(search) != std::string::npos && ImGui::MenuItem(descriptor.name.data())) {
+				Algorithm::ToLower(std::string(descriptor.name) + " " + std::string(descriptor.category) + " " +
+					ImGuiUtility::GetDisplayName(descriptor.name.data()));
+			if (searchable.find(search) != std::string::npos && ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.name.data()))) {
 				AddNode(descriptor.kind, createNodePosition_);
 			}
 		}
@@ -205,7 +208,7 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 				continue;
 			}
 			for (const ShaderGraphNodeDescriptor& descriptor : descriptors) {
-				if (isCreatable(descriptor) && descriptor.category == category && ImGui::MenuItem(descriptor.name.data())) {
+				if (isCreatable(descriptor) && descriptor.category == category && ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.name.data()))) {
 					AddNode(descriptor.kind, createNodePosition_);
 				}
 			}

@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/selfshadow/ltc_code",
+  "commit": "31e5e96b54f98f33098f8503003119ba2231a1c6",
+  "paper": "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines",
+  "authors": [
+    "Eric Heitz",
+    "Jonathan Dupuy",
+    "Stephen Hill",
+    "David Neubelt"
+  ],
+  "publication": "ACM SIGGRAPH 2016",
+  "license": "LICENSE.txt",
+  "files": {
+    "ltcMatrix.dds": {
+      "source": "fit/results/ltc_1.dds",
+      "sha256": "6aa389c6c0403a408cf6bb23dcdc543ad3e97f0fdc49e60f034b6a85682ee18d"
+    },
+    "ltcAmplitude.dds": {
+      "source": "fit/results/ltc_2.dds",
+      "sha256": "2ff4f03b10d73e25985216d73a58aa57375f0c775dee0e1bde075d44e2b07200"
+    }
+  }
+}

@@ -47,7 +47,7 @@ namespace {
 	// 角度の入力形式を日本語で選択する
 	bool DrawRotationValueType(Engine::ParticleRotationValueType& type) {
 
-		const char* labels[] = { "オイラー角", "Quaternion" };
+		const char* labels[] = { "オイラー角", "クォータニオン" };
 		int32_t current = static_cast<int32_t>(type);
 		if (!Engine::MyGUI::BeginPropertyRow("角度形式")) {
 			return false;
@@ -67,9 +67,9 @@ namespace {
 
 		ImGui::PushID(label);
 		ImGui::SeparatorText(label);
-		bool changed = Engine::MyGUI::DragVector3("Axis", axis,
+		bool changed = Engine::MyGUI::DragVector3("軸", axis,
 			Engine::ParticleGUI::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
-		changed |= Engine::ParticleGUI::DrawParticleValueFloat("Angle", angle,
+		changed |= Engine::ParticleGUI::DrawParticleValueFloat("角度", angle,
 			Engine::ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
 		ImGui::PopID();
 		return changed;
@@ -80,9 +80,9 @@ namespace {
 
 		ImGui::PushID(label);
 		ImGui::SeparatorText(label);
-		bool changed = Engine::MyGUI::DragVector3("Axis", axis,
+		bool changed = Engine::MyGUI::DragVector3("軸", axis,
 			Engine::ParticleGUI::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
-		changed |= Engine::MyGUI::DragFloat("Angle", angle,
+		changed |= Engine::MyGUI::DragFloat("角度", angle,
 			Engine::ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
 		ImGui::PopID();
 		return changed;
@@ -175,7 +175,7 @@ bool ParticleRotationModuleDrawer::DrawAdditiveSettings(ParticleRotationModule::
 				changed |= DrawCurveGenerator(speedGeneratorState_, settings.speedCurve.channels, targets);
 			} else {
 
-				static const CurveBakeTarget targets[] = { { "Angle", { 1u } } };
+				static const CurveBakeTarget targets[] = { { "角度", { 1u } } };
 				changed |= DrawCurveGenerator(speedQuaternionGeneratorState_,
 					settings.speedQuaternionCurve.channels, targets);
 			}
@@ -222,7 +222,7 @@ bool ParticleRotationModuleDrawer::DrawInterpolationSettings(ParticleRotationMod
 				changed |= DrawCurveGenerator(angleGeneratorState_, settings.angleCurve.channels, targets);
 			} else {
 
-				static const CurveBakeTarget targets[] = { { "Angle", { 1u } } };
+				static const CurveBakeTarget targets[] = { { "角度", { 1u } } };
 				changed |= DrawCurveGenerator(
 					quaternionGeneratorState_, settings.quaternionCurve.channels, targets);
 			}

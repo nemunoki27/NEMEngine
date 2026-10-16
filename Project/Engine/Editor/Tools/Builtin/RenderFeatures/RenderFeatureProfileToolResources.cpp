@@ -110,7 +110,7 @@ bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(PipelineStaticSampler
 		settings.maxAnisotropy = static_cast<uint32_t>(anisotropy);
 		changed = true;
 	}
-	changed |= MyGUI::DragFloat("Mip LODバイアス",
+	changed |= MyGUI::DragFloat("ミップLODバイアス",
 		settings.mipLODBias).valueChanged;
 	changed |= MyGUI::DragFloat("最小LOD", settings.minLOD).valueChanged;
 	changed |= MyGUI::DragFloat("最大LOD", settings.maxLOD).valueChanged;
@@ -130,7 +130,7 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(RenderFeaturePassSettings& pa
 		if (MyGUI::CollapsingHeader(output.name.c_str(), false)) {
 			MyGUI::ScopedPropertyLabelWidth width("RenderFeatureOutput");
 			changed |= MyGUI::InputText("名前", output.name).valueChanged;
-			changed |= MyGUI::InputText("UAV名", output.shaderResource).valueChanged;
+			changed |= MyGUI::InputText("書き込みリソース名", output.shaderResource).valueChanged;
 			changed |= MyGUI::EnumCombo("フォーマット", output.format).valueChanged;
 			changed |= MyGUI::DragFloat("幅スケール", output.widthScale,
 				{ .minValue = 0.0625f, .maxValue = 4.0f }).valueChanged;
@@ -138,7 +138,7 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(RenderFeaturePassSettings& pa
 				{ .minValue = 0.0625f, .maxValue = 4.0f }).valueChanged;
 			changed |= MyGUI::Checkbox("履歴を保持", output.history);
 			if (output.history) {
-				changed |= MyGUI::InputText("履歴SRV名",
+				changed |= MyGUI::InputText("履歴読み込み名",
 					output.historyShaderResource).valueChanged;
 			}
 			bool clear = output.clearColor.has_value();

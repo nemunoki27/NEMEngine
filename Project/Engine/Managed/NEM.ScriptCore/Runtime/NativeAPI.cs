@@ -301,10 +301,6 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionSetShapeProperty;
     // 指定Clipの再生時間を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
-    // AnimatorのParameterを設定する
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float, int, int> SetAnimatorParameter;
-    // AnimatorのParameterを取得する
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float*, int*, int> GetAnimatorParameter;
     // 指定Clipを先頭から再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
     // 再生中のClip名をコピーする
@@ -519,8 +515,6 @@ internal static unsafe class NativeAPI {
         CollisionGetShapeProperty = callbacks->collisionGetShapeProperty;
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
-        SetAnimatorParameter = callbacks->setAnimatorParameter;
-        GetAnimatorParameter = callbacks->getAnimatorParameter;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;
         GetSkinnedAnimationRuntimeState = callbacks->getSkinnedAnimationRuntimeState;

@@ -74,7 +74,7 @@ namespace Engine {
 		Vector3 up = Vector3(0.0f, 0.0f, 1.0f);
 		float sourceHeight = 2.0f;
 
-		float decay = 1.0f;
+		float rectPadding = 0.0f;
 		float barnDoorAngle = 88.0f;
 		float barnDoorLength = 0.0f;
 		float shadowStrength = 1.0f;
@@ -123,7 +123,9 @@ namespace Engine {
 		uint32_t rectCount = 0;
 
 		uint32_t localCount = 0;
-		uint32_t pad[3] = { 0, 0, 0 };
+		uint32_t rectLTCMatrixIndex = UINT32_MAX;
+		uint32_t rectLTCAmplitudeIndex = UINT32_MAX;
+		uint32_t pad = 0;
 	};
 	static_assert(sizeof(LightCountsGPU) % 16 == 0, "LightCountsGPU must be 16 byte aligned");
 

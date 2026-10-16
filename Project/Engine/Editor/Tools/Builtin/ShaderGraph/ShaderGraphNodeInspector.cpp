@@ -11,6 +11,8 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
 
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
+
 // c++
 #include <algorithm>
 #include <cfloat>
@@ -40,7 +42,7 @@ void Engine::ShaderGraphNodeInspector::Draw(
 
 	ShaderGraphNode& node = *found;
 	ImGui::SeparatorText("選択ノード");
-	ImGui::TextUnformatted(GetShaderGraphNodeName(node.kind).data());
+	ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node.kind).data()));
 	if (node.kind != ShaderGraphNodeKind::SamplerState) {
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphSelectedNode");
 		session.MarkDirty(MyGUI::EnumCombo("精度", node.precision).valueChanged);
@@ -66,7 +68,7 @@ void Engine::ShaderGraphNodeInspector::Draw(
 			node.sampler.maxAnisotropy = static_cast<uint32_t>(maxAnisotropy);
 			session.MarkDirty();
 		}
-		session.MarkDirty(MyGUI::DragFloat("Mip LODバイアス", node.sampler.mipLODBias).valueChanged);
+		session.MarkDirty(MyGUI::DragFloat("ミップLODバイアス", node.sampler.mipLODBias).valueChanged);
 		session.MarkDirty(MyGUI::DragFloat("最小LOD", node.sampler.minLOD).valueChanged);
 		session.MarkDirty(MyGUI::DragFloat("最大LOD", node.sampler.maxLOD).valueChanged);
 		return;

@@ -68,7 +68,6 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
-	systemContext_.animationControllerManager = &animationControllerManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
 	if constexpr (BuildConfig::kEditorEnabled) {

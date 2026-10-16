@@ -33,7 +33,7 @@ namespace {
 
 		std::array<Engine::CurveChannelRef, 4> refs{};
 		if (parameter.componentCount <= 1) {
-			refs[0] = { &parameter.curveW.channel, "Value" };
+			refs[0] = { &parameter.curveW.channel, "値" };
 			return refs;
 		}
 
@@ -169,7 +169,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::DrawParameter(
 		setting.fixedTimeRange = true;
 		const bool isColor = IsColorParameter(variable) && parameter.componentCount >= 3;
 		auto channelRefs = BuildCurveChannelRefs(parameter, isColor);
-		changed |= MyGUI::CurveEditor("Curve", std::span(channelRefs.data(), parameter.componentCount),
+		changed |= MyGUI::CurveEditor("カーブ", std::span(channelRefs.data(), parameter.componentCount),
 			uiState.curveState, setting).valueChanged;
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {

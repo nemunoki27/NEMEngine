@@ -46,4 +46,31 @@ float ComputeRectBarnAttenuation(RectLight light, float3 worldPos) {
 	return widthAttenuation * heightAttenuation;
 }
 
+// 面積積分が距離減衰を含むため、影響半径だけで打ち切る
+float ComputeRectRangeAttenuation(RectLight light, float3 worldPos) {
+
+	return ComputeDistanceAttenuation(length(worldPos - light.pos), light.attenuationRadius, 0.0f);
+}
+
+// 片面の総出力を単位面積の放射輝度へ変換する
+float3 GetRectLightRadiance(RectLight light) {
+
+	float area = light.sourceWidth * light.sourceHeight;
+	if (light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f || area <= 1e-8f) return 0.0f;
+	return light.color.rgb * max(light.intensity, 0.0f) / (3.14159265359f * area);
+}
+
+// 矩形面の一様サンプルを立体角の積分重みへ変換する
+float3 EvaluateRectSampleIrradiance(RectLight light, float3 worldPos, float3 normal, float3 emitter) {
+
+	float3 delta = emitter - worldPos;
+	float distanceSquared = dot(delta, delta);
+	if (distanceSquared <= 1e-10f) return 0.0f;
+	float3 direction = delta * rsqrt(distanceSquared);
+	float geometry = saturate(dot(normal, direction)) * saturate(dot(light.direction, -direction));
+	float area = max(light.sourceWidth, 0.0f) * max(light.sourceHeight, 0.0f);
+	float attenuation = ComputeRectRangeAttenuation(light, worldPos) * ComputeRectBarnAttenuation(light, worldPos);
+	return GetRectLightRadiance(light) * geometry * area / distanceSquared * attenuation;
+}
+
 #endif

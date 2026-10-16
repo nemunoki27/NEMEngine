@@ -46,7 +46,7 @@ namespace {
 
 			name.erase(name.size() - suffix.size());
 		}
-		return name.empty() ? "Render Feature" : name;
+		return name.empty() ? "レンダーパス" : name;
 	}
 
 	bool IsSelected(const std::vector<Engine::UUID>& selected, Engine::UUID id) {

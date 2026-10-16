@@ -116,5 +116,24 @@ bool NEMTests::TestAnimationClipPreview() {
 	session.ApplyPreviewAtCurrentTime(context, true);
 	temporary.reset();
 	session.EndPreviewAndRestore();
-	return !session.GetPreviewActive();
+	if (session.GetPreviewActive()) return false;
+	// 別Clipの内容を読み込み、保存先と名前を変えず未保存にする
+	context.toolContext.world = &world;
+	const auto importPath = directory.GetPath() / "Import.animclip.json";
+	AnimationClipAsset imported = clip;
+	imported.name = "Source";
+	imported.duration = 3.0f;
+	if (!SaveAnimationClipAsset(importPath, imported)) return false;
+	const AssetID importID = database.ImportOrGet(RuntimePaths::ToAssetPath(importPath), AssetType::AnimationClip);
+	if (!session.ImportSettings(context, importID) || !session.GetClipDirty() || session.GetClipAssetID() != clipID ||
+		session.GetClip().guid != clipID || session.GetClip().name != "Draft" || session.GetClip().duration != 3.0f) return false;
+	if (!LoadAnimationClipAsset(path, saved) || saved.duration == 3.0f) return false;
+	std::ofstream(importPath) << "{";
+	if (session.ImportSettings(context, importID) || !session.GetClipDirty() || session.GetClip().duration != 3.0f) return false;
+	session.SaveClipToSelectedAsset(context);
+	// AssetのGUIDはClip本体ではなくmetaで保持する
+	std::ifstream metaFile(path.wstring() + L".meta");
+	const auto savedMeta = nlohmann::json::parse(metaFile, nullptr, false);
+	return !session.GetClipDirty() && LoadAnimationClipAsset(path, saved) && saved.duration == 3.0f &&
+		savedMeta.is_object() && ParseAssetID(savedMeta, "guid") == clipID;
 }

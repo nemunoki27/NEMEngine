@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
-#include <Engine/Core/Animation/Controllers/AnimationControllerManager.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -65,7 +64,6 @@ namespace Engine {
 		std::unique_ptr<RenderPipelineRunner> renderPipeline_;
 		SkinnedMeshAnimationManager skinnedAnimationManager_;
 		AnimationClipManager animationClipManager_;
-		AnimationControllerManager animationControllerManager_;
 
 		bool requestFrameDeltaReset_ = false;
 		bool playWorldJustStarted_ = false;

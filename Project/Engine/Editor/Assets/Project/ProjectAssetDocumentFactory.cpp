@@ -10,7 +10,6 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Animation/Controllers/AnimationControllerAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderPassesAsset.h>
@@ -42,8 +41,6 @@ namespace Engine {
 			return ".material.json";
 		case ProjectAssetFileKind::AnimationClip:
 			return ".animClip.json";
-		case ProjectAssetFileKind::AnimationController:
-			return ".animController.json";
 		case ProjectAssetFileKind::Shader:
 			return ".shader.json";
 		case ProjectAssetFileKind::RenderPipeline:
@@ -149,13 +146,6 @@ namespace Engine {
 		}
 		case ProjectAssetFileKind::RenderTexture:
 			return JsonAdapter::SerializeCanonical(ToJson(RenderTextureAsset{}), 2);
-		case ProjectAssetFileKind::AnimationController: {
-			AnimationControllerAsset controller;
-			controller.name = assetName;
-			controller.defaultState = "Idle";
-			controller.states.push_back({"Idle", {}});
-			return JsonAdapter::SerializeCanonical(nlohmann::json(controller), 2);
-		}
 		case ProjectAssetFileKind::Text:
 			return "";
 		case ProjectAssetFileKind::Folder:

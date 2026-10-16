@@ -37,7 +37,7 @@ namespace {
 			changed |= Engine::MyGUI::EnumCombo("実行位置", selection.anchor).valueChanged;
 		}
 		changed |= Engine::InspectorDrawerCommon::DrawLayerMaskField(
-			*context.panelContext, "Rendering Layer", selection.renderingLayerMask)
+			*context.panelContext, "描画レイヤー", selection.renderingLayerMask)
 					   .valueChanged;
 
 		const auto drawPhase = [&](const char* label, Engine::RenderPhase phase) {
@@ -53,10 +53,10 @@ namespace {
 			}
 		};
 		ImGui::BeginDisabled(selection.mode == Engine::RenderFeatureSelectionMode::IsolatedLayer);
-		drawPhase("Opaque", Engine::RenderPhase::Opaque);
+		drawPhase("不透明", Engine::RenderPhase::Opaque);
 		ImGui::EndDisabled();
-		drawPhase("Transparent", Engine::RenderPhase::Transparent);
-		drawPhase("PostProcess UI", Engine::RenderPhase::PostProcessUI);
+		drawPhase("半透明", Engine::RenderPhase::Transparent);
+		drawPhase("ポストプロセスUI", Engine::RenderPhase::PostProcessUI);
 
 		const auto drawRenderer = [&](const char* label, uint32_t bit) {
 			bool enabled = (selection.rendererMask & bit) != 0u;

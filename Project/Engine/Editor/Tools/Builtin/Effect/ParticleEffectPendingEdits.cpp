@@ -31,8 +31,8 @@ void Engine::ParticleEffectEditorTool::DrawPendingEdits(const EditorToolContext&
 
 	if (!pendingAsset_ && !pendingClose_ && pendingCreate_.empty()) return;
 	pendingConfirmation_ = true;
-	ImGui::OpenPopup("Effectの未保存編集");
-	if (!MyGUI::BeginPopupModal("Effectの未保存編集", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+	ImGui::OpenPopup("エフェクトの未保存編集");
+	if (!MyGUI::BeginPopupModal("エフェクトの未保存編集", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
 	ImGui::TextWrapped("%s", "変更を保存しますか？");
 	const auto finish = [&]() {
 
@@ -69,21 +69,13 @@ void Engine::ParticleEffectEditorTool::DrawPendingEdits(const EditorToolContext&
 	ImGui::EndPopup();
 }
 
-void Engine::ParticleEffectEditorTool::DrawHistory(const EditorToolContext& context) {
+void Engine::ParticleEffectEditorTool::HandleHistoryShortcuts(const EditorToolContext& context) {
 
 	const bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 	if (focused && context.panelContext && context.panelContext->host) {
 		// Effectにフォーカスがある間はSceneのUndoへ渡さない
 		context.panelContext->host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::None);
 	}
-	const float width = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-	ImGui::BeginDisabled(!session_.CanUndo());
-	if (ImGui::Button("Undo", ImVec2(width, 0.0f))) session_.Undo();
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!session_.CanRedo());
-	if (ImGui::Button("Redo", ImVec2(width, 0.0f))) session_.Redo();
-	ImGui::EndDisabled();
 	const ImGuiIO& io = ImGui::GetIO();
 	if (!focused || io.WantTextInput || ImGui::IsAnyItemActive() || !io.KeyCtrl) return;
 	if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {

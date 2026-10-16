@@ -1,5 +1,6 @@
 #include "TestSelection.h"
 #include "BloomTests.h"
+#include "RectLightTests.h"
 
 //============================================================================
 //	include
@@ -31,6 +32,9 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--rect-light") {
+		return RunTest("TestRectLightCPU", TestRectLightCPU) && RunTest("TestRectLightGPU", TestRectLightGPU) ? 0 : 67;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--bloom") {
 		return RunTest("TestBloomSettings", TestBloomSettings) && RunTest("TestBloomGPU", TestBloomGPU) ? 0 : 66;
 	}

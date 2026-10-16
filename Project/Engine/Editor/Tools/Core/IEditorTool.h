@@ -47,6 +47,8 @@ namespace Engine {
 		//============================================================================
 		//	protected Methods
 		//============================================================================
+		// 表示名と内部IDを分け、以前のウィンドウ配置を引き継ぐ
+		std::string MakeWindowName(const char* identity, const char* previousName = nullptr) const;
 		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
 			const Vector2I& size, const Color4& clearColor = Color4::Black(),

@@ -45,7 +45,7 @@ void ParticleEffectEditorTool::DrawEditorTool(const EditorToolContext& context) 
 
 void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 
-	const bool visible = ImGui::Begin("ParticleEffect", &openWindow_);
+	const bool visible = ImGui::Begin(MakeWindowName("ParticleEffect").c_str(), &openWindow_);
 	if (!openWindow_ && session_.IsDirty()) {
 		openWindow_ = true;
 		pendingClose_ = true;
@@ -58,7 +58,7 @@ void ParticleEffectEditorTool::DrawWindow(const EditorToolContext& context) {
 		return;
 	}
 	ImGui::SetWindowFontScale(0.8f);
-	DrawHistory(context);
+	HandleHistoryShortcuts(context);
 
 	DrawAssetSection(context);
 	if (!statusMessage_.empty()) {

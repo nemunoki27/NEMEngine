@@ -52,7 +52,7 @@ namespace Engine {
 		// Tool一覧へ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.animation_clip",
-			.name = "アニメクリップ作成",
+			.name = "アニメーションクリップ作成",
 			.category = "アニメーション",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
@@ -63,6 +63,10 @@ namespace Engine {
 		bool openWindow_ = false;
 		// 未保存確認後の切替先
 		std::optional<AssetID> pendingClip_;
+		// 確認後に実行する新規作成と取り込み
+		std::optional<std::string> pendingCreate_;
+		std::optional<AssetID> pendingImport_;
+		std::string createName_;
 		// 終了要求と確認結果
 		bool pendingClose_ = false;
 		bool resolvingClose_ = false;
@@ -81,6 +85,8 @@ namespace Engine {
 		void DrawPendingEdits(const EditorToolContext& context);
 		// Clipの選択と保存を表示する
 		void DrawClipAssetUI(const EditorToolContext& context);
+		// アセットの新規作成と設定取り込みを表示する
+		void DrawAssetActions(const EditorToolContext& context);
 		// 編集対象と再生操作を表示する
 		void DrawEditAssetUI(const EditorToolContext& context);
 	};

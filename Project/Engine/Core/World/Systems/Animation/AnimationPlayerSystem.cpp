@@ -7,7 +7,6 @@
 #include "AnimationGroupPlayback.h"
 #include "AnimationBaseValues.h"
 #include "AnimationGroupEvaluation.h"
-#include "AnimationControllerPlayback.h"
 #include "AnimationPlaybackRequests.h"
 #include "AnimationPlaybackTime.h"
 #include <Engine/Core/World/Components/Animation/AnimationPlayerComponent.h>
@@ -64,7 +63,6 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 	if (!context.assetDatabase || !context.animationClipManager) {
 		return;
 	}
-	const bool controllerChanged = AnimationControllerPlayback::Synchronize(player, context);
 	const bool directClipRequested = static_cast<bool>(player.runtimeDirectClipRequest);
 	AnimationPlaybackRequests::PrepareDirectClip(player, context);
 	AnimationPlaybackRequests::RefreshActiveClips(player, context);
@@ -89,7 +87,7 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 	}
 
 	// 新しい定義のBindingだけを追加し、Preview開始時の値を残す
-	if (controllerChanged || directClipRequested || player.runtimeClipRevision != context.animationClipManager->GetRevision()) {
+	if (directClipRequested || player.runtimeClipRevision != context.animationClipManager->GetRevision()) {
 
 		std::vector<AnimationPreviewBaseValue> additions;
 		CaptureBaseValues(world, entity, player, context, additions);
@@ -104,7 +102,6 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 
 	// 停止要求の消費、現在グループの全クリップを停止する
 	if (player.runtimeStopRequest) {
-		player.runtimeControllerStopped = true;
 		for (AnimationClipRuntime& clipRt : player.runtimeCurrentClips) {
 			clipRt.playing = false;
 			clipRt.started = true;
@@ -124,7 +121,6 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 		player.runtimeSeekRequested = false;
 	}
 	if (!player.runtimePlayRequest.empty()) {
-		player.runtimeControllerStopped = player.runtimePlayRequest == player.runtimeDirectGroup.name;
 
 		// 向き相対の基準をPlayを呼んだ瞬間の姿勢にするため、要求時に捕捉し直す
 		if (isPlay) {
@@ -140,7 +136,7 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 
 		player.runtimeStarted = true;
 		const bool autoPlay = isPlay ? player.playOnStart : true;
-		const std::string& defaultGroup = player.runtimeControllerAsset ? player.runtimeController.state : player.defaultGroup;
+		const std::string& defaultGroup = player.defaultGroup;
 		if (autoPlay && !defaultGroup.empty()) {
 			BeginGroup(player, defaultGroup, 0.0f);
 		}
@@ -231,7 +227,6 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(
 			player.runtimeLooping = wrap == AnimationWrapMode::Loop || wrap == AnimationWrapMode::PingPong;
 		}
 	}
-	EvaluateController(player, context);
 
 	// callback後はComponentを借用せず、削除されたEntityへ配送しない
 	for (const AnimationEvent& event : firedEvents) {

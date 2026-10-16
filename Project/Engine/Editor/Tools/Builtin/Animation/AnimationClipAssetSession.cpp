@@ -8,6 +8,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 
 // c++
 #include <algorithm>
@@ -39,7 +40,7 @@ void AnimationClipEditSession::LoadClipFromSelectedAsset(const EditorToolContext
 	const AssetDatabase* database = context.toolContext.assetDatabase;
 	const std::filesystem::path path = database->ResolveFullPath(clipAssetID_);
 	if (path.empty()) {
-		clipErrorText_ = "AnimationClip asset path was not found.";
+		clipErrorText_ = "アニメーションクリップの保存先が見つかりません";
 		clipAssetID_ = loadedClipAssetID_;
 		return;
 	}
@@ -47,19 +48,26 @@ void AnimationClipEditSession::LoadClipFromSelectedAsset(const EditorToolContext
 	AnimationClipAsset loaded{};
 	if (!LoadAnimationClipAsset(path, loaded)) {
 		clipAssetID_ = loadedClipAssetID_;
-		clipErrorText_ = "Failed to load AnimationClip asset.";
+		clipErrorText_ = "アニメーションクリップを読み込めません";
 		Logger::Output(LogType::Engine, spdlog::level::err, "AnimationClipToolでClipを読み込めません: {}", path.string());
 		return;
 	}
 
+	if (loaded.name.empty()) {
+		loaded.name = path.stem().string();
+	}
+	ApplyLoadedClip(context, std::move(loaded), false);
+}
+
+void AnimationClipEditSession::ApplyLoadedClip(const EditorToolContext& context, AnimationClipAsset loaded, bool dirty) {
+
+	// 旧プレビューの姿勢を戻してから編集用の参照を更新する
 	EndPreviewAndRestore();
 	previewBaseValues_.clear();
-	clipDirty_ = false;
 	clip_ = std::move(loaded);
 	clip_.guid = clipAssetID_;
-	if (clip_.name.empty()) {
-		clip_.name = path.stem().string();
-	}
+	clipDirty_ = dirty;
+	editorViewTrackIndex_ = -1;
 	if (clip_.duration <= 0.0f) {
 		clip_.duration = 1.0f;
 	}
@@ -86,14 +94,14 @@ void AnimationClipEditSession::SaveClipToSelectedAsset(const EditorToolContext& 
 	clipErrorText_.clear();
 
 	if (!clipAssetID_) {
-		clipErrorText_ = "ClipData is not set.";
+		clipErrorText_ = "アニメーションクリップが設定されていません";
 		return;
 	}
 
 	const AssetDatabase* database = context.toolContext.assetDatabase;
 	const std::filesystem::path path = database->ResolveFullPath(clipAssetID_);
 	if (path.empty()) {
-		clipErrorText_ = "AnimationClip asset path was not found.";
+		clipErrorText_ = "アニメーションクリップの保存先が見つかりません";
 		return;
 	}
 
@@ -110,7 +118,7 @@ void AnimationClipEditSession::SaveClipToSelectedAsset(const EditorToolContext& 
 	}
 
 	if (!SaveAnimationClipAsset(path, clip_)) {
-		clipErrorText_ = "Failed to save AnimationClip asset.";
+		clipErrorText_ = "アニメーションクリップを保存できません";
 		Logger::Output(LogType::Engine, spdlog::level::err, "AnimationClipToolでClipを保存できません: {}", path.string());
 		return;
 	}
@@ -130,4 +138,31 @@ void AnimationClipEditSession::RevertClipFromSelectedAsset(const EditorToolConte
 
 	EndPreviewAndRestore(context);
 	LoadClipFromSelectedAsset(context);
+}
+
+bool AnimationClipEditSession::CreateClip(const EditorToolContext& context, const std::string& name) {
+
+	const AssetID assetID = ProjectAssetFileUtility::CreateRegisteredAsset(*context.toolContext.assetDatabase,
+		"GameAssets/Animations/Clips", ProjectAssetFileKind::AnimationClip, name, clipErrorText_);
+	if (!assetID) return false;
+	clipAssetID_ = assetID;
+	LoadClipFromSelectedAsset(context);
+	return loadedClipAssetID_ == assetID && clipErrorText_.empty();
+}
+
+bool AnimationClipEditSession::ImportSettings(const EditorToolContext& context, AssetID sourceAsset) {
+
+	const AssetDatabase& database = *context.toolContext.assetDatabase;
+	const AssetMeta* meta = database.Find(sourceAsset);
+	AnimationClipAsset loaded;
+	if (!hasClip_ || !clipAssetID_ || sourceAsset == clipAssetID_ || !meta || meta->type != AssetType::AnimationClip ||
+		!LoadAnimationClipAsset(database.ResolveFullPath(sourceAsset), loaded)) {
+		clipErrorText_ = "取り込み元のアニメーションクリップを読み込めません";
+		return false;
+	}
+	// 選択中のアセットへ保存するため識別子と名前を維持する
+	loaded.name = clip_.name;
+	ApplyLoadedClip(context, std::move(loaded), true);
+	clipErrorText_.clear();
+	return true;
 }

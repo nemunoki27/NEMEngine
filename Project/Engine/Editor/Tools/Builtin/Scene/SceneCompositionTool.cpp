@@ -32,7 +32,7 @@ void Engine::SceneCompositionTool::DrawEditorTool(const EditorToolContext& conte
 
 void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("シーン構成", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("シーン構成").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

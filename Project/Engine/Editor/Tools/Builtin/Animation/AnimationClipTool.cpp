@@ -41,7 +41,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		DrawPendingEdits(context);
 		return;
 	}
-	if (!ImGui::Begin("アニメーションクリップ作成ツール", &openWindow_)) {
+	if (!ImGui::Begin(MakeWindowName("アニメーションクリップ作成ツール").c_str(), &openWindow_)) {
 		ImGui::End();
 		// 折りたたみ中も未保存編集の確認を残す
 		session_.EndPreviewAndRestore(context);
@@ -62,8 +62,8 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	if (ImGui::BeginTable("AnimationClipToolTopLayout", 2,
 			ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
 
-		ImGui::TableSetupColumn("Toolbar", ImGuiTableColumnFlags_WidthFixed, 420.0f);
-		ImGui::TableSetupColumn("Properties", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("操作", ImGuiTableColumnFlags_WidthFixed, 420.0f);
+		ImGui::TableSetupColumn("プロパティ", ImGuiTableColumnFlags_WidthStretch);
 
 		ImGui::TableNextColumn();
 		// アセット、編集設定UI
@@ -81,8 +81,8 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 	if (ImGui::BeginTable("AnimationClipToolEditLayout", 2,
 			ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
 
-		ImGui::TableSetupColumn("Curve", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableSetupColumn("KeyInspector", ImGuiTableColumnFlags_WidthFixed, 340.0f);
+		ImGui::TableSetupColumn("カーブ", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("キー編集", ImGuiTableColumnFlags_WidthFixed, 340.0f);
 
 		ImGui::TableNextColumn();
 		// プロパティカーブ編集UI
@@ -158,6 +158,7 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 		if (result.valueChanged) {
 			RequestClipSwitch(context, selected);
 		}
+		DrawAssetActions(context);
 
 		if (!session_.GetClipErrorText().empty()) {
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
@@ -267,6 +268,27 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 			}
 		}
 	}
+}
+
+void Engine::AnimationClipTool::DrawAssetActions(const EditorToolContext& context) {
+
+	MyGUI::InputText("GameAssets/Animations/Clips/", createName_);
+	ImGui::BeginDisabled(createName_.empty());
+	if (ImGui::Button("新規作成")) {
+		if (session_.GetClipDirty()) pendingCreate_ = createName_;
+		else session_.CreateClip(context, createName_);
+	}
+	ImGui::EndDisabled();
+
+	// 同種のアセットから編集中の設定だけ取り込む
+	ImGui::BeginDisabled(!session_.GetHasClip());
+	AssetID source{};
+	if (MyGUI::AssetReferenceField("設定をインポート", source, context.toolContext.assetDatabase,
+		{ AssetType::AnimationClip }, { .allowDelete = false }).valueChanged) {
+		if (session_.GetClipDirty()) pendingImport_ = source;
+		else session_.ImportSettings(context, source);
+	}
+	ImGui::EndDisabled();
 }
 
 void Engine::AnimationClipTool::DrawEditAssetUI(const EditorToolContext& context) {

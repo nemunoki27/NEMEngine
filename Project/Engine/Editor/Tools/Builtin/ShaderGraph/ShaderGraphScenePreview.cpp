@@ -129,7 +129,7 @@ bool Engine::ShaderGraphScenePreview::ApplyPreviewMaterial(
 	if (previewMaterialApplied_ && appliedPreviewTarget_ != target) { RestorePreviewMaterial(); }
 	if (!previewMaterialApplied_) {
 		if (!ReadRendererMaterial(*world, entity, target, previewOriginalMaterial_)) {
-			statusMessage = "描画対象に対応するRendererがありません";
+			statusMessage = "描画対象に対応するレンダラーがありません";
 			return false;
 		}
 		appliedPreviewEntityUUID_ = previewEntityUUID_;

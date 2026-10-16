@@ -9,10 +9,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
 #include <exception>
 #include <system_error>
 
@@ -37,8 +39,6 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 		return "Material";
 	case ProjectAssetFileKind::AnimationClip:
 		return "AnimationClip";
-	case ProjectAssetFileKind::AnimationController:
-		return "Animation Controller";
 	case ProjectAssetFileKind::Shader:
 		return "Shader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -70,8 +70,6 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 		return "NewMaterial";
 	case ProjectAssetFileKind::AnimationClip:
 		return "NewAnimation";
-	case ProjectAssetFileKind::AnimationController:
-		return "NewAnimationController";
 	case ProjectAssetFileKind::Shader:
 		return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -97,7 +95,7 @@ std::string Engine::ProjectAssetFileUtility::GetProtectedAssetSuffix(const Proje
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(ProjectAssetSource source,
-	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName) {
+	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = kind == ProjectAssetFileKind::Folder;
@@ -124,7 +122,13 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(Proje
 		// 同一名称がある場合は自動的に連番を付与して一意のパスを作成
 		const std::string requestedPath = kind == ProjectAssetFileKind::Folder ? baseName : baseName + suffix;
 		const std::filesystem::path preferredPath = directory / Algorithm::PathFromUTF8(requestedPath);
-		const std::filesystem::path createPath = ProjectAssetPath::MakeUniquePath(preferredPath);
+		const std::filesystem::path createPath = makeUnique ? ProjectAssetPath::MakeUniquePath(preferredPath) : preferredPath;
+		std::filesystem::path metaPath = createPath;
+		metaPath += ".meta";
+		if (!makeUnique && (std::filesystem::exists(createPath) || std::filesystem::exists(metaPath))) {
+			result.message = "同名のアセットが存在します";
+			return result;
+		}
 		if (createPath.empty()) {
 			result.message = "Assetの作成先を決定できません";
 			return result;
@@ -143,9 +147,9 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(Proje
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAssetSource source,
-	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName) {
+	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique) {
 
-	auto result = PlanCreate(source, directoryVirtualPath, kind, requestedName);
+	auto result = PlanCreate(source, directoryVirtualPath, kind, requestedName, makeUnique);
 	if (!result.success) {
 		return result;
 	}
@@ -175,6 +179,26 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 
 	result.success = true;
 	return result;
+}
+
+Engine::AssetID Engine::ProjectAssetFileUtility::CreateRegisteredAsset(AssetDatabase& database,
+	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& name, std::string& diagnostic) {
+
+	// 不正な名前を別名へ置き換えず入力欄へ戻す
+	if (name.empty() || ProjectAssetPath::SanitizeFileName(name) != name || name.back() == '.' ||
+		std::any_of(name.begin(), name.end(), [](unsigned char character) { return character < 32; })) {
+		diagnostic = "作成名が無効です";
+		return {};
+	}
+	const auto result = Create(ProjectAssetSource::Game, directoryVirtualPath, kind, name, false);
+	if (!result.success) {
+		diagnostic = result.message;
+		return {};
+	}
+	// 本体の作成後に既存の取り込み経路でmetaと索引を登録する
+	const AssetID assetID = database.ImportOrGet(result.assetPath, AssetTypeResolver::GuessByPath(result.fullPath));
+	diagnostic = assetID ? "作成しました: " + result.assetPath : "アセットは作成しましたが索引へ登録できません";
+	return assetID;
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(

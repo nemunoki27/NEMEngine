@@ -16,9 +16,12 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+// imgui
+#include <imgui_internal.h>
 
 //============================================================================
 //	MyGUI classMethods
@@ -62,6 +65,37 @@ namespace {
 		const PropertyLabelWidthState state = propertyLabelWidthStack.back();
 		propertyLabelWidthStack.pop_back();
 		propertyLabelWidthCache[state.id] = state.measuredWidth;
+	}
+
+	// ラベルを区切り線の内側へ縮小する
+	void DrawPropertyLabel(const char* label) {
+
+		const float clipWidth = ImGui::GetCurrentWindow()->ClipRect.Max.x - ImGui::GetCursorScreenPos().x;
+		const float availableWidth = (std::max)(0.0f, (std::min)(ImGui::GetContentRegionAvail().x, clipWidth) - 2.0f);
+		const float textWidth = ImGui::CalcTextSize(label).x;
+		if (textWidth <= availableWidth) {
+			ImGui::TextUnformatted(label);
+			return;
+		}
+		if (availableWidth <= 0.0f) {
+			ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight()));
+			return;
+		}
+
+		// 縮小サイズを揃え、リサイズ中のフォント生成を抑える
+		const float lineHeight = ImGui::GetTextLineHeight();
+		const float baseSize = ImGui::GetCurrentContext()->FontSizeBase;
+		const float fittedSize = baseSize * availableWidth / textWidth;
+		float fontSize = (std::max)(0.25f, std::floor(fittedSize * 4.0f) / 4.0f);
+		ImGui::PushFont(nullptr, fontSize);
+		while (fontSize > 0.25f && ImGui::CalcTextSize(label).x > availableWidth) {
+			ImGui::PopFont();
+			fontSize -= 0.25f;
+			ImGui::PushFont(nullptr, fontSize);
+		}
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (lineHeight - ImGui::GetTextLineHeight()) * 0.5f);
+		ImGui::TextUnformatted(label);
+		ImGui::PopFont();
 	}
 
 }
@@ -162,7 +196,7 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 
 	ImGui::TableSetColumnIndex(0);
 	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(label);
+	DrawPropertyLabel(label);
 	if (propertyLabelContextMenu && *propertyLabelContextMenu) {
 
 		ImGui::PushID(label);

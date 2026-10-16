@@ -67,7 +67,7 @@ void Engine::InputDeviceTool::DrawWindow() {
 		return;
 	}
 
-	if (ImGui::Begin("入力デバイス", &openWindow_)) {
+	if (ImGui::Begin(MakeWindowName("入力デバイス").c_str(), &openWindow_)) {
 
 		// 設定の保存と読込
 		if (ImGui::Button("保存")) { input->SaveConfig(); }
@@ -90,7 +90,7 @@ void Engine::InputDeviceTool::DrawWindow() {
 		}
 		for (uint32_t playerIndex = 0; playerIndex < Input::kMaxPlayers; ++playerIndex) {
 			ImGui::PushID(static_cast<int32_t>(playerIndex));
-			ImGui::SeparatorText(("Player " + std::to_string(playerIndex)).c_str());
+			ImGui::SeparatorText(("プレイヤー " + std::to_string(playerIndex)).c_str());
 			int32_t gamepadIndex = input->GetPlayerGamepadIndex(playerIndex);
 			if (ImGui::SliderInt("ゲームパッド", &gamepadIndex, -1, 3,
 				gamepadIndex < 0 ? "なし" : "%d")) {
@@ -120,12 +120,12 @@ void Engine::InputDeviceTool::DrawWindow() {
 		int modKey = input->GetMouseReleaseModKey();
 		int triggerKey = input->GetMouseReleaseTriggerKey();
 		bool keyEdit = false;
-		keyEdit |= DrawEnumCombo<KeyDIKCode>("解除Mod", modKey);
-		keyEdit |= DrawEnumCombo<KeyDIKCode>("解除Trigger", triggerKey);
+		keyEdit |= DrawEnumCombo<KeyDIKCode>("解除用の修飾キー", modKey);
+		keyEdit |= DrawEnumCombo<KeyDIKCode>("解除用の対象キー", triggerKey);
 		if (keyEdit) {
 			input->SetMouseReleaseShortcut(modKey, triggerKey);
 		}
-		ImGui::TextDisabled("解除はMod押下+Triggerキー");
+		ImGui::TextDisabled("解除は修飾キーと対象キーの同時押し");
 	}
 	ImGui::End();
 }

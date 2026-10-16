@@ -75,7 +75,6 @@ namespace Engine {
 		float attenuationRadius = 10.0f;
 		float sourceWidth = 2.0f;
 		float sourceHeight = 2.0f;
-		float decay = 1.0f;
 		float barnDoorAngle = 88.0f;
 		float barnDoorLength = 0.0f;
 		float shadowStrength = 1.0f;

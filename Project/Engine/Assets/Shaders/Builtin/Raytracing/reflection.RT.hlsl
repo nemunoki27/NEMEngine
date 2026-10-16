@@ -596,39 +596,16 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 	float3 V, float3 F0, uint renderFlags) {
 
 	float centerDistance = length(light.pos - worldPosition);
-	float attenuation = ComputeDistanceAttenuation(
-		centerDistance, light.attenuationRadius, light.decay);
-	float barnAttenuation = ComputeRectBarnAttenuation(light, worldPosition);
-	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
+	if (ComputeRectRangeAttenuation(light, worldPosition) * ComputeRectBarnAttenuation(light, worldPosition) <= 0.0f ||
+		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
 	float3 toCenter = light.pos - worldPosition;
 	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N,
 		toCenter / max(centerDistance, 1e-5f), centerDistance,
 		light.shadowStrength, renderFlags);
 
-	float3 result = 0.0f.xxx;
-	[unroll]
-	for (uint sampleIndex = 0u;
-		sampleIndex < kRectLightSampleCount; ++sampleIndex) {
-
-		float3 samplePosition = GetRectLightSamplePosition(light, sampleIndex);
-		float3 toLight = samplePosition - worldPosition;
-		float sampleDistance = length(toLight);
-		if (sampleDistance <= 1e-5f) {
-			continue;
-		}
-
-		float3 L = toLight / sampleDistance;
-		float sourceFacing = saturate(dot(-L, light.direction));
-		float3 radiance = light.color.rgb * light.intensity *
-			attenuation * barnAttenuation * sourceFacing * shadow;
-		result += EvaluatePBRRadiance(
-			material.N, V, L, radiance, material.baseColor.rgb,
-			material.metallic, material.roughness, F0);
-	}
-	return result / float(kRectLightSampleCount);
+	return shadow * EvaluatePBRRectLight(light, worldPosition, material.N, V, material.baseColor.rgb,
+		material.metallic, material.roughness, F0);
 }
 
 float3 EvaluateRaytracingSurfaceLighting(
