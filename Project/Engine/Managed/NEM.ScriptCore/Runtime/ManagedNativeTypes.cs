@@ -32,6 +32,7 @@ internal enum RendererMaterialTarget {
     Text,
     Primitive,
     Line,
+    Decal,
 }
 
 // Nativeと共通のMaterial値種別

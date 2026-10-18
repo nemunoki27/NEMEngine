@@ -363,6 +363,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	renderTextureInputs_.clear();
 	result_.sceneInstanceScratch_.clear();
 	result_.sceneGeometryScratch_.clear();
+	result_.sceneGeometryBounds_.clear();
 	result_.sceneSubMeshScratch_.clear();
 	materialResolver_.ResetPending();
 
@@ -482,6 +483,6 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 		blasCache_.sharedBLASFrames_[key] = GraphicsFrameState::GetFrameSerial();
 	}
 
-	result_.Publish(context, tlasState_.GetResource(), sceneMaterialGeneration_, !materialResolver_.HasPendingTextures());
+	result_.Publish(context, tlasState_.GetResource(), sceneMaterialGeneration_, !materialResolver_.HasPendingTextures(), cachedTLASInstances_);
 	context.raytracing.geometryGeneration = tlasState_.GetContentGeneration();
 }

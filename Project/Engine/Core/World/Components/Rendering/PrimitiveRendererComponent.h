@@ -201,6 +201,8 @@ namespace Engine {
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
 		// 選択的PostProcessなど描画機能が対象を絞るためのマスク
 		uint32_t renderingLayerMask = 1u;
+		// 投影デカールを受けるか
+		bool receiveDecals = true;
 	};
 
 	// Plane/Ringかつ描画空間がScreen2Dのときだけ2D描画になる

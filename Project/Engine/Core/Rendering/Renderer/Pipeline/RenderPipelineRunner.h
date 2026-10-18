@@ -72,6 +72,9 @@ namespace Engine {
 		uint64_t geometryGeneration = 0;
 		// 非同期テクスチャが全て確定しているか
 		bool materialTexturesReady = true;
+		std::span<const Matrix4x4> instanceWorldMatrices;
+		std::span<const RaytracingGeometryBounds> geometryBounds;
+		std::span<const RaytracingInstanceShaderData> instanceData;
 	};
 	// シーンを処理する描画パスの実行に必要なコンテキスト
 	struct SceneExecutionContext {

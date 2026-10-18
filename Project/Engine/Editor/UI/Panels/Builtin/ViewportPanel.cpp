@@ -1,4 +1,5 @@
 #include "ViewportPanel.h"
+#include "ViewportDecalGizmo.h"
 
 //============================================================================
 //	include
@@ -240,6 +241,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		bool blockDragByGizmo = false;
 		if (kind_ == ViewportPanelKind::Scene) {
 
+			ViewportDecalGizmo::Draw(context, imagePos, viewSize_);
 			gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}

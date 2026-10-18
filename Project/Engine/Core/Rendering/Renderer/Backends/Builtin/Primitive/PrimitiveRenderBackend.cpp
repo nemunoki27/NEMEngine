@@ -206,6 +206,9 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 				renderFlags,
 				payload->renderer->renderingLayerMask);
 		}
+		if (payload->renderer && payload->renderer->receiveDecals && !IsPrimitiveScreen2D(*payload->renderer)) {
+			instance.flags |= 1u << 6;
+		}
 		if (payload->renderer) ApplyPrimitiveShapeToInstance(*payload->renderer, instance);
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Plane &&
 			IsPrimitiveScreen2D(*payload->renderer)) {

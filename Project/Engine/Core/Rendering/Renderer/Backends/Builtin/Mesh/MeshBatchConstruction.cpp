@@ -195,6 +195,9 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveReflection)) {
 				instance.flags |= kMeshInstanceFlagReceiveReflection;
 			}
+			if (renderer && renderer->receiveDecals && !gpuMesh.isSkinned) {
+				instance.flags |= kMeshInstanceFlagReceiveDecal;
+			}
 			if (renderer) {
 				instance.flags |=
 					(renderer->renderingLayerMask &

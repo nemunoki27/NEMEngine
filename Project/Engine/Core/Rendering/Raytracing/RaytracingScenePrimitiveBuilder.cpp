@@ -129,6 +129,8 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		geometryData.subMeshDataIndex = subMeshDataIndex;
 		geometryData.pickRecordIndex = pickRecordIndex;
 		result_.sceneGeometryScratch_.emplace_back(geometryData);
+		result_.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
+			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent});
 
 		RaytracingTLASInstance instance{};
 		instance.blas = geometry->blas.GetResource();

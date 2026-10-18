@@ -17,6 +17,7 @@ static const uint kMaterialFlagLighting = 1u << 1;
 static const uint kMaterialFlagReceiveShadow = 1u << 2;
 static const uint kMaterialFlagReceiveIBL = 1u << 3;
 static const uint kMaterialFlagReceiveReflection = 1u << 4;
+static const uint kMaterialFlagReceiveDecal = 1u << 5;
 // 上位24bitはRendererの描画対象マスクとして保持する
 static const uint kRenderingLayerMaskShift = 8u;
 static const uint kRenderingLayerMaskBits = 0x00FFFFFFu;
@@ -67,6 +68,9 @@ uint BuildMaterialFlags(uint instanceFlags) {
 	}
 	if (instanceFlags & MESH_INSTANCE_FLAG_RECEIVE_REFLECTION) {
 		flags |= kMaterialFlagReceiveReflection;
+	}
+	if (instanceFlags & MESH_INSTANCE_FLAG_RECEIVE_DECAL) {
+		flags |= kMaterialFlagReceiveDecal;
 	}
 	flags |= instanceFlags &
 		(kRenderingLayerMaskBits <<

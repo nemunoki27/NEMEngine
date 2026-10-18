@@ -96,6 +96,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 				return result;
 			});
 		};
+		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("デカールを受ける", draft.receiveDecals); });
 		drawRenderFlagField("ライティング", MeshRenderFlags::Lighting);
 		drawRenderFlagField("影を落とす", MeshRenderFlags::CastShadow);
 		drawRenderFlagField("影を受ける", MeshRenderFlags::ReceiveShadow);

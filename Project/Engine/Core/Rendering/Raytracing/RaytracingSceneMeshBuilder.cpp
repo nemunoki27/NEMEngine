@@ -22,6 +22,7 @@
 
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -306,6 +307,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			geometryData.indexOffset = selectedRange.indexOffset;
 			geometryData.pickRecordIndex = static_cast<uint32_t>(result_.scenePickRecords_.size() - 1);
 			result_.sceneGeometryScratch_.emplace_back(geometryData);
+			RaytracingGeometryBounds bounds;
+			bounds.center = importedSubMesh.boundsCenter;
+			bounds.radius = importedSubMesh.boundsRadius;
+			MeshBoundsUtility::TransformSphere(localMatrix, bounds.center, bounds.radius);
+			bounds.instanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
+			bounds.receiveDecals = src.renderer && src.renderer->receiveDecals && !meshResource->isSkinned &&
+				renderState.surfaceMode != MaterialSurfaceMode::Transparent;
+			result_.sceneGeometryBounds_.push_back(bounds);
 		}
 
 		RaytracingBLASInput input{};

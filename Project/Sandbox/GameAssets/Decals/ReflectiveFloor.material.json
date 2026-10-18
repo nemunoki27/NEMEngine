@@ -1,0 +1,53 @@
+{
+    "domain": "Surface",
+    "usage": "Generic",
+    "name": "ReflectiveFloor",
+    "parameters": [
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "None",
+            "value": {
+                "r": 0.65,
+                "g": 0.65,
+                "b": 0.65,
+                "a": 1
+            }
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "None",
+            "value": 0.9
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "None",
+            "value": 0.06
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "None",
+            "value": 0.0
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "4e454d415353455470a1b2c3d4e5f619",
+            "preferredVariant": "GraphicsVertex"
+        },
+        {
+            "passKind": "Draw",
+            "pipeline": "4e454d415353455470a1b2c3d4e5f605",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "4e454d415353455470a1b2c3d4e5f609",
+            "preferredVariant": "GraphicsMesh"
+        }
+    ]
+}

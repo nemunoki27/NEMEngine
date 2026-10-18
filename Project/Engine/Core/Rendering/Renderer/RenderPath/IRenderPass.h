@@ -32,6 +32,7 @@ namespace Engine {
 		ScreenUI,
 		DebugOverlay,
 		EditorOverlay,
+		Decal,
 	};
 
 	//============================================================================

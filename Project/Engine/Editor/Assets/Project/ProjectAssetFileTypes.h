@@ -27,6 +27,7 @@ namespace Engine {
 		ShaderGraph,
 		RenderPasses,
 		RenderTexture,
+		DecalMaterial,
 	};
 
 	//============================================================================

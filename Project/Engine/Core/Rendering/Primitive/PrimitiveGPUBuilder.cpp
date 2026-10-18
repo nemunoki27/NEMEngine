@@ -5,6 +5,7 @@
 //============================================================================
 #include "PrimitiveGeometryManager.h"
 #include "PrimitiveMeshGenerator.h"
+#include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
@@ -46,6 +47,7 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 
 	// すべての描画資源が揃ってから公開する
 	PrimitiveGeometry candidate{};
+	MeshBoundsUtility::Calculate(vertices, {}, candidate.boundsCenter, candidate.boundsRadius);
 	candidate.vertexBuffer.Create(device, uploadService, *srvDescriptor, std::span<const MeshVertex>(vertices), L"PrimitiveVertices");
 
 	// 描画とBLASのIndexBuffer、ヒットShader用SRVを作る

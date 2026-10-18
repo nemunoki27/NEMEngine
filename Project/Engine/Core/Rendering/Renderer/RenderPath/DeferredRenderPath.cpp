@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
 #include "Passes/CameraSurfacePass.h"
+#include "Passes/DecalPass.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeaturePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
@@ -42,6 +43,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.phase = RenderPhase::Opaque,
 		.target = QueueRenderPass::Target::SceneMain
 		}));
+	fixedPasses.emplace_back(std::make_unique<DecalPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<CameraSurfacePass>(deps_, true));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
@@ -69,7 +71,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		RenderPathPassKind after;
 	};
 	const std::array<AnchorPoint, 7> kAnchorPoints = { {
-		{ RenderFeatureAnchor::BeforeLighting, RenderPathPassKind::Opaque },
+		{ RenderFeatureAnchor::BeforeLighting, RenderPathPassKind::Decal },
 		{ RenderFeatureAnchor::AfterLighting, RenderPathPassKind::Lighting },
 		{ RenderFeatureAnchor::BeforeTransparent, RenderPathPassKind::InvertedHullOutline },
 		{ RenderFeatureAnchor::AfterTransparent, RenderPathPassKind::Transparent },

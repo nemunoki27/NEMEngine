@@ -1,0 +1,108 @@
+{
+    "domain": "Decal",
+    "usage": "Decal",
+    "passes": [],
+    "name": "NormalAndRoughness",
+    "parameters": [
+        {
+            "id": "c553e3e98ed0c7cf",
+            "name": "affectColor",
+            "semantic": "None",
+            "value": false
+        },
+        {
+            "id": "21e3e33ff9022f7b",
+            "name": "affectNormal",
+            "semantic": "None",
+            "value": true
+        },
+        {
+            "id": "4f50ecfc0176b5d3",
+            "name": "affectSurface",
+            "semantic": "None",
+            "value": true
+        },
+        {
+            "id": "fec74db0d5a2a367",
+            "name": "affectEmission",
+            "semantic": "None",
+            "value": false
+        },
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "None",
+            "value": {
+                "r": 0.6,
+                "g": 0.045,
+                "b": 0.025,
+                "a": 1
+            }
+        },
+        {
+            "id": "43c33856c97e4ca6",
+            "name": "opacity",
+            "semantic": "None",
+            "value": 1.0
+        },
+        {
+            "id": "a62da48e7896ccf3",
+            "name": "normalStrength",
+            "semantic": "None",
+            "value": 1.0
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "None",
+            "value": 0.8
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "None",
+            "value": 0.12
+        },
+        {
+            "id": "c4617cc0ecd319d1",
+            "name": "emissiveColor",
+            "semantic": "None",
+            "value": {
+                "r": 0.03,
+                "g": 0.65,
+                "b": 1,
+                "a": 1
+            }
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "None",
+            "value": 0.0
+        },
+        {
+            "id": "93c33e46dc8a4e8e",
+            "name": "baseColorTexture",
+            "semantic": "None",
+            "value": "d3ca1000000000000000000000000014"
+        },
+        {
+            "id": "6cce61cdfda392e5",
+            "name": "normalTexture",
+            "semantic": "None",
+            "value": "d3ca1000000000000000000000000015"
+        },
+        {
+            "id": "126d8ffaa904879d",
+            "name": "metallicRoughnessTexture",
+            "semantic": "None",
+            "value": ""
+        },
+        {
+            "id": "5213515155a85711",
+            "name": "emissiveTexture",
+            "semantic": "None",
+            "value": ""
+        }
+    ]
+}

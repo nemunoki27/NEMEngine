@@ -7,6 +7,7 @@
 #include "ManagedMaterialConversion.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -73,6 +74,11 @@ namespace Engine {
 					visit(renderer->materialInstance);
 				}
 				break;
+			case Engine::ManagedRendererMaterialTarget::Decal:
+				if (auto* projector = world.TryGetComponentForBinding<DecalProjectorComponent>(entity)) {
+					visit(projector->materialInstance);
+				}
+				break;
 			case Engine::ManagedRendererMaterialTarget::Line:
 				if (Engine::LineRendererComponent* renderer =
 					world.TryGetComponentForBinding<Engine::LineRendererComponent>(entity)) {
@@ -132,7 +138,7 @@ namespace Engine {
 		if (changed) {
 			if (colorOnly) {
 				world->MarkMeshColorModified(resolved);
-			} else {
+			} else if (target != static_cast<int32_t>(ManagedRendererMaterialTarget::Decal)) {
 				world->MarkRenderDataModified(resolved);
 			}
 		}
@@ -192,7 +198,7 @@ namespace Engine {
 			[&](MaterialParameterSet& materialInstance) {
 				removed += static_cast<int32_t>(materialInstance.erase(MaterialParameterID{ parameterID }));
 			});
-		if (removed != 0) {
+		if (removed != 0 && target != static_cast<int32_t>(ManagedRendererMaterialTarget::Decal)) {
 			world->MarkRenderDataModified();
 		}
 		return removed;

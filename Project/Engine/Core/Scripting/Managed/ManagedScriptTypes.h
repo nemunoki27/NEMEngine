@@ -261,6 +261,7 @@ namespace Engine {
 		Text,
 		Primitive,
 		Line,
+		Decal,
 	};
 
 	// Native内部のvariant番号と独立したMaterial値種別

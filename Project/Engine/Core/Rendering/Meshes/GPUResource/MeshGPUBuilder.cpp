@@ -79,8 +79,15 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	mesh.boundsRadius = upload.boundsRadius;
 
 	mesh.subMeshes = imported.subMeshes;
+	for (size_t index = 0; index < mesh.subMeshes.size() && index < upload.subMeshBounds.size(); ++index) {
+		const auto& bounds = upload.subMeshBounds[index];
+		mesh.subMeshes[index].boundsCenter = Vector3(bounds.x, bounds.y, bounds.z);
+		mesh.subMeshes[index].boundsRadius = bounds.w;
+	}
 	if (mesh.subMeshes.empty() && 0 < mesh.indexCount) {
 		mesh.subMeshes.emplace_back(SubMeshDesc{ 0, mesh.indexCount });
+		mesh.subMeshes.back().boundsCenter = mesh.boundsCenter;
+		mesh.subMeshes.back().boundsRadius = mesh.boundsRadius;
 	}
 
 	// サブメッシュのテクスチャアセットIDを解決

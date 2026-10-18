@@ -69,6 +69,10 @@ bool Engine::InspectorMaterialSession::LoadMaterialDraft(const EditorPanelContex
 		return true;
 	}
 
+	// 別Materialへ切り替える前に確定していないプレビューを解除する
+	if (materialDraftValid_ && materialDraft_.domain == MaterialDomain::Decal && context.renderPipeline) {
+		context.renderPipeline->ReloadMaterial(editingMaterialAsset_);
+	}
 	materialDraftValid_ = false;
 	editingMaterialAsset_ = meta.guid;
 	materialDraft_ = MaterialAsset{};

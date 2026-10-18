@@ -13,6 +13,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraControllerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/DecalProjectorInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.h>
@@ -90,6 +91,7 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<SpriteRendererInspectorDrawer>("Sprite Renderer", "SpriteRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<TextRendererInspectorDrawer>("Text Renderer", "TextRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<SkyboxRendererInspectorDrawer>("Skybox Renderer", "SkyboxRenderer", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<DecalProjectorInspectorDrawer>("DecalProjector", "DecalProjector", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>("Line Renderer", "LineRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<ParticleSystemInspectorDrawer>(

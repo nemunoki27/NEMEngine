@@ -35,6 +35,8 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 		return "Scene";
 	case ProjectAssetFileKind::Prefab:
 		return "Prefab";
+	case ProjectAssetFileKind::DecalMaterial:
+		return "デカールMaterial";
 	case ProjectAssetFileKind::Material:
 		return "Material";
 	case ProjectAssetFileKind::AnimationClip:
@@ -66,6 +68,8 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 		return "NewScene";
 	case ProjectAssetFileKind::Prefab:
 		return "NewPrefab";
+	case ProjectAssetFileKind::DecalMaterial:
+		return "NewDecalMaterial";
 	case ProjectAssetFileKind::Material:
 		return "NewMaterial";
 	case ProjectAssetFileKind::AnimationClip:

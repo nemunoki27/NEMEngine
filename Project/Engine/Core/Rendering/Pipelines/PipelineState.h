@@ -14,6 +14,7 @@
 // c++
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -80,6 +81,8 @@ namespace Engine {
 		D3D12_RASTERIZER_DESC rasterizer{};
 		// 深度ステンシル設定
 		D3D12_DEPTH_STENCIL_DESC depthStencil{};
+		// MRTごとに異なる合成を行う固定Pass用
+		std::optional<D3D12_BLEND_DESC> blendOverride;
 		DXGI_SAMPLE_DESC sampleDesc{ 1, 0 };
 		// プリミティブトポロジーの種類
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;

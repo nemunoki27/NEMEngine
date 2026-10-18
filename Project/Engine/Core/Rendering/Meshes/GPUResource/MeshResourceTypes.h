@@ -241,6 +241,9 @@ namespace Engine {
 		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Auto;
 		// Masked描画のα破棄閾値
 		float alphaCutoff = 0.5f;
+		// 投影候補をSubMesh単位で選別する境界球
+		Vector3 boundsCenter{};
+		float boundsRadius = 0.0f;
 	};
 	// workerで構築した描画用配列
 	struct MeshUploadData {
@@ -249,6 +252,7 @@ namespace Engine {
 		float boundsRadius = 0.0f;
 		bool useIndex16 = false;
 		bool usePackedMeshletIndices = false;
+		std::vector<Vector4> subMeshBounds;
 		std::vector<MeshPackedVertex> packedVertices;
 		std::vector<uint16_t> indices16;
 		std::vector<uint32_t> primitiveSubMeshIndices;

@@ -129,6 +129,7 @@ Texture2D<float4> gSourceAlbedo : register(t10);
 StructuredBuffer<LightClusterHeader> gLightClusterHeaders : register(t15);
 StructuredBuffer<uint> gLightClusterIndices : register(t16);
 SamplerState gEnvironmentSampler : register(s1);
+#include "../Decal/decalCommon.hlsli"
 
 // TLAS用途別マスク
 static const uint kRaytracingMaskShadowCaster = 1u;
@@ -731,6 +732,12 @@ void ReflectionClosestHit(
 	float3 worldPosition;
 	ResolvedPBRMaterial material = ResolveRaytracingHitMaterial(
 		attr, instanceData, worldPosition);
+	// 画面外の投影も命中点の照明前に合成する
+	const float footprint = 2.0f / max(1e-5f, abs(gProjection[1][1]) * gRenderSize.y) *
+		(gProjection[3][3] > 0.5f ? 1.0f : length(worldPosition - gCameraPosition));
+	ApplyRaytracingDecals(instanceData.geometryDataOffset + GeometryIndex(), worldPosition, footprint,
+		instanceData.renderFlags >> 8u, gEnvironmentSampler, material.baseColor.rgb, material.N,
+		material.metallic, material.roughness, material.emissive);
 
 	payload.hit = 1u;
 	payload.color = EvaluateRaytracingSurfaceLighting(

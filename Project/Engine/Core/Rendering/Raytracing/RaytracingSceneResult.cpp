@@ -28,6 +28,8 @@ void Engine::RaytracingSceneResult::Release() {
 	sceneSubMeshes_.Release();
 	sceneInstanceScratch_.clear();
 	sceneGeometryScratch_.clear();
+	sceneGeometryBounds_.clear();
+	instanceWorldMatrices_.clear();
 	sceneSubMeshScratch_.clear();
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
@@ -58,7 +60,14 @@ void Engine::RaytracingSceneResult::UploadCached() {
 }
 
 void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
-	ID3D12Resource* tlas, uint64_t materialGeneration, bool texturesReady) const {
+	ID3D12Resource* tlas, uint64_t materialGeneration, bool texturesReady, std::span<const RaytracingTLASInstance> instances) {
+
+	// 再利用中のTLASも現在の配置で投影候補を選別する
+	instanceWorldMatrices_.resize(instances.size());
+	for (size_t index = 0; index < instances.size(); ++index) instanceWorldMatrices_[index] = instances[index].worldMatrix;
+	context.raytracing.instanceWorldMatrices = instanceWorldMatrices_;
+	context.raytracing.geometryBounds = sceneGeometryBounds_;
+	context.raytracing.instanceData = sceneInstanceScratch_;
 
 	// インスタンスの転送先を公開
 	if (sceneInstances_.GetResource()) {

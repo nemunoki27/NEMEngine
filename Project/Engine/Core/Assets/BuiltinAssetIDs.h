@@ -107,6 +107,7 @@ namespace Engine::BuiltinAssets {
 
 	namespace Shaders {
 
+		inline constexpr AssetID Decal{ 0x4e454d4153534554ull, 0x444543414c000001ull };
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x8ed3590f7d583b7aull };
 		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
 		inline constexpr AssetID DeferredLightingShadowed{ 0x4e454d4153534554ull, 0x4c49474854000002ull };
@@ -120,6 +121,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID InlineShadowSpatial{ 0x4e454d4153534554ull, 0x5348445700000003ull };
 		// 固定描画パスが製品実行で必要とするシェーダー
 		inline constexpr AssetID FixedRuntime[] = {
+			Decal,
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
 			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
 			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
@@ -136,6 +138,7 @@ namespace Engine::BuiltinAssets {
 	namespace Runtime {
 
 		inline constexpr AssetID Assets[] = {
+			Shaders::Decal,
 			Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
 			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,
 			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,

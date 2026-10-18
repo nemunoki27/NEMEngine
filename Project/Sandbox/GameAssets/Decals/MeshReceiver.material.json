@@ -1,0 +1,47 @@
+{
+    "domain": "Surface",
+    "usage": "Mesh",
+    "name": "MeshReceiver",
+    "parameters": [
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "None",
+            "value": {
+                "r": 0.55,
+                "g": 0.55,
+                "b": 0.55,
+                "a": 1
+            }
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "None",
+            "value": 0.0
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "None",
+            "value": 0.7
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "Draw",
+            "pipeline": "4e454d4153534554966f3e8a34595313",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "ZPrepass",
+            "pipeline": "4e454d4153534554f09836087840b1d2",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "4e454d41535345548d50435034671c2c",
+            "preferredVariant": "GraphicsVertex"
+        }
+    ]
+}

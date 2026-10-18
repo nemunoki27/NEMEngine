@@ -1,0 +1,47 @@
+{
+  "guid": "d3ca100000000000000000000000001e",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.DecalDemo",
+      "scriptTypeId": "e23b6695-4e09-47db-a093-a72930c471ad",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "05b01ecc-ab1f-44c4-958f-7441b4e0d3eb",
+          "name": "lifetime",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "13989360-785a-4b45-bbaf-3b95d2e330dd",
+          "name": "fadeDuration",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "71481818-3e0d-489b-ab5d-8f738fa8ec26",
+          "name": "maxDecals",
+          "type": "int",
+          "formerNames": []
+        },
+        {
+          "fieldId": "d28ec9b1-e1d2-43a4-bc3c-1ea69105e81f",
+          "name": "paintWidth",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "e9252911-a0ff-452d-aed5-408ce535d009",
+          "name": "decalColor",
+          "type": "NEMEngine.Color4",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ namespace {
 		component.enableZPrepass =
 			in.value("enableZPrepass", component.enableZPrepass);
 		Engine::ReadMeshRenderFlags(in, component.renderFlags);
+		component.receiveDecals = in.value("receiveDecals", component.receiveDecals);
 		component.renderingLayerMask =
 			in.value("renderingLayerMask",
 				component.renderingLayerMask) &
@@ -37,6 +38,7 @@ namespace {
 			component.visible, component.blendMode, component.queue);
 		out["enableZPrepass"] = component.enableZPrepass;
 		Engine::WriteMeshRenderFlags(out, component.renderFlags);
+		out["receiveDecals"] = component.receiveDecals;
 		out["renderingLayerMask"] =
 			component.renderingLayerMask &
 			Engine::kRenderingLayerMaskBits;

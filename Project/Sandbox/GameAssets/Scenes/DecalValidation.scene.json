@@ -1,0 +1,1822 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "ambientOcclusionEnabled": true,
+                    "ambientOcclusionIntensity": 1.0,
+                    "ambientOcclusionQuality": 1,
+                    "ambientOcclusionRadius": 1.0,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "saturation": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "temperature": 6500.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 0.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": 16777215,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 200.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.10000000149011612,
+                    "orthographicSize": 5.0,
+                    "postProcessEnabled": true,
+                    "priority": 0,
+                    "projectionMode": "Perspective",
+                    "reflectionEnabled": true,
+                    "reflectionIntensity": 1.0,
+                    "reflectionMaxDistance": 600.0,
+                    "reflectionParameters": {},
+                    "reflectionQuality": 2,
+                    "renderPasses": "4e454d4153534554525450524f46494c",
+                    "targetTexture": "",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000001",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 2.130000114440918,
+                        "z": -4.53000020980835
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000001"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.25,
+                        "y": -0.800000011920929,
+                        "z": 0.550000011920929
+                    },
+                    "enabled": true,
+                    "intensity": 3.0,
+                    "shadowAngularRadius": 0.27000001072883606,
+                    "shadowStrength": 0.699999988079071
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000002",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000002"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 6.0,
+                            "y": 2.0,
+                            "z": 0.25
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Wall"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 12.0,
+                            "y": 4.0,
+                            "z": 0.5
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000004",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000003",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 2.0,
+                        "z": 5.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000003"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 8.0,
+                            "y": 0.15000000596046448,
+                            "z": 9.0
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Floor"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 16.0,
+                            "y": 0.30000001192092896,
+                            "z": 18.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000005",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000004",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": -0.15000000596046448,
+                        "z": 2.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000004"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 1.0,
+                            "y": 1.25,
+                            "z": 0.25
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "MovingReceiver"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 2.0,
+                            "y": 2.5,
+                            "z": 0.5
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000004",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000005",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 3.5999999046325684,
+                        "y": 1.25,
+                        "z": 2.5
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000005"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000001",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 2.0,
+                        "y": 1.600000023841858,
+                        "z": 0.18000000715255737
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "Name": {
+                    "name": "ColorDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000006",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -3.5,
+                        "y": 2.700000047683716,
+                        "z": 4.75
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000006"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000002",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 2.0,
+                        "y": 1.600000023841858,
+                        "z": 0.18000000715255737
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 7
+                },
+                "Name": {
+                    "name": "NormalDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000007",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -0.800000011920929,
+                        "y": 2.700000047683716,
+                        "z": 4.75
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000007"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000003",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 2.0,
+                        "y": 1.600000023841858,
+                        "z": 0.18000000715255737
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 8
+                },
+                "Name": {
+                    "name": "EmissiveDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000008",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 2.0,
+                        "y": 2.700000047683716,
+                        "z": 4.75
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000008"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 0.75,
+                            "y": 0.6499999761581421,
+                            "z": 0.25
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "Name": {
+                    "name": "ReceivesOff"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.5,
+                            "y": 1.2999999523162842,
+                            "z": 0.5
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000004",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": false,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000009",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -4.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.5
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000009"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000001",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 1.2999999523162842,
+                        "y": 1.0,
+                        "z": 0.15000000596046448
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 10
+                },
+                "Name": {
+                    "name": "ReceivesOffDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -4.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.25
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000a"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 0.75,
+                            "y": 0.6499999761581421,
+                            "z": 0.25
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 11
+                },
+                "Name": {
+                    "name": "LayerMismatch"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.5,
+                            "y": 1.2999999523162842,
+                            "z": 0.5
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000004",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 2,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000b",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -2.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.5
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000b"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000001",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 1,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 1.2999999523162842,
+                        "y": 1.0,
+                        "z": 0.15000000596046448
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 12
+                },
+                "Name": {
+                    "name": "LayerMismatchDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000c",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -2.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.25
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000c"
+        },
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": false,
+                    "enabled": true,
+                    "isStatic": true,
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        },
+                        "halfSize2D": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 0.5,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "OBB3D",
+                        "useTransformRotation": true
+                    },
+                    "typeMask": 1
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 13
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "d3ca1000000000000000000000000006",
+                    "mesh": "4e454d4153534554a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "4e454d4153534554c2ea9f4498073ab3"
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                }
+                            ],
+                            "name": "Mesh_0",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "a5c932debffad7e3",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "MeshReceiver"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000d",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -0.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.5
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.75,
+                        "y": 0.6499999761581421,
+                        "z": 0.25
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000d"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000001",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 1.2999999523162842,
+                        "y": 1.0,
+                        "z": 0.15000000596046448
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 14
+                },
+                "Name": {
+                    "name": "MeshDecal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000e",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -0.5,
+                        "y": 0.6499999761581421,
+                        "z": 2.25
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000e"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "drawDistance": 1000.0,
+                    "enabled": false,
+                    "endAngleFade": 85.0,
+                    "fadeFactor": 1.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "d3ca1000000000000000000000000001",
+                    "materialInstance": [],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 0.15000000596046448
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0,
+                    "uvBias": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uvRotation": 0.0,
+                    "uvScale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 15
+                },
+                "Name": {
+                    "name": "DecalTemplate"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec000000000000f",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec000000000000f"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 16
+                },
+                "Name": {
+                    "name": "DecalDemo"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dec0000000000010",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.DecalDemo",
+                        "scriptAsset": "d3ca100000000000000000000000001e",
+                        "scriptSlotId": "dec0000000000100",
+                        "scriptTypeId": "e23b6695-4e09-47db-a093-a72930c471ad",
+                        "serializedFields": {}
+                    }
+                ],
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "dec0000000000010"
+        }
+    ],
+    "Header": {
+        "name": "DecalValidation",
+        "subScenes": []
+    },
+    "PrefabInstances": [],
+    "SchemaVersion": 3
+}

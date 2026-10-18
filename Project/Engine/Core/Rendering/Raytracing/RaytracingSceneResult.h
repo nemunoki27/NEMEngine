@@ -43,7 +43,7 @@ namespace Engine {
 		void UploadCached();
 		// 構築結果を描画Contextへ公開する
 		void Publish(SceneExecutionContext& context, ID3D12Resource* tlas,
-			uint64_t materialGeneration, bool texturesReady) const;
+			uint64_t materialGeneration, bool texturesReady, std::span<const RaytracingTLASInstance> instances);
 	private:
 		//========================================================================
 		//	private Methods
@@ -62,6 +62,8 @@ namespace Engine {
 		// インスタンスデータ
 		std::vector<RaytracingInstanceShaderData> sceneInstanceScratch_{};
 		std::vector<RaytracingGeometryShaderData> sceneGeometryScratch_{};
+		std::vector<RaytracingGeometryBounds> sceneGeometryBounds_{};
+		std::vector<Matrix4x4> instanceWorldMatrices_{};
 		std::vector<MeshSubMeshShaderData> sceneSubMeshScratch_{};
 
 		// メッシュピック用のサブメッシュ情報

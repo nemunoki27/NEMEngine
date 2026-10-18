@@ -1,0 +1,11 @@
+{
+  "name": "Decal",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "4e454d4153534554444543414c000002",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

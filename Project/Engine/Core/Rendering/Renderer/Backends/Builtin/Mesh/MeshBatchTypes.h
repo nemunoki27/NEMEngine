@@ -107,4 +107,5 @@ namespace Engine {
 	static constexpr uint32_t kMeshInstanceFlagReceiveIBL = 1u << 3;
 	static constexpr uint32_t kMeshInstanceFlagReceiveReflection = 1u << 4;
 	static constexpr uint32_t kMeshInstanceFlagLODDither = 1u << 5;
+	static constexpr uint32_t kMeshInstanceFlagReceiveDecal = 1u << 6;
 }

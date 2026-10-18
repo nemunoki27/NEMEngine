@@ -238,6 +238,13 @@ void Engine::RenderAssetLibrary::RegisterDerivedMaterial(
 	MaterialAsset material) {
 
 	if (material.guid) {
+		const auto previous = materialCache_.find(material.guid);
+		if (material.domain == MaterialDomain::Decal &&
+			(previous == materialCache_.end() || previous->second.domain == MaterialDomain::Decal)) {
+			// 投影値のPreviewでMeshやTLASのMaterialを失効させない
+			materialCache_.insert_or_assign(material.guid, std::move(material));
+			return;
+		}
 		const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 		materialCache_.insert_or_assign(
 			material.guid, std::move(material));

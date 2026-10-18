@@ -85,6 +85,14 @@ namespace Engine {
 		uint32_t pickRecordIndex = 0;
 		uint32_t _pad = 0;
 	};
+	// 投影候補を選別するCPU側のGeometry境界
+	struct RaytracingGeometryBounds {
+
+		Vector3 center{};
+		float radius = 0.0f;
+		uint32_t instanceIndex = 0;
+		bool receiveDecals = false;
+	};
 	// GPUへ渡すシーン共通データ
 	struct RaytracingScene {
 

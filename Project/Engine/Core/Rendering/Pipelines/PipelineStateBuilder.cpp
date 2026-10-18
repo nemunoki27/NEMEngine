@@ -187,7 +187,7 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
-			pipelineDesc.BlendState = MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets);
+			pipelineDesc.BlendState = desc.blendOverride.value_or(MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets));
 
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreateGraphicsPipelineState(
@@ -248,7 +248,7 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
-			pipelineDesc.BlendState = MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets);
+			pipelineDesc.BlendState = desc.blendOverride.value_or(MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets));
 
 			// ストリームの生成
 			CD3DX12_PIPELINE_MESH_STATE_STREAM pipelineStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(pipelineDesc);

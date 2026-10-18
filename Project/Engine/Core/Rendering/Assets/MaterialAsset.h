@@ -25,6 +25,7 @@ namespace Engine {
 		Fullscreen,
 		Compute,
 		RayTracing,
+		Decal,
 	};
 	// マテリアルを使用する描画機能
 	enum class MaterialUsage : uint8_t {
@@ -35,6 +36,7 @@ namespace Engine {
 		Sprite,
 		Text,
 		Line,
+		Decal,
 	};
 
 	// マテリアル内の固定パス種別
@@ -112,6 +114,8 @@ namespace Engine {
 
 	// 標準PBR描画に必要なPassと既定値を持つMeshマテリアルを生成する
 	MaterialAsset CreateDefaultMeshMaterialAsset(std::string_view name);
+	// 投影用の標準Materialを生成する
+	MaterialAsset CreateDefaultDecalMaterialAsset(std::string_view name);
 
 	// マテリアルアセットからパス情報を検索する
 	MaterialPassBinding* FindPass(MaterialAsset& asset, MaterialPassKind passKind);

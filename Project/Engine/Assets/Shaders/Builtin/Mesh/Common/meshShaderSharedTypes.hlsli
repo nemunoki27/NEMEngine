@@ -110,5 +110,6 @@ static const uint MESH_INSTANCE_FLAG_RECEIVE_SHADOW = 1u << 2;
 static const uint MESH_INSTANCE_FLAG_RECEIVE_IBL = 1u << 3;
 static const uint MESH_INSTANCE_FLAG_RECEIVE_REFLECTION = 1u << 4;
 static const uint MESH_INSTANCE_FLAG_LOD_DITHER = 1u << 5;
+static const uint MESH_INSTANCE_FLAG_RECEIVE_DECAL = 1u << 6;
 
 #endif // NEM_MESH_SHADER_SHARED_TYPES_HLSLI

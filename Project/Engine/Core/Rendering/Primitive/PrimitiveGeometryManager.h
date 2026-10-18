@@ -40,6 +40,8 @@ namespace Engine {
 		MeshStructuredHandle<uint32_t> indexSRV{};
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;
+		Vector3 boundsCenter{};
+		float boundsRadius = 0.0f;
 
 		BottomLevelAccelerationStructure blas{};
 		bool blasBuilt = false;

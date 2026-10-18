@@ -38,6 +38,7 @@ namespace Engine {
 		case ProjectAssetFileKind::Prefab:
 			return ".prefab.json";
 		case ProjectAssetFileKind::Material:
+		case ProjectAssetFileKind::DecalMaterial:
 			return ".material.json";
 		case ProjectAssetFileKind::AnimationClip:
 			return ".animClip.json";
@@ -124,6 +125,8 @@ namespace Engine {
 			prefab["SchemaVersion"] = 2;
 			return JsonAdapter::SerializeCanonical(prefab, 2);
 		}
+		case ProjectAssetFileKind::DecalMaterial:
+			return JsonAdapter::SerializeCanonical(ToJson(CreateDefaultDecalMaterialAsset(assetName)), 2);
 		case ProjectAssetFileKind::Material: {
 			// 標準PBRの型付き既定値からマテリアル雛形を生成する
 			return JsonAdapter::SerializeCanonical(ToJson(CreateDefaultMeshMaterialAsset(assetName)), 2);

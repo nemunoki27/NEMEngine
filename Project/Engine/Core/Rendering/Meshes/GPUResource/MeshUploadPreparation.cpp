@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
+
+// c++
 #include <algorithm>
 #include <cmath>
 
@@ -31,44 +34,6 @@ namespace {
 		}
 		return table;
 	}
-	// メッシュ全体のバウンディング球を構築する
-	void CalcMeshBounds(const std::vector<Engine::MeshVertex>& vertices, Engine::Vector3& outCenter, float& outRadius) {
-
-		// 空メッシュはカリングできるBoundsを持たないので半径0にする
-		if (vertices.empty()) {
-			outCenter = Engine::Vector3::AnyInit(0.0f);
-			outRadius = 0.0f;
-			return;
-		}
-
-		auto toPosition3 = [](const Engine::Vector4& position) {
-			return Engine::Vector3(position.x, position.y, position.z);
-			};
-
-		Engine::Vector3 minPos = toPosition3(vertices.front().position);
-		Engine::Vector3 maxPos = minPos;
-		// メッシュ全体のAABBを求める
-		for (const Engine::MeshVertex& vertex : vertices) {
-
-			const Engine::Vector3 pos = toPosition3(vertex.position);
-			minPos.x = (std::min)(minPos.x, pos.x);
-			minPos.y = (std::min)(minPos.y, pos.y);
-			minPos.z = (std::min)(minPos.z, pos.z);
-			maxPos.x = (std::max)(maxPos.x, pos.x);
-			maxPos.y = (std::max)(maxPos.y, pos.y);
-			maxPos.z = (std::max)(maxPos.z, pos.z);
-		}
-
-		outCenter = (minPos + maxPos) * 0.5f;
-		outRadius = 0.0f;
-		// AABB中心から最遠点までを球半径にする
-		for (const Engine::MeshVertex& vertex : vertices) {
-
-			const Engine::Vector3 pos = toPosition3(vertex.position);
-			outRadius = (std::max)(outRadius, Engine::Vector3::Length(pos - outCenter));
-		}
-	}
-
 	int16_t QuantizeSnorm16(float value) {
 
 		// 法線のOct成分を16bit符号付き正規化値へ丸める
@@ -198,7 +163,16 @@ Engine::MeshUploadData Engine::MeshUploadPreparation::Build(const ImportedMeshAs
 
 	// worker上で描画用配列と境界球を確定する
 	MeshUploadData data{};
-	CalcMeshBounds(imported.vertices, data.boundsCenter, data.boundsRadius);
+	MeshBoundsUtility::Calculate(imported.vertices, {}, data.boundsCenter, data.boundsRadius);
+	// 重いIndex走査は読込worker上で一度だけ行う
+	data.subMeshBounds.reserve(imported.subMeshes.size());
+	for (const auto& subMesh : imported.subMeshes) {
+		Vector3 center{};
+		float radius = 0.0f;
+		const auto indices = std::span<const uint32_t>(imported.indices).subspan(subMesh.indexOffset, subMesh.indexCount);
+		if (!indices.empty()) MeshBoundsUtility::Calculate(imported.vertices, indices, center, radius);
+		data.subMeshBounds.emplace_back(center.x, center.y, center.z, radius);
+	}
 	data.packedVertices = BuildPackedVertices(imported.vertices);
 	data.useIndex16 = CanPackMeshletVertexIndices(imported.indices);
 	if (data.useIndex16) { data.indices16 = BuildIndex16(imported.indices); }

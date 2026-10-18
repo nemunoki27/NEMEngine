@@ -91,7 +91,7 @@
                     "id": "1b9a034624b9a4aa",
                     "name": "intensity",
                     "semantic": "None",
-                    "value": 4.0
+                    "value": 2.4000000953674316
                 },
                 {
                     "id": "1e4984ef2e958a4c",
@@ -99,8 +99,8 @@
                     "semantic": "None",
                     "value": {
                         "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
+                        "b": 0.0,
+                        "g": 0.7181466817855835,
                         "r": 1.0
                     }
                 },
@@ -108,19 +108,19 @@
                     "id": "4a94c51b5f6a6081",
                     "name": "scatter",
                     "semantic": "None",
-                    "value": 0.4300000071525574
+                    "value": 0.4399999976158142
                 },
                 {
                     "id": "7c314e706d951238",
                     "name": "threshold",
                     "semantic": "None",
-                    "value": 1.0
+                    "value": 1.25
                 },
                 {
                     "id": "bca304d08c7edb5a",
                     "name": "softKnee",
                     "semantic": "None",
-                    "value": 1.0
+                    "value": 0.23999999463558197
                 }
             ],
             "passInputs": {},

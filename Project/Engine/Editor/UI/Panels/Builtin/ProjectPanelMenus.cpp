@@ -376,6 +376,7 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 		ProjectAssetFileKind::Scene,
 		ProjectAssetFileKind::Prefab,
 		ProjectAssetFileKind::Material,
+		ProjectAssetFileKind::DecalMaterial,
 		ProjectAssetFileKind::AnimationClip,
 		ProjectAssetFileKind::Shader,
 		ProjectAssetFileKind::ShaderGraph,
