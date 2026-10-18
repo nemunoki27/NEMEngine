@@ -43,8 +43,6 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& output, AssetData
 	// JSONからシーンヘッダーの情報を取得する
 	{
 		sceneHeader.name = data.value("name", "UntitledScene");
-		sceneHeader.bakedLighting = ParseAssetReference(data, "bakedLighting", assetDatabase, AssetType::BakedLighting);
-		sceneHeader.bakedLightingEnabled = data.value("bakedLightingEnabled", false);
 	}
 
 	// サブシーン
@@ -86,8 +84,6 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 	nlohmann::json data = nlohmann::json::object();
 
 	data["name"] = sceneHeader.name;
-	data["bakedLighting"] = ToAssetReferenceJson(sceneHeader.bakedLighting);
-	data["bakedLightingEnabled"] = sceneHeader.bakedLightingEnabled;
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {
 		nlohmann::json item = nlohmann::json::object();

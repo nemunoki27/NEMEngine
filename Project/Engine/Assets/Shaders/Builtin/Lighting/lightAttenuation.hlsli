@@ -1,7 +1,7 @@
 #ifndef NEM_LIGHT_ATTENUATION_HLSLI
 #define NEM_LIGHT_ATTENUATION_HLSLI
 
-// 通常描画とベイクで同じ距離減衰を使う
+// 光源からの距離減衰を計算
 float ComputeDistanceAttenuation(float dist, float range, float decay) {
 
 	if (range <= 0.0001f || dist >= range) {

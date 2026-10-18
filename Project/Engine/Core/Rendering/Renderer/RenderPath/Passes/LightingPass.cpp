@@ -31,8 +31,6 @@
 namespace {
 
 	constexpr uint32_t kShadowCascadeCount = Engine::DirectionalShadowMapState::kCascadeCount;
-
-
 }
 
 //============================================================================
@@ -55,9 +53,9 @@ Engine::LightingPass::LightingPass(const RenderPipelineDeps& deps) : deps_(deps)
 	}
 }
 
-void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat, bool baked) {
+void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat) {
 
-	if (initialized_[baked]) {
+	if (initialized_) {
 		return;
 	}
 
@@ -75,7 +73,7 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// 通常LightingはDescriptor Table経由でSM6.0へ対応する
 	desc.pixel.file = "Builtin/Lighting/deferredLighting.PS.hlsl";
-	desc.pixel.shader = baked ? BuiltinAssets::Shaders::DeferredLightingBaked : BuiltinAssets::Shaders::DeferredLighting;
+	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLighting;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_0";
 
@@ -109,17 +107,17 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 
 	// シャドウ無し版、gSceneTLASを参照しない
-	desc.pixel.entry = baked ? "mainBaked" : "main";
-	initialized_[baked] = (pipeline_[baked] = PipelineStateBuilder::CreateGraphics(
+	desc.pixel.entry = "main";
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(
 						graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 
 	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
-	desc.pixel.entry = baked ? "mainShadowedBaked" : "mainShadowed";
-	desc.pixel.shader = baked ? BuiltinAssets::Shaders::DeferredLightingShadowedBaked : BuiltinAssets::Shaders::DeferredLightingShadowed;
+	desc.pixel.entry = "mainShadowed";
+	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
 	desc.pixel.profile = "ps_6_6";
 	// 非対応GPUではInline Ray Tracing版を生成しない
 	if (graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath()) {
-		shadowedAvailable_[baked] = (pipelineShadowed_[baked] = PipelineStateBuilder::CreateGraphics(
+		shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
 			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 	}
 }
@@ -177,9 +175,10 @@ void Engine::LightingPass::Execute(
 		return;
 	}
 
-	const bool baked = context.sceneInstance && context.sceneInstance->header.bakedLightingEnabled && context.sceneInstance->header.bakedLighting;
-	EnsurePipeline(graphicsCore, destColor->GetFormat(), baked);
-	if (!initialized_[baked]) {
+	auto& profiler = GPUFrameProfiler::GetInstance();
+	const std::string profilePrefix = std::string(EnumAdapter<RenderViewKind>::ToStringView(context.kind)) + "/Lighting";
+	EnsurePipeline(graphicsCore, destColor->GetFormat());
+	if (!initialized_) {
 		return;
 	}
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
@@ -187,13 +186,11 @@ void Engine::LightingPass::Execute(
 	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
 	const bool requestShadow =
-		context.hasShadowCastingLight && shadowedAvailable_[baked] && runtimeFeatures.useInlineRayTracing && tlasAvailable &&
+		context.hasShadowCastingLight && shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable &&
 		!context.disableInlineRayTracing;
 	// 散乱の遮蔽に必要なときだけ追加のCascadeを用意する
 	const bool volumetricShadows = RequiresDirectionalShadowMap(graphicsCore, context);
 	const bool useShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_);
-	auto& profiler = GPUFrameProfiler::GetInstance();
-	const std::string profilePrefix = std::string(EnumAdapter<RenderViewKind>::ToStringView(context.kind)) + "/Lighting";
 	profiler.BeginPass(commandList, profilePrefix + " ShadowMap");
 	const bool shadowMapAvailable = (!useShadow || volumetricShadows) &&
 		directionalShadows_.Render(graphicsCore, passBuckets, context, deps_);
@@ -227,14 +224,13 @@ void Engine::LightingPass::Execute(
 
 	// 生成に成功した影に合わせてLightingを設定
 	profiler.BeginPass(commandList, profilePrefix);
-	PipelineState& activePipeline = useShadow ? *pipelineShadowed_[baked] : *pipeline_[baked];
+	PipelineState& activePipeline = useShadow ? *pipelineShadowed_ : *pipeline_;
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());
 	commandList->SetPipelineState(activePipeline.GetGraphicsPipeline(BlendMode::Normal));
 	activePipeline.BindGlobalDescriptorTablesGraphics(commandList, graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	// ライトバッファとTLASを名前でバインド
-	bakedLighting_.Update(graphicsCore, context);
 	registryAutoBindTable_.Sync(activePipeline, context.bufferRegistry);
 	registryAutoBindTable_.BindGraphics(context.bufferRegistry, commandList);
 

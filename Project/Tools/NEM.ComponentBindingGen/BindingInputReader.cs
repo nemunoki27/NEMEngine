@@ -78,6 +78,7 @@ internal sealed class BindingInputReader {
                 if (c.TryGetProperty("properties", out JsonElement props) && props.ValueKind == JsonValueKind.Array) {
                     foreach (JsonElement p in props.EnumerateArray()) {
                         var pm = new PropertyModel {
+                            ID = p.TryGetProperty("id", out JsonElement propertyID) ? propertyID.GetInt32() : -1,
                             ManagedName = Str(p, "managedName"),
                             NativeMember = Str(p, "nativeMember"),
                             Kind = Str(p, "kind"),
@@ -86,6 +87,8 @@ internal sealed class BindingInputReader {
                             Access = p.TryGetProperty("access", out JsonElement ac) ? (ac.GetString() ?? "ReadWrite") : "ReadWrite",
                             Visibility = p.TryGetProperty("visibility", out JsonElement vis) ? (vis.GetString() ?? "Public") : "Public",
                         };
+                        if (p.TryGetProperty("id", out _) && pm.ID < 0)
+                            Error($"{model.ManagedType}.{pm.ManagedName}: property id must be non-negative.");
                         if (string.IsNullOrWhiteSpace(pm.ManagedName) || string.IsNullOrWhiteSpace(pm.NativeMember))
                             Error($"{model.ManagedType}: property requires managedName and nativeMember.");
                         if (pm.Access != "ReadOnly" && pm.Access != "ReadWrite")
@@ -100,6 +103,14 @@ internal sealed class BindingInputReader {
                             Error($"{model.ManagedType}.{pm.ManagedName}: AssetRef requires assetType.");
                         model.Properties.Add(pm);
                     }
+                }
+                // 明示番号のない項目は従来の名前順を維持する
+                var orderedProperties = model.Properties.OrderBy(property => property.ManagedName, StringComparer.Ordinal).ToArray();
+                var propertyIDs = new HashSet<int>();
+                for (int index = 0; index < orderedProperties.Length; ++index) {
+                    var property = orderedProperties[index];
+                    if (property.ID < 0) property.ID = index;
+                    if (!propertyIDs.Add(property.ID)) Error($"{model.ManagedType}: duplicate property id '{property.ID}'.");
                 }
                 components.Add(model);
             }

@@ -21,7 +21,6 @@ namespace {
 			component.visible, component.blendMode, component.queue);
 		component.enableZPrepass =
 			in.value("enableZPrepass", component.enableZPrepass);
-		component.contributeBakedLighting = in.value("contributeBakedLighting", component.contributeBakedLighting);
 		Engine::ReadMeshRenderFlags(in, component.renderFlags);
 		component.renderingLayerMask =
 			in.value("renderingLayerMask",
@@ -37,7 +36,6 @@ namespace {
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
 		out["enableZPrepass"] = component.enableZPrepass;
-		out["contributeBakedLighting"] = component.contributeBakedLighting;
 		Engine::WriteMeshRenderFlags(out, component.renderFlags);
 		out["renderingLayerMask"] =
 			component.renderingLayerMask &
@@ -165,8 +163,6 @@ void Engine::ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flag
 	readFlag("receiveIBL", MeshRenderFlags::ReceiveIBL);
 	readFlag("castReflection", MeshRenderFlags::CastReflection);
 	readFlag("receiveReflection", MeshRenderFlags::ReceiveReflection);
-	readFlag("receiveLightmap", MeshRenderFlags::ReceiveLightmap);
-	readFlag("receiveLightProbes", MeshRenderFlags::ReceiveLightProbes);
 }
 
 void Engine::WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags) {
@@ -177,8 +173,6 @@ void Engine::WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags) {
 	out["receiveIBL"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveIBL);
 	out["castReflection"] = HasMeshRenderFlag(flags, MeshRenderFlags::CastReflection);
 	out["receiveReflection"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveReflection);
-	out["receiveLightmap"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveLightmap);
-	out["receiveLightProbes"] = HasMeshRenderFlag(flags, MeshRenderFlags::ReceiveLightProbes);
 }
 
 void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& component) {

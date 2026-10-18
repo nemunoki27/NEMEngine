@@ -53,7 +53,7 @@ internal static class ManagedBindingEmitter {
             sb.Append($"    public static {comp.ManagedType} FromEntity(GameObject gameObject) => new(gameObject);\n\n");
             sb.Append($"    private const int TypeID = {comp.ID};\n\n");
             for (int p = 0; p < comp.Properties.Count; ++p) {
-                EmitCSProperty(sb, comp.Properties[p], p);
+                EmitCSProperty(sb, comp.Properties[p], comp.Properties[p].ID);
             }
             sb.Append("}\n\n");
         }

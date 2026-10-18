@@ -39,8 +39,6 @@ namespace Engine {
 
 		// 有効フラグ
 		bool enabled = true;
-		// 固定ライトとして間接光へ含める
-		bool contributeBakedLighting = false;
 
 	};
 

@@ -122,10 +122,6 @@ namespace Engine {
 
 		// シーンが持つサブシーンリスト
 		std::vector<SubSceneSlotDesc> subScenes;
-		// 保存済みの間接光と反射Capture
-		AssetID bakedLighting{};
-		bool bakedLightingEnabled = false;
-
 	};
 
 	// json変換

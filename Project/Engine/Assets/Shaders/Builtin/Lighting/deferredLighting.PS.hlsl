@@ -5,7 +5,6 @@
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/pbrMath.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
-#include "Baked/bakedLightingRuntime.hlsli"
 
 //============================================================================
 //	GBuffer入力
@@ -328,11 +327,11 @@ bool LoadScreenSpaceDepthDelta(float2 uv, float sampleDepth,
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float3 emissive, uint flags,
-	bool useShadow, bool useBaked);
+	bool useShadow);
 
 // 粗いMarchで見つけた交差区間を二分探索して縞状の欠落を防ぐ
 bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
-	bool useShadow, bool useBaked,
+	bool useShadow,
 	out float3 reflectionColor) {
 
 	reflectionColor = 0.0f.xxx;
@@ -404,7 +403,7 @@ bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
 				reflectionColor = EvaluateSurfaceLighting(
 					hitPixel, hitWorldPos, hitNormal, normalize(-direction),
 					hitAlbedo, hitMaterial.r, max(hitMaterial.g, 0.04f),
-					hitMaterial.b, hitEmissive, hitFlags, useShadow, useBaked);
+					hitMaterial.b, hitEmissive, hitFlags, useShadow);
 				return true;
 			}
 		}
@@ -526,11 +525,30 @@ float TraceDirectionalShadowMap(float3 worldPos, float3 worldNormal) {
 		worldPos, worldNormal, cascade + 1u), blend);
 }
 
+// Skyboxの放射照度から拡散環境光を計算
+float3 EvaluateDiffuseEnvironment(float3 N, float3 V, float3 albedo, float metallic, float ao, float3 F0) {
+
+	float3 color = 0.0f;
+	if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
+
+		TextureCube<float4> irradianceMap = NEM_TEXTURECUBE(irradianceCubemapIndex);
+		float3 irradiance = irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
+		// 金属の拡散光と反射分を重複加算しない
+		float3 diffuseWeight = physicalEnvironmentEnabled != 0u ?
+			(1.0f - FresnelSchlick(saturate(dot(N, V)), F0)) * (1.0f - metallic) : 1.0f.xxx;
+		color += irradiance * skyboxColor.rgb * iblIntensity * albedo * ao * diffuseWeight;
+	} else {
+
+		color += ambientIntensity * albedo * ao;
+	}
+	return color;
+}
+
 // GBufferのMaterialへ通常描画と同じ直接光と拡散環境光を適用
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float3 emissive, uint flags,
-	bool useShadow, bool useBaked) {
+	bool useShadow) {
 
 	if ((flags & kMaterialFlagLighting) == 0u) {
 		return albedo + emissive;
@@ -620,47 +638,26 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 
 	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
 
-		float3 bakedIndirect;
-		if (useBaked && SampleBakedIndirect(worldPos, N, flags, uint(gWorldPos.Load(int3(pixel, 0)).w), bakedIndirect)) {
-			// ベイク済みの遮蔽と環境光を重複適用しない
-			color += bakedIndirect * albedo * (1.0f - metallic) * (1.0f - F0);
-		} else if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
-
-			TextureCube<float4> irradianceMap =
-				NEM_TEXTURECUBE(irradianceCubemapIndex);
-			float3 irradiance =
-				irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
-			// 金属の拡散光と反射分を重複加算しない
-			float3 diffuseWeight = physicalEnvironmentEnabled != 0u ?
-				(1.0f - FresnelSchlick(saturate(dot(N, V)), F0)) * (1.0f - metallic) : 1.0f.xxx;
-			color += irradiance * skyboxColor.rgb * iblIntensity *
-				albedo * ao * diffuseWeight;
-		} else {
-
-			color += ambientIntensity * albedo * ao;
-		}
+		color += EvaluateDiffuseEnvironment(N, V, albedo, metallic, ao, F0);
 	}
 	return color + emissive;
 }
 
-// SSRが見つからない範囲はSkyboxのReflection Captureで補う
+// SSRが見つからない範囲はSkyboxの反射で補う
 float3 ResolveEnvironmentReflection(float3 worldPos, float3 N, float3 V,
-	float roughness, bool useShadow, bool useBaked) {
+	float roughness, bool useShadow) {
 
 	float3 reflectionDirection = normalize(reflect(-V, N));
 	float3 result = 0.0f.xxx;
 	if (roughness < 0.85f &&
 		TraceScreenSpaceReflection(
 			worldPos + N * 0.05f, reflectionDirection,
-			useShadow, useBaked, result)) {
+			useShadow, result)) {
 
 		return result;
 	}
-	float3 captureColor = 0.0f;
-	float captureCoverage = 0.0f;
-	if (useBaked) SampleBakedReflection(worldPos, reflectionDirection, roughness, captureColor, captureCoverage);
 	if (hasSkybox == 0u || skyboxCubemapIndex == kNoCubemap) {
-		return captureColor * captureCoverage;
+		return 0.0f.xxx;
 	}
 
 	uint cubemapIndex = environmentSpecularIndex != kNoCubemap ? environmentSpecularIndex : skyboxCubemapIndex;
@@ -671,13 +668,13 @@ float3 ResolveEnvironmentReflection(float3 worldPos, float3 N, float3 V,
 	cubemap.GetDimensions(0u, width, height, mipLevels);
 	float mip = roughness * max(float(mipLevels) - 1.0f, 0.0f);
 	float3 skyReflection = cubemap.SampleLevel(gSampler, reflectionDirection, mip).rgb * skyboxColor.rgb * iblIntensity;
-	return lerp(skyReflection, captureColor, captureCoverage);
+	return skyReflection;
 }
 
 //============================================================================
 //	全ピクセルのマテリアル計算
 //============================================================================
-float4 ResolvePixel(VSOutput input, bool useShadow, bool useBaked) {
+float4 ResolvePixel(VSOutput input, bool useShadow) {
 
 	int3 pixel = int3(input.position.xy, 0);
 
@@ -703,7 +700,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow, bool useBaked) {
 		max(ambientOcclusionIntensity, 0.0f));
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
-		roughness, ao * ambientAO, emissive, flags, useShadow, useBaked);
+		roughness, ao * ambientAO, emissive, flags, useShadow);
 
 	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
 	if ((flags & kMaterialFlagLighting) != 0u &&
@@ -712,7 +709,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow, bool useBaked) {
 
 		float NdotV = saturate(dot(N, V));
 		float3 environment = ResolveEnvironmentReflection(
-			worldPos, N, V, roughness, useShadow, useBaked);
+			worldPos, N, V, roughness, useShadow);
 		float3 reflectionWeight = FresnelSchlick(NdotV, F0) * (1.0f - roughness * 0.75f);
 		if (physicalEnvironmentEnabled != 0u && environmentBRDFIndex != kNoCubemap) {
 			Texture2D<float4> brdf = NEM_TEXTURE2D(environmentBRDFIndex);
@@ -730,23 +727,12 @@ float4 ResolvePixel(VSOutput input, bool useShadow, bool useBaked) {
 //============================================================================
 float4 main(VSOutput input) : SV_TARGET0 {
 
-	return ResolvePixel(input, false, false);
+	return ResolvePixel(input, false);
 }
 //============================================================================
 //	mainShadowed、影あり
 //============================================================================
 float4 mainShadowed(VSOutput input) : SV_TARGET0 {
 
-	return ResolvePixel(input, true, false);
-}
-
-// ベイクなしのEntryから探索処理を除外する
-float4 mainBaked(VSOutput input) : SV_TARGET0 {
-
-	return ResolvePixel(input, false, true);
-}
-
-float4 mainShadowedBaked(VSOutput input) : SV_TARGET0 {
-
-	return ResolvePixel(input, true, true);
+	return ResolvePixel(input, true);
 }

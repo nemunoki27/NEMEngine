@@ -10,7 +10,7 @@
                     "name": "Point"
                 },
                 "RectLight": {
-                    "attenuationRadius": 64.0,
+                    "attenuationRadius": 85.2699966430664,
                     "barnDoorAngle": 88.0,
                     "barnDoorLength": 0.0,
                     "color": {
@@ -19,13 +19,11 @@
                         "g": 0.633996844291687,
                         "r": 0.8680850863456726
                     },
-                    "contributeBakedLighting": false,
-                    "decay": 0.0,
                     "enabled": true,
-                    "intensity": 32.0,
+                    "intensity": 4000.0,
                     "shadowStrength": 0.46000000834465027,
-                    "sourceHeight": 5.46999979019165,
-                    "sourceWidth": 6.860000133514404
+                    "sourceHeight": 10.84999942779541,
+                    "sourceWidth": 15.040002822875977
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -36,20 +34,20 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.005075931549072266,
-                        "y": 1.9746534824371338,
+                        "x": 0.005076885223388672,
+                        "y": 1.9563076496124268,
                         "z": -0.030741870403289795
                     },
                     "localRotation": {
                         "w": 0.7071067690849304,
-                        "x": 6.092612698393616e-16,
+                        "x": 2.4554966333221974e-15,
                         "y": 0.0,
                         "z": -0.7071067690849304
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 0.9999998807907104,
+                        "y": 0.9999998807907104,
+                        "z": 0.9999998807907104
                     }
                 }
             },
@@ -241,7 +239,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -250,8 +247,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -381,7 +376,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -390,8 +384,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -4694,6 +4686,12 @@
                             "material": "",
                             "materialInstance": [
                                 {
+                                    "id": "01e6363c4c61eeb4",
+                                    "name": "displacementScale",
+                                    "semantic": "DisplacementScale",
+                                    "value": 0.0
+                                },
+                                {
                                     "id": "045b2268fd7ae354",
                                     "name": "DisplacementScale",
                                     "semantic": "DisplacementScale",
@@ -4702,7 +4700,7 @@
                                 {
                                     "id": "126d8ffaa904879d",
                                     "name": "metallicRoughnessTexture",
-                                    "semantic": "None",
+                                    "semantic": "MetallicRoughnessTexture",
                                     "value": "4e454d41535345542ff5059acd4beb9f"
                                 },
                                 {
@@ -4740,10 +4738,22 @@
                                     }
                                 },
                                 {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.0
+                                },
+                                {
                                     "id": "dea02d9fafe208b5",
                                     "name": "Roughness",
                                     "semantic": "Roughness",
                                     "value": 0.5
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 1.0
                                 },
                                 {
                                     "id": "dfe7fef1566d1aa8",
@@ -10025,7 +10035,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -10034,8 +10043,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -14871,14 +14878,13 @@
                         "g": 1.0,
                         "r": 1.0
                     },
-                    "contributeBakedLighting": false,
                     "direction": {
                         "x": -0.14135193824768066,
                         "y": -0.9785618782043457,
                         "z": 0.1497873216867447
                     },
                     "enabled": true,
-                    "intensity": 15.760000228881836,
+                    "intensity": 6.25,
                     "shadowAngularRadius": 0.27000001072883606,
                     "shadowStrength": 1.0
                 },
@@ -14890,7 +14896,7 @@
                     "name": "DirectionalLight"
                 },
                 "SceneObject": {
-                    "activeSelf": false,
+                    "activeSelf": true,
                     "localFileId": "4a3caedc8fbbe1d0",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
@@ -14927,7 +14933,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -14936,8 +14941,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -17494,20 +17497,17 @@
                     "siblingOrder": 8
                 },
                 "MeshRenderer": {
-                    "blendMode": "Normal",
+                    "blendMode": "Add",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
                     "material": "",
                     "mesh": "4e454d4153534554a31d53b333db8b8b",
                     "order": 0,
-                    "queue": "Opaque",
+                    "queue": "Transparent",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -17615,8 +17615,8 @@
                     "dimension": 1,
                     "localPos": {
                         "x": -2.108607292175293,
-                        "y": 4.477953910827637,
-                        "z": -1.7145345211029053
+                        "y": 3.282658576965332,
+                        "z": -18.89818572998047
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -17836,7 +17836,7 @@
                         "r": 0.1872340440750122
                     },
                     "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
-                    "iblIntensity": 0.4099999964237213,
+                    "iblIntensity": 0.5,
                     "physicalEnvironmentEnabled": true,
                     "renderingLayerMask": 1,
                     "visible": true
@@ -17873,7 +17873,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -17882,8 +17881,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -18436,7 +18433,7 @@
                                     "id": "31d4f90ec37c453f",
                                     "name": "emissiveIntensity",
                                     "semantic": "EmissiveIntensity",
-                                    "value": 21.459999084472656
+                                    "value": 3.5
                                 },
                                 {
                                     "id": "77f5c18e246c6638",
@@ -18532,13 +18529,195 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 10
+                },
+                "Name": {
+                    "name": "rock"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "None",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 32,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 32,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "01e6363c4c61eeb4",
+                            "name": "displacementScale",
+                            "semantic": "DisplacementScale",
+                            "value": 1.0
+                        },
+                        {
+                            "id": "6cce61cdfda392e5",
+                            "name": "normalTexture",
+                            "semantic": "NormalTexture",
+                            "value": "4e454d4153534554aa93672d260a2909"
+                        },
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "4e454d4153534554cf3513fc74564db7"
+                        },
+                        {
+                            "id": "c65b493a4e9d7f55",
+                            "name": "roughness",
+                            "semantic": "Roughness",
+                            "value": 0.5
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 0.0
+                        },
+                        {
+                            "id": "e021b96b50184d6a",
+                            "name": "displacementMidpoint",
+                            "semantic": "DisplacementMidpoint",
+                            "value": 0.0
+                        },
+                        {
+                            "id": "e707b75e36f919d9",
+                            "name": "displacementTexture",
+                            "semantic": "DisplacementTexture",
+                            "value": "4e454d4153534554110b475387a788d2"
+                        }
+                    ],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 40,
+                        "longitudeDivide": 40,
+                        "radius": 1.0
+                    },
+                    "type": "Hemisphere",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "caec4ffd915c4133",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 17.480754852294922,
+                        "y": -0.9039719104766846,
+                        "z": 12.903488159179688
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 8.806499481201172,
+                        "y": 8.806499481201172,
+                        "z": 8.806499481201172
+                    }
+                }
+            },
+            "LocalFileID": "caec4ffd915c4133"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -18547,8 +18726,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -18658,8 +18835,6 @@
         }
     ],
     "Header": {
-        "bakedLighting": "",
-        "bakedLightingEnabled": false,
         "name": "Sponza",
         "subScenes": [
             {

@@ -463,14 +463,6 @@
           "value": 32
         },
         {
-          "name": "ReceiveLightmap",
-          "value": 64
-        },
-        {
-          "name": "ReceiveLightProbes",
-          "value": 128
-        },
-        {
           "name": "Default",
           "value": 63
         }
@@ -1171,37 +1163,36 @@
           "managedName": "Direction",
           "nativeMember": "direction",
           "kind": "Vector3",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 2
         },
         {
           "managedName": "Intensity",
           "nativeMember": "intensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 4
         },
         {
           "managedName": "ShadowStrength",
           "nativeMember": "shadowStrength",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 6
         },
         {
           "managedName": "ShadowAngularRadius",
           "nativeMember": "shadowAngularRadius",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 5
         },
         {
           "managedName": "Enabled",
           "nativeMember": "enabled",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ContributeBakedLighting",
-          "kind": "Bool",
           "access": "ReadWrite",
-          "nativeMember": "contributeBakedLighting"
+          "id": 3
         }
       ]
     },
@@ -1433,39 +1424,45 @@
           "managedName": "RenderingLayerMask",
           "nativeMember": "renderingLayerMask",
           "kind": "UInt",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 10
         },
         {
           "managedName": "Mesh",
           "nativeMember": "mesh",
           "kind": "AssetRef",
           "assetType": "Mesh",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 6
         },
         {
           "managedName": "Material",
           "nativeMember": "material",
           "kind": "AssetRef",
           "assetType": "Material",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 5
         },
         {
           "managedName": "Layer",
           "nativeMember": "layer",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 4
         },
         {
           "managedName": "Order",
           "nativeMember": "order",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 7
         },
         {
           "managedName": "Visible",
           "nativeMember": "visible",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 11
         },
         {
           "managedName": "BlendMode",
@@ -1479,26 +1476,23 @@
           "nativeMember": "queue",
           "kind": "Enum",
           "enumType": "RenderPhase",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 8
         },
         {
           "managedName": "EnableZPrepass",
           "nativeMember": "enableZPrepass",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ContributeBakedLighting",
-          "kind": "Bool",
           "access": "ReadWrite",
-          "nativeMember": "contributeBakedLighting"
+          "id": 3
         },
         {
           "managedName": "RenderFlags",
           "nativeMember": "renderFlags",
           "kind": "Enum",
           "enumType": "MeshRenderFlags",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 9
         }
       ]
     },
@@ -1527,7 +1521,8 @@
           "managedName": "NearClip",
           "nativeMember": "nearClip",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 29
         },
         {
           "managedName": "FarClip",
@@ -1539,7 +1534,8 @@
           "managedName": "Priority",
           "nativeMember": "common.priority",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 31
         },
         {
           "managedName": "CullingMask",
@@ -1557,51 +1553,59 @@
           "managedName": "IsMain",
           "nativeMember": "common.isMain",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 28
         },
         {
           "managedName": "ViewportX",
           "nativeMember": "common.viewportX",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 41
         },
         {
           "managedName": "ViewportY",
           "nativeMember": "common.viewportY",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 42
         },
         {
           "managedName": "ViewportWidth",
           "nativeMember": "common.viewportWidth",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 40
         },
         {
           "managedName": "ViewportHeight",
           "nativeMember": "common.viewportHeight",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 39
         },
         {
           "managedName": "TargetTexture",
           "nativeMember": "common.targetTexture",
           "kind": "AssetRef",
           "assetType": "RenderTexture",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 37
         },
         {
           "managedName": "PostProcessEnabled",
           "nativeMember": "common.postProcessEnabled",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 30
         },
         {
           "managedName": "RenderPasses",
           "nativeMember": "common.renderPasses",
           "kind": "AssetRef",
           "assetType": "RenderPasses",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 36
         },
         {
           "managedName": "ExposureMode",
@@ -1650,7 +1654,8 @@
           "managedName": "UsePreExposure",
           "nativeMember": "common.colorPipeline.exposure.usePreExposure",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 38
         },
         {
           "managedName": "FilmicSlope",
@@ -1734,25 +1739,29 @@
           "managedName": "ReflectionEnabled",
           "nativeMember": "common.reflectionEnabled",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 32
         },
         {
           "managedName": "ReflectionIntensity",
           "nativeMember": "common.reflectionIntensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 33
         },
         {
           "managedName": "ReflectionMaxDistance",
           "nativeMember": "common.reflectionMaxDistance",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 34
         },
         {
           "managedName": "ReflectionQuality",
           "nativeMember": "common.reflectionQuality",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 35
         },
         {
           "managedName": "AmbientOcclusionEnabled",
@@ -1797,7 +1806,8 @@
           "nativeMember": "projectionMode",
           "kind": "Enum",
           "enumType": "CameraProjectionMode",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 34
         },
         {
           "managedName": "FovY",
@@ -1809,13 +1819,15 @@
           "managedName": "OrthographicSize",
           "nativeMember": "orthographicSize",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 31
         },
         {
           "managedName": "NearClip",
           "nativeMember": "nearClip",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 30
         },
         {
           "managedName": "FarClip",
@@ -1827,7 +1839,8 @@
           "managedName": "Priority",
           "nativeMember": "common.priority",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 33
         },
         {
           "managedName": "CullingMask",
@@ -1845,51 +1858,59 @@
           "managedName": "IsMain",
           "nativeMember": "common.isMain",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 29
         },
         {
           "managedName": "ViewportX",
           "nativeMember": "common.viewportX",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 44
         },
         {
           "managedName": "ViewportY",
           "nativeMember": "common.viewportY",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 45
         },
         {
           "managedName": "ViewportWidth",
           "nativeMember": "common.viewportWidth",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 43
         },
         {
           "managedName": "ViewportHeight",
           "nativeMember": "common.viewportHeight",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 42
         },
         {
           "managedName": "TargetTexture",
           "nativeMember": "common.targetTexture",
           "kind": "AssetRef",
           "assetType": "RenderTexture",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 40
         },
         {
           "managedName": "PostProcessEnabled",
           "nativeMember": "common.postProcessEnabled",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 32
         },
         {
           "managedName": "RenderPasses",
           "nativeMember": "common.renderPasses",
           "kind": "AssetRef",
           "assetType": "RenderPasses",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 39
         },
         {
           "managedName": "ExposureMode",
@@ -1938,7 +1959,8 @@
           "managedName": "UsePreExposure",
           "nativeMember": "common.colorPipeline.exposure.usePreExposure",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 41
         },
         {
           "managedName": "FilmicSlope",
@@ -2022,25 +2044,29 @@
           "managedName": "ReflectionEnabled",
           "nativeMember": "common.reflectionEnabled",
           "kind": "Bool",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 35
         },
         {
           "managedName": "ReflectionIntensity",
           "nativeMember": "common.reflectionIntensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 36
         },
         {
           "managedName": "ReflectionMaxDistance",
           "nativeMember": "common.reflectionMaxDistance",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 37
         },
         {
           "managedName": "ReflectionQuality",
           "nativeMember": "common.reflectionQuality",
           "kind": "Int",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 38
         },
         {
           "managedName": "AmbientOcclusionEnabled",
@@ -2090,43 +2116,43 @@
           "managedName": "Intensity",
           "nativeMember": "intensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 4
         },
         {
           "managedName": "Radius",
           "nativeMember": "radius",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 5
         },
         {
           "managedName": "Decay",
           "nativeMember": "decay",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 2
         },
         {
           "managedName": "ShadowStrength",
           "nativeMember": "shadowStrength",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 7
         },
         {
           "managedName": "ShadowRadius",
           "nativeMember": "shadowRadius",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 6
         },
         {
           "managedName": "Enabled",
           "nativeMember": "enabled",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ContributeBakedLighting",
-          "kind": "Bool",
           "access": "ReadWrite",
-          "nativeMember": "contributeBakedLighting"
+          "id": 3
         }
       ]
     },
@@ -2831,61 +2857,64 @@
           "managedName": "Direction",
           "nativeMember": "direction",
           "kind": "Vector3",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 5
         },
         {
           "managedName": "Intensity",
           "nativeMember": "intensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 8
         },
         {
           "managedName": "Distance",
           "nativeMember": "distance",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 6
         },
         {
           "managedName": "Decay",
           "nativeMember": "decay",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 4
         },
         {
           "managedName": "CosAngle",
           "nativeMember": "cosAngle",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 2
         },
         {
           "managedName": "CosFalloffStart",
           "nativeMember": "cosFalloffStart",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 3
         },
         {
           "managedName": "ShadowStrength",
           "nativeMember": "shadowStrength",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 10
         },
         {
           "managedName": "ShadowRadius",
           "nativeMember": "shadowRadius",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 9
         },
         {
           "managedName": "Enabled",
           "nativeMember": "enabled",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ContributeBakedLighting",
-          "kind": "Bool",
           "access": "ReadWrite",
-          "nativeMember": "contributeBakedLighting"
+          "id": 7
         }
       ]
     },
@@ -3557,7 +3586,8 @@
           "managedName": "Intensity",
           "nativeMember": "intensity",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 6
         },
         {
           "managedName": "AttenuationRadius",
@@ -3569,13 +3599,15 @@
           "managedName": "SourceWidth",
           "nativeMember": "sourceWidth",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 9
         },
         {
           "managedName": "SourceHeight",
           "nativeMember": "sourceHeight",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 8
         },
         {
           "managedName": "BarnDoorAngle",
@@ -3593,19 +3625,15 @@
           "managedName": "ShadowStrength",
           "nativeMember": "shadowStrength",
           "kind": "Float",
-          "access": "ReadWrite"
+          "access": "ReadWrite",
+          "id": 7
         },
         {
           "managedName": "Enabled",
           "nativeMember": "enabled",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ContributeBakedLighting",
-          "kind": "Bool",
           "access": "ReadWrite",
-          "nativeMember": "contributeBakedLighting"
+          "id": 5
         }
       ]
     },
@@ -3724,50 +3752,6 @@
           "managedName": "UseLimits",
           "nativeMember": "useLimits",
           "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Enabled",
-          "nativeMember": "enabled",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        }
-      ]
-    },
-    {
-      "id": 64,
-      "registryName": "ReflectionProbe",
-      "nativeType": "ReflectionProbeComponent",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/ReflectionProbeComponent.h",
-      "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.ReflectionProbe",
-      "reason": "ベイクする環境反射の範囲を指定",
-      "managedType": "ReflectionProbe",
-      "allowAdd": true,
-      "allowRemove": true,
-      "properties": [
-        {
-          "managedName": "Shape",
-          "nativeMember": "shape",
-          "kind": "UInt",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Radius",
-          "nativeMember": "radius",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Extents",
-          "nativeMember": "extents",
-          "kind": "Vector3",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Intensity",
-          "nativeMember": "intensity",
-          "kind": "Float",
           "access": "ReadWrite"
         },
         {

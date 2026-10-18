@@ -16,7 +16,6 @@
 namespace Engine {
 
 	class FontRenderService;
-	class BakedLightingBake;
 	class EnvironmentSpecularMap;
 
 	//============================================================================
@@ -67,7 +66,6 @@ namespace Engine {
 		TextureUploadService& GetTextureUploadService() { return *textureUploadService_; }
 		BuiltinTextureLibrary& GetBuiltinTextureLibrary() { return *builtinTextureLibrary_; }
 		FontRenderService& GetFontRenderService() { return *fontRenderService_; }
-		BakedLightingBake& GetLightingBake() { return *lightingBake_; }
 		EnvironmentSpecularMap& GetEnvironmentSpecularMap() { return *environmentSpecularMap_; }
 
 		// 静的GPUバッファ転送サービスのアクセサ
@@ -110,8 +108,6 @@ namespace Engine {
 		std::unique_ptr<BuiltinTextureLibrary> builtinTextureLibrary_;
 		// Fontの固定画像をTextureサービスより先に解放する
 		std::unique_ptr<FontRenderService> fontRenderService_;
-		// Toolを閉じてもベイク入力と作業資源を保持する
-		std::unique_ptr<BakedLightingBake> lightingBake_;
 		std::unique_ptr<EnvironmentSpecularMap> environmentSpecularMap_;
 
 		// 静的GPUバッファ転送サービス

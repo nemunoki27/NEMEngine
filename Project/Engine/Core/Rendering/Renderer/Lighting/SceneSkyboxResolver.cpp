@@ -9,7 +9,6 @@
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================

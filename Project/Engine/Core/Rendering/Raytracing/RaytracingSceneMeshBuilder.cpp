@@ -447,7 +447,6 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		const MeshRenderFlags renderFlags = src.renderer ? src.renderer->renderFlags : MeshRenderFlags::Default;
 		const uint32_t renderingLayerMask = src.renderer ? src.renderer->renderingLayerMask : kRenderingLayerMaskBits;
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(renderFlags, renderingLayerMask);
-		instanceShaderData._pad[0] = src.entity.index + 1u;
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
 		result_.sceneInstanceScratch_.emplace_back(instanceShaderData);
 		result_.scenePickRecordOffsets_.emplace_back(pickRecordOffset);

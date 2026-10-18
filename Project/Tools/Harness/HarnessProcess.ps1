@@ -1,9 +1,11 @@
 ﻿# 環境変数と終了コードを揃えて検証プロセスを起動する
 function Invoke-HarnessProcess {
-    param([string]$FilePath, [string[]]$Arguments)
+    param([string]$FilePath, [string[]]$Arguments, [string]$WorkingDirectory = '',
+        [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0)
 
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $FilePath
+    if ($WorkingDirectory) { $info.WorkingDirectory = $WorkingDirectory }
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
@@ -23,10 +25,22 @@ function Invoke-HarnessProcess {
         # 両方のパイプを同時に読み、出力詰まりを防ぐ
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        $process.WaitForExit()
+        $timedOut = $false
+        if ($TimeoutSeconds -gt 0) {
+            $timedOut = !$process.WaitForExit($TimeoutSeconds * 1000)
+            if ($timedOut) {
+                # この検証から起動したプロセスだけを終了する
+                try { $process.Kill($true) }
+                catch [InvalidOperationException] { if (!$process.HasExited) { throw } }
+                $process.WaitForExit()
+            }
+        } else {
+            $process.WaitForExit()
+        }
         return [pscustomobject]@{
-            exitCode = $process.ExitCode
+            exitCode = $(if ($timedOut) { -1 } else { $process.ExitCode })
             output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+            timedOut = $timedOut
         }
     } finally {
         $process.Dispose()

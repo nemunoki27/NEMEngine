@@ -83,7 +83,6 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/include"),
 
         path.join(NEM_PROJECT_ROOT, "Externals/meshoptimizer/include"),
-        path.join(NEM_PROJECT_ROOT, "Externals/xatlas"),
         path.join(NEM_PROJECT_ROOT, "Externals/DirectXTex"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui"),
         path.join(NEM_PROJECT_ROOT, "Externals/imgui-node-editor"),
@@ -152,7 +151,6 @@ end
 function NEM_AddEngineDllLinkSettings()
     links {
         "meshoptimizer",
-        "xatlas",
         "bcrypt",
     }
     dependson {

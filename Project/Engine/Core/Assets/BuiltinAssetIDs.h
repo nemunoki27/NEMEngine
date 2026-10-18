@@ -113,9 +113,6 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
 		inline constexpr AssetID EnvironmentSpecular{ 0x4e454d4153534554ull, 0x454e5649524f0001ull };
 		inline constexpr AssetID EnvironmentBRDF{ 0x4e454d4153534554ull, 0x454e5649524f0002ull };
-		inline constexpr AssetID BakedLightingTrace{ 0x4e454d4153534554ull, 0x42414b454c540001ull };
-		inline constexpr AssetID DeferredLightingBaked{ 0x4e454d4153534554ull, 0x42414b454c540002ull };
-		inline constexpr AssetID DeferredLightingShadowedBaked{ 0x4e454d4153534554ull, 0x42414b454c540003ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
 		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
 		inline constexpr AssetID InlineShadowTrace{ 0x4e454d4153534554ull, 0x5348445700000001ull };
@@ -125,7 +122,6 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID FixedRuntime[] = {
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
 			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
-			DeferredLightingBaked, DeferredLightingShadowedBaked,
 			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
 		};
 

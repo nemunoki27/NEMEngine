@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
-#include <Engine/Core/Rendering/Lighting/Baked/BakedLightingRuntime.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/DirectionalShadowMapRenderer.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/InlineShadowRenderer.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
@@ -117,11 +116,11 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
-		std::array<std::unique_ptr<PipelineState>, 2> pipeline_{};
-		std::array<std::unique_ptr<PipelineState>, 2> pipelineShadowed_{};
-		std::array<bool, 2> initialized_{};
+		std::unique_ptr<PipelineState> pipeline_;
+		std::unique_ptr<PipelineState> pipelineShadowed_;
+		bool initialized_ = false;
 		// shadow版PSOが構築できたか、inlineRT非対応環境では作れないので分けて持つ
-		std::array<bool, 2> shadowedAvailable_{};
+		bool shadowedAvailable_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
 		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>, kGraphicsFrameContextCount>
@@ -146,7 +145,6 @@ namespace Engine {
 
 		// skyboxのcubemapから作る拡散IBL用の放射照度cubemap
 		SkyboxIrradianceMap irradianceMap_{};
-		BakedLightingRuntime bakedLighting_{};
 		const RenderPipelineDeps& deps_;
 		DirectionalShadowMapRenderer directionalShadows_;
 		InlineShadowRenderer inlineShadows_;
@@ -155,7 +153,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 初回描画時にパイプラインを生成する
-		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat, bool baked);
+		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat);
 		// 実行するShaderの影入力から必要なCascadeを判定する
 		bool RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const SceneExecutionContext& context);
 		// 同じViewの影を後段の散乱計算へ公開する

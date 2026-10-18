@@ -23,7 +23,6 @@ namespace {
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
 		CompoundAssetSuffix{ ".rendertexture.json", Engine::AssetType::RenderTexture },
 		CompoundAssetSuffix{ ".renderpasses.json", Engine::AssetType::RenderPasses },
-		CompoundAssetSuffix{ ".bakedlighting.json", Engine::AssetType::BakedLighting },
 		CompoundAssetSuffix{ ".effect.json", Engine::AssetType::ParticleEffect },
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
@@ -124,7 +123,6 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::ShaderGraph:
 	case AssetType::RenderTexture:
 	case AssetType::RenderPasses:
-	case AssetType::BakedLighting:
 		return true;
 	default:
 		return false;

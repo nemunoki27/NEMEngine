@@ -130,7 +130,6 @@
                         "g": 0.2255319356918335,
                         "r": 0.2255319356918335
                     },
-                    "contributeBakedLighting": false,
                     "direction": {
                         "x": -0.8519055843353271,
                         "y": -0.2628054916858673,
@@ -236,7 +235,6 @@
                     "blendMode": "Normal",
                     "castReflection": true,
                     "castShadow": true,
-                    "contributeBakedLighting": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -245,8 +243,6 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveLightProbes": false,
-                    "receiveLightmap": false,
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderingLayerMask": 1,
@@ -6212,8 +6208,6 @@
         }
     ],
     "Header": {
-        "bakedLighting": "",
-        "bakedLightingEnabled": false,
         "name": "Classroom",
         "subScenes": []
     },

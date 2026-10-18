@@ -64,8 +64,6 @@ namespace Engine::AssetDependencyScanner {
 			{ "targetTexture", Engine::AssetType::RenderTexture },
 
 			{ "renderPasses", Engine::AssetType::RenderPasses },
-			{ "bakedLighting", Engine::AssetType::BakedLighting },
-			{ "bakedLightingData", Engine::AssetType::DefaultAsset },
 			{ "animationClip", Engine::AssetType::AnimationClip },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },

@@ -89,7 +89,6 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		drawFlag("影を受ける", MeshRenderFlags::ReceiveShadow);
 		drawFlag("反射に映る", MeshRenderFlags::CastReflection);
 		drawFlag("反射を受ける", MeshRenderFlags::ReceiveReflection);
-		drawFlag("Light Probesを受ける", MeshRenderFlags::ReceiveLightProbes);
 	}
 
 	ImGui::SeparatorText("形状別パラメータ");

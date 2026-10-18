@@ -98,7 +98,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podGet) {
-                sb.Append($"\t\t\tcase {p}: {{\n");
+                sb.Append($"\t\t\tcase {comp.Properties[p].ID}: {{\n");
                 EmitCppGet(sb, comp.Properties[p]);
                 sb.Append("\t\t\t}\n");
             }
@@ -117,7 +117,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podSet) {
-                sb.Append($"\t\t\tcase {p}: {{\n");
+                sb.Append($"\t\t\tcase {comp.Properties[p].ID}: {{\n");
                 EmitCppSet(sb, comp.Properties[p], enumByName, nt);
                 sb.Append("\t\t\t}\n");
             }
@@ -136,7 +136,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strGet) {
-                sb.Append($"\t\t\tcase {p}: {{\n");
+                sb.Append($"\t\t\tcase {comp.Properties[p].ID}: {{\n");
                 sb.Append($"\t\t\t\tconst std::string& s = c->{comp.Properties[p].NativeMember};\n");
                 sb.Append("\t\t\t\tconst int32_t needed = static_cast<int32_t>(s.size());\n");
                 sb.Append("\t\t\t\tif (written) { *written = needed; }\n");
@@ -160,7 +160,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strSet) {
-                sb.Append($"\t\t\tcase {p}: {{\n");
+                sb.Append($"\t\t\tcase {comp.Properties[p].ID}: {{\n");
                 sb.Append($"\t\t\t\tc->{comp.Properties[p].NativeMember} = (utf8 && length > 0) ? std::string(utf8, static_cast<size_t>(length)) : std::string();\n");
                 sb.Append($"\t\t\t\tworld.MarkComponentModified<{nt}>(entity);\n");
                 sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");

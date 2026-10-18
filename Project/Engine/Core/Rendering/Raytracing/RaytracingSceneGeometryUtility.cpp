@@ -65,8 +65,6 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			result |= kRaytracingRenderFlagReceiveReflection;
 		}
 		// Rendererの照明設定をインスタンスへ格納
-		if (Engine::HasMeshRenderFlag(flags, Engine::MeshRenderFlags::ReceiveLightmap)) result |= 1u << 6;
-		if (Engine::HasMeshRenderFlag(flags, Engine::MeshRenderFlags::ReceiveLightProbes)) result |= 1u << 7;
 		return result | ((renderingLayerMask &
 			kRaytracingRenderingLayerMaskBits) <<
 			kRaytracingRenderingLayerMaskShift);

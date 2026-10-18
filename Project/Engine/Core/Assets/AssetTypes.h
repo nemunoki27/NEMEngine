@@ -41,7 +41,6 @@ namespace Engine {
 		RenderTexture,
 		RenderPasses = 16,
 		DefaultAsset,
-		BakedLighting = 19,
 	};
 
 	// アセット参照の診断種別

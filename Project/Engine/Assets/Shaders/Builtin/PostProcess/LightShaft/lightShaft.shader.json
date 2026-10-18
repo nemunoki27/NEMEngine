@@ -6,7 +6,7 @@
     "stages": [
         {
             "entry": "main",
-            "file": "Builtin/PostProcess/LightShaft/lightShaft.CS.hlsl",
+            "file": "Engine/Assets/Shaders/Builtin/PostProcess/LightShaft/lightShaft.CS.hlsl",
             "profile": "cs_6_0",
             "stage": "CS"
         }

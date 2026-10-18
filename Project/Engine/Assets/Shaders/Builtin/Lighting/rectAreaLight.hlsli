@@ -121,7 +121,7 @@ float3 EvaluateRectAreaPBR(RectLight light, float3 worldPos, float3 N, float3 V,
 		(diffuseColor * diffuse * diffuseWeight + specularColor * specular);
 }
 
-// ベイクの参照積分もLTCテーブルと同じGGX遮蔽を使う
+// 参照積分はLTCテーブルと同じGGX遮蔽を使う
 float3 EvaluateRectAreaBRDF(float3 N, float3 V, float3 L, float3 albedo,
 	float metallic, float roughness, float3 F0) {
 

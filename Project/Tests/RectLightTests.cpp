@@ -24,7 +24,6 @@ bool NEMTests::TestRectLightCPU() {
 	static_assert(offsetof(RectLightGPU, sourceHeight) == 76);
 	static_assert(offsetof(LightCountsGPU, rectLTCMatrixIndex) == 20);
 	static_assert(offsetof(LightCountsGPU, rectLTCAmplitudeIndex) == 24);
-	static_assert(static_cast<int>(AssetType::BakedLighting) == 19);
 
 	// 廃止した減衰は再保存されず、総出力と形状は維持する
 	RectLightComponent light;

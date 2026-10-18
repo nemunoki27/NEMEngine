@@ -54,7 +54,7 @@ Engine::RectLightGPU Engine::LightGPUConversion::ToGPU(const RectLightItem& item
 
 	RectLightGPU light{};
 
-	// 矩形の入力範囲を描画とベイクで揃える
+	// 矩形光源の入力範囲を補正
 	const auto positive = [](float value) { return std::isfinite(value) ? (std::max)(value, 0.0f) : 0.0f; };
 
 	light.color = item.color;

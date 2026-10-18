@@ -91,7 +91,7 @@
                     "id": "1b9a034624b9a4aa",
                     "name": "intensity",
                     "semantic": "None",
-                    "value": 2.0
+                    "value": 4.0
                 },
                 {
                     "id": "1e4984ef2e958a4c",
@@ -108,7 +108,7 @@
                     "id": "4a94c51b5f6a6081",
                     "name": "scatter",
                     "semantic": "None",
-                    "value": 0.5400000214576721
+                    "value": 0.4300000071525574
                 },
                 {
                     "id": "7c314e706d951238",

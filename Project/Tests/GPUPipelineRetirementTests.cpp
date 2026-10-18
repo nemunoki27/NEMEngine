@@ -252,7 +252,8 @@ bool NEMTests::RecordTexturePublication(ID3D12Device* device,
 	DxUtils::CreateReadbackBufferResource(device, readback, 1024);
 	auto copy = [&](ID3D12Resource* resource, uint64_t offset) {
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource,
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commands->ResourceBarrier(1, &barrier);
 		D3D12_TEXTURE_COPY_LOCATION source{};
 		source.pResource = resource;

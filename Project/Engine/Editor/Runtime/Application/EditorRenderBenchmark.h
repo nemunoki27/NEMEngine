@@ -88,6 +88,8 @@ namespace Engine {
 
 		// 描画経路を切り替えて計測待機を開始する
 		void BeginPhase();
+		// 比較する機能と段階数を検証環境から読み込む
+		void InitComparisonConditions();
 		// 今回の結果を保存して次の描画経路へ進む
 		void FinishPhase(GraphicsCore& graphicsCore);
 		// 計測終了後のViewを画像へ保存する

@@ -18,6 +18,7 @@ internal sealed class EnumModel {
 // 公開プロパティの型とアクセス方法を表す
 internal sealed class PropertyModel {
 
+    public int ID = -1; // 固定のプロパティ番号
     public string ManagedName = ""; // 公開プロパティ名
     public string NativeMember = ""; // 対応するNativeメンバー
     public string Kind = ""; // 値の種別

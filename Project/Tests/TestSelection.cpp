@@ -7,7 +7,6 @@
 //============================================================================
 #include "TestRunner.h"
 #include "GPUCompatibilityTests.h"
-#include "BakedLightingTests.h"
 #include "TestContracts.h"
 #include "ApplicationPlatformTests.h"
 #include "FoundationTests.h"
@@ -37,9 +36,6 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--bloom") {
 		return RunTest("TestBloomSettings", TestBloomSettings) && RunTest("TestBloomGPU", TestBloomGPU) ? 0 : 66;
-	}
-	if (1 < argc && std::string_view(argv[1]) == "--baked-lighting") {
-		return RunTest("TestBakedLightingCPU", TestBakedLightingCPU) && RunTest("TestBakedLightingGPU", TestBakedLightingGPU) ? 0 : 65;
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-transactions") {

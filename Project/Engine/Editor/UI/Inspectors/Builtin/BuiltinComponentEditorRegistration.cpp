@@ -14,7 +14,6 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Render/ReflectionProbeInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ParticleSystemInspectorDrawer.h>
@@ -68,7 +67,6 @@ namespace {
 void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	MeshRendererInspectorDrawer*& meshRendererDrawer) {
 
-	registry.Register(MakeComponentEditorDescriptor<ReflectionProbeInspectorDrawer>("Reflection Probe", "ReflectionProbe", "Render"));
 
 	// Transformは描画登録だけ行い追加削除メニューには出さない
 	ComponentEditorDescriptor transformDescriptor = MakeComponentEditorDescriptor<TransformInspectorDrawer>("Transform", "Transform", "Core");

@@ -36,10 +36,6 @@ namespace Engine {
 		CastReflection = 1 << 4,
 		// レイトレ反射を受けるか
 		ReceiveReflection = 1 << 5,
-		// 固定面のベイク照明を受ける
-		ReceiveLightmap = 1 << 6,
-		// 動体用のベイク照明を受ける
-		ReceiveLightProbes = 1 << 7,
 		// 通常描画の既定フラグ
 		Default = Lighting | CastShadow | ReceiveShadow | ReceiveIBL | CastReflection | ReceiveReflection,
 	};
@@ -122,8 +118,6 @@ namespace Engine {
 
 		// Zプリパスを有効にするか
 		bool enableZPrepass = true;
-		// 固定背景として間接光ベイクに含める
-		bool contributeBakedLighting = false;
 
 		// ライティングや影の適用を切り替えるフラグ
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;

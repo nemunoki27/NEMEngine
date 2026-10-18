@@ -25,10 +25,7 @@ GBufferOutput EncodeMeshPBRGBuffer(
 		input.currentClipPosition, input.previousClipPosition);
 	// MeshRendererのフラグをGBufferへ渡してライティングパスで分岐させる
 	surface.flags = BuildMaterialFlags(gMeshInstances[input.instanceID].flags);
-	GBufferOutput output = EncodeGBuffer(surface);
-	// ベイク照明の受光先を現在WorldのEntity番号で識別する
-	if ((surface.flags & kMaterialFlagReceiveLightmap) != 0u) output.worldPos.w = float(gMeshInstances[input.instanceID].entityIndex + 1u);
-	return output;
+	return EncodeGBuffer(surface);
 }
 
 //============================================================================

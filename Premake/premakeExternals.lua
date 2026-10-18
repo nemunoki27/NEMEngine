@@ -116,23 +116,6 @@ project "meshoptimizer"
 
     filter {}
 
-project "xatlas"
-    location (path.join(NEMENGINE_ROOT, "Project/Externals/xatlas"))
-    kind "StaticLib"
-    system "windows"
-    language "C++"
-    cppdialect "C++20"
-    staticruntime "On"
-    multiprocessorcompile "On"
-    files { path.join(NEMENGINE_ROOT, "Project/Externals/xatlas/xatlas.cpp"),
-            path.join(NEMENGINE_ROOT, "Project/Externals/xatlas/xatlas.h") }
-    buildoptions { "/utf-8" }
-    filter "configurations:Debug"
-        symbols "On"
-    filter "configurations:Develop or Release"
-        optimize "On"
-    filter {}
-
 externalproject "zlibstatic"
     location (path.join(ASSIMP_BUILD_DIR, "contrib/zlib"))
     filename "zlibstatic"

@@ -1,5 +1,6 @@
 #include "EditorRenderBenchmark.h"
 #include "EngineApplication.h"
+#include "EditorRenderRequestBuilder.h"
 
 //============================================================================
 //	include
@@ -102,40 +103,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 		{ "gpuSamples", "latest completed GPU frame, no additional wait" },
 		{ "phases", nlohmann::json::array() } };
 	if (continuousCapture_) report_["cpuSamples"] = "completed CPU frame distributions, GPU frame IDs recorded separately";
-	// AOの切替とパラメータ変更を同じCameraで比較する
-	const auto aoSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_AO");
-	if (!aoSequence.empty()) {
-
-		report_["ambientOcclusionSequence"] = JsonFile::Load(aoSequence, false);
-		const auto& sequence = report_["ambientOcclusionSequence"];
-		if (!sequence.is_array() || sequence.empty()) throw std::runtime_error("AO比較の指定が不正です");
-		phaseCount_ = static_cast<uint32_t>(sequence.size());
-		report_["comparison"] = "AmbientOcclusion";
-		report_["phaseCount"] = phaseCount_;
-	}
-	// 影の標本数と切替を隔離したWorldで比較する
-	const auto shadowSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_SHADOW");
-	if (!shadowSequence.empty()) {
-
-		report_["shadowSequence"] = JsonFile::Load(shadowSequence, false);
-		const auto& sequence = report_["shadowSequence"];
-		if (!sequence.is_array() || sequence.empty()) throw std::runtime_error("影比較の指定が不正です");
-		phaseCount_ = static_cast<uint32_t>(sequence.size());
-		report_["comparison"] = "InlineShadows";
-		report_["phaseCount"] = phaseCount_;
-	}
-	// 配置とSRT変更を同じSceneで再現する
-	const auto transformSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_TRANSFORM");
-	if (!transformSequence.empty()) {
-
-		report_["transformSequence"] = JsonFile::Load(transformSequence, false);
-		const auto& sequence = report_["transformSequence"];
-		if (!sequence.is_array() || sequence.empty()) throw std::runtime_error("SRT比較の指定が不正です");
-		phaseCount_ = static_cast<uint32_t>(sequence.size());
-		report_["comparison"] = "AssetTransforms";
-		report_["phaseCount"] = phaseCount_;
-		report_["transformTargets"] = nlohmann::json::object();
-	}
+	InitComparisonConditions();
 	BeginPhase();
 }
 
@@ -456,8 +424,12 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 				report_["ambientOcclusionCaptures"].push_back({{"phase", phase_}, {"view", kind == RenderViewKind::Game ? "Game" : "Scene"},
 					{"output", attachment == aoRaw ? "Raw" : "Filtered"}, {"minimum", minimum}, {"mean", sum / count}, {"occludedRatio", occluded / count}});
 			}
-			if (image->format != DXGI_FORMAT_R8G8B8A8_UNORM) {
-				if (FAILED(DirectX::Convert(*image, DXGI_FORMAT_R8G8B8A8_UNORM,
+			// 表示用の色だけをPNGの色空間へ合わせる
+			const bool displayColor = !*attachment || std::string_view(attachment) == RenderTargetNames::kSceneColorFinal ||
+				std::string_view(attachment) == ViewportRenderService::GetPrimaryColorName(kind);
+			const auto format = displayColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+			if (image->format != format) {
+				if (FAILED(DirectX::Convert(*image, format,
 					DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted))) {
 					throw std::runtime_error("Viewの画像変換に失敗しました");
 				}

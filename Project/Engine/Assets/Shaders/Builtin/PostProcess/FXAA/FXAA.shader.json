@@ -6,7 +6,7 @@
     "stages": [
         {
             "entry": "main",
-            "file": "Builtin/PostProcess/FXAA/FXAA.CS.hlsl",
+            "file": "Engine/Assets/Shaders/Builtin/PostProcess/FXAA/FXAA.CS.hlsl",
             "profile": "cs_6_0",
             "stage": "CS"
         }

@@ -49,6 +49,19 @@ internal static class BindingGeneratorSelfTests {
                 File.ReadAllText(Path.Combine(csDir, "NativeAPITable.generated.cs")).Contains("delegate* unmanaged[Cdecl]<int> test"));
 
             Expect("positive verify passes", RunVerify(manifestPath, abiPath, nativeDir, csDir) == 0);
+            // 項目削除後も明示した番号を両側へ出力する
+            File.WriteAllText(manifestPath, goodManifest.Replace("\"managedName\": \"Value\"", "\"id\": 7, \"managedName\": \"Value\""));
+            GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
+            Expect("explicit property id preserved",
+                File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("case 7:") &&
+                File.ReadAllText(Path.Combine(csDir, "ComponentBindings.generated.cs")).Contains("ComponentGet(native, TypeID, 7,"));
+            Expect("explicit property id verifies", RunVerify(manifestPath, abiPath, nativeDir, csDir) == 0);
+            File.WriteAllText(manifestPath, goodManifest.Replace("\"managedName\": \"Value\"", "\"id\": 0, \"managedName\": \"Value\""));
+            Expect("duplicate property id fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
+            File.WriteAllText(manifestPath, goodManifest.Replace("\"managedName\": \"Value\"", "\"id\": -2, \"managedName\": \"Value\""));
+            Expect("negative property id fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
+            File.WriteAllText(manifestPath, goodManifest);
+            GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
             // NativeとManagedへ同じlayoutを出力し、範囲外offsetを拒否する
             Expect("shared layout generated", File.ReadAllText(Path.Combine(csDir, "ABILayout.generated.cs")).Contains("TestValue") &&
                 File.ReadAllText(Path.Combine(nativeDir, "ManagedABILayout.generated.inl")).Contains("sizeof(TestValue) == 8"));

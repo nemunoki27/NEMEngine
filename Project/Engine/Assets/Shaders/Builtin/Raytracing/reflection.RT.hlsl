@@ -2,7 +2,6 @@
 //	include
 //============================================================================
 #include "../Mesh/Common/deferredGBuffer.hlsli"
-#include "../Lighting/Baked/bakedLightingRuntime.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
 
 // RTライブラリ内で固定SRVとライトバッファが衝突しないようレジスタを差し替える
@@ -236,11 +235,8 @@ float3 EvaluateSkyReflection(float3 direction) {
 	return sky * gSkyIntensity;
 }
 
-float3 EvaluateReflectionEnvironment(float3 direction, float3 position, float roughness) {
+float3 EvaluateReflectionEnvironment(float3 direction, float roughness) {
 
-	float3 capture;
-	float coverage;
-	SampleBakedReflection(position, direction, roughness, capture, coverage);
 	if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 		uint index = gEnvironmentSpecularIndex != kNoTexture ? gEnvironmentSpecularIndex : gSkyboxCubemapIndex;
@@ -249,9 +245,9 @@ float3 EvaluateReflectionEnvironment(float3 direction, float3 position, float ro
 		skybox.GetDimensions(0, width, height, mipCount);
 		float mip = gPhysicalEnvironmentEnabled != 0u ? roughness * max(float(mipCount) - 1.0f, 0.0f) : 0.0f;
 		float3 environment = skybox.SampleLevel(gEnvironmentSampler, direction, mip).rgb * gSkyboxColor.rgb * gSkyIntensity;
-		return lerp(environment, capture, coverage);
+		return environment;
 	}
-	return lerp(EvaluateSkyReflection(direction), capture, coverage);
+	return EvaluateSkyReflection(direction);
 }
 
 float3 EstimateWorldNormalFromDepth(
@@ -611,7 +607,7 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 float3 EvaluateRaytracingSurfaceLighting(
 	float3 worldPosition,
 	ResolvedPBRMaterial material,
-	uint renderFlags, uint receiverEntity = 0u) {
+	uint renderFlags) {
 
 	if ((renderFlags & MESH_INSTANCE_FLAG_LIGHTING) == 0u) {
 		return material.baseColor.rgb + material.emissive;
@@ -686,10 +682,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 	float3 ambient = 0.0f.xxx;
 	if ((renderFlags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) {
 
-		float3 indirect;
-		if (SampleBakedIndirect(worldPosition, material.N, renderFlags, receiverEntity, indirect)) {
-			ambient = indirect * material.baseColor.rgb * (1.0f - material.metallic) * (1.0f - F0);
-		} else if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
+		if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 			TextureCube<float4> skybox = ResourceDescriptorHeap[
 				NonUniformResourceIndex(gSkyboxCubemapIndex)];
@@ -741,7 +734,7 @@ void ReflectionClosestHit(
 
 	payload.hit = 1u;
 	payload.color = EvaluateRaytracingSurfaceLighting(
-		worldPosition, material, instanceData.renderFlags, instanceData._pad.x);
+		worldPosition, material, instanceData.renderFlags);
 	payload.worldPosition = worldPosition;
 	payload.hitDistance = RayTCurrent();
 	payload.worldNormal = material.N;
@@ -874,7 +867,7 @@ void ReflectionRayGen() {
 			++hitSampleCount;
 		} else {
 			incomingRadiance =
-				EvaluateReflectionEnvironment(reflectionDirection, worldPos, roughness);
+				EvaluateReflectionEnvironment(reflectionDirection, roughness);
 		}
 		accumulatedHitDistance += payload.hit != 0u ?
 			payload.hitDistance : gMaxReflectionDistance;

@@ -80,7 +80,13 @@ namespace {
 		D3D12_TEXTURE_COPY_LOCATION source{};
 		source.pResource = texture;
 		source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		// 公開済みAtlasを読戻し用へ切り替える
+		const auto shaderRead = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+		const auto toCopy = CD3DX12_RESOURCE_BARRIER::Transition(texture, shaderRead, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		commands->ResourceBarrier(1, &toCopy);
 		commands->CopyTextureRegion(&target, 0, 0, 0, &source, nullptr);
+		const auto toRead = CD3DX12_RESOURCE_BARRIER::Transition(texture, D3D12_RESOURCE_STATE_COPY_SOURCE, shaderRead);
+		commands->ResourceBarrier(1, &toRead);
 		if (FAILED(commands->Close())) {
 			return false;
 		}

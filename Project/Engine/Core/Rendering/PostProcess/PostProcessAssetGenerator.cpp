@@ -71,7 +71,8 @@ namespace {
 			source.builtin = true;
 			source.sourceShader =
 				"Engine/Assets/Shaders/Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
-			source.shaderFile = "Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
+			// 製品の入力索引でも解決できるAssetパスを保存する
+			source.shaderFile = source.sourceShader;
 			source.shaderPath = "Engine/Assets/Shaders/Builtin/PostProcess/" +
 								Algorithm::ConvertString((folder / (name + ".shader.json")).generic_wstring());
 			source.pipelinePath = "Engine/Assets/Pipelines/Builtin/PostProcess/" +

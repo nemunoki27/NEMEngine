@@ -3,7 +3,6 @@
 // engine
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/FontRenderService.h>
-#include <Engine/Core/Rendering/Lighting/Baked/BakedLightingBake.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
 
 //============================================================================
@@ -65,7 +64,6 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	fontRenderService_ = std::make_unique<FontRenderService>(*textureUploadService_);
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
-	lightingBake_ = std::make_unique<BakedLightingBake>();
 	environmentSpecularMap_ = std::make_unique<EnvironmentSpecularMap>();
 }
 
@@ -108,8 +106,6 @@ void Engine::GraphicsCore::BeginRenderFrame() {
 	// Present -> RenderTarget
 	dxCommand->TransitionBarriers({ swapChain_->GetCurrentResource() },
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	// ベイク作業は現在の描画Frameへ分割して記録する
-	lightingBake_->Tick(*this);
 }
 
 void Engine::GraphicsCore::Render() {
@@ -159,7 +155,6 @@ void Engine::GraphicsCore::Finalize() {
 	drain();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
-	lightingBake_.reset();
 	environmentSpecularMap_.reset();
 	fontRenderService_.reset();
 	if (builtinTextureLibrary_) {
