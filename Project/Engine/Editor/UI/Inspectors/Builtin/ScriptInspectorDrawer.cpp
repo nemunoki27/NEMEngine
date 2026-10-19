@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -111,6 +112,12 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		const bool headerOpen = MyGUI::CollapsingHeader(headerID.c_str());
 		if (ImGui::BeginPopupContextItem()) {
 
+			// ビルドの成否にかかわらず定義元を開けるようにする
+			const auto* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+			const auto source = EditorSourceNavigation::ResolveScriptFile(entry, database);
+			if (ImGui::MenuItem("スクリプトを開く", nullptr, false, !source.empty())) {
+				EditorSourceNavigation::OpenScript(entry, database);
+			}
 			if (ImGui::MenuItem("スクリプトを削除")) {
 				removeIndex = static_cast<int32_t>(i);
 			}

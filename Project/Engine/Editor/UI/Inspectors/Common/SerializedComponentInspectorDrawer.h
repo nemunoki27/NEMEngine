@@ -128,10 +128,11 @@ namespace Engine {
 
 		if (drawHeader_) {
 
-			// ヘッダーを右クリックしたらコンポーネント削除メニューを出す
+			// ヘッダーの右クリックでソース移動と削除を選ぶ
 			const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
 			if (ImGui::BeginPopupContextItem()) {
 
+				InspectorDrawerCommon::DrawComponentSourceMenu(GetEditorSourceFile());
 				if (ImGui::MenuItem("コンポーネントを削除")) {
 					if (context.host) {
 						context.host->ExecuteEditorCommand(

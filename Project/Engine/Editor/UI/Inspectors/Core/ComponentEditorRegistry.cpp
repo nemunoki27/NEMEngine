@@ -39,6 +39,10 @@ Engine::IInspectorComponentDrawer* Engine::ComponentEditorRegistry::Register(Com
 	if (descriptor.drawerFactory) {
 
 		std::unique_ptr<IInspectorComponentDrawer> created = descriptor.drawerFactory();
+		// 表示名とは分けて編集元をDrawerへ渡す
+		if (created) {
+			created->SetEditorSourceFile(descriptor.editorSourceFile);
+		}
 		drawer = created.get();
 		drawers_.emplace_back(std::move(created));
 	}

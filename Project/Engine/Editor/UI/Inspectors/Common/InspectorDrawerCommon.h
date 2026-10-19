@@ -25,6 +25,9 @@
 //============================================================================
 namespace Engine::InspectorDrawerCommon {
 
+	// 開発環境でのみコンポーネントの編集元を開く項目を描画する
+	void DrawComponentSourceMenu(const std::string& sourceFile);
+
 	// 描画と同じ索引から既定Materialを選ぶ
 	AssetID ResolveDefaultMaterial(const EditorPanelContext& context, DefaultMaterialSlot slot);
 

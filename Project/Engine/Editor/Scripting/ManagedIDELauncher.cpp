@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Utility/VisualStudioLauncher.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
@@ -34,35 +35,6 @@ namespace {
 	// 使用者ごとのIDE設定を取得
 	std::filesystem::path UserSettingsPath() {
 		return Engine::RuntimePaths::GetUserSettingsPath("Editor/ManagedIDE.json");
-	}
-
-	// インストール済みVisual Studioのdevenv.exeを探す
-	std::filesystem::path FindVisualStudioExecutable() {
-
-		const std::filesystem::path roots[] = {
-			Engine::Algorithm::GetEnvironmentPath(L"ProgramFiles"),
-			Engine::Algorithm::GetEnvironmentPath(L"ProgramFiles(x86)"),
-		};
-		const char* versions[] = { "18", "17", "16" };
-		const char* editions[] = { "Community", "Professional", "Enterprise", "Preview" };
-
-		for (const auto& root : roots) {
-			if (root.empty()) {
-				continue;
-			}
-			for (const char* version : versions) {
-				for (const char* edition : editions) {
-
-					const std::filesystem::path devenv =
-						root / "Microsoft Visual Studio" / version / edition / "Common7/IDE/devenv.exe";
-					std::error_code ec{};
-					if (std::filesystem::exists(devenv, ec) && !ec) {
-						return devenv;
-					}
-				}
-			}
-		}
-		return {};
 	}
 
 	// 設定されたScriptプロジェクトを解決
@@ -174,21 +146,11 @@ bool Engine::ManagedIDELauncher::OpenFile(const std::filesystem::path& file, int
 	// VisualStudioが見つかれば既存のウィンドウで開く
 	if (g_settings.mode == "VisualStudio") {
 
-		const std::filesystem::path devenv = FindVisualStudioExecutable();
-		if (!devenv.empty()) {
-			// 既存のインスタンスへファイルを渡す
-			const std::wstring parameters = L"/Edit \"" + file.wstring() + L"\"";
-			const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", devenv.wstring().c_str(),
-				parameters.c_str(), nullptr, SW_SHOWNORMAL);
-			if (reinterpret_cast<INT_PTR>(result) > 32) {
-				return true;
-			}
-			ReportLaunchDiagnostic("failed to launch Visual Studio (devenv). falling back to system default open.");
+		if (VisualStudioLauncher::OpenFile(file)) {
+			return true;
 		}
-		else {
-			ReportLaunchDiagnostic("Visual Studio (devenv.exe) not found. falling back to system default open.");
-		}
-		// 見つからない場合はOSの関連付けを使用
+		// 既存のIDE設定では起動失敗時の関連付けを維持する
+		ReportLaunchDiagnostic("Visual Studioで開けないためOSの関連付けを使用します");
 	}
 	else if (g_settings.mode == "Executable") {
 

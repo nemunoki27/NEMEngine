@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -301,9 +302,7 @@ const Engine::EditorLayoutSnapshot* Engine::EditorLayoutManager::FindLayout(cons
 
 bool Engine::EditorLayoutManager::IsEngineSourceProject() const {
 
-	std::error_code ec;
-	return std::filesystem::equivalent(
-		RuntimePaths::GetProjectRoot(), RuntimePaths::GetEngineProjectRoot(), ec) && !ec;
+	return EditorSourceNavigation::IsEngineSourceProject();
 }
 
 void Engine::EditorLayoutManager::RebuildMenuEntries() {

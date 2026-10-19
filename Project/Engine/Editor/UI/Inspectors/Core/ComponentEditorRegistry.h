@@ -29,6 +29,8 @@ namespace Engine {
 		std::string typeName;
 		// メニュー分類名
 		std::string category;
+		// Engine/Editor基準のInspector描画元
+		std::string editorSourceFile;
 		// 複数追加を許可するか
 		bool allowMultiple = false;
 		// 追加削除メニューに表示するか

@@ -470,7 +470,20 @@
                     "layer": 0,
                     "lighting": true,
                     "material": "d3ca1000000000000000000000000005",
-                    "materialInstance": [],
+                    "materialInstance": [
+                        {
+                            "id": "c65b493a4e9d7f55",
+                            "name": "roughness",
+                            "semantic": "Roughness",
+                            "value": 0.5
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 0.0
+                        }
+                    ],
                     "order": 0,
                     "plane": {
                         "axis": "XY",

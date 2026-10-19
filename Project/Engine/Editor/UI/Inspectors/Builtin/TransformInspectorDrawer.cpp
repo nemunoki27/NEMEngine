@@ -7,6 +7,8 @@
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
+#include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
@@ -39,7 +41,13 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 		SyncDraftFromWorld(world, entity);
 	}
 
-	if (!MyGUI::CollapsingHeader("Transform")) {
+	// 折り畳み中でも編集元を開けるようにする
+	const bool headerOpen = MyGUI::CollapsingHeader("Transform");
+	if (EditorSourceNavigation::IsEngineSourceProject() && ImGui::BeginPopupContextItem()) {
+		InspectorDrawerCommon::DrawComponentSourceMenu(GetEditorSourceFile());
+		ImGui::EndPopup();
+	}
+	if (!headerOpen) {
 		return;
 	}
 

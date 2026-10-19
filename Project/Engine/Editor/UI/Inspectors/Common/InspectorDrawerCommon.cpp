@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -28,6 +29,18 @@
 //============================================================================
 //	InspectorDrawerCommon namespaceMethods
 //============================================================================
+void Engine::InspectorDrawerCommon::DrawComponentSourceMenu(const std::string& sourceFile) {
+
+	// SDKでは編集元を開く項目を表示しない
+	if (!EditorSourceNavigation::IsEngineSourceProject()) {
+		return;
+	}
+	const auto source = EditorSourceNavigation::ResolveComponentEditorFile(sourceFile);
+	if (ImGui::MenuItem("コンポーネント編集.cppを開く", nullptr, false, !source.empty())) {
+		EditorSourceNavigation::OpenComponentEditor(sourceFile);
+	}
+}
+
 Engine::AssetID Engine::InspectorDrawerCommon::ResolveDefaultMaterial(
 	const EditorPanelContext& context, DefaultMaterialSlot slot) {
 

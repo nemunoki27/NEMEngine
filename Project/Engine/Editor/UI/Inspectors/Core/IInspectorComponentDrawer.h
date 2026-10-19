@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 
+// c++
+#include <string>
+
 namespace Engine {
 
 	//============================================================================
@@ -31,5 +34,18 @@ namespace Engine {
 
 		// 対象エンティティに対して描画できるか
 		virtual bool CanDraw(ECSWorld& world, const Entity& entity) const = 0;
+		// コンポーネントの編集元を登録する
+		void SetEditorSourceFile(const std::string& sourceFile) { editorSourceFile_ = sourceFile; }
+		// Engine/Editor基準の編集元を取得する
+		const std::string& GetEditorSourceFile() const { return editorSourceFile_; }
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// コンポーネントのInspector描画を実装する相対パス
+		std::string editorSourceFile_;
 	};
 } // Engine
