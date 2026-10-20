@@ -1,5 +1,5 @@
 #include "EditorRefactoringTests.h"
-#include <Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.h>
+#include "TestContracts.h"
 #include "CommandHistoryTests.h"
 #include "EditorEntityCommandTests.h"
 #include "EditorDeleteCommandTests.h"
@@ -395,65 +395,8 @@ namespace {
 
 bool TestEditorContracts() {
 
-	// 未計測の連続時間で非表示にし再計測で復帰する
-	Engine::ConsoleGPUPassTooltipState tooltip;
-	const std::array<Engine::FrameProfiler::GPUPassTime, 1> measured{{{ "Game/Lighting", 1.0f, 1, "Game" }}};
-	tooltip.Update(measured, 1, true, 0.0);
-	tooltip.Update({}, 2, true, 0.1);
-	tooltip.Update({}, 2, true, 3.0);
-	if (tooltip.GetViews().size() != 1 || tooltip.GetViews()[0].passTimes[0].time.frameID != 0) return false;
-	tooltip.Update({}, 2, true, 3.1001);
-	if (!tooltip.GetViews().empty()) return false;
-	tooltip.Update(measured, 3, true, 3.2);
-	if (tooltip.GetViews().size() != 1) return false;
-	tooltip.Update({}, 4, true, 3.3);
-	tooltip.Update(measured, 5, true, 5.0);
-	tooltip.Update({}, 6, true, 5.1);
-	tooltip.Update({}, 6, true, 7.0);
-	if (tooltip.GetViews().size() != 1) return false;
-	tooltip.Update(measured, 7, true, 8.0);
-	tooltip.Update(measured, 7, false, 8.1);
-	tooltip.Update(measured, 7, false, 11.2);
-	if (tooltip.GetViews().empty()) return false;
-	// 計測待ちは行を消さず、ホバー中は欠測が続いても配置を変えない
-	tooltip.Update(measured, 8, true, 11.3, true);
-	tooltip.Update({}, 9, true, 11.4, true);
-	tooltip.Update({}, 9, true, 15.0, true);
-	if (tooltip.GetViews().size() != 1 || tooltip.GetViews()[0].passTimes[0].time.frameID != 0) return false;
-	tooltip.Update({}, 9, true, 15.1, false);
-	if (!tooltip.GetViews().empty()) return false;
-	// ホバー中は新しいパスや入力順の変化を次回表示まで保留する
-	Engine::ConsoleGPUPassTooltipState stable;
-	const std::array<Engine::FrameProfiler::GPUPassTime, 2> initial{{
-		{"Game/Opaque", 1.0f, 1, "CameraA"}, {"Game/Lighting", 2.0f, 1, "CameraA"}}};
-	const std::array<Engine::FrameProfiler::GPUPassTime, 3> reordered{{
-		{"Game/Lighting", 3.0f, 2, "CameraA"}, {"Game/AO", 4.0f, 2, "CameraA"}, {"Game/Opaque", 5.0f, 2, "CameraA"}}};
-	stable.Update({}, 0, false, 0.0, true);
-	stable.Update(initial, 1, true, 0.05, true);
-	stable.Update(reordered, 2, true, 0.1, true);
-	if (stable.GetViews().size() != 1 || stable.GetViews()[0].passTimes.size() != 2 ||
-		stable.GetViews()[0].passTimes[0].time.name != "Game/Opaque" ||
-		stable.GetViews()[0].passTimes[0].time.milliseconds != 5.0f ||
-		stable.GetViews()[0].totalMilliseconds != 12.0f) return false;
-	stable.Update(reordered, 3, true, 0.2, false);
-	if (stable.GetViews()[0].passTimes.size() != 3) return false;
-
-	// 副Viewを間引いたフレームでは直近の計測値を維持する
-	Engine::ConsoleGPUPassTooltipState alternating;
-	const std::array<Engine::FrameProfiler::GPUPassTime, 1> game{{{"Game/Opaque", 1.5f, 1, "GameCamera"}}};
-	const std::array<Engine::FrameProfiler::GPUPassTime, 1> gameAgain{{{"Game/Opaque", 1.7f, 3, "GameCamera"}}};
-	const std::array<Engine::FrameProfiler::GPUPassTime, 1> scene{{{"Scene/Opaque", 2.0f, 2, "SceneCamera"}}};
-	alternating.Update(game, 1, true, 0.0);
-	alternating.Update(scene, 2, true, 0.1);
-	if (alternating.GetViews().size() != 2 || alternating.GetViews()[0].passTimes[0].time.frameID != 1 ||
-		alternating.GetViews()[0].totalMilliseconds != 1.5f) return false;
-	alternating.Update(gameAgain, 3, true, 0.2);
-	alternating.Update(scene, 4, true, 0.3);
-	if (alternating.GetViews()[0].passTimes[0].time.frameID != 3) return false;
-	alternating.Update(scene, 5, true, 3.4);
-	if (alternating.GetViews().size() != 1 || alternating.GetViews()[0].name != "Scene") return false;
-
-	if (!NEMTests::TestEditorViewportVisibility() || !TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
+	if (!NEMTests::TestConsoleGPUPassContracts() || !NEMTests::TestEditorViewportVisibility() ||
+		!TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
 		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestPerformanceGridCommandHistory() ||

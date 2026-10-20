@@ -234,15 +234,23 @@ void Engine::PerformanceCheckTool::DrawWindow(const EditorToolContext& context) 
 	{
 		MyGUI::ScopedPropertyLabelWidth labelWidth("PerformanceCheckStatistics");
 		const FrameProfiler& profiler = FrameProfiler::GetInstance();
+		// CPUの内訳はConsoleと同じ平均値で表示する
+		const auto drawCPUTime = [&](const char* label, FrameProfiler::Category category) {
+			if (MyGUI::BeginPropertyRow(label)) {
+				ImGui::Text("%.3f ms", profiler.GetAverageMs(category));
+				MyGUI::EndPropertyRow();
+			}
+		};
 		if (MyGUI::BeginPropertyRow("FPS")) {
 			ImGui::Text("%.1f", profiler.GetFPS());
 			MyGUI::EndPropertyRow();
 		}
-		if (MyGUI::BeginPropertyRow("描画CPU")) {
-			ImGui::Text("%.3f ms", profiler.GetAverageMs(FrameProfiler::Category::Draw));
-			MyGUI::EndPropertyRow();
-		}
-		if (MyGUI::BeginPropertyRow("GPU合計")) {
+		drawCPUTime("描画全体CPU・待機込み", FrameProfiler::Category::Draw);
+		drawCPUTime("描画CPU・待機除外", FrameProfiler::Category::DrawCPU);
+		drawCPUTime("GPU完了待ち", FrameProfiler::Category::GPUWait);
+		drawCPUTime("画面表示CPU・同期待ち", FrameProfiler::Category::PresentCPU);
+		drawCPUTime("FPS制限待機", FrameProfiler::Category::FPSWait);
+		if (MyGUI::BeginPropertyRow("GPUパス合計")) {
 			ImGui::Text("%.3f ms", profiler.GetGPUTotalMs());
 			MyGUI::EndPropertyRow();
 		}

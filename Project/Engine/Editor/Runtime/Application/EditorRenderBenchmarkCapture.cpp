@@ -39,6 +39,9 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 	captureTimes_["frameMs"].push_back(deltaTime * 1000.0);
 	captureTimes_["updateMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::Update));
 	captureTimes_["drawMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::Draw));
+	captureTimes_["drawCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::DrawCPU));
+	captureTimes_["presentCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::PresentCPU));
+	captureTimes_["fpsWaitMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::FPSWait));
 	captureTimes_["gpuWaitMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::GPUWait));
 	const auto& rendering = profiler.GetRenderingStatistics();
 	captureTimes_["meshTransferBytes"].push_back(static_cast<double>(rendering.meshTransferBytes));

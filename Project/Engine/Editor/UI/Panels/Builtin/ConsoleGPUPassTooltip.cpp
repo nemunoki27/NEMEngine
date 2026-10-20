@@ -58,7 +58,7 @@ namespace {
 
 	void DrawGPUPassView(const Engine::ConsoleGPUPassViewSnapshot& view) {
 
-		ImGui::Text("[%s] GPU合計 : %.3f ms",
+		ImGui::Text("[%s] GPUパス合計 : %.3f ms",
 			view.name.empty() ? "-" : view.name.c_str(), view.totalMilliseconds);
 		ImGui::Spacing();
 
@@ -167,7 +167,6 @@ void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::G
 					std::string_view(time.name.data(), slash) : std::string_view{};
 				return time.viewID == view.viewID && name == view.name;
 			});
-			if (measured) view.totalMilliseconds = 0.0f;
 			for (auto& pass : view.passTimes) {
 				if (pass.missingSince < 0.0) pass.missingSince = now;
 				if (measured) pass.time.frameID = 0;
@@ -179,26 +178,39 @@ void Engine::ConsoleGPUPassTooltipState::Update(std::span<const FrameProfiler::G
 			const std::string name = slash != std::string::npos ? time.name.substr(0, slash) : std::string();
 			auto view = std::find_if(views_.begin(), views_.end(), [&](const auto& item) { return item.name == name && item.viewID == time.viewID; });
 			if (view == views_.end()) {
-				if (freezeRows) continue;
+				// ホバー中も新しいViewを末尾へ追加する
 				views_.push_back({ .name = name, .viewID = time.viewID });
 				view = std::prev(views_.end());
 			}
-			view->totalMilliseconds += time.milliseconds;
 			auto pass = std::find_if(view->passTimes.begin(), view->passTimes.end(), [&](const auto& item) {
 				return item.time.name == time.name && item.time.viewID == time.viewID;
 			});
 			if (pass == view->passTimes.end()) {
-				if (freezeRows) continue;
+				// 既存行の順番を保って新しいパスを末尾へ追加する
 				view->passTimes.push_back({ time, -1.0 });
+			} else if (pass->time.frameID != 0) {
+				// 同じ計測結果に含まれる同名パスを合算する
+				pass->time.milliseconds += time.milliseconds;
+			} else {
+				*pass = { time, -1.0 };
 			}
-			else *pass = { time, -1.0 };
 		}
 	}
-	// 三秒間更新されない行と空のグループを取り除く
-	if (freezeRows) return;
 	for (auto& view : views_) {
-		std::erase_if(view.passTimes, [&](const auto& pass) { return pass.missingSince >= 0.0 && now - pass.missingSince >= 3.0; });
+
+		// ホバー中は行を削除せず、それ以外は三秒で整理する
+		if (!freezeRows) {
+			std::erase_if(view.passTimes, [&](const auto& pass) {
+				return pass.missingSince >= 0.0 && now - pass.missingSince >= 3.0;
+			});
+		}
+		// 表示中の有効な計測行だけを合計する
+		view.totalMilliseconds = 0.0f;
+		for (const auto& pass : view.passTimes) {
+			if (pass.time.frameID != 0) view.totalMilliseconds += pass.time.milliseconds;
+		}
 	}
+	if (freezeRows) return;
 	std::erase_if(views_, [](const auto& view) { return view.passTimes.empty(); });
 	const auto priority = [](const std::string& name) { return name == "Game" ? 0 : name == "Scene" ? 1 : 2; };
 	std::stable_sort(views_.begin(), views_.end(), [&](const auto& lhs, const auto& rhs) {

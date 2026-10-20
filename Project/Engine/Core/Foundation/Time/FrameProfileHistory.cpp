@@ -2,8 +2,15 @@
 
 void Engine::FrameProfileHistory::BeginFrame(bool firstFrame) {
 
-	// 最古の記録へ上書きして履歴の確保を省く
-	if (!firstFrame) {
+	if (firstFrame) {
+
+		// 計測の再開時は古い平均値も破棄する
+		samples_ = {};
+		nextSample_ = 0;
+		sampleCount_ = 0;
+	} else {
+
+		// 最古の記録へ上書きして履歴の確保を省く
 		samples_[nextSample_] = accumulator_;
 		nextSample_ = (nextSample_ + 1) % kSampleCount;
 		if (sampleCount_ < kSampleCount) { ++sampleCount_; }

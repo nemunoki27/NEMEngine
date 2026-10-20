@@ -77,7 +77,12 @@ uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 	}
 
 	// GPUとOSに画面の交換を行うように通知する
-	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
+	HRESULT presentResult;
+	{
+		// 同期待ちを含むPresent呼出しだけを分けて計測する
+		FrameProfiler::ScopedSample presentSample(FrameProfiler::Category::PresentCPU);
+		presentResult = swapChain->Present(syncInterval, presentFlags);
+	}
 	if (!DxDREDDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::PresentAndSignal/Present")) {
 		throw std::runtime_error("SwapChainのPresentに失敗しました");
 	}
@@ -109,6 +114,8 @@ void FramePresenter::WaitForTargetFps() {
 	// 目標時間よりわずかに短い時間しか経っていない場合
 	if (elapsed < minCheckTime) {
 
+		// FPS制限で実際に待つ区間だけを計測する
+		FrameProfiler::ScopedSample fpsWaitSample(FrameProfiler::Category::FPSWait);
 		const auto waitUntil = reference_ + minTime;
 		// 最後のspin余白より前は高解像度sleepでCPUを使わずに待つ
 		const auto spinMargin = std::chrono::microseconds(1500);

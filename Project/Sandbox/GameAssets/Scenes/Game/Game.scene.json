@@ -1,0 +1,185 @@
+{
+  "Entities": [
+    {
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 0
+        },
+        "Name": {
+          "name": "Camera3D"
+        },
+        "PerspectiveCamera": {
+          "ambientOcclusionEnabled": true,
+          "ambientOcclusionIntensity": 1.0,
+          "ambientOcclusionQuality": 1,
+          "ambientOcclusionRadius": 1.0,
+          "colorPipeline": {
+            "colorGrading": {
+              "colorFilter": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+              },
+              "contrast": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "gain": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "gamma": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "offset": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "saturation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+              },
+              "temperature": 6500.0,
+              "tint": 0.0
+            },
+            "exposure": {
+              "compensation": 0.0,
+              "histogramHighPercent": 0.949999988079071,
+              "histogramLowPercent": 0.800000011920929,
+              "manualEV100": 0.0,
+              "maxEV100": 20.0,
+              "minEV100": -10.0,
+              "mode": "Manual",
+              "speedDown": 1.0,
+              "speedUp": 3.0,
+              "usePreExposure": true
+            },
+            "filmic": {
+              "blackClip": 0.0,
+              "shoulder": 0.0,
+              "slope": 1.0,
+              "toe": 0.0,
+              "whiteClip": 0.0
+            }
+          },
+          "cullingMask": -1,
+          "editorFrustumScale": 0.0020000000949949026,
+          "enabled": true,
+          "farClip": 4000.0,
+          "fovY": 60.0,
+          "isMain": true,
+          "nearClip": 0.009999999776482582,
+          "orthographicSize": 5.0,
+          "postProcessEnabled": true,
+          "priority": 0,
+          "projectionMode": "Perspective",
+          "reflectionEnabled": true,
+          "reflectionIntensity": 1.0,
+          "reflectionMaxDistance": 600.0,
+          "reflectionParameters": {},
+          "reflectionQuality": 1,
+          "renderPasses": "4e454d4153534554525450524f46494c",
+          "targetTexture": "",
+          "viewportHeight": 1.0,
+          "viewportWidth": 1.0,
+          "viewportX": 0.0,
+          "viewportY": 0.0
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "d29f3b5505530a37",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0.0,
+            "y": 2.0,
+            "z": -10.0
+          },
+          "localRotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "localScale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          }
+        }
+      },
+      "LocalFileID": "d29f3b5505530a37"
+    },
+    {
+      "Components": {
+        "DirectionalLight": {
+          "color": {
+            "a": 1.0,
+            "b": 1.0,
+            "g": 1.0,
+            "r": 1.0
+          },
+          "direction": {
+            "x": 0.0,
+            "y": -1.0,
+            "z": 0.0
+          },
+          "enabled": true,
+          "intensity": 10.0,
+          "shadowAngularRadius": 0.27000001072883606,
+          "shadowStrength": 0.9200000166893005
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 1
+        },
+        "Name": {
+          "name": "DirectionalLight"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "90d2bf4833f35fe9",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "localRotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "localScale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          }
+        }
+      },
+      "LocalFileID": "90d2bf4833f35fe9"
+    }
+  ],
+  "Header": {
+    "name": "Game",
+    "subScenes": []
+  },
+  "PrefabInstances": [],
+  "SchemaVersion": 3
+}

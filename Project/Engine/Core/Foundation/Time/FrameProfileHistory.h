@@ -26,6 +26,8 @@ namespace Engine {
 
 		void Add(float milliseconds) { accumulator_ += milliseconds; }
 		float GetAverage() const;
+		// 現在のフレームの累積時間を取得する
+		float GetCurrent() const { return accumulator_; }
 		// 直前に確定したframeの処理時間を取得する
 		float GetLatest() const;
 	private:

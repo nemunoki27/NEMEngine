@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
@@ -12,6 +13,31 @@
 #include <algorithm>
 
 namespace {
+
+	// FPS上限の候補から設定値を選ぶ
+	bool DrawFrameRateOptions(const char* label, uint32_t& fps) {
+
+		if (!ImGui::BeginMenu(label)) {
+			return false;
+		}
+		struct FrameRateItem {
+
+			const char* label;
+			uint32_t fps;
+		};
+		constexpr FrameRateItem kItems[] = {
+			{"30 FPS", 30u}, {"60 FPS", 60u}, {"120 FPS", 120u}, {"無制限", 0u}
+		};
+		bool changed = false;
+		for (const auto& item : kItems) {
+			if (ImGui::MenuItem(item.label, nullptr, fps == item.fps) && fps != item.fps) {
+				fps = item.fps;
+				changed = true;
+			}
+		}
+		ImGui::EndMenu();
+		return changed;
+	}
 
 	// 直前の設定項目に説明を表示する
 	void DrawGraphicsTooltip(const char* text) {
@@ -31,6 +57,26 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 	if (ImGui::BeginMenu("グラフィックス設定")) {
 
 		ImGui::SetWindowFontScale(0.8f);
+
+		// エディターと製品の上限を個別に設定して保存する
+		if (ImGui::BeginMenu("FPS上限")) {
+			auto& frameRate = FrameRateSettings::GetInstance();
+			uint32_t editorFPS = frameRate.GetEditorTargetFps();
+			uint32_t gameFPS = frameRate.GetTargetFps();
+			bool changed = false;
+			if (DrawFrameRateOptions("エディター", editorFPS)) {
+				frameRate.SetEditorTargetFps(editorFPS);
+				changed = true;
+			}
+			if (DrawFrameRateOptions("製品", gameFPS)) {
+				frameRate.SetTargetFps(gameFPS);
+				changed = true;
+			}
+			if (changed) {
+				frameRate.Save();
+			}
+			ImGui::EndMenu();
+		}
 
 		// GPUの対応状況と希望設定を取得
 		auto& featureController = context.graphicsPlatform->GetFeatureController();

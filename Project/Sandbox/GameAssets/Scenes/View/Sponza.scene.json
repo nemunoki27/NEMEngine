@@ -17590,6 +17590,144 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 7
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "4e454d41535345544195d8a0c7815abd",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "31d4f90ec37c453f",
+                                    "name": "emissiveIntensity",
+                                    "semantic": "EmissiveIntensity",
+                                    "value": 6.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.13559077680110931,
+                                        "g": 0.28868335485458374,
+                                        "r": 0.8851063847541809
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.009999999776482582
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 1.0
+                                }
+                            ],
+                            "name": "球",
+                            "sourcePivot": {
+                                "x": 5.066394805908203e-07,
+                                "y": 0.0,
+                                "z": 5.066394805908203e-07
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "6dce384cdb0f5524",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Model"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "b2c932b37d42fbc8",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 89.51526641845703,
+                        "y": 4.598045349121094,
+                        "z": -27.381038665771484
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 6.259999752044678,
+                        "y": 6.259999752044678,
+                        "z": 6.259999752044678
+                    }
+                }
+            },
+            "LocalFileID": "b2c932b37d42fbc8"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 6
                 },
                 "MeshRenderer": {

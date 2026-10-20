@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 // c++
+#include <algorithm>
 #include <utility>
 
 //============================================================================
@@ -27,6 +28,13 @@ void Engine::FrameProfiler::BeginFrame(float deltaTimeSec, float totalTimeSec) {
 
 	// 前フレームの累積を履歴へ確定し、今フレームの累積をリセットする
 	if (enabled_) {
+
+		// 同じフレームの累積値から待機を除いた描画時間を確定する
+		const float draw = measures_[static_cast<size_t>(Category::Draw)].GetCurrent();
+		const float gpuWait = measures_[static_cast<size_t>(Category::GPUWait)].GetCurrent();
+		const float present = measures_[static_cast<size_t>(Category::PresentCPU)].GetCurrent();
+		const float fpsWait = measures_[static_cast<size_t>(Category::FPSWait)].GetCurrent();
+		measures_[static_cast<size_t>(Category::DrawCPU)].Add(std::max(0.0f, draw - gpuWait - present - fpsWait));
 		for (FrameProfileHistory& measure : measures_) {
 			measure.BeginFrame(firstFrame_);
 		}

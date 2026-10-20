@@ -149,12 +149,13 @@ namespace {
 					static_cast<double>(ecsStatistics.relocatedComponentBytes) / 1024.0);*/
 		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
-		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する
-		ImGui::Text("描画処理          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
+		// CPUの全体時間とGPUのパス計測を分けて表示する
+		ImGui::Text("描画全体CPU・待機込み : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
 		Engine::DrawConsoleGPUPassTooltip(profiler, ImGui::IsItemHovered());
+		ImGui::Text("  描画CPU・待機除外 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::DrawCPU));
 
 		// Mesh更新のCPU時間を表示し、内訳と更新量はツールチップで確認する
-		ImGui::Text("  Meshバッチ構築・転送 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
+		ImGui::Text("    Meshバッチ構築・転送 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
 		if (ImGui::IsItemHovered()) {
 			ImGui::BeginTooltip();
 			const auto& meshStats = profiler.GetRenderingStatistics();
@@ -172,8 +173,10 @@ namespace {
 			ImGui::EndTooltip();
 		}
 
-		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
-		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
+		// 待機を含む区間は描画全体の内訳として表示する
+		ImGui::Text("  GPU完了待ち      : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
+		ImGui::Text("  画面表示CPU・同期待ち : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::PresentCPU));
+		ImGui::Text("  FPS制限待機      : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::FPSWait));
 
 		ImGui::Separator();
 

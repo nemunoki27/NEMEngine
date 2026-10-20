@@ -31,12 +31,15 @@ namespace Engine {
 			Update,  // 更新全体でEngineApplication::Tick相当
 			ECS,     // ECSシステムの処理
 			Script,  // C#スクリプトの処理
-			Draw,    // 描画処理
+			Draw,    // 待機を含む描画全体のCPU経過時間
 			GPUWait, // GPU完了待ちでCPUがブロックした時間
 			MeshBatchUpload, // Meshバッチ構築、差分更新、転送のCPU時間
 			MeshBatchBuild,
 			MeshBufferTransfer,
 			MeshMaterialBuild,
+			DrawCPU, // GPU完了待ち、Present、FPS制限待機を除く描画CPU
+			PresentCPU, // 同期待ちを含むPresent呼出しのCPU経過時間
+			FPSWait, // FPS制限のためにCPUが待機した時間
 			Count
 		};
 

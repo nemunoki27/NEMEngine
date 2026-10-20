@@ -1,6 +1,6 @@
 {
     "gameView": true,
-    "guid": "4e454d4153534554525450524f46494c",
+    "guid": "ecd319762c7eaec8d1f482918376d534",
     "hierarchy": [
         {
             "id": "446d68c2c960ee52",
@@ -91,29 +91,29 @@
                     "id": "052165ef2b8013db",
                     "name": "density",
                     "semantic": "None",
-                    "value": 0.0020000000949949026
+                    "value": 0.003000000026077032
                 },
                 {
                     "id": "1b9a034624b9a4aa",
                     "name": "intensity",
                     "semantic": "None",
-                    "value": 0.36000001430511475
+                    "value": 0.7300000190734863
                 },
                 {
                     "id": "1e4984ef2e958a4c",
                     "name": "tint",
                     "semantic": "None",
                     "value": [
-                        0.9900000095367432,
-                        0.6700000166893005,
-                        0.7699999809265137
+                        1.0,
+                        1.0,
+                        1.0
                     ]
                 },
                 {
                     "id": "5928775f0f66057d",
                     "name": "anisotropy",
                     "semantic": "None",
-                    "value": 0.6299999952316284
+                    "value": 0.5400000214576721
                 },
                 {
                     "id": "7c314e706d951238",
