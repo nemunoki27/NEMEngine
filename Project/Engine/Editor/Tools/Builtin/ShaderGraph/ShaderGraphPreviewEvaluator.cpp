@@ -1,4 +1,5 @@
 #include "ShaderGraphPreviewEvaluator.h"
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 
 //============================================================================
 //	include
@@ -50,7 +51,7 @@ struct Engine::ShaderGraphPreviewEvaluator::PreviewState {
 	PipelineBindingCache::SlotID constantsSlot = PipelineBindingCache::kInvalidSlot;
 
 	// GPU使用中の定数を上書きしないフレーム別の保存先
-	std::array<std::vector<std::unique_ptr<DxConstBuffer<PreviewConstants>>>, kGraphicsFrameContextCount> constantBuffers{};
+	GraphicsFrameResourceArray<std::vector<std::unique_ptr<DxConstBuffer<PreviewConstants>>>> constantBuffers{};
 	std::array<uint32_t, kGraphicsFrameContextCount> constantBufferIndices{};
 	std::array<uint64_t, kGraphicsFrameContextCount> constantBufferFrameSerials{};
 
@@ -64,6 +65,8 @@ struct Engine::ShaderGraphPreviewEvaluator::PreviewState {
 
 	// 同じ描画中でもノードごとに異なる定数を確保する
 	DxConstBuffer<PreviewConstants>& AllocateConstantBuffer(GraphicsCore& graphicsCore) {
+
+		constantBuffers.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
 
 		const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
 		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();

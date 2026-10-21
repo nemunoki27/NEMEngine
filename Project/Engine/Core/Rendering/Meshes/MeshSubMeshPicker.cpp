@@ -39,7 +39,9 @@ void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 	renderTarget_.Create(graphicsCore.GetDXObject().GetDevice(),
 		&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(), desc);
-	for (ReadbackSlot& slot : readbackSlots_) {
+	readbackSlots_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
+	for (uint32_t index = 0; index < GraphicsFrameState::GetActiveCount(); ++index) {
+		auto& slot = readbackSlots_[index];
 		slot.buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice());
 		slot.requestID = 0;
@@ -132,6 +134,9 @@ bool Engine::MeshSubMeshPicker::ExecuteReadback(
 		kGraphicsFrameContextCount];
 	if (slot.pending) {
 		return false;
+	}
+	if (!slot.buffer.GetResource()) {
+		slot.buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 	}
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	sourceTexture->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);

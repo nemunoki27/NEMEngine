@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
@@ -23,12 +24,14 @@
 #include <memory>
 #include <array>
 #include <vector>
+#include <unordered_map>
 
 namespace Engine {
 
 	// front
 	class GraphicsCore;
 	class RenderTexture2D;
+	class RenderFeatureProfileRuntime;
 	struct RenderPipelineDeps;
 
 	//============================================================================
@@ -113,7 +116,26 @@ namespace Engine {
 			float padding = 0.0f;
 		};
 
+		struct ShadowRequirementKey {
+
+			const RenderFeatureProfileRuntime* runtime = nullptr;
+			uint64_t profile = 0;
+			uint64_t world = 0;
+			uint64_t overrides = 0;
+			uint64_t material = 0;
+			uint64_t pipeline = 0;
+			uint32_t features = 0;
+			bool operator==(const ShadowRequirementKey&) const = default;
+		};
+		struct ShadowRequirement {
+
+			ShadowRequirementKey key;
+			bool required = false;
+			bool valid = false;
+		};
 		//--------- variables ----------------------------------------------------
+
+		std::unordered_map<std::string, ShadowRequirement> shadowRequirements_;
 
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
 		std::unique_ptr<PipelineState> pipeline_;
@@ -123,7 +145,7 @@ namespace Engine {
 		bool shadowedAvailable_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
-		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>, kGraphicsFrameContextCount>
+		GraphicsFrameResourceArray<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>>
 			constantBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> constantBufferIndices_{};
 		std::array<uint64_t, kGraphicsFrameContextCount> constantBufferFrameSerials_{};

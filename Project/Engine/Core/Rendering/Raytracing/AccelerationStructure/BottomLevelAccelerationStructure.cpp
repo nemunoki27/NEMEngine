@@ -117,6 +117,7 @@ void Engine::BottomLevelAccelerationStructure::BuildResources(ID3D12Device8* dev
 		inputs_.Flags |=
 			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
 	}
+	if (!allowUpdate_ && input.submission) inputs_.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
@@ -138,6 +139,8 @@ void Engine::BottomLevelAccelerationStructure::BuildResources(ID3D12Device8* dev
 
 	// UAVバリアを挿入してASの構築完了を待つ
 	result_.InsertUAVBarrier(commandList);
+	originalBytes_ = result_.GetResource()->GetDesc().Width;
+	if (!allowUpdate_ && input.submission) RecordCompactionSize(commandList, input.submission);
 	RetireStaticScratch();
 }
 
@@ -179,7 +182,7 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 	ID3D12GraphicsCommandList6* commandList,
 	const RaytracingBLASInput& input) {
 
-	if (!result_.GetResource() ||
+	if (!result_.GetResource() || compaction_ || (!allowUpdate_ && result_.GetResource()->GetDesc().Width < originalBytes_) ||
 		layoutHash_ != ComputeLayoutHash(input)) {
 		Build(device_, commandList, input);
 		return;
@@ -247,6 +250,8 @@ void Engine::BottomLevelAccelerationStructure::Swap(BottomLevelAccelerationStruc
 	std::swap(scratchSize_, other.scratchSize_);
 	std::swap(geometryDescs_, other.geometryDescs_);
 	std::swap(layoutHash_, other.layoutHash_);
+	std::swap(compaction_, other.compaction_);
+	std::swap(originalBytes_, other.originalBytes_);
 }
 
 void Engine::BottomLevelAccelerationStructure::SetRetirementQueue(GraphicsResourceRetirement& queue) {
@@ -257,6 +262,7 @@ void Engine::BottomLevelAccelerationStructure::SetRetirementQueue(GraphicsResour
 
 void Engine::BottomLevelAccelerationStructure::Release() {
 
+	ReleaseCompaction();
 	if (retirementQueue_) retirementQueue_->ReservePending(2);
 	if (scratch_.GetResource()) retirementQueue_->Retire(scratch_.TakeResource());
 	if (result_.GetResource()) retirementQueue_->Retire(result_.TakeResource());
@@ -268,4 +274,5 @@ void Engine::BottomLevelAccelerationStructure::Release() {
 	scratchSize_ = 0;
 	geometryDescs_.clear();
 	layoutHash_ = 0;
+	originalBytes_ = 0;
 }

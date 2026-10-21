@@ -4,23 +4,17 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
-#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 
-#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
@@ -28,12 +22,8 @@
 
 // c++
 #include <algorithm>
-#include <bit>
-#include <cmath>
 #include <cstddef>
-#include <memory>
 #include <span>
-#include <unordered_set>
 #include <variant>
 
 //============================================================================
@@ -77,31 +67,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		}
 		work.staticScene = work.staticScene && !meshResource->isSkinned;
 		work.blasGeometryCount += visibleSubMeshCount;
-		const uint64_t geometryLayoutHash =
+		const uint64_t geometryTransformHash =
 			ComputeGeometryLayoutHash(subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
+		uint64_t geometryLayoutHash = geometryTransformHash;
 		const bool hasCustomGeometryTransforms =
-			geometryLayoutHash != ComputeGeometryLayoutHash({}, static_cast<uint32_t>(meshResource->subMeshes.size()));
+			geometryTransformHash != ComputeGeometryLayoutHash({}, static_cast<uint32_t>(meshResource->subMeshes.size()));
 		StaticInstanceBLASKey staticInstanceKey{};
 		StaticInstanceBLASEntry* staticInstanceEntry = nullptr;
 		bool usesInstanceBLAS = false;
-		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
-
-			staticInstanceKey.world = src.world;
-			staticInstanceKey.worldLifetime = src.world ? src.world->GetLifetime() : nullptr;
-			staticInstanceKey.entity = src.entity;
-			staticInstanceKey.meshAssetID = src.meshAssetID;
-			staticInstanceKey.reloadGeneration = meshResource->reloadGeneration;
-			StaticInstanceBLASEntry& entry = blasCache_.staticInstanceBLASes_[staticInstanceKey];
-			entry.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
-			if (!entry.layoutInitialized) {
-				entry.geometryLayoutHash = geometryLayoutHash;
-				entry.layoutInitialized = true;
-			} else if (entry.geometryLayoutHash != geometryLayoutHash) {
-				entry.dedicated = true;
-			}
-			staticInstanceEntry = &entry;
-			usesInstanceBLAS = entry.dedicated;
-		}
 		Vector3 worldBoundsCenter{};
 		float worldBoundsRadius = 0.0f;
 		CalculateMeshWorldBounds(*meshResource, subMeshes, src.worldMatrix, worldBoundsCenter, worldBoundsRadius);
@@ -282,13 +255,18 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 					MaterialSurfaceMode::Transparent : MaterialSurfaceMode::Opaque;
 				if (hasMesh) renderState = MeshDrawPathCommon::ResolveSubMeshRenderState(*src.renderer, subMeshes[subMeshIndex]);
 			}
-			const auto* material = work.assetLibrary.LoadMaterial(renderState.material);
+			const auto* material = work.assetLibrary.LoadMaterial(work.materialResolver.ResolveORDefault(
+				work.assetDatabase, renderState.material, DefaultMaterialSlot::Mesh));
 			if (material && material->renderState.overridesRenderer && !renderState.surfaceModeOverridden) {
 				renderState.surfaceMode = material->renderState.surfaceMode;
 			}
 			const float alphaCutoff = hasMesh ? subMeshes[subMeshIndex].alphaCutoff : 0.5f;
 			subMeshData._materialPad = (static_cast<uint32_t>(renderState.surfaceMode) << 16u) |
 				static_cast<uint32_t>(std::clamp(alphaCutoff, 0.0f, 1.0f) * 65535.0f);
+			// 確実に不透明な標準MaterialだけをHWで確定する
+			geometries.back().flags = MaterialRenderPolicy::IsOpaqueGeometry(material, renderState.surfaceMode) ?
+				D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+			Algorithm::HashCombine(geometryLayoutHash, static_cast<uint32_t>(geometries.back().flags));
 			// サブメッシュデータを追加
 			result_.sceneSubMeshScratch_.emplace_back(subMeshData);
 
@@ -317,21 +295,28 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			result_.sceneGeometryBounds_.push_back(bounds);
 		}
 
+		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
+
+			staticInstanceKey.world = src.world;
+			staticInstanceKey.worldLifetime = src.world ? src.world->GetLifetime() : nullptr;
+			staticInstanceKey.entity = src.entity;
+			staticInstanceKey.meshAssetID = src.meshAssetID;
+			staticInstanceKey.reloadGeneration = meshResource->reloadGeneration;
+			StaticInstanceBLASEntry& entry = blasCache_.staticInstanceBLASes_[staticInstanceKey];
+			entry.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
+			if (!entry.layoutInitialized) {
+				entry.geometryLayoutHash = geometryTransformHash;
+				entry.layoutInitialized = true;
+			} else if (entry.geometryLayoutHash != geometryTransformHash) {
+				entry.dedicated = true;
+			}
+			staticInstanceEntry = &entry;
+			usesInstanceBLAS = entry.dedicated;
+		}
 		RaytracingBLASInput input{};
 		input.geometries = geometries;
 		input.allowUpdate = hasSkinnedSource;
-		auto buildLODGeometries = [&](uint32_t lodIndex) {
-			// 表示するLODだけを更新
-			std::vector<RaytracingBLASGeometryInput> lodGeometries = geometries;
-			for (uint32_t geometryIndex = 0; geometryIndex < static_cast<uint32_t>(lodGeometries.size()); ++geometryIndex) {
-
-				const uint32_t subMeshIndex = geometrySubMeshIndices[geometryIndex];
-				const MeshLODRange& range = ResolveRaytracingLODRange(meshResource->subMeshes[subMeshIndex], lodIndex);
-				lodGeometries[geometryIndex].indexAddress = indexAddress + static_cast<uint64_t>(indexSize) * range.indexOffset;
-				lodGeometries[geometryIndex].indexCount = range.indexCount;
-			}
-			return lodGeometries;
-		};
+		input.submission = work.graphicsCore.GetDXObject().GetDxCommand()->GetSubmissionTicket();
 
 		ID3D12Resource* blasResource = nullptr;
 		if (hasSkinnedSource) {
@@ -380,7 +365,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		} else if (usesInstanceBLAS) {
 
 			StaticInstanceBLASEntry& entry = *staticInstanceEntry;
-			std::vector<RaytracingBLASGeometryInput> lodGeometries = buildLODGeometries(selectedLOD);
+			std::vector<RaytracingBLASGeometryInput> lodGeometries = BuildLODGeometries(*meshResource, geometries, geometrySubMeshIndices, selectedLOD);
 			RaytracingBLASInput lodInput{};
 			lodInput.geometries = lodGeometries;
 			lodInput.allowUpdate = true;
@@ -404,7 +389,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			}
 			entry.lodGeometryLayoutHashes[selectedLOD] = geometryLayoutHash;
 			blasResource = blas.GetResource();
-			entry.geometryLayoutHash = geometryLayoutHash;
+			entry.geometryLayoutHash = geometryTransformHash;
 		} else {
 
 			const uint32_t blasLODCount = meshResource->isSkinned ? 1 : kMeshLODCount;
@@ -428,11 +413,12 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 					continue;
 				}
 
-				std::vector<RaytracingBLASGeometryInput> lodGeometries = buildLODGeometries(lodIndex);
+				std::vector<RaytracingBLASGeometryInput> lodGeometries = BuildLODGeometries(*meshResource, geometries, geometrySubMeshIndices, lodIndex);
 
 				RaytracingBLASInput lodInput{};
 				lodInput.geometries = lodGeometries;
 				lodInput.allowUpdate = false;
+				lodInput.submission = input.submission;
 
 				BottomLevelAccelerationStructure& blas = blasCache_.blases_[key];
 				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());

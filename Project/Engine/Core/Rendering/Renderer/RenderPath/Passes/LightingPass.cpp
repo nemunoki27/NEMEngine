@@ -55,6 +55,8 @@ Engine::LightingPass::LightingPass(const RenderPipelineDeps& deps) : deps_(deps)
 
 void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat) {
 
+	constantBuffers_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
+
 	if (initialized_) {
 		return;
 	}
@@ -155,6 +157,7 @@ void Engine::LightingPass::RetainViews(const std::unordered_set<std::string>& vi
 
 	inlineShadows_.RetainViews(viewKeys);
 	directionalShadows_.RetainViews(viewKeys);
+	std::erase_if(shadowRequirements_, [&](const auto& entry) { return !viewKeys.contains(entry.first); });
 }
 
 void Engine::LightingPass::Execute(
@@ -320,6 +323,15 @@ bool Engine::LightingPass::RequiresDirectionalShadowMap(GraphicsCore& graphicsCo
 
 	if (!context.renderPassesRuntime) return false;
 	const auto features = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	const ShadowRequirementKey key{context.renderPassesRuntime, context.renderPassesGeneration,
+		context.view->historyWorldRevision, RenderFeatureRuntimeOverrides::GetInstance().GetPlanRevision(),
+		*deps_.assetLibrary->GetMaterialRevision(), deps_.pipelineCache->GetContentRevision(),
+		uint32_t(features.useMeshShader) | (uint32_t(features.useInlineRayTracing) << 1u) |
+		(uint32_t(features.useDispatchRays) << 2u) | (uint32_t(features.useRaytracingDownsampling) << 3u)};
+	auto& cached = shadowRequirements_[context.view->GetHistoryKey()];
+	if (cached.valid && cached.key == key) return cached.required;
+	// 編集とShaderの世代が同じ間は入力一覧を調べ直さない
+	cached = {key, false, true};
 	for (const auto anchor : {RenderFeatureAnchor::AfterLighting, RenderFeatureAnchor::BeforeTransparent,
 		RenderFeatureAnchor::AfterTransparent, RenderFeatureAnchor::AfterPostProcessUI,
 		RenderFeatureAnchor::BeforeBlit, RenderFeatureAnchor::AfterToneMap}) {
@@ -330,14 +342,18 @@ bool Engine::LightingPass::RequiresDirectionalShadowMap(GraphicsCore& graphicsCo
 				!RenderFeatureRuntimeOverrides::GetInstance().IsEnabled(node.pass->id, node.pass->enabled)) continue;
 			const auto* material = deps_.assetLibrary->LoadMaterial(node.pass->material);
 			const auto* pass = material ? FindPass(*material, node.pass->materialPass) : nullptr;
-			if (!pass) continue;
+			if (!pass) { cached.valid = false; continue; }
 			PipelineStaticSamplerOverrideSet samplers;
 			samplers.fillMissingSamplers = true;
 			samplers.byName = node.pass->samplerOverrides;
 			const auto* pipeline = deps_.pipelineCache->GetORCreate(graphicsCore.GetDXObject(), *deps_.assetLibrary,
 				pass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN, features,
 				nullptr, false, &samplers, pass->shaderOverride);
-			if (pipeline && pipeline->FindBindingByName("DirectionalShadowConstants", ShaderBindingKind::CBV)) return true;
+			if (!pipeline) { cached.valid = false; continue; }
+			if (pipeline->FindBindingByName("DirectionalShadowConstants", ShaderBindingKind::CBV)) {
+				cached.required = true;
+				return true;
+			}
 		}
 	}
 	return false;

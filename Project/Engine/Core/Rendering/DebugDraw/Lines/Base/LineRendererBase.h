@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
@@ -127,8 +128,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		// 同じコマンドリスト内で複数回描画しても、後の描画内容で上書きしないためのバッファ
-		std::array<std::vector<std::unique_ptr<RenderResource>>,
-			kGraphicsFrameContextCount> renderResources_{};
+		GraphicsFrameResourceArray<std::vector<std::unique_ptr<RenderResource>>> renderResources_{};
 		std::array<uint32_t,
 			kGraphicsFrameContextCount> renderResourceIndices_{};
 		uint64_t resourceFrameSerial_ = UINT64_MAX;
@@ -169,6 +169,7 @@ namespace Engine {
 	template<typename T>
 	inline void LineRendererBase<T>::Init(GraphicsCore& graphicsCore, RenderCameraDomain cameraDomain) {
 
+		renderResources_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
 		cameraDomain_ = cameraDomain;
 
 		ID3D12Device8* device = graphicsCore.GetDXObject().GetDevice();
@@ -235,12 +236,6 @@ namespace Engine {
 		occludedVertices_.clear();
 		occludedMode_ = false;
 		occlusionDepth_ = nullptr;
-		// 同frameの別Viewから参照する領域を残す
-		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
-		if (resourceFrameSerial_ != serial) {
-			resourceFrameSerial_ = serial;
-			renderResourceIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
-		}
 	}
 
 	template<typename T>
@@ -354,6 +349,12 @@ namespace Engine {
 	inline typename LineRendererBase<T>::RenderResource& LineRendererBase<T>::AllocateRenderResource(GraphicsCore& graphicsCore) {
 
 		const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+		// 実際に描画するフレームのスロットで切り出し位置を戻す
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		if (resourceFrameSerial_ != serial) {
+			resourceFrameSerial_ = serial;
+			renderResourceIndices_[frameIndex] = 0;
+		}
 		auto& resources = renderResources_[frameIndex];
 		uint32_t& resourceIndex = renderResourceIndices_[frameIndex];
 		if (resources.size() <= resourceIndex) {

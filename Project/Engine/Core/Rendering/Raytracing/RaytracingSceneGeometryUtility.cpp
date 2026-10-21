@@ -19,6 +19,20 @@
 //============================================================================
 namespace Engine::RaytracingSceneGeometryUtility {
 
+	std::vector<RaytracingBLASGeometryInput> BuildLODGeometries(const MeshGPUResource& mesh,
+		std::vector<RaytracingBLASGeometryInput> geometries, std::span<const uint32_t> subMeshIndices, uint32_t lodIndex) {
+
+		const auto address = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress();
+		const auto stride = mesh.indexBuffer.GetIndexSizeInBytes();
+		// 表面方式とローカル変換は全LODで引き継ぐ
+		for (size_t index = 0; index < geometries.size(); ++index) {
+			const auto& range = ResolveRaytracingLODRange(mesh.subMeshes[subMeshIndices[index]], lodIndex);
+			geometries[index].indexAddress = address + uint64_t(stride) * range.indexOffset;
+			geometries[index].indexCount = range.indexCount;
+		}
+		return geometries;
+	}
+
 	void CollectRenderTextureParameters(const MaterialParameterSet& parameters, const AssetDatabase& database,
 		std::unordered_set<AssetID>& inputs) {
 

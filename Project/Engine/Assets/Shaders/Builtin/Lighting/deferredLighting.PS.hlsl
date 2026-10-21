@@ -16,7 +16,7 @@ Texture2D<float4> gMaterial : register(t3);
 Texture2D<float4> gEmissive : register(t4);
 Texture2D<uint> gFlags : register(t5);
 Texture2D<float4> gAmbientOcclusion : register(t17);
-StructuredBuffer<float2> gFilteredRaytracedShadows : register(t18);
+StructuredBuffer<uint> gFilteredRaytracedShadows : register(t18);
 StructuredBuffer<uint> gShadowLightIndices : register(t19);
 
 SamplerState gSampler : register(s0);
@@ -119,7 +119,7 @@ float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
 
 	uint slot = gShadowLightIndices[lightIndex];
 	if (slot == 0xFFFFFFFFu) return 0.0f;
-	return saturate(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x].x);
+	return float(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x] & 65535u) / 65535.0f;
 }
 
 

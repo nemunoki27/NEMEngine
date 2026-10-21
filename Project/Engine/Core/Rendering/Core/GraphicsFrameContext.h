@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameResources.h>
 
 // c++
 #include <array>
@@ -12,6 +13,7 @@
 #include <deque>
 #include <utility>
 #include <vector>
+#include <memory>
 
 // directX
 #include <d3d12.h>
@@ -19,9 +21,19 @@
 namespace Engine {
 
 	class BaseDescriptor;
+	class DxCommand;
+	// 記録中の処理へ、実際に提出したFenceを後から対応付ける
+	class GraphicsSubmissionState {
+	public:
+		uint64_t GetFenceValue() const { return fenceValue_; }
+	private:
+		friend class DxCommand;
+		uint64_t fenceValue_ = 0;
+	};
+	using GraphicsSubmissionTicket = std::shared_ptr<const GraphicsSubmissionState>;
 
 	// GPUリソース配列が確保する最大フレーム数
-	constexpr uint32_t kGraphicsFrameContextCount = 3;
+	constexpr uint32_t kGraphicsFrameContextCount = 2;
 	// 未使用領域を再利用候補として残すframe数
 	constexpr uint64_t kGraphicsResourceReuseFrames = 120;
 
@@ -35,6 +47,7 @@ namespace Engine {
 
 		ComPtr<ID3D12CommandAllocator> commandAllocator{};
 		uint64_t fenceValue = 0;
+		std::shared_ptr<GraphicsSubmissionState> submission;
 	};
 
 	//============================================================================
@@ -79,6 +92,10 @@ namespace Engine {
 		// 描画キューの完了済み候補を回収する
 		void Collect(uint64_t completedFenceValue);
 
+		// GPU完了後に未使用フレームの資源をその場で回収する
+		void ReleaseInactiveFrameResources(uint32_t count);
+		GraphicsFrameResourceRegistry& GetFrameResources() { return frameResources_; }
+
 		// Device消失を確認して終了時の保持を解除する
 		void ReleaseAfterDeviceRemoval(ID3D12Device* device);
 
@@ -106,6 +123,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		GraphicsFrameResourceRegistry frameResources_{};
+		bool immediateRelease_ = false;
 		std::vector<Entry> pending_;
 		std::deque<Batch> batches_;
 		size_t pendingCount_ = 0;

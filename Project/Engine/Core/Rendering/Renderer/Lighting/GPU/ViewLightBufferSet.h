@@ -71,6 +71,7 @@ namespace Engine {
 		uint32_t rectLTCMatrixIndex_ = UINT32_MAX;
 		uint32_t rectLTCAmplitudeIndex_ = UINT32_MAX;
 		std::array<uint64_t, kGraphicsFrameContextCount> uploadedSerials_{};
+		GraphicsFrameResourceRegistration frameRegistration_{};
 
 		// 初期化フラグ
 		bool initialized_ = false;

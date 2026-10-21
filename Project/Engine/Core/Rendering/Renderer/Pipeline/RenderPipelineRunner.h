@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderColorPrecisionPolicy.h>
 #include "RenderPreviewResources.h"
 #include "RenderPickingState.h"
 #include "RenderAssetReloadService.h"
@@ -265,6 +266,9 @@ namespace Engine {
 		ID3D12Resource* GetSceneViewTLASResource() const { return pickingState_.tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickingState_.pickRecords_; }
 		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickingState_.pickRecordOffsets_; }
+		uint64_t GetStaticBLASOriginalBytes() const { return raytracingSceneBuilder_.GetStaticBLASOriginalBytes(); }
+		uint64_t GetStaticBLASPublishedBytes() const { return raytracingSceneBuilder_.GetStaticBLASPublishedBytes(); }
+		uint64_t GetShadowAnalysisCount() const { return renderPath_.GetShadowAnalysisCount(); }
 
 		// 指定ピクセルだけを1x1整数RTへ描画する
 		bool RenderMeshPicking(GraphicsCore& graphicsCore,
@@ -287,6 +291,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		RenderScenePreparation scenePreparation_{};
+		RenderColorPrecisionPolicy colorPrecision_;
 		RenderPreviewResources previewResources_{};
 		RenderPickingState pickingState_{};
 

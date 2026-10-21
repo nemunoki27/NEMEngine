@@ -100,10 +100,9 @@ void Engine::MultiRenderTarget::Destroy() {
 void Engine::MultiRenderTarget::TransitionForRender(DxCommand& dxCommand) {
 
 	// レンダーターゲットへ遷移
-	for (auto& color : colors_) {
-
-		color->Transition(dxCommand, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	}
+	std::array<RenderTexture2D*, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> textures{};
+	for (size_t index = 0; index < colors_.size(); ++index) textures[index] = colors_[index].get();
+	RenderTexture2D::TransitionAll(dxCommand, std::span{ textures.data(), colors_.size() }, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	if (depth_) {
 
 		depth_->Transition(dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -113,10 +112,9 @@ void Engine::MultiRenderTarget::TransitionForRender(DxCommand& dxCommand) {
 void Engine::MultiRenderTarget::TransitionForShaderRead(DxCommand& dxCommand) {
 
 	// 色と深度を読み取り状態へ遷移する
-	for (auto& color : colors_) {
-
-		color->Transition(dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
+	std::array<RenderTexture2D*, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> textures{};
+	for (size_t index = 0; index < colors_.size(); ++index) textures[index] = colors_[index].get();
+	RenderTexture2D::TransitionAll(dxCommand, std::span{ textures.data(), colors_.size() }, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	if (depth_) {
 
 		depth_->Transition(dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

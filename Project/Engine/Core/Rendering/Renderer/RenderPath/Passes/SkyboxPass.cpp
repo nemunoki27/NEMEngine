@@ -25,6 +25,8 @@
 //============================================================================
 void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 
+	constantBuffers_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
+
 	if (initialized_) {
 		return;
 	}

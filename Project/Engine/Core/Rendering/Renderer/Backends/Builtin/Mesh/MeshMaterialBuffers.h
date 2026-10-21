@@ -63,7 +63,7 @@ namespace Engine {
 			std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
 				kGraphicsFrameContextCount> handles{};
 			std::array<uint32_t, kGraphicsFrameContextCount>
-				srvIndices = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
+				srvIndices = { UINT32_MAX, UINT32_MAX };
 			std::vector<uint8_t> packedScratch{};
 			std::vector<uint64_t> sourceGenerations;
 			uint64_t packedSourceGeneration = 0;
@@ -75,7 +75,7 @@ namespace Engine {
 			const MaterialAsset* material = nullptr;
 			uint64_t dataGeneration = 1;
 			std::array<uint64_t, kGraphicsFrameContextCount>
-				uploadedGenerations = { 0, 0, 0 };
+				uploadedGenerations = {};
 			uint32_t stride = 0;
 			bool available = false;
 			bool dirty = true;
@@ -88,6 +88,8 @@ namespace Engine {
 		std::array<std::unordered_map<AssetID, std::unique_ptr<SubMeshMaterialParamBuffer>>,
 			kSubMeshMaterialPassBufferCount> subMeshParamBuffers_{};
 		SubMeshMaterialParamBuffer* activeSubMeshParamBuffer_ = nullptr;
+		GraphicsFrameResourceRegistration frameRegistration_{};
+		SRVDescriptor* srvDescriptor_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

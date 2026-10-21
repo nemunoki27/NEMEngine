@@ -136,9 +136,9 @@ namespace {
 		if (!NEMTests::RecordStaticBufferRetirement(device, queue, commands.Get(), descriptors, staticReadback)) return false;
 		const size_t structuredRetained = retirement.GetPendingCount();
 		ComPtr<ID3D12Resource> frameReadback;
-		DxUtils::CreateReadbackBufferResource(device, frameReadback, sizeof(values) * 3);
+		DxUtils::CreateReadbackBufferResource(device, frameReadback, sizeof(values) * Engine::kGraphicsFrameContextCount);
 		bool valid = true;
-		for (uint32_t frameCount = 1; frameCount <= 3; ++frameCount) {
+		for (uint32_t frameCount = 1; frameCount <= Engine::kGraphicsFrameContextCount; ++frameCount) {
 			Engine::GraphicsFrameState::SetActiveCount(frameCount);
 			Engine::GraphicsFrameState::BeginFrame(frameCount - 1);
 			Engine::DxFrameMappedUploadBuffer source;
@@ -163,7 +163,7 @@ namespace {
 			source.Release();
 			source.Release();
 		}
-		valid &= retirement.GetPendingCount() == structuredRetained + 3 * (1 + 2 + 3);
+		valid &= retirement.GetPendingCount() == structuredRetained + 3 * (1 + 2);
 		{
 			// 稼働フレーム数だけ増えても既存の転送先を保つ
 			Engine::GraphicsFrameState::SetActiveCount(1);
@@ -177,11 +177,7 @@ namespace {
 			Engine::GraphicsFrameState::BeginFrame(1);
 			valid &= source.EnsureCapacity(device, 64, "FrameCountTest");
 			valid &= source.GetResource(0) == first && source.GetResource(1) != nullptr;
-			valid &= source.GetResource(2) == nullptr;
-			Engine::GraphicsFrameState::SetActiveCount(3);
-			Engine::GraphicsFrameState::BeginFrame(2);
-			valid &= source.EnsureCapacity(device, 64, "FrameCountTest");
-			valid &= source.GetResource(0) == first && source.GetResource(2) != nullptr;
+
 		}
 		ComPtr<ID3D12Resource> viewReadback;
 		valid &= RecordViewOwnerRetirement(device, commands.Get(), renderTargets, depths, descriptors, viewReadback);
@@ -260,9 +256,9 @@ namespace {
 			valid &= std::memcmp(mapped, expectedHits, sizeof(expectedHits)) == 0;
 			asReadback->Unmap(0, &writtenRange);
 		}
-		readRange.End = sizeof(values) * 3;
+		readRange.End = sizeof(values) * Engine::kGraphicsFrameContextCount;
 		if (FAILED(frameReadback->Map(0, &readRange, &mapped))) return false;
-		for (uint32_t frameIndex = 0; frameIndex < 3; ++frameIndex) {
+		for (uint32_t frameIndex = 0; frameIndex < Engine::kGraphicsFrameContextCount; ++frameIndex) {
 			valid &= std::memcmp(static_cast<std::byte*>(mapped) + sizeof(values) * frameIndex,
 				values.data(), sizeof(values)) == 0;
 		}
@@ -316,7 +312,7 @@ namespace {
 		Engine::GraphicsResourceRetirement retirement;
 		descriptors.SetRetirementQueue(retirement);
 		bool valid = true;
-		for (uint32_t frameCount = 1; frameCount <= 3; ++frameCount) {
+		for (uint32_t frameCount = 1; frameCount <= Engine::kGraphicsFrameContextCount; ++frameCount) {
 			Engine::GraphicsFrameState::SetActiveCount(frameCount);
 			Engine::GraphicsFrameState::BeginFrame(0);
 			{
@@ -358,7 +354,7 @@ namespace {
 		{
 			Engine::DefaultStructuredInstanceBuffer<uint32_t> buffer;
 			buffer.Init(device, &descriptors, &uploads);
-			for (uint32_t frameCount = 1; frameCount <= 3; ++frameCount) {
+			for (uint32_t frameCount = 1; frameCount <= Engine::kGraphicsFrameContextCount; ++frameCount) {
 				Engine::GraphicsFrameState::SetActiveCount(frameCount);
 				Engine::GraphicsFrameState::BeginFrame(frameCount - 1);
 				buffer.UploadCurrentFrame({});

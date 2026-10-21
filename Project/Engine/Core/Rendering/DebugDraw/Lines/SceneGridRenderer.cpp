@@ -39,6 +39,8 @@ Engine::SceneGridRenderer::~SceneGridRenderer() {
 
 void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 
+	passBuffers_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
+
 	if (initialized_) {
 		return;
 	}
@@ -191,6 +193,8 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::SceneGridRenderer::AllocatePassBuffer(
 	GraphicsCore& graphicsCore) {
 
+	// 更新中の番号ではなく描画開始後のスロットを使う
+	BeginFrame();
 	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
 	auto& buffers = passBuffers_[frameIndex];
 	uint32_t& bufferIndex = passBufferIndices_[frameIndex];

@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
@@ -109,6 +110,10 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	builtSceneInstanceID_ = {};
 
 	blasCache_.CollectExpired();
+	if (blasCache_.ProcessCompactions(graphicsCore)) {
+		// 圧縮後のGPUアドレスで全ViewのTLASを作り直す
+		cachedStaticScene_ = false;
+	}
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
@@ -130,8 +135,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	}
 
 	// Texture差し替え後は静的Sceneも新しい番号で再構築する
-	const uint64_t textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision() +
+	uint64_t textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision() +
 		RuntimeTextureResolver::GetBindingRevision();
+	Algorithm::HashCombine(textureRevision, MaterialRenderPolicy::GetDefaultMaterialHash());
 	if (textureRevision_ != textureRevision) {
 		textureRevision_ = textureRevision;
 		materialResolver_.Clear();

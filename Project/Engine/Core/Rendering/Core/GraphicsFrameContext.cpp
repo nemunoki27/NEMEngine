@@ -35,6 +35,7 @@ bool Engine::HasExpiredGraphicsResource(uint64_t lastUsedSerial, uint64_t frameS
 
 void Engine::GraphicsResourceRetirement::ReservePending(size_t additionalCount) {
 
+	if (immediateRelease_) return;
 	if (additionalCount > pending_.max_size() - pending_.size()) throw std::length_error("GPU回収候補が多すぎます");
 	const size_t required = pending_.size() + additionalCount;
 	if (required <= pending_.capacity()) return;
@@ -47,6 +48,11 @@ void Engine::GraphicsResourceRetirement::Retire(ComPtr<ID3D12Object> object,
 	BaseDescriptor* descriptor, uint32_t index) {
 
 	if (!object && !descriptor) {
+		return;
+	}
+	// 全キュー完了後の切替では保持領域を追加せず解放する
+	if (immediateRelease_) {
+		if (descriptor) descriptor->Free(index);
 		return;
 	}
 	pending_.push_back({ std::move(object), descriptor, index });
@@ -103,4 +109,16 @@ void Engine::GraphicsResourceRetirement::ReleaseAfterDeviceRemoval(ID3D12Device*
 	pending_.clear();
 	batches_.clear();
 	pendingCount_ = 0;
+}
+
+void Engine::GraphicsResourceRetirement::ReleaseInactiveFrameResources(uint32_t count) {
+
+	immediateRelease_ = true;
+	try {
+		frameResources_.ReleaseInactive(count);
+	} catch (...) {
+		immediateRelease_ = false;
+		throw;
+	}
+	immediateRelease_ = false;
 }

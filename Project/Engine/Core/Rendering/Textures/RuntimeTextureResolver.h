@@ -22,7 +22,7 @@ namespace Engine {
 		};
 
 		// 実行中のRenderTextureをAssetIDへ対応付ける
-		void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture);
+		void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture, TextureOwnership ownership = {});
 		void UnregisterRenderTexture(AssetID textureAssetID, const RenderTexture2D* texture);
 		// 描画中のRenderTextureを入力として再利用しない
 		void BeginRenderTextureWrite(AssetID textureAssetID);
@@ -31,6 +31,7 @@ namespace Engine {
 		// RenderTextureの公開世代と描画先を取得する
 		uint64_t GetBindingRevision();
 		AssetID GetWritingRenderTexture();
+		uint64_t GetLastRenderTextureUse(AssetID textureAssetID);
 
 		// アセットIDからGPUテクスチャリソースを解決し未ロードなら読み込み要求を行う
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,

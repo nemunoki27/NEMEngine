@@ -153,6 +153,21 @@ namespace {
 		ImGui::Text("描画全体CPU・待機込み : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
 		Engine::DrawConsoleGPUPassTooltip(profiler, ImGui::IsItemHovered());
 		ImGui::Text("  描画CPU・待機除外 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::DrawCPU));
+		ImGui::Text("    コマンド提出CPU : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::CommandSubmitCPU));
+		if (ImGui::IsItemHovered()) {
+			// API提出とGPUでの実行時間を混同しない
+			ImGui::BeginTooltip();
+			const auto& submission = profiler.GetRenderingStatistics();
+			ImGui::Text("CommandListを閉じる : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::CommandCloseCPU));
+			ImGui::Text("Buffer転送の提出 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::BufferSubmitCPU));
+			ImGui::Text("転送Context再利用待ち : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::UploadContextWaitCPU));
+			ImGui::Text("提出回数 メイン %u / Buffer転送 %u", submission.graphicsSubmissionCount, submission.bufferSubmissionCount);
+			ImGui::Text("同期API %u回 / 遷移 %u個 / UAV %u個", submission.barrierCallCount,
+				submission.transitionBarrierCount, submission.uavBarrierCount);
+			ImGui::TextUnformatted("CPU時間は平均、回数は直前フレームです。GPU実行時間とは加算しません");
+			ImGui::TextUnformatted("提出回数はメイン描画とBuffer転送、同期回数はDxCommand経由の値です");
+			ImGui::EndTooltip();
+		}
 
 		// Mesh更新のCPU時間を表示し、内訳と更新量はツールチップで確認する
 		ImGui::Text("    Meshバッチ構築・転送 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));

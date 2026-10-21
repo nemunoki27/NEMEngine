@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -74,6 +75,12 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			}
 			if (changed) {
 				frameRate.Save();
+			}
+			ImGui::Separator();
+			// 次のフレーム境界で実行用資源を切り替える
+			bool doubleBuffering = context.graphicsCore->IsDoubleBufferingEnabled();
+			if (ImGui::Checkbox("ダブルバッファリング", &doubleBuffering)) {
+				context.graphicsCore->RequestDoubleBuffering(doubleBuffering);
 			}
 			ImGui::EndMenu();
 		}

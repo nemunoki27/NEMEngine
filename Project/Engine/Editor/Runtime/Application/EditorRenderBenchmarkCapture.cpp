@@ -43,7 +43,16 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 	captureTimes_["presentCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::PresentCPU));
 	captureTimes_["fpsWaitMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::FPSWait));
 	captureTimes_["gpuWaitMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::GPUWait));
+	captureTimes_["commandCloseCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::CommandCloseCPU));
+	captureTimes_["commandSubmitCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::CommandSubmitCPU));
+	captureTimes_["bufferSubmitCPUMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::BufferSubmitCPU));
+	captureTimes_["uploadContextWaitMs"].push_back(profiler.GetLatestMs(FrameProfiler::Category::UploadContextWaitCPU));
 	const auto& rendering = profiler.GetRenderingStatistics();
+	captureTimes_["barrierCalls"].push_back(rendering.barrierCallCount);
+	captureTimes_["transitionBarriers"].push_back(rendering.transitionBarrierCount);
+	captureTimes_["uavBarriers"].push_back(rendering.uavBarrierCount);
+	captureTimes_["graphicsSubmissions"].push_back(rendering.graphicsSubmissionCount);
+	captureTimes_["bufferSubmissions"].push_back(rendering.bufferSubmissionCount);
 	captureTimes_["meshTransferBytes"].push_back(static_cast<double>(rendering.meshTransferBytes));
 	captureTimes_["meshRebuilds"].push_back(rendering.meshRebuildCount);
 	captureTimes_["tlasBuilds"].push_back(rendering.tlasBuildCount);

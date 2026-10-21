@@ -25,6 +25,7 @@ namespace {
 
 		Engine::RenderTexture2D* texture = nullptr;
 		Engine::GPUTextureResource view{};
+		uint64_t lastUsedSerial = 0;
 	};
 	static_assert(std::is_nothrow_move_assignable_v<RenderTexturePublication>);
 	std::unordered_map<Engine::AssetID, RenderTexturePublication> renderTextures;
@@ -47,7 +48,7 @@ namespace {
 
 namespace Engine::RuntimeTextureResolver {
 
-	void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture) {
+	void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture, TextureOwnership ownership) {
 
 		if (!textureAssetID || !texture || !texture->IsValid()) {
 			return;
@@ -55,12 +56,14 @@ namespace Engine::RuntimeTextureResolver {
 		// 公開情報が揃うまでは旧Textureを維持する
 		RenderTexturePublication publication{};
 		publication.texture = texture;
+		publication.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
 		GPUTextureResource& view = publication.view;
 		view.resource = texture->GetResource();
 		view.gpuHandle = texture->GetSRVGPUHandle();
 		view.srvIndex = texture->GetSRVIndex();
 		view.textureName = "RenderTexture";
 		view.valid = true;
+		view.ownership = std::move(ownership);
 		renderTextures.insert_or_assign(textureAssetID, std::move(publication));
 		++bindingRevision;
 	}
@@ -90,6 +93,12 @@ namespace Engine::RuntimeTextureResolver {
 	uint64_t GetBindingRevision() {
 
 		return bindingRevision;
+	}
+
+	uint64_t GetLastRenderTextureUse(AssetID textureAssetID) {
+
+		const auto found = renderTextures.find(textureAssetID);
+		return found != renderTextures.end() ? found->second.lastUsedSerial : 0;
 	}
 
 	AssetID GetWritingRenderTexture() {
@@ -141,6 +150,7 @@ namespace Engine::RuntimeTextureResolver {
 						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 						D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 			}
+			renderTexture->second.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
 			return &renderTexture->second.view;
 		}
 		if (!assetDatabase) {
@@ -207,7 +217,8 @@ namespace Engine::RuntimeTextureResolver {
 						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 						D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 			}
-			return { renderTexture->second.texture->GetSRVIndex(), false };
+			renderTexture->second.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
+			return { renderTexture->second.texture->GetSRVIndex(), false, renderTexture->second.view.ownership };
 		}
 
 		const GPUTextureResource* fallback =

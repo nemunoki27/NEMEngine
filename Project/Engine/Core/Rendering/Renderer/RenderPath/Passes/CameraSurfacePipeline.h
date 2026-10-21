@@ -16,5 +16,5 @@ namespace Engine {
 	// Cameraの固定反射パスを作成する
 	RenderFeatureProfileAsset BuildCameraReflectionProfile(const CameraCommon& settings);
 	// Cameraの固定遮蔽パスを作成する
-	RenderFeatureProfileAsset BuildCameraAmbientOcclusionProfile(const CameraCommon& settings);
+	RenderFeatureProfileAsset BuildCameraAmbientOcclusionProfile(const CameraCommon& settings, bool opaqueGeometryAllowed = false);
 }

@@ -299,17 +299,18 @@ bool Engine::RayTracingExecutor::Execute(
 		return false;
 	}
 	commandList->DispatchRays(&dispatch);
+	outputTextureScratch_.clear();
+	outputTextureScratch_.reserve(resources.outputs.size());
 	for (const auto& [name, output] : resources.outputs) {
 
 		if (!output) {
 			continue;
 		}
-		dxCommand->UAVBarrier(output->GetResource());
-		output->Transition(*dxCommand,
-			static_cast<D3D12_RESOURCE_STATES>(
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
-				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+		outputTextureScratch_.push_back(output);
 	}
+	// 全出力の用途遷移で後続の読み取りを同期する
+	RenderTexture2D::TransitionAll(*dxCommand, outputTextureScratch_, static_cast<D3D12_RESOURCE_STATES>(
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 	return true;
 }
 

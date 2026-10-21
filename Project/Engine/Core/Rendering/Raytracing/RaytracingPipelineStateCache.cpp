@@ -28,6 +28,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	retirement_ = &graphicsPlatform.GetResourceRetirement();
+	retiredStates_.Connect(*retirement_);
 	CollectRetiredStates();
 
 	// 無効なIDの場合はnullptrを返す

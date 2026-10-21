@@ -28,12 +28,14 @@ namespace Engine {
 	struct RenderPassPhaseBuckets;
 	class RenderSceneBatch;
 	class ColorPipelineProcessor;
+	class ShadowSceneStampCache;
 
 	//============================================================================
 	//	RenderPipelineDeps structure
 	//	DeferredRenderPath、RenderPass実装が使うパイプライン依存
 	//============================================================================
 	struct RenderPipelineDeps {
+		std::shared_ptr<ShadowSceneStampCache> shadowStamps;
 
 		RenderSceneBatch* renderBatch = nullptr;
 		RenderBackendRegistry* backendRegistry = nullptr;
@@ -71,6 +73,7 @@ namespace Engine {
 		// パスの初期化でdepsはRenderPipelineRunnerが所有するメンバーへのポインタを渡す
 		void Initialize(const RenderPipelineDeps& deps);
 		void RetainViews(const std::unordered_set<std::string>& activeViews);
+		uint64_t GetShadowAnalysisCount() const;
 		// 終了処理
 		void Finalize();
 

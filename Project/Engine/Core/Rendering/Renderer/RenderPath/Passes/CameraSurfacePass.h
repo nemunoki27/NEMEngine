@@ -42,6 +42,7 @@ namespace Engine {
 			CameraCommon settings{};
 			Matrix4x4 projectionMatrix = Matrix4x4::Identity();
 			uint64_t generation = 0;
+			bool opaqueGeometryAllowed = false;
 		};
 
 		//--------- variables ----------------------------------------------------

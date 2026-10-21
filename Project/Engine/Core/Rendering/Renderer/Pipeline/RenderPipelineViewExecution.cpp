@@ -137,6 +137,17 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 void RenderPipelineRunner::SyncRequestedSurfaces(
 	GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
 
+	if (viewportRenderService_->GetRenderTextureCount() != 0) {
+		// 停止中や非表示のCameraも、参照中の最終出力を保持する
+		const auto retainOutput = [&](const Entity&, const auto& camera) {
+			const auto* surface = viewportRenderService_->GetRenderTextureSurface(camera.common.targetTexture);
+			if (surface) viewportRenderService_->SyncRenderTextureSurface(
+				graphicsCore, camera.common.targetTexture, surface->GetWidth(), surface->GetHeight());
+		};
+		request.world->ForEach<PerspectiveCameraComponent>(retainOutput);
+		request.world->ForEach<OrthographicCameraComponent>(retainOutput);
+	}
+	viewportRenderService_->CollectRenderTextures(gameCameraViews_);
 	for (const auto& viewRequest : request.views) {
 		// 非表示の画面資源は再生成せず保持する
 		if (!viewRequest.enabled || !viewRequest.renderThisFrame || !viewRequest.renderDefaultSurfaceThisFrame) {
@@ -353,7 +364,13 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 
 	// ビューごとの中間レンダーターゲットを確保してコンテキストに設定
 	RenderPathResources& resources = cameraState.resources;
-	resources.Resize(graphicsCore, view.width, view.height);
+	const auto* profile = context.renderPassesRuntime ? &context.renderPassesRuntime->GetProfile() : nullptr;
+	const bool boundedOutputs = !profile || std::none_of(profile->passes.begin(), profile->passes.end(), [](const auto& pass) {
+		return pass.anchor == RenderFeatureAnchor::BeforeLighting;
+	});
+	const auto albedoFormat = colorPrecision_.Resolve(graphicsCore, renderAssetLibrary_,
+		scenePreparation_.renderBatch_, request.assetDatabase, request.world, boundedOutputs);
+	resources.Resize(graphicsCore, view.width, view.height, albedoFormat);
 	if (!resources.IsValid()) {
 
 		Logger::Output(LogType::Engine,

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
@@ -98,6 +99,7 @@ void Engine::BufferUploadService::Init(GraphicsResourceRetirement& retirement, I
 
 void Engine::BufferUploadService::Finalize() {
 
+	if (activeUpload_ && device_ && SUCCEEDED(device_->GetDeviceRemovedReason())) CancelOwnedUploads(activeUpload_);
 	// 未SubmitのBatchがあれば終了処理前に閉じ、stagingやCommandListを開いたまま残さない
 	if (batchOpened_ && currentContext_ && SUCCEEDED(device_->GetDeviceRemovedReason())) {
 		SubmitBatch();
@@ -110,6 +112,7 @@ void Engine::BufferUploadService::Finalize() {
 
 	// GPU使用中のstagingを巻き込まないよう、未完了分を待ってから解放する
 	if (fence_ && SUCCEEDED(device_->GetDeviceRemovedReason())) {
+		if (!ownedUploads_.empty()) FlushAndWait();
 		WaitForAllUploads();
 	}
 	pendingBatches_.clear();
@@ -135,6 +138,11 @@ void Engine::BufferUploadService::Finalize() {
 	nextFenceValue_ = 1;
 	lastSubmittedFenceValue_ = 0;
 	statistics_ = {};
+	ownedUploads_.clear();
+	largePages_.clear();
+	activeUpload_.reset();
+	largeUploadFrame_ = UINT64_MAX;
+	largeUploadedThisFrame_ = 0;
 }
 
 void Engine::BufferUploadService::BeginBatch() {
@@ -194,6 +202,13 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 		throw std::out_of_range("BufferUploadの書き込み範囲が転送先容量を超えています");
 	}
 
+	if (activeUpload_ && sourceData.size_bytes() > kUploadPageSize) {
+		// 借用先はTicketの元データが生存する間だけ使用する
+		ownedUploads_.push_back({destination, sourceData, destinationOffset, 0, currentState, finalState, activeUpload_});
+		++activeUpload_->pending;
+		statistics_.pendingBytes += sourceData.size_bytes();
+		return;
+	}
 	EnsureBatchOpened();
 
 	ComPtr<ID3D12Resource> staging;
@@ -279,7 +294,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 	hasCommands_ = true;
 }
 
-uint64_t Engine::BufferUploadService::SubmitBatch() {
+uint64_t Engine::BufferUploadService::SubmitBatch(bool waitForGraphics) {
 
 	if (!batchOpened_ || !hasCommands_) {
 
@@ -292,6 +307,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 		return 0;
 	}
 
+	FrameProfiler::ScopedSample sample(FrameProfiler::Category::BufferSubmitCPU);
 	if (nextFenceValue_ == UINT64_MAX) throw std::overflow_error("BufferUploadのFence値が上限に達しました");
 	// 提出後に保持用コンテナの確保を行わない
 	pendingBatches_.emplace_back();
@@ -308,10 +324,11 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	currentContext_->lastFenceValue = UINT64_MAX;
 	ID3D12CommandList* lists[] = { currentContext_->commandList.Get() };
 	uploadQueue_->ExecuteCommandLists(1, lists);
+	FrameProfiler::GetInstance().AddBufferSubmission();
 	const uint64_t submitted = SignalSubmittedBatch();
 
 	// 描画側の待機失敗でも提出済みBatchを再実行しない
-	if (graphicsQueue_ && graphicsQueue_ != uploadQueue_.Get()) {
+	if (waitForGraphics && graphicsQueue_ && graphicsQueue_ != uploadQueue_.Get()) {
 		if (!DxDREDDiagnostics::CheckHRESULT(device_, graphicsQueue_->Wait(fence_.Get(), submitted), "BufferUploadService::QueueWait")) {
 			throw std::runtime_error("描画キューのBuffer転送待機に失敗しました");
 		}
@@ -329,6 +346,7 @@ uint64_t Engine::BufferUploadService::SignalSubmittedBatch() {
 	++nextFenceValue_;
 	lastSubmittedFenceValue_ = submitted;
 	currentContext_->lastFenceValue = submitted;
+	if (activeUpload_) activeUpload_->fence = submitted;
 	pendingBatches_.back().fenceValue = submitted;
 	contextIndex_ = (contextIndex_ + 1) % kUploadContextCount;
 	currentContext_ = nullptr;
@@ -354,6 +372,7 @@ void Engine::BufferUploadService::TickFinalize() {
 		pendingBatches_.pop_front();
 	}
 	CollectUnusedPages(completed);
+	PumpOwnedUploads();
 }
 
 void Engine::BufferUploadService::CollectUnusedPages(uint64_t completed) {
@@ -373,11 +392,12 @@ void Engine::BufferUploadService::CollectUnusedPages(uint64_t completed) {
 
 void Engine::BufferUploadService::FlushAndWait() {
 
-	if (batchOpened_) {
-		SubmitBatch();
-	}
-	WaitForAllUploads();
-	TickFinalize();
+	do {
+		PumpOwnedUploads(true);
+		if (batchOpened_) SubmitBatch();
+		WaitForAllUploads();
+		TickFinalize();
+	} while (!ownedUploads_.empty());
 }
 
 void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
@@ -385,6 +405,7 @@ void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
 	if (fenceValue == 0) {
 		return;
 	}
+	FrameProfiler::ScopedSample sample(FrameProfiler::Category::UploadContextWaitCPU);
 	if (!DxDREDDiagnostics::WaitForFence(device_, fence_.Get(), fenceValue, fenceEvent_, "BufferUploadService::Wait")) {
 		throw std::runtime_error("BufferUploadの完了を確認できませんでした");
 	}

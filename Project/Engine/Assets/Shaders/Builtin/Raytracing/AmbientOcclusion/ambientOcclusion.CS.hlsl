@@ -27,7 +27,7 @@ cbuffer PostProcessParameters : register(b1) {
 	float radius;
 	uint sampleCount;
 	uint cullingMask;
-	float _pad0;
+	uint opaqueGeometryAllowed;
 };
 
 struct AOInstance {
@@ -67,7 +67,7 @@ uint HashAO(uint value) {
 	return value ^ (value >> 16);
 }
 
-bool AcceptAOHit(inout RayQuery<RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query) {
+bool AcceptAOHit(inout RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query) {
 
 	AOInstance instance = gRaytracingSceneInstances[query.CandidateInstanceID()];
 	if (((instance.renderFlags >> 8u) & cullingMask) == 0u) return false;
@@ -128,9 +128,9 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 		ray.Direction = direction;
 		ray.TMin = 0.0001f;
 		ray.TMax = distanceLimit;
-		RayQuery<RAY_FLAG_FORCE_NON_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query;
+		RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query;
 		// 常時判定マスクで影と反射の設定から独立させる
-		query.TraceRayInline(gSceneTLAS, 0, 4u, ray);
+		query.TraceRayInline(gSceneTLAS, opaqueGeometryAllowed != 0u ? 0u : RAY_FLAG_FORCE_NON_OPAQUE, 4u, ray);
 		while (query.Proceed()) {
 			if (query.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE && AcceptAOHit(query)) {
 				query.CommitNonOpaqueTriangleHit();

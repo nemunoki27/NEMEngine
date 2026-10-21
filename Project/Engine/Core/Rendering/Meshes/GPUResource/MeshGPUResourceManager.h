@@ -62,6 +62,14 @@ namespace Engine {
 		//============================================================================
 
 		//--------- variables ----------------------------------------------------
+		struct PendingMesh {
+
+			AssetID asset;
+			uint64_t revision = 0;
+			MeshGPUResource mesh;
+			BufferUploadTicket ticket;
+		};
+		std::vector<PendingMesh> pendingMeshes_;
 
 		ID3D12Device* device_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
@@ -92,7 +100,10 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 要求世代が一致したMeshだけGPUへ公開する
-		void UploadImported(const ImportedMeshAsset& imported, uint64_t revision);
+		bool UploadImported(ImportedMeshAsset imported, uint64_t revision);
+		// GPU転送が終わった候補だけを公開する
+		void PublishReadyMeshes();
+		void PublishMesh(MeshGPUResource mesh, AssetID asset, uint64_t revision);
 		// 保護中の要求世代を進め、未実行なら読込を開始する
 		void BeginRequest(AssetID asset);
 		// 保護中の最新要求を読み込みへ渡す

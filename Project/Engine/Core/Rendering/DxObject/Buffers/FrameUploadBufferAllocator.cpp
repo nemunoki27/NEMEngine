@@ -46,6 +46,7 @@ void FrameUploadBufferAllocator::Swap(FrameUploadBufferAllocator& other) noexcep
 	std::swap(frameStates_, other.frameStates_);
 	std::swap(retirement_, other.retirement_);
 	std::swap(initialCapacity_, other.initialCapacity_);
+	frameRegistration_.Swap(other.frameRegistration_, this, &other);
 }
 
 void FrameUploadBufferAllocator::BeginFrame() {
@@ -79,6 +80,7 @@ void FrameUploadBufferAllocator::Release() {
 		state = {};
 	}
 	retirement_ = nullptr;
+	frameRegistration_.Reset();
 }
 
 FrameUploadBufferAllocation FrameUploadBufferAllocator::AllocateAndUploadBytes(
@@ -89,6 +91,9 @@ FrameUploadBufferAllocation FrameUploadBufferAllocator::AllocateAndUploadBytes(
 		throw std::logic_error("転送BufferのDeviceまたは回収先が不正です");
 	}
 	retirement_ = &retirement;
+	frameRegistration_.Bind(retirement.GetFrameResources(), this, [](void* owner, uint32_t count) {
+		static_cast<FrameUploadBufferAllocator*>(owner)->ReleaseInactiveFrames(count);
+	});
 	BeginFrame();
 	auto& state = frameStates_[GraphicsFrameState::GetCurrentIndex()];
 	const size_t alignedSize = AlignAllocation(bytes.size());
@@ -138,4 +143,16 @@ size_t FrameUploadBufferAllocator::AlignAllocation(size_t sizeInBytes) {
 	const size_t size = (std::max)(sizeInBytes, kAlignment);
 	if (size > SIZE_MAX - (kAlignment - 1)) throw std::length_error("転送Bufferの容量が大きすぎます");
 	return (size + kAlignment - 1) & ~(kAlignment - 1);
+}
+
+void Engine::FrameUploadBufferAllocator::ReleaseInactiveFrames(uint32_t count) {
+
+	for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) {
+		auto& state = frameStates_[index];
+		if (state.resource) {
+			state.resource->Unmap(0, nullptr);
+			retirement_->Retire(std::move(state.resource));
+		}
+		state = {};
+	}
 }

@@ -51,7 +51,7 @@ void Engine::MeshMaterialBuffers::ReleaseSubMeshMaterialParamBuffer(
 	buffer.materialHash = 0;
 	buffer.material = nullptr;
 	buffer.dataGeneration = 1;
-	buffer.uploadedGenerations = { 0, 0, 0 };
+	buffer.uploadedGenerations = {};
 	buffer.stride = 0;
 	buffer.available = false;
 	buffer.dirty = true;
@@ -62,12 +62,33 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	std::span<const MaterialParameterSet> parameters, std::span<const uint64_t> generations,
 	uint64_t parameterGeneration, bool& usesFallbackTexture) {
 
+
 	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
 	// Materialの転送先を検証
 	activeSubMeshParamBuffer_ = nullptr;
 	if (!layout.IsValid() || parameters.empty() || !device || !srvDescriptor) {
 		return;
 	}
+	srvDescriptor_ = srvDescriptor;
+	frameRegistration_.Bind(srvDescriptor->GetRetirementQueue().GetFrameResources(), this,
+		[](void* owner, uint32_t count) {
+			auto& buffers = *static_cast<MeshMaterialBuffers*>(owner);
+			for (auto& pass : buffers.subMeshParamBuffers_) {
+				for (auto& [target, buffer] : pass) {
+					for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) {
+						if (buffer->srvIndices[index] != UINT32_MAX) {
+							buffers.srvDescriptor_->Retire(buffer->srvIndices[index], {});
+							buffer->srvIndices[index] = UINT32_MAX;
+						}
+						buffer->handles[index] = {};
+						buffer->uploadedGenerations[index] = 0;
+						std::vector<uint64_t>{}.swap(buffer->uploadedElements[index]);
+					}
+				}
+			}
+			buffers.ResetActive();
+		});
+
 	// 描画中の出力を参照するMaterialは別の転送先へ分ける
 	const AssetID writingTexture = RuntimeTextureResolver::GetWritingRenderTexture();
 	const bool referencesTarget = writingTexture &&
@@ -188,7 +209,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 					buffer.srvIndices[frameIndex]);
 		}
 		buffer.stride = stride;
-		buffer.uploadedGenerations = { 0, 0, 0 };
+		buffer.uploadedGenerations = {};
 		buffer.uploadedElements = {};
 	}
 
@@ -220,6 +241,8 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 }
 
 void Engine::MeshMaterialBuffers::Release(SRVDescriptor* srvDescriptor) {
+
+	frameRegistration_.Reset();
 
 	for (auto& passBuffers : subMeshParamBuffers_) {
 

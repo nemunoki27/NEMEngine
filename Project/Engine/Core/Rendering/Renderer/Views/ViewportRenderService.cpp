@@ -83,26 +83,56 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 void Engine::ViewportRenderService::SyncRenderTextureSurface(GraphicsCore& graphicsCore,
 	AssetID assetID, uint32_t width, uint32_t height) {
 
+	SyncRenderTextureSurface({graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()}, assetID, width, height);
+}
+
+void Engine::ViewportRenderService::SyncRenderTextureSurface(const RenderTargetCreationContext& context,
+	AssetID assetID, uint32_t width, uint32_t height) {
+
 	if (!assetID || width == 0 || height == 0) {
 		return;
 	}
 
 	SurfaceSlot& slot = renderTextures_[assetID];
+	slot.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
 	if (slot.surface && slot.width == width && slot.height == height) {
 		return;
 	}
 
 	// 新しい出力Textureを作成する
 	auto candidate = std::make_unique<MultiRenderTarget>();
-	candidate->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(),
-		BuildRenderTextureDesc(assetID, width, height));
+	candidate->Create(context.device, &context.targets, &context.depths, &context.shaders, BuildRenderTextureDesc(assetID, width, height));
 	// 公開に成功してから所有とサイズを切り替える
-	RuntimeTextureResolver::RegisterRenderTexture(
-		assetID, candidate->GetColorTexture(0));
+	auto ownership = std::make_shared<const uint8_t>(0);
+	RuntimeTextureResolver::RegisterRenderTexture(assetID, candidate->GetColorTexture(0), ownership);
 	slot.surface.swap(candidate);
+	slot.ownership = std::move(ownership);
 	slot.width = width;
 	slot.height = height;
+}
+
+void Engine::ViewportRenderService::CollectRenderTextures(std::span<const ResolvedRenderView> cameras) {
+
+	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+	for (const auto& camera : cameras) {
+		const auto found = renderTextures_.find(camera.targetTexture);
+		if (found != renderTextures_.end()) found->second.lastUsedSerial = serial;
+	}
+	for (auto it = renderTextures_.begin(); it != renderTextures_.end();) {
+		auto& slot = it->second;
+		if (!slot.surface) { it = renderTextures_.erase(it); continue; }
+		// 公開側と所有元以外の借用はMaterialのCacheにも残る
+		if (slot.ownership.use_count() > 2 || !HasExpiredGraphicsResource(slot.lastUsedSerial, serial) ||
+			!HasExpiredGraphicsResource(RuntimeTextureResolver::GetLastRenderTextureUse(it->first), serial)) {
+			++it;
+			continue;
+		}
+		RuntimeTextureResolver::UnregisterRenderTexture(it->first, slot.surface->GetColorTexture(0));
+		ReleaseSlot(slot);
+		++collectedRenderTextures_;
+		it = renderTextures_.erase(it);
+	}
 }
 
 void Engine::ViewportRenderService::Finalize() {
@@ -117,6 +147,12 @@ void Engine::ViewportRenderService::Finalize() {
 		ReleaseSlot(slot);
 	}
 	renderTextures_.clear();
+}
+
+std::shared_ptr<const uint8_t> Engine::ViewportRenderService::GetRenderTextureOwnership(AssetID assetID) const {
+
+	const auto found = renderTextures_.find(assetID);
+	return found != renderTextures_.end() ? found->second.ownership : nullptr;
 }
 
 Engine::MultiRenderTarget* Engine::ViewportRenderService::GetSurface(RenderViewKind kind) {
@@ -158,6 +194,7 @@ void Engine::ViewportRenderService::ReleaseSlot(SurfaceSlot& slot) {
 		slot.surface->Destroy();
 		slot.surface.reset();
 	}
+	slot.ownership.reset();
 	slot.width = 0;
 	slot.height = 0;
 }

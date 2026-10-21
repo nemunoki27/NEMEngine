@@ -145,9 +145,8 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"メッシュLODの閾値が不正なため既定値へ戻しました");
 	}
-	preferences.frameContextCount = std::clamp(
-		ReadUIntSetting(data, "frameContextCount",
-			preferences.frameContextCount), 1u, 3u);
+	const uint32_t savedFrameCount = ReadUIntSetting(data, "frameContextCount", preferences.frameContextCount);
+	preferences.frameContextCount = std::clamp(savedFrameCount, 1u, 2u);
 	preferences.displayOutput.mode =
 		EnumAdapter<DisplayOutputMode>::FromString(
 			ReadStringSetting(data, "displayOutputMode", "SDR"))
@@ -157,6 +156,8 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 	preferences.displayOutput.maxLuminanceNits = std::clamp(
 		ReadFloatSetting(data, "maxLuminanceNits", 1000.0f),
 		preferences.displayOutput.paperWhiteNits, 10000.0f);
+	// 旧3フレーム設定を現在の上限で保存し直す
+	if (savedFrameCount == 3) Save(preferences);
 }
 
 void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& preferences) {

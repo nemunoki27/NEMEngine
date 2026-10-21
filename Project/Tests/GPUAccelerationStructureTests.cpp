@@ -10,9 +10,12 @@
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingTLASState.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
 #include <array>
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -51,6 +54,7 @@ bool NEMTests::RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsComma
 	geometry.vertexCount = 3;
 	geometry.indexAddress = indexBuffer->GetGPUVirtualAddress();
 	geometry.indexCount = 3;
+	geometry.flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 	Engine::RaytracingBLASInput input{ std::span(&geometry, 1), true };
 	// Inline Ray Tracingで同frameの各構築結果を読み戻す
 	const bool canQuery = support.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
@@ -62,15 +66,23 @@ bool NEMTests::RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsComma
 		const auto path = directory.GetPath() / "query.hlsl";
 		{
 			std::ofstream file(path);
-			file << R"(RaytracingAccelerationStructure scene : register(t0);
+			auto include = [&](const char* name) {
+				auto source = Engine::Algorithm::PathToUTF8(Engine::RuntimePaths::GetEngineAssetPath(name));
+				std::replace(source.begin(), source.end(), '\\', '/');
+				file << "#include \"" << source << "\"\n";
+			};
+			file << "#define NEM_LIGHT_COUNTS_REGISTER b1\n";
+			include("Shaders/Builtin/Lighting/lightTypes.hlsli");
+			file << "static const float shadowNormalBias=0.05,shadowMaxDistance=100;\n"
+				"static const uint softShadowSampleCount=4;\n";
+			include("Shaders/Builtin/Lighting/inlineShadowCommon.hlsli");
+			// 非Opaque形状でも通常の影Shaderから遮蔽を取得する
+			file << R"(
 RWStructuredBuffer<uint> results : register(u0);
 cbuffer Params : register(b0) { uint outputIndex; };
 [numthreads(1,1,1)] void main() {
-    RayDesc ray = { float3(0.25, 0.25, -1), 0, float3(0, 0, 1), 100 };
-    RayQuery<RAY_FLAG_FORCE_OPAQUE> query;
-    query.TraceRayInline(scene, RAY_FLAG_NONE, 255, ray);
-    while (query.Proceed()) {}
-    results[outputIndex] = query.CommittedStatus() == COMMITTED_TRIANGLE_HIT ? 1 : 0;
+    float hitDistance;
+    results[outputIndex] = TraceShadowRay(float3(0.25, 0.25, -1), float3(0, 0, 1), 100, hitDistance) ? 1 : 0;
 })";
 			if (!file) return false;
 		}
@@ -79,7 +91,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_5", L"main", Engine::ShaderStage::CS);
 		if (!shader.IsValid()) return false;
 		CD3DX12_ROOT_PARAMETER parameters[3];
-		parameters[0].InitAsShaderResourceView(0);
+		parameters[0].InitAsShaderResourceView(10);
 		parameters[1].InitAsUnorderedAccessView(0);
 		parameters[2].InitAsConstants(1, 0);
 		const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(3, parameters);

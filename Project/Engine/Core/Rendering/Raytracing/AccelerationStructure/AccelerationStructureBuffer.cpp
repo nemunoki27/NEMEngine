@@ -39,14 +39,6 @@ void Engine::AccelerationStructureBuffer::Create(ID3D12Device* device, UINT64 si
 	resource_ = std::move(candidate);
 }
 
-constexpr UINT64 Engine::AccelerationStructureBuffer::AlignASSize(UINT64 value) {
-	if (value > UINT64_MAX - (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT - 1)) {
-		throw std::length_error("ASBufferの容量が大きすぎます");
-	}
-	return (value + (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT - 1)) &
-		~(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT - 1);
-}
-
 void Engine::AccelerationStructureBuffer::InsertUAVBarrier(ID3D12GraphicsCommandList* commandList) const {
 
 	D3D12_RESOURCE_BARRIER barrier{};

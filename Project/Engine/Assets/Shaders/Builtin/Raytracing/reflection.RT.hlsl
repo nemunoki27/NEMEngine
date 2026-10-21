@@ -523,6 +523,7 @@ float ResolveRaytracingShadow(float3 worldPosition, float3 worldNormal,
 	ray.TMax = max(maxDistance - 0.001f, ray.TMin);
 
 	RayQuery <
+		RAY_FLAG_FORCE_OPAQUE |
 		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
 		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES > rayQuery;
 	rayQuery.TraceRayInline(
@@ -863,7 +864,8 @@ void ReflectionRayGen() {
 		// SBTは全ジオメトリで1つのHitGroupを共有するためGeometryIndexを加算しない
 		TraceRay(gSceneTLAS,
 			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-			RAY_FLAG_CULL_NON_OPAQUE |
+			// 反射の表面判定は従来の不透明扱いを保つ
+			RAY_FLAG_FORCE_OPAQUE |
 			RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 			kRaytracingMaskReflectionCaster, 0, 0, 0, ray, payload);
 

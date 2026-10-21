@@ -78,9 +78,12 @@ namespace Engine {
 		std::array<FrameAllocationState, kGraphicsFrameContextCount> frameStates_{};
 		GraphicsResourceRetirement* retirement_ = nullptr;
 		size_t initialCapacity_ = 0;
+		GraphicsFrameResourceRegistration frameRegistration_{};
 
 		//--------- functions ----------------------------------------------------
 
+		// 未使用フレームの転送領域を返す
+		void ReleaseInactiveFrames(uint32_t count);
 		// 成功した領域だけを現在の書き込み先にする
 		void EnsureCapacity(ID3D12Device* device,
 			FrameAllocationState& state, size_t requiredSize);

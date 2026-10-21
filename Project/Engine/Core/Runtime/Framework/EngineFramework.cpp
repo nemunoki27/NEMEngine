@@ -125,6 +125,9 @@ void Framework::Tick() {
 	// ウィンドウ変更を描画と入力更新より前に反映する
 	graphicsCore_->SyncWindowSize();
 
+	// UIや描画用の更新が始まる前にフレーム資源を切り替える
+	graphicsCore_->ApplyPendingDoubleBuffering();
+
 	// 時間更新
 	frameTimer_.Update();
 	// プロファイラのフレーム開始

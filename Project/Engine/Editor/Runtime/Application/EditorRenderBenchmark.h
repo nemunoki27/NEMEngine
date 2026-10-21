@@ -46,6 +46,16 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		enum class CaptureMode {
+
+			None,
+			Final,
+			Intermediate,
+			HDR
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		// 通常Editorへの委譲先と結果の保存先
@@ -58,6 +68,7 @@ namespace Engine {
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
 		bool quickCheck_ = false;
+		CaptureMode captureMode_ = CaptureMode::Final;
 		// 起動から全frameを一秒単位で集計する
 		bool continuousCapture_ = false;
 		uint64_t capturedGPUFrameID_ = 0;
@@ -87,9 +98,11 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 描画経路を切り替えて計測待機を開始する
-		void BeginPhase();
+		void BeginPhase(GraphicsCore& graphicsCore);
 		// 比較する機能と段階数を検証環境から読み込む
 		void InitComparisonConditions();
+		// 画像と数値の保存範囲を指定する
+		void InitCaptureSettings();
 		// 今回の結果を保存して次の描画経路へ進む
 		void FinishPhase(GraphicsCore& graphicsCore);
 		// 計測終了後のViewを画像へ保存する

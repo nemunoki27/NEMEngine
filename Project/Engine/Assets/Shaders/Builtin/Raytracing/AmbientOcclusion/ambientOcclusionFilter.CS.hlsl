@@ -21,20 +21,39 @@ RWTexture2D<float4> gDestColor : register(u0);
 RWTexture2D<float4> gHistoryGeometryOutput : register(u1);
 RWTexture2D<float2> gHistoryNormalOutput : register(u2);
 
+groupshared float3 sharedPosition[144];
+groupshared float3 sharedNormal[144];
+groupshared float sharedVisibility[144];
+groupshared uint sharedFlags[144];
+
 [numthreads(8, 8, 1)]
-void main(uint3 dispatchID : SV_DispatchThreadID) {
+void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID,
+	uint3 groupThread : SV_GroupThreadID, uint groupIndex : SV_GroupIndex) {
 
 	uint width, height;
 	gDestColor.GetDimensions(width, height);
-	uint2 pixel = dispatchID.xy;
-	if (any(pixel >= uint2(width, height))) return;
 	uint sourceWidth, sourceHeight;
 	gSourcePosition.GetDimensions(sourceWidth, sourceHeight);
+	// 周囲二画素の入力をGroup内で共有する
+	for (uint index = groupIndex; index < 144u; index += 64u) {
+		int2 samplePixel = clamp(int2(groupID.xy * 8u) + int2(index % 12u, index / 12u) - 2,
+			int2(0, 0), int2(width, height) - 1);
+		uint2 sampleSource = min(uint2((float2(samplePixel) + 0.5f) / float2(width, height) *
+			float2(sourceWidth, sourceHeight)), uint2(sourceWidth, sourceHeight) - 1u);
+		sharedPosition[index] = gSourcePosition.Load(int3(sampleSource, 0)).xyz;
+		sharedNormal[index] = DecodeGBufferNormal(gSourceNormal.Load(int3(sampleSource, 0)).xyz);
+		sharedVisibility[index] = gSourceColor.Load(int3(samplePixel, 0)).r;
+		sharedFlags[index] = gSourceFlags.Load(int3(sampleSource, 0));
+	}
+	GroupMemoryBarrierWithGroupSync();
+	uint2 pixel = dispatchID.xy;
+	if (any(pixel >= uint2(width, height))) return;
 	float2 uv = (float2(pixel) + 0.5f) / float2(width, height);
 	uint2 source = min(uint2(uv * float2(sourceWidth, sourceHeight)), uint2(sourceWidth, sourceHeight) - 1u);
-	float3 position = gSourcePosition.Load(int3(source, 0)).xyz;
-	float3 normal = DecodeGBufferNormal(gSourceNormal.Load(int3(source, 0)).xyz);
-	bool surface = (gSourceFlags.Load(int3(source, 0)) & 1u) != 0u;
+	uint centerIndex = (groupThread.y + 2u) * 12u + groupThread.x + 2u;
+	float3 position = sharedPosition[centerIndex];
+	float3 normal = sharedNormal[centerIndex];
+	bool surface = (sharedFlags[centerIndex] & 1u) != 0u;
 	float current = 1.0f;
 	if (surface) {
 
@@ -44,15 +63,13 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 		float positionLimit = max(radius * 0.15f, 0.002f);
 		for (int y = -2; y <= 2; ++y) {
 			for (int x = -2; x <= 2; ++x) {
-				int2 samplePixel = clamp(int2(pixel) + int2(x, y), int2(0, 0), int2(width, height) - 1);
-				uint2 sampleSource = min(uint2((float2(samplePixel) + 0.5f) / float2(width, height) *
-					float2(sourceWidth, sourceHeight)), uint2(sourceWidth, sourceHeight) - 1u);
-				float3 samplePosition = gSourcePosition.Load(int3(sampleSource, 0)).xyz;
-				float3 sampleNormal = DecodeGBufferNormal(gSourceNormal.Load(int3(sampleSource, 0)).xyz);
+				uint sampleIndex = uint(int(centerIndex) + y * 12 + x);
+				float3 samplePosition = sharedPosition[sampleIndex];
+				float3 sampleNormal = sharedNormal[sampleIndex];
 				float weight = exp(-float(x * x + y * y) / 8.0f) * pow(saturate(dot(normal, sampleNormal)), 32.0f) *
 					exp(-length(samplePosition - position) / positionLimit);
-				if ((gSourceFlags.Load(int3(sampleSource, 0)) & 1u) == 0u) weight = 0.0f;
-				sum += gSourceColor.Load(int3(samplePixel, 0)).r * weight;
+				if ((sharedFlags[sampleIndex] & 1u) == 0u) weight = 0.0f;
+				sum += sharedVisibility[sampleIndex] * weight;
 				weightSum += weight;
 			}
 		}

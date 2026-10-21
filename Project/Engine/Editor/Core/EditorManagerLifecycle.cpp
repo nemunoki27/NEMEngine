@@ -33,7 +33,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	auto& graphicsPlatform = graphicsCore.GetDXObject();
 
 	// ImGuiの初期化
-	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), graphicsCore.GetSwapChainDesc().BufferCount,
+	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), GraphicsFrameState::GetActiveCount(),
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetCommandQueue()->GetQueue(), &graphicsCore.GetSRVDescriptor(),
 		graphicsCore.GetBackBufferRenderTarget().format, DXGI_FORMAT_D24_UNORM_S8_UINT);
 	initialized_ = true;

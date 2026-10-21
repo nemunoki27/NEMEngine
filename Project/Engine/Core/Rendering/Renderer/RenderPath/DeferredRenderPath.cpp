@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/ShadowSceneStamp.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxGPUEventScope.h>
@@ -29,9 +30,15 @@
 //============================================================================
 //	DeferredRenderPath classMethods
 //============================================================================
+uint64_t Engine::DeferredRenderPath::GetShadowAnalysisCount() const {
+
+	return deps_.shadowStamps ? deps_.shadowStamps->GetRebuildCount() : 0;
+}
+
 void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
+	deps_.shadowStamps = std::make_shared<ShadowSceneStampCache>();
 
 	// 固定のパス列、RenderFeatureはAnchor位置へ後から挿入する
 	std::vector<std::unique_ptr<IRenderPass>> fixedPasses;

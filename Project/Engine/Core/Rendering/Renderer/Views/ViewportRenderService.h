@@ -8,6 +8,7 @@
 
 // c++
 #include <memory>
+#include <span>
 #include <unordered_map>
 
 namespace Engine {
@@ -36,6 +37,14 @@ namespace Engine {
 		// CameraのRenderTexture出力先を生成する
 		void SyncRenderTextureSurface(GraphicsCore& graphicsCore, AssetID assetID,
 			uint32_t width, uint32_t height);
+		void SyncRenderTextureSurface(const RenderTargetCreationContext& context, AssetID assetID,
+			uint32_t width, uint32_t height);
+		// Cameraと参照元が使わなくなった出力を回収する
+		void CollectRenderTextures(std::span<const ResolvedRenderView> cameras);
+		size_t GetRenderTextureCount() const { return renderTextures_.size(); }
+		uint64_t GetCollectedRenderTextureCount() const { return collectedRenderTextures_; }
+		// 出力を直接参照する描画側の借用を保持する
+		std::shared_ptr<const uint8_t> GetRenderTextureOwnership(AssetID assetID) const;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -67,6 +76,8 @@ namespace Engine {
 			uint32_t width = 0;
 			uint32_t height = 0;
 			std::unique_ptr<MultiRenderTarget> surface;
+			std::shared_ptr<const uint8_t> ownership;
+			uint64_t lastUsedSerial = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -75,6 +86,7 @@ namespace Engine {
 		SurfaceSlot game_;
 		SurfaceSlot scene_;
 		std::unordered_map<AssetID, SurfaceSlot> renderTextures_{};
+		uint64_t collectedRenderTextures_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

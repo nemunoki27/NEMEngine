@@ -70,6 +70,8 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		ID3D12Resource* GetTLASResource() const { return tlasState_.GetResource(); }
+		uint64_t GetStaticBLASOriginalBytes() const { return blasCache_.GetOriginalBytes(); }
+		uint64_t GetStaticBLASPublishedBytes() const { return blasCache_.GetPublishedBytes(); }
 
 		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return result_.scenePickRecords_; }
 		const std::vector<uint32_t>& GetPickRecordOffsets() const { return result_.scenePickRecordOffsets_; }

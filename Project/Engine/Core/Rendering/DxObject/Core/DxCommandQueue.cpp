@@ -7,6 +7,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
@@ -62,8 +63,10 @@ void DxCommandQueue::Finalize() {
 
 void DxCommandQueue::ExecuteCommandList(ID3D12GraphicsCommandList6* commandList) {
 
+	FrameProfiler::ScopedSample sample(FrameProfiler::Category::CommandSubmitCPU);
 	ID3D12CommandList* commandLists[] = { commandList };
 	commandQueue_->ExecuteCommandLists(1, commandLists);
+	FrameProfiler::GetInstance().AddGraphicsSubmission();
 }
 
 void DxCommandQueue::SignalAndWait() {

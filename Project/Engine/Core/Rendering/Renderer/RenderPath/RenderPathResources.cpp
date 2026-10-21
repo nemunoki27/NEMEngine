@@ -58,25 +58,26 @@ void Engine::ScreenSpaceOutlineViewResources::Destroy() {
 //============================================================================
 //	RenderPathResources classMethods
 //============================================================================
-void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height) {
+void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) {
 
 	// 不正なサイズや変更なしなら生成を省く
-	if (!NeedsResize(width, height)) {
+	if (!NeedsResize(width, height, albedoFormat)) {
 		return;
 	}
 	RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
 		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
-	Resize(context, width, height);
+	Resize(context, width, height, albedoFormat);
 }
 
-void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height) {
+void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) {
 
-	if (!NeedsResize(width, height)) {
+	if (!NeedsResize(width, height, albedoFormat)) {
 		return;
 	}
 	// 全描画先が完成してからサイズと所有を切り替える
 	RenderPathResources candidate;
-	candidate.Create(context, width, height);
+	candidate.Create(context, width, height, albedoFormat);
+	candidate.albedoFormat_ = albedoFormat;
 	candidate.currentWidth_ = width;
 	candidate.currentHeight_ = height;
 	// 既に使用したOutlineも候補側で完成させる
@@ -85,10 +86,10 @@ void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& cont
 	Swap(candidate);
 }
 
-bool Engine::RenderPathResources::NeedsResize(uint32_t width, uint32_t height) const {
+bool Engine::RenderPathResources::NeedsResize(uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) const {
 
 	return width != 0 && height != 0 && RenderTargetSizing::ResolveSize(width, height).has_value() &&
-		(width != currentWidth_ || height != currentHeight_ || !IsValid());
+		(width != currentWidth_ || height != currentHeight_ || albedoFormat != albedoFormat_ || !IsValid());
 }
 
 void Engine::RenderPathResources::Swap(RenderPathResources& other) noexcept {
@@ -103,9 +104,10 @@ void Engine::RenderPathResources::Swap(RenderPathResources& other) noexcept {
 	std::swap(editorSelectionOutline_, other.editorSelectionOutline_);
 	std::swap(currentWidth_, other.currentWidth_);
 	std::swap(currentHeight_, other.currentHeight_);
+	std::swap(albedoFormat_, other.albedoFormat_);
 }
 
-void Engine::RenderPathResources::Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height) {
+void Engine::RenderPathResources::Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) {
 
 	// 同じDeviceとDescriptorで各描画先を生成する
 	auto createSurface = [&](const MultiRenderTargetCreateDesc& desc) {
@@ -115,7 +117,7 @@ void Engine::RenderPathResources::Create(const RenderTargetCreationContext& cont
 		return surface;
 	};
 	// GBuffer・合成先・透明描画用の背景を生成する
-	sceneMain_ = createSurface(BuildSceneMainDesc(width, height));
+	sceneMain_ = createSurface(BuildSceneMainDesc(width, height, albedoFormat));
 	sceneFinal_ = createSurface(BuildSceneFinalDesc(width, height));
 	sceneColorOpaque_ = createSurface(BuildSceneColorOpaqueDesc(width, height));
 	depthPyramid_.Create(context.device, &context.shaders, width, height);
@@ -175,7 +177,7 @@ void Engine::RenderPathResources::Destroy() {
 	currentHeight_ = 0;
 }
 
-Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainDesc(uint32_t width, uint32_t height) {
+Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainDesc(uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) {
 
 	MultiRenderTargetCreateDesc desc{};
 	desc.width = width;
@@ -184,7 +186,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	// SceneColorMain
 	ColorAttachmentDesc color0{};
 	color0.name = RenderTargetNames::kSceneColorMain;
-	color0.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	color0.format = albedoFormat;
 	color0.clearColor = Color4::FromHex(0x303030ff);
 	color0.createUAV = false;
 	desc.colors.emplace_back(color0);

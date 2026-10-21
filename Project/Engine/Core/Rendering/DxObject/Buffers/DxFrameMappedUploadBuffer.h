@@ -66,9 +66,12 @@ namespace Engine {
 		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 		size_t capacity_ = 0;
 		uint32_t resourceCount_ = 0;
+		GraphicsFrameResourceRegistration frameRegistration_{};
 
 		//--------- functions ----------------------------------------------------
 
+		// 未使用スロットのマップと資源を解除する
+		void ReleaseInactiveFrames(uint32_t count);
 		// 所有と参照を一組で交換する
 		void Swap(DxFrameMappedUploadBuffer& other) noexcept;
 	};

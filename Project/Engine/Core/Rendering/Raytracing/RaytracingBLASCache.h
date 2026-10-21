@@ -12,11 +12,13 @@
 #include <array>
 #include <memory>
 #include <unordered_map>
+#include <dxgi1_4.h>
 
 namespace Engine {
 
 	class ECSWorld;
 	class ECSWorldLifetime;
+	class GraphicsCore;
 	//============================================================================
 	//	RaytracingBLASCache class
 	//	形状ごとのBLASを保持する
@@ -31,6 +33,10 @@ namespace Engine {
 		void Clear();
 		// 使用されなくなったEntityのBLASを回収する
 		void CollectExpired();
+		// 完了した圧縮を公開し、空き予算内で次のコピーを記録する
+		bool ProcessCompactions(GraphicsCore& graphicsCore);
+		uint64_t GetOriginalBytes() const { return originalBytes_; }
+		uint64_t GetPublishedBytes() const { return publishedBytes_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -136,6 +142,9 @@ namespace Engine {
 		std::unordered_map<BLASKey, uint64_t, BLASKeyHash> sharedBLASFrames_;
 		// 構築済みMeshの読み込み世代
 		std::unordered_map<AssetID, uint32_t> meshBLASGeneration_;
+		uint64_t originalBytes_ = 0;
+		uint64_t publishedBytes_ = 0;
+		ComPtr<IDXGIAdapter3> adapter_;
 
 	};
 }

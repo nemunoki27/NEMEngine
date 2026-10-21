@@ -120,7 +120,7 @@ namespace Engine {
 		float meshLOD2PixelThreshold =
 			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 		// 起動時に使用するフレームコンテキスト数
-		uint32_t frameContextCount = 3;
+		uint32_t frameContextCount = 2;
 		// 製品ランタイムのDisplay出力設定、エディターUIはSDR固定
 		DisplayOutputSettings displayOutput{};
 	};

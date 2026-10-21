@@ -19,7 +19,7 @@ Engine::GPUFrameProfiler& Engine::GPUFrameProfiler::GetInstance() {
 
 bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
 
-	if (initialized_) {
+	if (initialized_ && frameStates_[GraphicsFrameState::GetCurrentIndex()].queryHeap) {
 		return true;
 	}
 	if (!device || !commandQueue) {
@@ -27,7 +27,9 @@ bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 	}
 
 	std::array<FrameQueryState, kGraphicsFrameContextCount> candidates{};
-	for (FrameQueryState& state : candidates) {
+	for (uint32_t index = 0; index < GraphicsFrameState::GetActiveCount(); ++index) {
+		if (frameStates_[index].queryHeap) continue;
+		auto& state = candidates[index];
 
 		D3D12_QUERY_HEAP_DESC heapDesc{};
 		heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -57,7 +59,9 @@ bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 	}
 
 	// 全slotの生成後に計測用資源を公開する
-	frameStates_ = std::move(candidates);
+	for (uint32_t index = 0; index < GraphicsFrameState::GetActiveCount(); ++index) {
+		if (candidates[index].queryHeap) frameStates_[index] = std::move(candidates[index]);
+	}
 	initialized_ = true;
 	return true;
 }
@@ -66,6 +70,12 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 	GraphicsResourceRetirement& retirement) {
 
 	retirement_ = &retirement;
+	frameRegistration_.Bind(retirement.GetFrameResources(), this, [](void* owner, uint32_t count) {
+		auto& profiler = *static_cast<GPUFrameProfiler*>(owner);
+		for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) {
+			profiler.frameStates_[index] = {};
+		}
+	});
 	if (!FrameProfiler::GetInstance().IsEnabled()) { return; }
 
 	if (!EnsureInitialized(device, commandQueue)) {
@@ -215,6 +225,7 @@ void Engine::GPUFrameProfiler::Finalize() {
 		}
 		state = {};
 	}
+	frameRegistration_.Reset();
 	retirement_ = nullptr;
 	frequency_ = 0;
 	initialized_ = false;

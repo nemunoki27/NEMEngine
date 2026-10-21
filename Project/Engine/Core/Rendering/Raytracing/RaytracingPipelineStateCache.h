@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
@@ -87,8 +88,7 @@ namespace Engine {
 			RaytracingPipelineCacheKeyHash> revisions_{};
 		std::unordered_map<RaytracingPipelineCacheKey, uint64_t,
 			RaytracingPipelineCacheKeyHash> failedRevisions_{};
-		std::array<std::vector<std::unique_ptr<RaytracingPipelineState>>,
-			kGraphicsFrameContextCount> retiredStates_{};
+		GraphicsFrameResourceArray<std::vector<std::unique_ptr<RaytracingPipelineState>>> retiredStates_{};
 		std::array<uint64_t, kGraphicsFrameContextCount>
 			retiredFrameSerials_{};
 

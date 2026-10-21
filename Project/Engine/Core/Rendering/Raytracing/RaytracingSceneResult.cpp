@@ -33,7 +33,7 @@ void Engine::RaytracingSceneResult::Release() {
 	sceneSubMeshScratch_.clear();
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
-	sceneUploadFrameSerials_ = { 0, 0, 0 };
+	sceneUploadFrameSerials_ = {};
 }
 
 void Engine::RaytracingSceneResult::Upload() {

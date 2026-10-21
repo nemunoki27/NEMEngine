@@ -192,3 +192,44 @@ void Engine::GraphicsCore::Finalize() {
 	graphicsPlatform_.reset();
 	engineContext_.reset();
 }
+
+void Engine::GraphicsCore::RequestDoubleBuffering(bool enabled) {
+
+	requestedFrameContextCount_ = enabled ? 2u : 1u;
+}
+
+bool Engine::GraphicsCore::IsDoubleBufferingEnabled() const {
+
+	return requestedFrameContextCount_.value_or(GraphicsFrameState::GetActiveCount()) == 2;
+}
+
+void Engine::GraphicsCore::ApplyPendingDoubleBuffering() {
+
+	if (!requestedFrameContextCount_) return;
+	const uint32_t count = *requestedFrameContextCount_;
+	requestedFrameContextCount_.reset();
+	if (count == GraphicsFrameState::GetActiveCount()) return;
+	auto& retirement = graphicsPlatform_->GetResourceRetirement();
+	auto* command = graphicsPlatform_->GetDxCommand();
+	ComPtr<ID3D12CommandAllocator> allocator;
+	try {
+		// 転送と外部Windowを含む描画の完了を確認する
+		bufferUploadService_->FlushAndWait();
+		graphicsPlatform_->WaitForGPU();
+		command->CloseCommandList();
+		allocator = command->PrepareFrameContextCount(count);
+		if (!retirement.GetFrameResources().Prepare(count)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "描画フレーム数の切替に失敗しました");
+			return;
+		}
+	} catch (const std::exception& error) {
+		if (graphicsPlatform_->IsDeviceRemoved()) throw;
+		Logger::Output(LogType::Engine, spdlog::level::err, "描画フレーム数の切替に失敗しました: {}", error.what());
+		return;
+	}
+
+	// ここから先は資源を確保せず完成済みの状態を公開する
+	retirement.ReleaseInactiveFrameResources(count);
+	command->ApplyFrameContextCount(count, swapChain_->GetCurrentBackBufferIndex(), std::move(allocator));
+	graphicsPlatform_->GetFeatureController().SetFrameContextCount(count);
+}

@@ -40,6 +40,10 @@ namespace Engine {
 			DrawCPU, // GPU完了待ち、Present、FPS制限待機を除く描画CPU
 			PresentCPU, // 同期待ちを含むPresent呼出しのCPU経過時間
 			FPSWait, // FPS制限のためにCPUが待機した時間
+			CommandCloseCPU, // メインCommandListを閉じるCPU時間
+			CommandSubmitCPU, // メイン描画キューへの提出CPU時間
+			BufferSubmitCPU, // Buffer転送の提出とキュー間同期のCPU時間
+			UploadContextWaitCPU, // 転送用Contextを再利用する待機時間
 			Count
 		};
 
@@ -104,6 +108,13 @@ namespace Engine {
 			uint32_t frameContextIndex = 0;
 			uint32_t frameContextCount = 1;
 			uint32_t queuedFrameCount = 0;
+			// メイン描画とBuffer転送の提出量
+			uint32_t graphicsSubmissionCount = 0;
+			uint32_t bufferSubmissionCount = 0;
+			// DxCommandから発行した同期量
+			uint32_t barrierCallCount = 0;
+			uint32_t transitionBarrierCount = 0;
+			uint32_t uavBarrierCount = 0;
 		};
 
 		static FrameProfiler& GetInstance();
@@ -145,6 +156,11 @@ namespace Engine {
 		// フレームコンテキスト状態を設定する
 		void SetFrameContextStatistics(uint32_t contextIndex,
 			uint32_t contextCount, uint32_t queuedFrameCount);
+		// 提出したメイン描画とBuffer転送を加算する
+		void AddGraphicsSubmission() { ++renderingStatistics_.graphicsSubmissionCount; }
+		void AddBufferSubmission() { ++renderingStatistics_.bufferSubmissionCount; }
+		// 同期の発行回数と対象数を加算する
+		void AddResourceBarriers(uint32_t transitions, uint32_t uavBarriers);
 
 		//--------- accessor -----------------------------------------------------
 

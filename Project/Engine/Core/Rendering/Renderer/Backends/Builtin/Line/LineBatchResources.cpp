@@ -12,10 +12,10 @@ void Engine::LineBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	ID3D12Device8* device = graphicsCore.GetDXObject().GetDevice();
 
-	// ViewConstantsは固定サイズなので最初に確保する
-	for (DxConstBuffer<LinePassConstants>& buffer : viewBuffers_) {
-		buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), device);
-	}
+	device_ = device;
+	retirement_ = &graphicsCore.GetDXObject().GetResourceRetirement();
+	vertexBuffers_.Connect(*retirement_);
+	viewBuffers_.Connect(*retirement_);
 }
 
 void Engine::LineBatchResources::UploadVertices(GraphicsCore& graphicsCore, const std::vector<LineVertex>& vertices) {
@@ -28,7 +28,7 @@ void Engine::LineBatchResources::UploadVertices(GraphicsCore& graphicsCore, cons
 
 	// 容量不足なら作り直して拡張する、再確保を減らすため必要数の2倍を確保する
 	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
-	if (capacities_[frameIndex] < vertexCount_) {
+	if (!vertexBuffers_[frameIndex].IsCreatedResource() || capacities_[frameIndex] < vertexCount_) {
 
 		const uint32_t capacity = vertexCount_ > UINT32_MAX / sizeof(LineVertex) / 2 ? vertexCount_ : vertexCount_ * 2;
 		vertexBuffers_[frameIndex].CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(),
@@ -40,6 +40,8 @@ void Engine::LineBatchResources::UploadVertices(GraphicsCore& graphicsCore, cons
 
 void Engine::LineBatchResources::UpdateView(const ResolvedCameraView& camera, const ResolvedRenderView& view) {
 
+	auto& buffer = viewBuffers_[GraphicsFrameState::GetCurrentIndex()];
+	if (!buffer.IsCreatedResource()) buffer.CreateBuffer(*retirement_, device_);
 	LinePassConstants constants{};
 	constants.viewMatrix = camera.matrices.viewMatrix;
 	constants.projectionMatrix = camera.matrices.projectionMatrix;

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
@@ -95,8 +96,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		MultiRenderTarget renderTarget_{};
-		std::array<ReadbackSlot,
-			kGraphicsFrameContextCount> readbackSlots_{};
+		GraphicsFrameResourceArray<ReadbackSlot> readbackSlots_{};
 
 		bool initialized_ = false;
 	};

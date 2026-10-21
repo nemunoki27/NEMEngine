@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
@@ -64,8 +65,7 @@ namespace Engine {
 		bool initialized_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
-		std::array<std::vector<std::unique_ptr<DxConstBuffer<SkyboxConstants>>>,
-			kGraphicsFrameContextCount> constantBuffers_{};
+		GraphicsFrameResourceArray<std::vector<std::unique_ptr<DxConstBuffer<SkyboxConstants>>>> constantBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> constantBufferIndices_{};
 		std::array<uint64_t, kGraphicsFrameContextCount> constantBufferFrameSerials_{};
 

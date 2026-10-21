@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
@@ -75,19 +76,20 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		ID3D12Device* device_ = nullptr;
+		GraphicsResourceRetirement* retirement_ = nullptr;
+
 		// AA用フェザー幅
 		static constexpr float kLineAAFeather = 1.25f;
 
 		// 頂点バッファと現在確保中の頂点容量
-		std::array<VertexBuffer<LineVertex>,
-			kGraphicsFrameContextCount> vertexBuffers_{};
+		GraphicsFrameResourceArray<VertexBuffer<LineVertex>> vertexBuffers_{};
 		std::array<uint32_t,
 			kGraphicsFrameContextCount> capacities_{};
 		// 直近で転送した頂点数
 		uint32_t vertexCount_ = 0;
 
 		// ViewConstants b0
-		std::array<DxConstBuffer<LinePassConstants>,
-			kGraphicsFrameContextCount> viewBuffers_{};
+		GraphicsFrameResourceArray<DxConstBuffer<LinePassConstants>> viewBuffers_{};
 	};
 } // Engine

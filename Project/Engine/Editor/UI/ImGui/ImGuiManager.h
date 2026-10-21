@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResources.h>
 #include <Engine/Editor/Core/EditorShortcutState.h>
 
 // c++
@@ -71,6 +72,7 @@ namespace Engine {
 		bool platformInitialized_ = false;
 		bool rendererInitialized_ = false;
 		bool gpuFailed_ = false;
+		GraphicsFrameResourceRegistration frameRegistration_{};
 
 		// Graphicsが所有するDescriptorの借用
 		SRVDescriptor* srvDescriptor_ = nullptr;

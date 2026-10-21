@@ -137,10 +137,25 @@ void Engine::DxFrameMappedUploadBuffer::Swap(DxFrameMappedUploadBuffer& other) n
 	std::swap(retirementQueue_, other.retirementQueue_);
 	std::swap(capacity_, other.capacity_);
 	std::swap(resourceCount_, other.resourceCount_);
+	frameRegistration_.Swap(other.frameRegistration_, this, &other);
 }
 
 void Engine::DxFrameMappedUploadBuffer::SetRetirementQueue(GraphicsResourceRetirement& queue) {
 
 	if (capacity_ != 0 && retirementQueue_ != &queue) throw std::logic_error("使用中のUpload Bufferの回収窓口は変更できません");
 	retirementQueue_ = &queue;
+	frameRegistration_.Bind(queue.GetFrameResources(), this, [](void* owner, uint32_t count) {
+		static_cast<DxFrameMappedUploadBuffer*>(owner)->ReleaseInactiveFrames(count);
+	});
+}
+
+void Engine::DxFrameMappedUploadBuffer::ReleaseInactiveFrames(uint32_t count) {
+
+	// 容量は残し、使わなくなるフレームだけを解放する
+	for (uint32_t index = count; index < resourceCount_; ++index) {
+		resources_[index]->Unmap(0, nullptr);
+		retirementQueue_->Retire(std::move(resources_[index]));
+		mappedData_[index] = nullptr;
+	}
+	resourceCount_ = (std::min)(resourceCount_, count);
 }

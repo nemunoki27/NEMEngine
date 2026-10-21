@@ -6,14 +6,14 @@
 Texture2D<float4> gNormal : register(t1);
 Texture2D<float4> gWorldPos : register(t2);
 Texture2D<float2> gMotion : register(t3);
-StructuredBuffer<float2> gShadowInput : register(t20);
+StructuredBuffer<uint> gShadowInput : register(t20);
 StructuredBuffer<float2> gShadowRaw : register(t21);
-StructuredBuffer<float2> gShadowHistory : register(t22);
+StructuredBuffer<uint> gShadowHistory : register(t22);
 Texture2D<float4> gPreviousPosition : register(t23);
 Texture2D<float4> gPreviousNormal : register(t24);
 Texture2D<float4> gSurfaceNormal : register(t25);
 
-RWStructuredBuffer<float2> gShadowOutput : register(u0);
+RWStructuredBuffer<uint> gShadowOutput : register(u0);
 RWTexture2D<float4> gCurrentPosition : register(u1);
 RWTexture2D<float4> gCurrentNormal : register(u2);
 RWTexture2D<float> gShadowPreview : register(u3);
@@ -86,7 +86,7 @@ void temporal(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID
 	}
 	float2 raw = sharedRaw[centerIndex];
 	if (position.w <= 0.0f || raw.y == 0.0f) {
-		gShadowOutput[offset] = float2(raw.x, PackShadowHistory(0.0f, 1.0f)); return;
+		gShadowOutput[offset] = EncodeShadowValue(float2(raw.x, PackShadowHistory(0.0f, 1.0f))); return;
 	}
 	float pixelSize = GetShadowPixelSize(position.xyz);
 	float sum = 0.0f;
@@ -141,7 +141,7 @@ void temporal(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID
 		if (previousPosition.w > 0.0f && abs(dot(delta, normal)) < max(pixelSize * 0.5f, 0.01f) &&
 			length(delta) < max(footprint * 2.0f, 0.02f) && dot(previousNormal, normal) > 0.9f) {
 
-			float2 history = gShadowHistory[GetShadowOffset(previousPixel, slot)];
+			float2 history = DecodeShadowValue(gShadowHistory[GetShadowOffset(previousPixel, slot)]);
 			count = min(GetShadowHistoryCount(history.y) + 1.0f, 16.0f);
 			if (abs(current - history.x) > 0.25f) count = 1.0f;
 			// 遮蔽物が動いた場所へ以前の影を残さない
@@ -154,7 +154,7 @@ void temporal(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID
 			radius = lerp(GetShadowHistoryRadius(history.y), radius, 1.0f / count);
 		}
 	}
-	gShadowOutput[offset] = float2(saturate(current), PackShadowHistory(radius, count));
+	gShadowOutput[offset] = EncodeShadowValue(float2(saturate(current), PackShadowHistory(radius, count)));
 }
 
 [numthreads(8, 8, 1)]
@@ -164,7 +164,7 @@ void spatial(uint3 dispatchID : SV_DispatchThreadID) {
 	uint slot = dispatchID.z;
 	if (any(pixel >= shadowSize) || slot >= shadowLightCount) return;
 	uint offset = GetShadowOffset(pixel, slot);
-	float2 center = gShadowInput[offset];
+	float2 center = DecodeShadowValue(gShadowInput[offset]);
 	float radius = GetShadowHistoryRadius(center.y);
 	float4 position = gWorldPos.Load(int3(pixel, 0));
 	float3 normal = normalize(gSurfaceNormal.Load(int3(pixel, 0)).xyz * 2.0f - 1.0f);
@@ -184,7 +184,7 @@ void spatial(uint3 dispatchID : SV_DispatchThreadID) {
 				if (x == 0 && y == 0) continue;
 				int2 samplePixel = int2(pixel) + int2(x, y) * int(shadowFilterStep);
 				if (any(samplePixel < 0) || any(samplePixel >= int2(shadowSize))) continue;
-				float2 sampleShadow = gShadowInput[GetShadowOffset(samplePixel, slot)];
+				float2 sampleShadow = DecodeShadowValue(gShadowInput[GetShadowOffset(samplePixel, slot)]);
 				float sampleRadius = GetShadowHistoryRadius(sampleShadow.y);
 				if (sampleRadius <= 0.0f) continue;
 				float width = max(2.5f, max(radius, sampleRadius));
@@ -198,6 +198,6 @@ void spatial(uint3 dispatchID : SV_DispatchThreadID) {
 		}
 		result = sum / weightSum;
 	}
-	gShadowOutput[offset] = float2(saturate(result), PackShadowHistory(propagatedRadius, GetShadowHistoryCount(center.y)));
+	gShadowOutput[offset] = EncodeShadowValue(float2(saturate(result), PackShadowHistory(propagatedRadius, GetShadowHistoryCount(center.y))));
 	if (slot == shadowPreviewLightIndex) gShadowPreview[pixel] = 1.0f - saturate(result);
 }

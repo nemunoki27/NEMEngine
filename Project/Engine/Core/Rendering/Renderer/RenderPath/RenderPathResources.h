@@ -98,8 +98,8 @@ namespace Engine {
 		RenderPathResources& operator=(const RenderPathResources&) = delete;
 
 		// サイズに応じてレンダーターゲットを生成/再生成する
-		void Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height);
-		void Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height);
+		void Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
+		void Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
 		// Outlineの要求があるViewだけ中間描画先を用意する
 		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(GraphicsCore& graphicsCore, bool editorSelection);
 		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(const RenderTargetCreationContext& context, bool editorSelection);
@@ -150,7 +150,7 @@ namespace Engine {
 		const ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() const;
 
 		// DeferredのGBufferと深度の作成情報を構築する
-		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
+		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
 		// Lightingと後段描画の合成先を構築する
 		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
 		// Outlineの整数Maskの作成情報を構築する
@@ -165,6 +165,7 @@ namespace Engine {
 
 		uint32_t currentWidth_ = 0;
 		uint32_t currentHeight_ = 0;
+		DXGI_FORMAT albedoFormat_ = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 		// GBufferと深度の描画先
 		std::unique_ptr<MultiRenderTarget> sceneMain_;
@@ -181,9 +182,9 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 寸法と全資源の状態から再生成を判定する
-		bool NeedsResize(uint32_t width, uint32_t height) const;
+		bool NeedsResize(uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat) const;
 		// 公開前の描画資源をまとめて生成する
-		void Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height);
+		void Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat);
 		// 完成した資源と確定寸法を入れ替える
 		void Swap(RenderPathResources& other) noexcept;
 

@@ -9,6 +9,7 @@ $fixtureRoot = Join-Path $engineRoot 'Project/Sandbox/GameAssets/__DecalValidati
 if (Test-Path -LiteralPath $fixtureRoot) { throw "検証先が既に存在します: $fixtureRoot" }
 $null = New-Item -ItemType Directory -Path $fixtureRoot
 $null = New-Item -ItemType Directory -Path $outputRoot -Force
+& (Join-Path $engineRoot 'Tools/PruneGeneratedArtifacts.ps1') -ValidationImages -ResetCaptureDirectory $outputRoot
 $projectGUID = 'd0d59331ff0a4eb589ea7801cb52f208'
 $settingsRoot = Join-Path $outputRoot "UserSettings/$projectGUID"
 $null = New-Item -ItemType Directory -Path (Join-Path $settingsRoot 'Runtime') -Force
@@ -80,4 +81,5 @@ try {
         'NEM_RENDER_BENCHMARK_WIDTH', 'NEM_RENDER_BENCHMARK_HEIGHT', 'NEM_RENDER_BENCHMARK_PHASE_COUNT')) {
         [Environment]::SetEnvironmentVariable($name, $null, 'Process')
     }
+    & (Join-Path $engineRoot 'Tools/PruneGeneratedArtifacts.ps1') -ValidationImages -PreserveCaptureDirectory $outputRoot
 }

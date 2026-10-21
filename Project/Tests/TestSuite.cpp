@@ -8,6 +8,7 @@
 //============================================================================
 #include "TestRunner.h"
 #include "TestContracts.h"
+#include "FrameBufferingTests.h"
 #include "ApplicationPlatformTests.h"
 #include "FoundationTests.h"
 #include "EditorRefactoringTests.h"
@@ -249,7 +250,8 @@ int NEMTests::RunAllTests() {
 		std::cerr << "RenderFeature profile failed\n";
 		return 22;
 	}
-	if (!RunTest("TestProfilerContracts", TestProfilerContracts)) {
+	if (!RunTest("TestProfilerContracts", TestProfilerContracts) ||
+		!RunTest("TestFrameBufferingContracts", TestFrameBufferingContracts)) {
 		std::cerr << "Profiler contracts failed\n";
 		return 44;
 	}

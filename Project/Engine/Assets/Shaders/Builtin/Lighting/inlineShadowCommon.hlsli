@@ -72,6 +72,7 @@ bool TraceShadowRay(float3 origin, float3 direction, float maxDistance, out floa
 	rayDesc.TMax = maxDistance;
 
 	RayQuery <
+		RAY_FLAG_FORCE_OPAQUE |
 		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
 		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES > rayQuery;
 

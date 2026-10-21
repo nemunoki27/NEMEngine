@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
@@ -109,7 +110,7 @@ namespace Engine {
 
 		std::unique_ptr<PipelineState> pipeline_{};
 		// frameと描画ごとに定数Bufferを保持する
-		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>, kGraphicsFrameContextCount> passBuffers_{};
+		GraphicsFrameResourceArray<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>> passBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> passBufferIndices_{};
 		uint64_t passFrameSerial_ = UINT64_MAX;
 

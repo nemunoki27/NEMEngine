@@ -3,7 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -30,72 +32,115 @@ namespace {
 
 	bool UsesStaticMaterial(const Engine::MaterialAsset& material, const Engine::AssetDatabase* database) {
 
-		if (material.shaderGraph || HasRenderTexture(material.parameters, database)) return false;
-		// 任意のShaderは時刻で形状や透明度を変えられる
-		for (const auto& pass : material.passes) {
-			using namespace Engine::BuiltinAssets::Pipelines;
-			if (pass.passKind != Engine::MaterialPassKind::Draw && pass.passKind != Engine::MaterialPassKind::Masked &&
-				pass.passKind != Engine::MaterialPassKind::ZPrepass && pass.passKind != Engine::MaterialPassKind::Transparent) continue;
-			if (pass.shaderOverride || (pass.pipeline != DefaultMesh && pass.pipeline != DefaultMeshMasked &&
-				pass.pipeline != DefaultMeshTransparent && pass.pipeline != DefaultMeshZPrepass &&
-				pass.pipeline != DefaultPrimitive && pass.pipeline != DefaultPrimitiveTransparent)) return false;
-		}
-		return true;
+		return !HasRenderTexture(material.parameters, database) && Engine::MaterialRenderPolicy::IsStandardSurface(material);
 	}
 }
 
-Engine::ShadowSceneStamp Engine::BuildShadowSceneStamp(GraphicsCore& graphicsCore, const SceneExecutionContext& context,
-	const RenderPipelineDeps& deps) {
+struct Engine::ShadowSceneStampCache::Implementation {
+
+	struct MeshRecord {
+
+		ECSWorld* world;
+		Entity entity;
+		std::shared_ptr<const ECSWorldLifetime> lifetime;
+		AssetID mesh;
+	};
+	ShadowSceneStamp key;
+	const RenderSceneBatch* batch = nullptr;
+	std::shared_ptr<const ECSWorldLifetime> lifetime;
+	std::unordered_set<AssetID> materials;
+	std::unordered_set<WorldEntityKey, WorldEntityKeyHash> entities;
+	std::vector<MeshRecord> meshes;
+	bool reusable = false;
+	uint64_t rebuildCount = 0;
+};
+
+Engine::ShadowSceneStampCache::ShadowSceneStampCache() : implementation_(std::make_unique<Implementation>()) {}
+Engine::ShadowSceneStampCache::~ShadowSceneStampCache() = default;
+
+uint64_t Engine::ShadowSceneStampCache::GetRebuildCount() const {
+
+	return implementation_->rebuildCount;
+}
+
+Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& graphicsCore,
+	const SceneExecutionContext& context, const RenderPipelineDeps& deps) {
 
 	ShadowSceneStamp result;
 	const auto* camera = context.view ? context.view->FindCamera(RenderCameraDomain::Perspective) : nullptr;
 	if (!camera || !deps.renderBatch || !deps.assetLibrary) return result;
 	result.renderRevision = deps.renderBatch->GetSourceRevision();
 	result.materialRevision = *deps.assetLibrary->GetMaterialRevision();
+	Algorithm::HashCombine(result.materialRevision, MaterialRenderPolicy::GetDefaultMaterialHash());
 	result.pipelineRevision = deps.pipelineCache ? deps.pipelineCache->GetContentRevision() : 0;
 	result.textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision() + RuntimeTextureResolver::GetBindingRevision();
-	result.geometryGeneration = context.raytracing.geometryGeneration;
 	result.worldRevision = context.view->historyWorldRevision;
-	result.cullingMask = camera->cullingMask;
-	result.viewProjection = camera->matrices.viewProjectionMatrix;
-	result.nearClip = camera->nearClip;
-	result.farClip = camera->farClip;
 	const auto& features = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	result.meshShader = features.useMeshShader;
 	result.meshLOD = features.useMeshLOD;
 	const auto* meshBackend = deps.backendRegistry ?
 		dynamic_cast<const MeshRenderBackend*>(deps.backendRegistry->Find(RenderBackendID::Mesh)) : nullptr;
 	result.meshRevision = meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
-	result.reusable = !graphicsCore.GetTextureUploadService().HasPendingRequests();
-	std::unordered_set<AssetID> materials;
-	std::unordered_set<WorldEntityKey, WorldEntityKeyHash> entities;
+	auto& cache = *implementation_;
+	const auto lifetime = context.world ? context.world->GetLifetime() : nullptr;
+	if (cache.batch != deps.renderBatch || cache.lifetime != lifetime || cache.key != result) {
+		cache.key = result;
+		cache.batch = deps.renderBatch;
+		cache.lifetime = lifetime;
+		cache.materials.clear();
+		cache.entities.clear();
+		cache.meshes.clear();
+		cache.reusable = true;
+		++cache.rebuildCount;
 
-	// 動的なMaterialとスキニングを同じ入力判定へまとめる
-	for (const auto& item : deps.renderBatch->GetItems()) {
+		// 動的なMaterialとスキニングを同じ入力判定へまとめる
+		for (const auto& item : deps.renderBatch->GetItems()) {
 
-		if (item.backendID != RenderBackendID::Mesh && item.backendID != RenderBackendID::Primitive) continue;
-		if (item.material && materials.insert(item.material).second) {
-			const auto* material = deps.assetLibrary->LoadMaterial(item.material);
-			if (!material || !UsesStaticMaterial(*material, context.assetDatabase)) result.reusable = false;
-		}
-		if (item.backendID == RenderBackendID::Mesh && item.world && entities.insert({ item.world, item.entity }).second) {
-
-			for (const auto& subMesh : GetMeshSubMeshes(*item.world, item.entity)) {
-				if (HasRenderTexture(subMesh.materialInstance, context.assetDatabase)) result.reusable = false;
+			if (item.backendID != RenderBackendID::Mesh && item.backendID != RenderBackendID::Primitive) continue;
+			const auto materialID = context.assetDatabase && deps.materialResolver ? deps.materialResolver->ResolveORDefault(
+				*context.assetDatabase, item.material, item.backendID == RenderBackendID::Mesh ? DefaultMaterialSlot::Mesh : DefaultMaterialSlot::Primitive) : item.material;
+			if (cache.materials.insert(materialID).second) {
+				const auto* material = deps.assetLibrary->LoadMaterial(materialID);
+				if (!material || !UsesStaticMaterial(*material, context.assetDatabase)) cache.reusable = false;
 			}
-			const auto* payload = deps.renderBatch->GetPayload<MeshRenderPayload>(item);
-			SkinnedVertexSource source;
-			if (payload && meshBackend && meshBackend->FindSkinnedVertexSource(item.world, item.entity, payload->mesh, source)) {
-				result.skinningGenerations.push_back(source.poseGeneration);
-				result.skinningGenerations.push_back(source.bufferGeneration);
+			if (item.backendID == RenderBackendID::Mesh && item.world && cache.entities.insert({ item.world, item.entity }).second) {
+
+				for (const auto& subMesh : GetMeshSubMeshes(*item.world, item.entity)) {
+					if (HasRenderTexture(subMesh.materialInstance, context.assetDatabase)) cache.reusable = false;
+				}
+				const auto* payload = deps.renderBatch->GetPayload<MeshRenderPayload>(item);
+				if (payload) cache.meshes.push_back({item.world, item.entity, item.world->GetLifetime(), payload->mesh});
 			}
-		}
-		if (item.backendID == RenderBackendID::Primitive) {
-			const auto* payload = deps.renderBatch->GetPayload<PrimitiveRenderPayload>(item);
-			if (payload && payload->materialInstance && HasRenderTexture(*payload->materialInstance, context.assetDatabase)) {
-				result.reusable = false;
+			if (item.backendID == RenderBackendID::Primitive) {
+				const auto* payload = deps.renderBatch->GetPayload<PrimitiveRenderPayload>(item);
+				if (payload && payload->materialInstance && HasRenderTexture(*payload->materialInstance, context.assetDatabase)) {
+					cache.reusable = false;
+				}
 			}
 		}
 	}
+	// ポーズはMaterialの世代とは独立して進む
+	for (const auto& record : cache.meshes) {
+		SkinnedVertexSource source;
+		if (record.lifetime->IsAlive() && meshBackend &&
+			meshBackend->FindSkinnedVertexSource(record.world, record.entity, record.mesh, source)) {
+			result.skinningGenerations.push_back(source.poseGeneration);
+			result.skinningGenerations.push_back(source.bufferGeneration);
+		}
+	}
+	result.reusable = cache.reusable && !graphicsCore.GetTextureUploadService().HasPendingRequests();
+	result.geometryGeneration = context.raytracing.geometryGeneration;
+	result.cullingMask = camera->cullingMask;
+	result.viewProjection = camera->matrices.viewProjectionMatrix;
+	result.nearClip = camera->nearClip;
+	result.farClip = camera->farClip;
 	return result;
+}
+
+Engine::ShadowSceneStamp Engine::BuildShadowSceneStamp(GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+	const RenderPipelineDeps& deps) {
+
+	if (deps.shadowStamps) return deps.shadowStamps->Build(graphicsCore, context, deps);
+	ShadowSceneStampCache cache;
+	return cache.Build(graphicsCore, context, deps);
 }

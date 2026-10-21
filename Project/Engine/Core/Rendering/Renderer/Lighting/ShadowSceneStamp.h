@@ -7,6 +7,7 @@
 
 // c++
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace Engine {
@@ -35,6 +36,18 @@ namespace Engine {
 		std::vector<uint64_t> skinningGenerations;
 
 		bool operator==(const ShadowSceneStamp&) const = default;
+	};
+
+	// 共通のMaterial調査を入力世代が変わるまで保持する
+	class ShadowSceneStampCache {
+	public:
+		ShadowSceneStampCache();
+		~ShadowSceneStampCache();
+		ShadowSceneStamp Build(GraphicsCore& graphicsCore, const SceneExecutionContext& context, const RenderPipelineDeps& deps);
+		uint64_t GetRebuildCount() const;
+	private:
+		struct Implementation;
+		std::unique_ptr<Implementation> implementation_;
 	};
 
 	// 時間依存の描画を除いて影の入力を集約する

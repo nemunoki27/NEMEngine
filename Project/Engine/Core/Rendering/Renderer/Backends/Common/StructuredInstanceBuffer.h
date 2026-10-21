@@ -89,6 +89,7 @@ namespace Engine {
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		std::string bindingName_{};
 		std::array<FrameState, kGraphicsFrameContextCount> frames_{};
+		GraphicsFrameResourceRegistration frameRegistration_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -109,6 +110,14 @@ namespace Engine {
 		}
 		device_ = device;
 		srvDescriptor_ = srvDescriptor;
+		frameRegistration_.Bind(srvDescriptor->GetRetirementQueue().GetFrameResources(), this,
+			[](void* owner, uint32_t count) {
+				auto& buffer = *static_cast<StructuredInstanceBuffer*>(owner);
+				for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) {
+					for (auto& slot : buffer.frames_[index].slots) buffer.RetireSlot(slot);
+					buffer.frames_[index] = {};
+				}
+			});
 	}
 
 	template<typename T>
@@ -118,6 +127,7 @@ namespace Engine {
 			for (auto& slot : frame.slots) RetireSlot(slot);
 			frame = {};
 		}
+		frameRegistration_.Reset();
 		device_ = nullptr;
 		srvDescriptor_ = nullptr;
 	}

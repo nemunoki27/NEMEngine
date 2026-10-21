@@ -72,6 +72,6 @@ namespace Engine {
 		std::vector<uint32_t> scenePickRecordOffsets_{};
 
 		std::array<uint64_t, kGraphicsFrameContextCount>
-			sceneUploadFrameSerials_ = { 0, 0, 0 };
+			sceneUploadFrameSerials_ = {};
 	};
 }

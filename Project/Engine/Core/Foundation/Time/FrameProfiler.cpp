@@ -53,6 +53,13 @@ void Engine::FrameProfiler::AddSample(Category category, float milliseconds) {
 	measures_[index].Add(milliseconds);
 }
 
+void Engine::FrameProfiler::AddResourceBarriers(uint32_t transitions, uint32_t uavBarriers) {
+
+	++renderingStatistics_.barrierCallCount;
+	renderingStatistics_.transitionBarrierCount += transitions;
+	renderingStatistics_.uavBarrierCount += uavBarriers;
+}
+
 void Engine::FrameProfiler::SetGPUPassTimes(const std::vector<NamedTime>& passes) {
 
 	gpuPassTimes_ = passes;

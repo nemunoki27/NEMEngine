@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
@@ -35,7 +36,7 @@ void DxCommand::Create(ID3D12Device* device) {
 
 	// 全frameのアロケータを候補として作る
 	std::array<GraphicsFrameContext, kGraphicsFrameContextCount> contexts{};
-	for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+	for (uint32_t index = 0; index < GraphicsFrameState::GetActiveCount(); ++index) {
 		auto& context = contexts[index];
 		const HRESULT result = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
 		if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/Allocator")) {
@@ -54,6 +55,7 @@ void DxCommand::Create(ID3D12Device* device) {
 
 	// 作成に成功した組だけを公開する
 	frameContexts_ = std::move(contexts);
+	frameContexts_[0].submission = std::make_shared<GraphicsSubmissionState>();
 	commandList_ = std::move(commands);
 	currentFrameIndex_ = 0;
 	GraphicsFrameState::SetCurrentIndex(currentFrameIndex_);
@@ -74,6 +76,8 @@ void DxCommand::BeginFrame(uint32_t frameIndex) {
 }
 
 void DxCommand::CloseCommandList() {
+
+	FrameProfiler::ScopedSample sample(FrameProfiler::Category::CommandCloseCPU);
 
 	if (!recording_) {
 		return;
@@ -97,6 +101,7 @@ void DxCommand::ResetCommandList() {
 	}
 	// アロケータとリストの両方が再利用できた場合だけ記録を許可する
 	GraphicsFrameContext& context = frameContexts_[currentFrameIndex_];
+	context.submission = std::make_shared<GraphicsSubmissionState>();
 	HRESULT hr = context.commandAllocator->Reset();
 	if (!CheckCommandResult(context.commandAllocator.Get(), hr, "DxCommand::Reset/Allocator")) {
 		throw std::runtime_error("描画コマンドアロケータのリセットに失敗しました");
@@ -111,6 +116,9 @@ void DxCommand::ResetCommandList() {
 void DxCommand::SetCurrentFrameFenceValue(uint64_t fenceValue) {
 
 	frameContexts_[currentFrameIndex_].fenceValue = fenceValue;
+	if (frameContexts_[currentFrameIndex_].submission) {
+		frameContexts_[currentFrameIndex_].submission->fenceValue_ = fenceValue;
+	}
 }
 
 //============================================================================
@@ -221,9 +229,22 @@ void DxCommand::SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, ui
 	commandList_->RSSetScissorRects(1, &scissorRect);
 }
 
+void DxCommand::ResourceBarriers(std::span<const D3D12_RESOURCE_BARRIER> barriers) {
+
+	if (barriers.empty()) return;
+	commandList_->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+	uint32_t transitions = 0, uavBarriers = 0;
+	for (const auto& barrier : barriers) {
+		transitions += barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		uavBarriers += barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	}
+	FrameProfiler::GetInstance().AddResourceBarriers(transitions, uavBarriers);
+}
+
 void DxCommand::TransitionBarriers(ID3D12Resource* resource,
 	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
 
+	if (stateBefore == stateAfter) return;
 	// 単一リソースは一時vectorを作らずスタック上のバリア1つで遷移する
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -234,12 +255,13 @@ void DxCommand::TransitionBarriers(ID3D12Resource* resource,
 	barrier.Transition.StateBefore = stateBefore;
 	barrier.Transition.StateAfter = stateAfter;
 
-	commandList_->ResourceBarrier(1, &barrier);
+	ResourceBarriers(std::span{ &barrier, 1 });
 }
 
 void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources,
 	D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter) {
 
+	if (stateBefore == stateAfter) return;
 	std::vector<D3D12_RESOURCE_BARRIER> barriers;
 	// メモリ確保
 	barriers.reserve(resources.size());
@@ -261,7 +283,7 @@ void DxCommand::TransitionBarriers(const std::vector<ID3D12Resource*>& resources
 		barriers.push_back(barrier);
 	}
 
-	commandList_->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+	ResourceBarriers(barriers);
 }
 
 void DxCommand::UAVBarrier(ID3D12Resource* resource) {
@@ -269,7 +291,7 @@ void DxCommand::UAVBarrier(ID3D12Resource* resource) {
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	barrier.UAV.pResource = resource;
-	commandList_->ResourceBarrier(1, &barrier);
+	ResourceBarriers(std::span{ &barrier, 1 });
 }
 
 void DxCommand::UAVBarrierAll() {
@@ -277,7 +299,7 @@ void DxCommand::UAVBarrierAll() {
 	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	barrier.UAV.pResource = nullptr;
-	commandList_->ResourceBarrier(1, &barrier);
+	ResourceBarriers(std::span{ &barrier, 1 });
 }
 
 void DxCommand::CopyTexture(ID3D12Resource* dstResource, D3D12_RESOURCE_STATES dstState,
@@ -306,4 +328,31 @@ namespace Engine {
 			frameIndex %
 			GraphicsFrameState::GetActiveCount()].fenceValue;
 	}
+}
+
+ComPtr<ID3D12CommandAllocator> Engine::DxCommand::PrepareFrameContextCount(uint32_t count) {
+
+	ComPtr<ID3D12CommandAllocator> allocator;
+	if (count == 2 && !frameContexts_[1].commandAllocator) {
+		ComPtr<ID3D12Device> device;
+		commandList_->GetDevice(IID_PPV_ARGS(&device));
+		const HRESULT result = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator));
+		if (!DxDREDDiagnostics::CheckHRESULT(device.Get(), result, "DxCommand::PrepareFrameContextCount")) {
+			throw std::runtime_error("追加フレームのAllocatorを作成できませんでした");
+		}
+		allocator->SetName(L"MainGraphicsCommandAllocator[1]");
+	}
+	return allocator;
+}
+
+void Engine::DxCommand::ApplyFrameContextCount(uint32_t count, uint32_t frameIndex,
+	ComPtr<ID3D12CommandAllocator> allocator) {
+
+	if (recording_) throw std::logic_error("コマンド記録中はフレーム数を変更できません");
+	if (allocator) frameContexts_[1].commandAllocator = std::move(allocator);
+	for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) frameContexts_[index] = {};
+	for (auto& context : frameContexts_) context.fenceValue = 0;
+	GraphicsFrameState::SetActiveCount(count);
+	currentFrameIndex_ = frameIndex % count;
+	GraphicsFrameState::SetCurrentIndex(currentFrameIndex_);
 }

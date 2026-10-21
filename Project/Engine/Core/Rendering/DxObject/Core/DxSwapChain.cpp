@@ -91,8 +91,8 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 	if (swapChain_) throw std::logic_error("SwapChainは作成済みです");
 	device_ = device;
 	rtvDescriptor_ = rtvDescriptor;
-	bufferCount_ = (std::max)(
-		2u, GraphicsFrameState::GetActiveCount());
+	// 表示用の2枚は実行フレーム数から独立させる
+	bufferCount_ = 2;
 	displayOutput_ = displayOutput;
 	displayOutput_.paperWhiteNits = std::clamp(
 		displayOutput_.paperWhiteNits, 80.0f, 1000.0f);

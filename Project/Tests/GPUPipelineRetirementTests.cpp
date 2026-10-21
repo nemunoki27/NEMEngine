@@ -313,7 +313,7 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 	ImGui_ImplDX12_InitInfo info{};
 	info.Device = device;
 	info.CommandQueue = queue;
-	info.NumFramesInFlight = 3;
+	info.NumFramesInFlight = Engine::GraphicsFrameState::GetActiveCount();
 	info.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	info.SrvDescriptorHeap = descriptors.GetDescriptorHeap();
 	info.UserData = &descriptors;

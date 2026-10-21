@@ -28,6 +28,9 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
 
 	builtinTextures_ = &graphicsCore.GetBuiltinTextureLibrary();
+	// 資源を解放したスロットへ旧データの転送済み状態を残さない
+	frameRegistration_.Bind(graphicsCore.GetDXObject().GetResourceRetirement().GetFrameResources(), this,
+		[](void* owner, uint32_t) { static_cast<ViewLightBufferSet*>(owner)->uploadedSerials_.fill(0); });
 
 	// 全Viewで同じ面光源テーブルを参照する
 	rectLTCMatrixIndex_ = graphicsCore.GetBuiltinTextureLibrary().GetRectLTCMatrix()->srvIndex;
@@ -60,6 +63,8 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 }
 
 void Engine::ViewLightBufferSet::Release() {
+
+	frameRegistration_.Reset();
 
 	// 定数と構造化Bufferをまとめて返す
 	lightCounts_.Release();

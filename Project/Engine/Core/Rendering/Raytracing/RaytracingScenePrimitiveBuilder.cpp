@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
@@ -145,6 +146,10 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 			instance.mask |= kRaytracingMaskReflectionCaster;
 		}
 		instance.flags = ToRaytracingCullFlags(pipelineVariant->rasterizer);
+		// 共有形状でも切り抜きと半透明はInstanceごとに候補判定する
+		if (!MaterialRenderPolicy::IsOpaqueGeometry(material, src.surfaceMode)) {
+			instance.flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
+		}
 		instance.worldMatrix = src.worldMatrix;
 		work.tlasInstances.emplace_back(instance);
 		work.tlasEntityKeys.emplace_back(SceneEntityKey{ .world = src.world, .entity = src.entity, });

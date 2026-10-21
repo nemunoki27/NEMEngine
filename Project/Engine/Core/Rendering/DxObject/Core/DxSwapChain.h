@@ -69,7 +69,7 @@ namespace Engine {
 		RTVDescriptor* rtvDescriptor_ = nullptr;
 
 		// Flip Modelは最低2枚必要なため1FrameContextでも2枚確保する
-		uint32_t bufferCount_ = kGraphicsFrameContextCount;
+		uint32_t bufferCount_ = 2;
 
 		ComPtr<IDXGISwapChain4> swapChain_;
 		DXGI_SWAP_CHAIN_DESC1 desc_{};
@@ -83,7 +83,7 @@ namespace Engine {
 			kGraphicsFrameContextCount> rtvHandles_;
 		std::array<uint32_t,
 			kGraphicsFrameContextCount> rtvIndices_ = {
-			UINT32_MAX, UINT32_MAX, UINT32_MAX
+			UINT32_MAX, UINT32_MAX
 		};
 
 		// バックバッファとRTVを取得して保持する

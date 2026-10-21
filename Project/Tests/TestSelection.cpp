@@ -1,5 +1,7 @@
 #include "TestSelection.h"
 #include "BloomTests.h"
+#include "FrameBufferingTests.h"
+#include "GPUFilterTestFixture.h"
 #include "RectLightTests.h"
 #include "DecalTests.h"
 
@@ -32,6 +34,9 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--gpu-filter-equivalence") {
+		return RunTest("TestGPUFilterEquivalence", TestGPUFilterEquivalence) ? 0 : 69;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--decals") {
 		return RunTest("TestDecals", TestDecals) && RunTest("TestDecalGPU", TestDecalGPU) ? 0 : 68;
 	}
@@ -79,6 +84,13 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return RunTest("TestManagedLifecycleIntegration", TestManagedLifecycleIntegration) ? 0 : 45;
 	}
 
+	if (1 < argc && (std::string_view(argv[1]) == "--frame-buffering" ||
+		std::string_view(argv[1]) == "--frame-buffering-hardware")) {
+		return RunTest("TestFrameBufferingContracts", TestFrameBufferingContracts) &&
+			RunTest("TestFrameBufferingGPU", [&] { return TestFrameBufferingGPU(
+				std::string_view(argv[1]) == "--frame-buffering-hardware"); }) ? 0 : 52;
+	}
+
 	if (1 < argc &&
 		(std::string_view(argv[1]) == "--gpu-retirement" || std::string_view(argv[1]) == "--gpu-retirement-hardware")) {
 		if (!TestGPURetirement(std::string_view(argv[1]) == "--gpu-retirement-hardware")) {
@@ -104,7 +116,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--foundation") {
 		if (!RunTest("TestFoundationContracts", TestFoundationContracts) ||
-			!RunTest("TestProfilerContracts", TestProfilerContracts)) {
+			!RunTest("TestProfilerContracts", TestProfilerContracts) ||
+			!RunTest("TestFrameBufferingContracts", TestFrameBufferingContracts)) {
 			return 41;
 		}
 		std::cout << "Foundation tests passed\n";

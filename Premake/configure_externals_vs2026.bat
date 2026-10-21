@@ -43,6 +43,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ENGINE_ROOT%\Tools\PruneGeneratedArtifacts.ps1" -AssimpObjects
+if errorlevel 1 (
+    echo [ERROR] assimp artifact cleanup failed.
+    exit /b 1
+)
+
 rem msdf-atlas-gen はsubmodule未取得でも他のビルドを止めないよう、ソースがある時だけconfigureする
 set "MSDF_SRC=%ENGINE_ROOT%\Project\Externals\msdf-atlas-gen"
 set "MSDF_BUILD=%ENGINE_ROOT%\Generated\Externals\msdf"

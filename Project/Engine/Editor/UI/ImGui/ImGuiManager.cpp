@@ -113,6 +113,11 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	ImGuiAppearance::ConfigureFont(io);
 	ImGuiAppearance::ApplyTheme(ImGui::GetStyle(), (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0);
 
+	// Contextを作り直さずBackendの実行用資源だけを切り替える
+	frameRegistration_.Bind(srvDescriptor_->GetRetirementQueue().GetFrameResources(), this,
+		[](void*, uint32_t) { ImGui_ImplDX12_ApplyFrameCount(); },
+		[](void*, uint32_t count) { return ImGui_ImplDX12_PrepareFrameCount(static_cast<int>(count)); },
+		[](void*, uint32_t) { ImGui_ImplDX12_CancelFrameCount(); });
 	initialized_ = true;
 } catch (...) {
 
@@ -170,6 +175,8 @@ void ImGuiManager::DrawPlatformWindows() {
 }
 
 void ImGuiManager::Finalize() {
+
+	frameRegistration_.Reset();
 
 	if (contextCreated_) {
 

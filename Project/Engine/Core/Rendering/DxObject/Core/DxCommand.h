@@ -38,6 +38,11 @@ public:
 	// デバイスからアロケータ/リストを生成し初期化する
 	void Create(ID3D12Device* device);
 
+	// フレーム数を増やす前に追加のAllocatorを用意する
+	ComPtr<ID3D12CommandAllocator> PrepareFrameContextCount(uint32_t count);
+	// GPU完了後にAllocator数と記録先を切り替える
+	void ApplyFrameContextCount(uint32_t count, uint32_t frameIndex, ComPtr<ID3D12CommandAllocator> allocator);
+
 	// 再利用可能になったフレームコンテキストで記録を開始する
 	void BeginFrame(uint32_t frameIndex);
 	// 提出前にコマンドリストを閉じる
@@ -70,6 +75,7 @@ public:
 	void SetViewportAndScissor(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 	// リソースバリア遷移処理
+	void ResourceBarriers(std::span<const D3D12_RESOURCE_BARRIER> barriers);
 	void TransitionBarriers(ID3D12Resource* resource,
 		D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter);
 	void TransitionBarriers(const std::vector<ID3D12Resource*>& resources,
@@ -88,6 +94,7 @@ public:
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
 	uint32_t GetCurrentFrameIndex() const { return currentFrameIndex_; }
 	uint64_t GetFrameFenceValue(uint32_t frameIndex) const;
+	GraphicsSubmissionTicket GetSubmissionTicket() const { return frameContexts_[currentFrameIndex_].submission; }
 	bool IsRecording() const { return recording_; }
 private:
 	//============================================================================

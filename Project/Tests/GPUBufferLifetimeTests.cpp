@@ -18,6 +18,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 
 // c++
 #include <cstring>
@@ -288,6 +289,26 @@ bool NEMTests::CheckRenderTexturePublication(ID3D12Device* device) {
 	Engine::RuntimeTextureResolver::UnregisterRenderTexture(assetID, &second);
 	valid &= Engine::RuntimeTextureResolver::GetBindingRevision() == secondRevision + 1 &&
 		!Engine::RuntimeTextureResolver::TryResolveSize(unusedGraphics, nullptr, assetID, size);
+
+	// 表示されないCameraの画像も、読み取り側のcacheが残る間は維持する
+	Engine::DSVDescriptor depths;
+	depths.Init(device, {D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE});
+	depths.SetRetirementQueue(retirement);
+	Engine::ViewportRenderService surfaces;
+	surfaces.SyncRenderTextureSurface({device, targets, depths, shaders}, assetID, 4, 4);
+	auto consumer = surfaces.GetRenderTextureOwnership(assetID);
+	for (uint32_t frame = 0; frame < 130; ++frame) Engine::GraphicsFrameState::BeginFrame(0);
+	surfaces.CollectRenderTextures({});
+	valid &= surfaces.GetRenderTextureCount() == 1 && consumer != nullptr;
+	consumer.reset();
+	// Cameraの停止中は新しく描かず同じ出力を保持する
+	auto* output = surfaces.GetRenderTextureSurface(assetID);
+	surfaces.SyncRenderTextureSurface({device, targets, depths, shaders}, assetID, 4, 4);
+	surfaces.CollectRenderTextures({});
+	valid &= surfaces.GetRenderTextureSurface(assetID) == output;
+	for (uint32_t frame = 0; frame < 130; ++frame) Engine::GraphicsFrameState::BeginFrame(0);
+	surfaces.CollectRenderTextures({});
+	valid &= surfaces.GetRenderTextureCount() == 0 && surfaces.GetCollectedRenderTextureCount() == 1;
 
 	// 未提出のFixture資源をまとめて回収する
 	first.Destroy();

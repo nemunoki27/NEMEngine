@@ -13,6 +13,9 @@
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 
+// c++
+#include <optional>
+
 namespace Engine {
 
 	class FontRenderService;
@@ -38,6 +41,11 @@ namespace Engine {
 		void TickFrameServices();
 		// 実クライアントサイズへバックバッファを同期する
 		void SyncWindowSize();
+
+		// 次の更新開始前にダブルバッファリングを切り替える
+		void RequestDoubleBuffering(bool enabled);
+		void ApplyPendingDoubleBuffering();
+		bool IsDoubleBufferingEnabled() const;
 
 		// フレーム開始/終了処理
 		void BeginRenderFrame();
@@ -102,6 +110,7 @@ namespace Engine {
 
 		// スワップチェーン
 		std::unique_ptr<DxSwapChain> swapChain_;
+		std::optional<uint32_t> requestedFrameContextCount_{};
 
 		// GPUテクスチャ
 		std::unique_ptr<TextureUploadService> textureUploadService_;

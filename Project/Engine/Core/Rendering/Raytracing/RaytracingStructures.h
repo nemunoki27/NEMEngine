@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
 #include <span>
@@ -45,6 +46,7 @@ namespace Engine {
 
 		std::span<const RaytracingBLASGeometryInput> geometries{};
 		bool allowUpdate = false;
+		GraphicsSubmissionTicket submission;
 	};
 	// TLASインスタンス
 	struct RaytracingTLASInstance {

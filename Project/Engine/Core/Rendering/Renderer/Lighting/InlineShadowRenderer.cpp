@@ -99,7 +99,8 @@ struct Engine::InlineShadowRenderer::Implementation {
 
 	struct ViewState {
 
-		std::array<StructuredRWBuffer<Vector2>, 5> buffers;
+		StructuredRWBuffer<Vector2> raw;
+		std::array<StructuredRWBuffer<uint32_t>, 5> buffers;
 		std::array<MultiRenderTarget, 2> geometry;
 		MultiRenderTarget preview;
 		StructuredInstanceBuffer<uint32_t> sources;
@@ -173,7 +174,10 @@ Engine::InlineShadowRenderer::Implementation::CreateView(
 	auto* descriptor = &graphicsCore.GetSRVDescriptor();
 
 	// 遮蔽率と履歴をライトの数だけ確保
-	for (auto& buffer : state->buffers) {
+	state->raw.Init(device, descriptor);
+	state->raw.EnsureCapacity(static_cast<uint32_t>(count));
+	for (uint32_t index = 1; index < state->buffers.size(); ++index) {
+		auto& buffer = state->buffers[index];
 		buffer.Init(device, descriptor);
 		buffer.EnsureCapacity(static_cast<uint32_t>(count));
 	}
@@ -202,12 +206,9 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 	auto* list = command.GetCommandList();
 	auto& pipeline = *pipelines[stage];
 	auto* gbuffer = context.resources->GetSceneMain();
-	// Computeで参照するGBufferを読み取り状態へ揃える
-	for (uint32_t attachment : {1u, 2u, 5u, 6u}) {
-		gbuffer->GetColorTexture(attachment)->Transition(command, kShaderRead);
-	}
-	state.buffers[output].Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	if (stage != 0) state.buffers[input].Transition(command, kShaderRead);
+	if (stage == 0) state.raw.Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	else state.buffers[output].Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	if (stage == 2) state.buffers[input].Transition(command, kShaderRead);
 	list->SetComputeRootSignature(pipeline.GetRootSignature());
 	list->SetPipelineState(pipeline.GetComputePipeline());
 	pipeline.BindGlobalDescriptorTablesCompute(list, graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
@@ -222,7 +223,8 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 	bindings.reserve(16);
 	bindings.push_back({ "InlineShadowParameters", ComputeBindValueType::CBV, allocation.gpuAddress });
 	bindings.push_back({ "gShadowOutput", ComputeBindValueType::UAV,
-		state.buffers[output].GetGPUAddress(), state.buffers[output].GetUAVGPUHandle() });
+		stage == 0 ? state.raw.GetGPUAddress() : state.buffers[output].GetGPUAddress(),
+		stage == 0 ? state.raw.GetUAVGPUHandle() : state.buffers[output].GetUAVGPUHandle() });
 	bindings.push_back({ "gShadowLightSources", ComputeBindValueType::SRV,
 		state.sources.GetGPUAddress(), state.sources.GetGPUHandle() });
 	const auto bindTexture = [&](const char* name, RenderTexture2D* texture, bool writable = false) {
@@ -242,10 +244,10 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 
 		const uint32_t current = state.historyIndex;
 		const uint32_t previous = 1u - current;
-		bindings.push_back({ "gShadowInput", ComputeBindValueType::SRV,
+		if (stage == 2) bindings.push_back({ "gShadowInput", ComputeBindValueType::SRV,
 			state.buffers[input].GetGPUAddress(), state.buffers[input].GetSRVGPUHandle() });
 		bindings.push_back({ "gShadowRaw", ComputeBindValueType::SRV,
-			state.buffers[0].GetGPUAddress(), state.buffers[0].GetSRVGPUHandle() });
+			state.raw.GetGPUAddress(), state.raw.GetSRVGPUHandle() });
 		bindings.push_back({ "gShadowHistory", ComputeBindValueType::SRV, state.buffers[1 + previous].GetGPUAddress(),
 			state.buffers[1 + previous].GetSRVGPUHandle() });
 		bindTexture("gPreviousPosition", state.geometry[previous].GetColorTexture(0));
@@ -258,15 +260,15 @@ void Engine::InlineShadowRenderer::Implementation::Dispatch(GraphicsCore& graphi
 	// Shaderで使う入力だけを名前で接続
 	ComputeRootBinder{ pipeline }.Bind(list, bindings);
 	list->Dispatch((state.width + 7) / 8, (state.height + 7) / 8, state.lightCount);
-	command.UAVBarrier(state.buffers[output].GetResource());
-	state.buffers[output].Transition(command, kShaderRead);
+	// 用途の遷移で書き込み完了も後続へ渡す
+	if (stage == 0) state.raw.Transition(command, kShaderRead);
+	else state.buffers[output].Transition(command, kShaderRead);
 	if (stage == 1) {
 		command.UAVBarrier(state.geometry[state.historyIndex].GetColorTexture(0)->GetResource());
 		// 面の法線を後段の空間フィルターへ渡す
 		auto* normal = state.geometry[state.historyIndex].GetColorTexture(1);
-		command.UAVBarrier(normal->GetResource());
 		normal->Transition(command, kShaderRead);
-	} else {
+	} else if (parameters.previewLightIndex < state.lightCount) {
 		command.UAVBarrier(state.preview.GetColorTexture(stage == 0 ? 0 : 1)->GetResource());
 	}
 }
@@ -362,7 +364,11 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	state.historyIndex = 1u - state.historyIndex;
 	auto& command = *graphicsCore.GetDXObject().GetDxCommand();
 	command.SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-	context.resources->GetSceneMain()->TransitionForShaderRead(command);
+	// 影の全工程で読むGBufferだけを一度に揃える
+	auto* gbuffer = context.resources->GetSceneMain();
+	std::array<RenderTexture2D*, 4> inputs{ gbuffer->GetColorTexture(1), gbuffer->GetColorTexture(2),
+		gbuffer->GetColorTexture(5), gbuffer->GetColorTexture(6) };
+	RenderTexture2D::TransitionAll(command, inputs, kShaderRead);
 	for (uint32_t attachment = 0; attachment < 2; ++attachment) {
 
 		state.geometry[state.historyIndex].GetColorTexture(attachment)->Transition(command, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -386,6 +392,8 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	for (uint32_t iteration = 0; iteration < 4; ++iteration) {
 
 		parameters.filterStep = 1u << iteration;
+		// 確認用画像への書き込みは最終工程だけ行う
+		parameters.previewLightIndex = iteration == 3 ? lightCount - 1 : UINT32_MAX;
 		const uint32_t output = 3 + (iteration & 1u);
 		implementation_->Dispatch(graphicsCore, context, state, 2, input, output, parameters);
 		input = output;
@@ -404,10 +412,13 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 
 void Engine::InlineShadowRenderer::Implementation::Publish(SceneExecutionContext& context, ViewState& state) {
 
+	// 影の再利用中も追加スロットの対応表を復元する
+	if (!state.indices.GetResource()) state.indices.Upload(state.selection.indices);
+
 	// 最後に完成したBufferと確認用の画像を公開する
 	auto& filtered = state.buffers[state.filteredBuffer];
 	RegisterBuffer(context.bufferRegistry, "gFilteredRaytracedShadows", filtered.GetResource(),
-		filtered.GetSRVGPUHandle(), state.width * state.height * state.lightCount, sizeof(Vector2));
+		filtered.GetSRVGPUHandle(), state.width * state.height * state.lightCount, sizeof(uint32_t));
 	RegisterBuffer(context.bufferRegistry, "gShadowLightIndices", state.indices.GetResource(),
 		state.indices.GetGPUHandle(), static_cast<uint32_t>(state.selection.indices.size()), sizeof(uint32_t));
 	if (context.targetRegistry) {

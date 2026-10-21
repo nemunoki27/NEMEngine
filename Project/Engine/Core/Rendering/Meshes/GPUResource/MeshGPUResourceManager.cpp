@@ -55,6 +55,8 @@ void Engine::MeshGPUResourceManager::Finalize() {
 	}
 
 	importService_.Finalize();
+	for (auto& pending : pendingMeshes_) uploadService_->CancelOwnedUploads(pending.ticket);
+	pendingMeshes_.clear();
 	{
 		std::scoped_lock lock(mutex_);
 		for (auto& [id, mesh] : gpuMeshes_) {
@@ -89,6 +91,7 @@ void Engine::MeshGPUResourceManager::BeginFrame(GraphicsCore& graphicsCore) {
 		Init(graphicsCore);
 	}
 	CollectUnusedMeshes();
+	PublishReadyMeshes();
 }
 
 void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, AssetID meshAssetID) {
@@ -131,6 +134,7 @@ void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) 
 
 void Engine::MeshGPUResourceManager::FlushUploads(bool unlimited) {
 
+	PublishReadyMeshes();
 	// 読み込み待ちのメッシュアセットのうち、GPUにアップロードされていないものをアップロードする
 	std::vector<std::pair<AssetID, uint64_t>> pending{};
 	{
@@ -159,7 +163,7 @@ void Engine::MeshGPUResourceManager::FlushUploads(bool unlimited) {
 		++uploadedThisFrame_;
 		// GPUにアップロード
 		try {
-			UploadImported(imported, revision);
+			if (UploadImported(std::move(imported), revision)) continue;
 		} catch (...) {
 			CompleteRequest(id, revision);
 			throw;
@@ -173,6 +177,7 @@ void Engine::MeshGPUResourceManager::WaitAll() {
 	for (;;) {
 		importService_.WaitAll();
 		FlushUploads(true);
+		uploadService_->FlushAndWait();
 		// 完了時に再投入した最新要求も待つ
 		std::scoped_lock lock(mutex_);
 		if (requested_.empty()) {
@@ -190,79 +195,6 @@ const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID mesh
 	}
 	meshAccessTimes_[meshAssetID] = std::chrono::steady_clock::now();
 	return &it->second;
-}
-
-void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported, uint64_t revision) {
-
-	if (!uploadService_) {
-		return;
-	}
-	{
-		std::scoped_lock lock(mutex_);
-		// 古い読込結果のGPU生成を省く
-		if (requestRevisions_.at(imported.assetID) != revision) {
-			return;
-		}
-	}
-
-	MeshGPUResource mesh{};
-	try {
-		mesh = MeshGPUBuilder::Create(imported, assetDatabase_, device_, uploadService_, srvDescriptor_);
-	}
-	catch (const std::exception& exception) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"MeshのGPU資源作成に失敗しました asset={} 内容={}",
-			ToString(imported.assetID), exception.what());
-		return;
-	}
-	catch (...) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"MeshのGPU資源作成に失敗しました asset={} 内容=不明な例外",
-			ToString(imported.assetID));
-		return;
-	}
-	if (!mesh.IsValid()) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"MeshのGPU資源作成に失敗しました asset={}", ToString(imported.assetID));
-		ReleaseMeshResource(mesh);
-		return;
-	}
-
-	MeshGPUResource old{};
-	mesh.ownership = std::make_shared<const uint8_t>(0);
-	bool retireOld = false;
-	bool reloadLayout = false;
-	// 成功した候補を公開してから旧GPU資源を回収へ渡す
-	{
-		std::scoped_lock lock(mutex_);
-		// GPU生成中に新しい要求を受けた候補も公開しない
-		if (requestRevisions_.at(imported.assetID) != revision) {
-			return;
-		}
-		auto it = gpuMeshes_.find(imported.assetID);
-		auto& generation = reloadGeneration_[imported.assetID];
-		if (generation == UINT32_MAX) {
-			throw std::overflow_error("Meshの公開世代が上限に達しました");
-		}
-		mesh.reloadGeneration = generation + 1;
-		meshAccessTimes_[imported.assetID] = std::chrono::steady_clock::now();
-		if (it == gpuMeshes_.end()) {
-			gpuMeshes_.emplace(imported.assetID, std::move(mesh));
-		} else {
-			old = std::move(it->second);
-			it->second = std::move(mesh);
-			retireOld = true;
-		}
-		++generation;
-		++resourceRevision_;
-		const auto layoutReload = layoutReloadRevisions_.find(imported.assetID);
-		reloadLayout = layoutReload != layoutReloadRevisions_.end() && layoutReload->second == revision;
-	}
-	if (retireOld) {
-		ReleaseMeshResource(old);
-	}
-	// 未使用Meshの再転送では編集layoutを解析し直さない
-	if (reloadLayout) MeshSubMeshAuthoring::InvalidateCachedLayout(imported.assetID);
 }
 
 void Engine::MeshGPUResourceManager::CollectUnusedMeshes() {

@@ -13,12 +13,23 @@
 #include <chrono>
 #include <deque>
 #include <span>
+#include <memory>
 #include <vector>
 
 // directX
 #include <d3d12.h>
 
 namespace Engine {
+	// 所有付き転送の記録数と提出Fenceを保持する
+	class BufferUploadCompletion {
+	private:
+		friend class BufferUploadService;
+		std::shared_ptr<const void> source;
+		uint64_t fence = 0;
+		uint32_t pending = 0;
+		bool canceled = false;
+	};
+	using BufferUploadTicket = std::shared_ptr<BufferUploadCompletion>;
 
 	// 転送の累計と再利用中の容量
 	struct BufferUploadStatistics {
@@ -27,6 +38,9 @@ namespace Engine {
 		uint64_t uploadCount = 0;
 		uint64_t stagingCreationCount = 0;
 		uint64_t pooledBytes = 0;
+		uint64_t largePooledBytes = 0;
+		uint64_t pendingBytes = 0;
+		uint64_t stagingReuseCount = 0;
 	};
 
 	//============================================================================
@@ -53,6 +67,12 @@ namespace Engine {
 
 		// Batchを開始し既に開いている場合は何もしない
 		void BeginBatch();
+		// 元データを共有し、大容量転送をframeごとに分割する
+		BufferUploadTicket BeginOwnedUploads(std::shared_ptr<const void> source);
+		void FinishOwnedUploads();
+		void CancelOwnedUploads(const BufferUploadTicket& ticket);
+		bool IsComplete(const BufferUploadTicket& ticket) const;
+		void PumpOwnedUploads(bool unlimited = false);
 
 		// DEFAULT heap destinationへの初期データ転送を記録する
 		// stagingへ書き込みCopyBufferRegionとBarrierを積む、実行はSubmitBatchで行う
@@ -65,7 +85,7 @@ namespace Engine {
 			D3D12_RESOURCE_STATES finalState);
 
 		// 記録済みBatchをキューへ提出しFence値を返す、コマンドが無ければ0を返す
-		uint64_t SubmitBatch();
+		uint64_t SubmitBatch(bool waitForGraphics = true);
 
 		// 完了したBatchのstagingを解放する(毎フレーム主スレッドで呼ぶ)
 		void TickFinalize();
@@ -76,7 +96,7 @@ namespace Engine {
 
 		GraphicsResourceRetirement& GetResourceRetirement() const;
 		bool HasOpenBatch() const { return batchOpened_; }
-		bool HasPendingUploads() const { return !pendingBatches_.empty(); }
+		bool HasPendingUploads() const { return !pendingBatches_.empty() || !ownedUploads_.empty(); }
 		const BufferUploadStatistics& GetStatistics() const { return statistics_; }
 	private:
 		//============================================================================
@@ -112,7 +132,29 @@ namespace Engine {
 			std::chrono::steady_clock::time_point lastUsed{};
 		};
 
+		struct OwnedUpload {
+
+			ComPtr<ID3D12Resource> destination;
+			std::span<const std::byte> source;
+			size_t destinationOffset = 0;
+			size_t offset = 0;
+			D3D12_RESOURCE_STATES before = D3D12_RESOURCE_STATE_COMMON;
+			D3D12_RESOURCE_STATES after = D3D12_RESOURCE_STATE_COMMON;
+			BufferUploadTicket ticket;
+		};
+		struct LargeUploadPage {
+
+			DxMappedUploadBuffer buffer;
+			uint64_t fence = 0;
+			std::chrono::steady_clock::time_point lastUsed{};
+		};
 		//--------- variables ----------------------------------------------------
+
+		std::deque<OwnedUpload> ownedUploads_;
+		std::vector<LargeUploadPage> largePages_;
+		BufferUploadTicket activeUpload_;
+		uint64_t largeUploadFrame_ = UINT64_MAX;
+		size_t largeUploadedThisFrame_ = 0;
 
 		// アロケータReset待ちを避けるためのリング段数
 		static constexpr uint32_t kUploadContextCount = 3;

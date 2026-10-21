@@ -88,6 +88,7 @@ namespace Engine {
 
 		std::array<FrameQueryState, kGraphicsFrameContextCount> frameStates_{};
 		GraphicsResourceRetirement* retirement_ = nullptr;
+		GraphicsFrameResourceRegistration frameRegistration_{};
 		uint64_t frequency_ = 0;
 		bool initialized_ = false;
 		std::string viewID_{};

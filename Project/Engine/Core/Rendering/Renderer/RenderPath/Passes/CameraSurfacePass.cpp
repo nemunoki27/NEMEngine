@@ -47,6 +47,9 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 	// 投影方式や描画対象が変わった履歴は引き継がない
 	const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	State& state = states_[context.view->GetHistoryKey()];
+	// Cameraが除外するInstanceがある場合は候補HitでLayerを調べる
+	const bool opaqueGeometryAllowed = std::all_of(context.raytracing.instanceData.begin(), context.raytracing.instanceData.end(),
+		[cullingMask](const auto& instance) { return ((instance.renderFlags >> 8u) & cullingMask) != 0; });
 	const bool parametersChanged = ambientOcclusion_ ?
 		state.settings.ambientOcclusionRadius != settings.ambientOcclusionRadius ||
 		state.settings.ambientOcclusionQuality != settings.ambientOcclusionQuality :
@@ -54,14 +57,15 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 		state.settings.reflectionIntensity != settings.reflectionIntensity ||
 		state.settings.reflectionMaxDistance != settings.reflectionMaxDistance ||
 		state.settings.reflectionParameters != settings.reflectionParameters;
-	if (state.generation == 0 || parametersChanged || state.settings.cullingMask != cullingMask ||
+	if (state.generation == 0 || state.opaqueGeometryAllowed != opaqueGeometryAllowed || parametersChanged || state.settings.cullingMask != cullingMask ||
 		state.projectionMatrix != camera->matrices.projectionMatrix) {
 
 		// 可変設定のコピーは計画を作り直すときだけ行う
 		CameraCommon runtimeSettings = settings;
 		runtimeSettings.cullingMask = cullingMask;
-		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(runtimeSettings) : BuildCameraReflectionProfile(runtimeSettings));
+		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(runtimeSettings, opaqueGeometryAllowed) : BuildCameraReflectionProfile(runtimeSettings));
 		state.settings = std::move(runtimeSettings);
+		state.opaqueGeometryAllowed = opaqueGeometryAllowed;
 		state.projectionMatrix = camera->matrices.projectionMatrix;
 		++state.generation;
 	}

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace Engine {
 
@@ -70,6 +71,7 @@ namespace Engine {
 		std::unordered_set<std::string> diagnostics_{};
 		const ShaderReflectionInfo* lastReflection_ = nullptr;
 		uint64_t lastExecutedPipelineID_ = 0;
+		std::vector<RenderTexture2D*> outputTextureScratch_{};
 
 		// 同一エフェクトの同一エラーを1度だけ出力する
 		void ReportFailure(const RenderFeaturePassSettings& pass,

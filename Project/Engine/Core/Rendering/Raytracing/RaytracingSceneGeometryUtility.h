@@ -63,6 +63,9 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	// LOD範囲を選択する
 	const Engine::MeshLODRange& ResolveRaytracingLODRange(
 		const Engine::SubMeshDesc& subMesh, uint32_t lodIndex);
+	// 元のGeometry配置を保ってLODのIndex範囲だけを差し替える
+	std::vector<RaytracingBLASGeometryInput> BuildLODGeometries(const MeshGPUResource& mesh,
+		std::vector<RaytracingBLASGeometryInput> geometries, std::span<const uint32_t> subMeshIndices, uint32_t lodIndex);
 	// 可視SubMeshの対応番号でGeometryのLODを更新
 	bool UpdateGeometryLODOffsets(std::span<const Engine::SubMeshDesc> subMeshes,
 		std::span<const uint32_t> subMeshIndices, uint32_t lodIndex,

@@ -305,8 +305,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	}
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 
-	// 名前付き出力を含む全UAVの書き込み完了を後続Passへ公開する
-	// 同じ出力へのUAVバリアは一度だけ発行する
+	// 名前付き出力も同じ同期地点で読み取り状態へ遷移する
 	outputTextureScratch_.clear();
 	outputTextureScratch_.reserve(desc.outputTargets.size() + 1);
 	outputTextureScratch_.push_back(destColor);
@@ -321,14 +320,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			}
 		}
 	}
-	for (RenderTexture2D* output : outputTextureScratch_) {
-
-		dxCommand->UAVBarrier(output->GetResource());
-		output->Transition(*dxCommand,
-			static_cast<D3D12_RESOURCE_STATES>(
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
-				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
-	}
+	RenderTexture2D::TransitionAll(*dxCommand, outputTextureScratch_, static_cast<D3D12_RESOURCE_STATES>(
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 
 	return true;
 }

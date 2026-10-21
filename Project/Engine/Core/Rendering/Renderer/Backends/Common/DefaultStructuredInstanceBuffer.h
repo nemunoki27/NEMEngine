@@ -96,20 +96,21 @@ namespace Engine {
 		std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
 			kGraphicsFrameContextCount> srvGPUHandles_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> srvIndices_ = {
-			UINT32_MAX, UINT32_MAX, UINT32_MAX
+			UINT32_MAX, UINT32_MAX
 		};
 		std::array<uint64_t, kGraphicsFrameContextCount>
-			uploadedGenerations_ = { 0, 0, 0 };
+			uploadedGenerations_ = {};
 
 		// 同frameの再更新だけ別領域へ転送する
 		StructuredInstanceBuffer<T> transient_;
 		std::array<bool, kGraphicsFrameContextCount> transientActive_{};
-		std::array<uint64_t, kGraphicsFrameContextCount> publishedSerials_{ UINT64_MAX, UINT64_MAX, UINT64_MAX };
+		std::array<uint64_t, kGraphicsFrameContextCount> publishedSerials_{ UINT64_MAX, UINT64_MAX };
 		std::array<uint64_t, kGraphicsFrameContextCount> publishedGenerations_{};
 		std::array<size_t, kGraphicsFrameContextCount> publishedCounts_{};
 		std::array<size_t, kGraphicsFrameContextCount> uploadedCounts_{};
 		uint32_t capacity_ = 0;
 		uint32_t resourceCount_ = 0;
+		GraphicsFrameResourceRegistration frameRegistration_{};
 		uint32_t elementCount_ = 0;
 		uint64_t generation_ = 1;
 		std::deque<DirtyRange> dirtyRanges_{};
@@ -142,11 +143,24 @@ namespace Engine {
 		device_ = device;
 		srvDescriptor_ = srvDescriptor;
 		uploadService_ = uploadService;
+		frameRegistration_.Bind(srvDescriptor->GetRetirementQueue().GetFrameResources(), this,
+			[](void* owner, uint32_t count) {
+				auto& buffer = *static_cast<DefaultStructuredInstanceBuffer*>(owner);
+				for (uint32_t index = count; index < kGraphicsFrameContextCount; ++index) {
+					buffer.RetireFrame(index);
+					buffer.srvGPUHandles_[index] = {};
+					buffer.uploadedGenerations_[index] = 0;
+					buffer.publishedSerials_[index] = UINT64_MAX;
+					buffer.transientActive_[index] = false;
+				}
+				buffer.resourceCount_ = (std::min)(buffer.resourceCount_, count);
+			});
 	}
 
 	template<typename T>
 	void DefaultStructuredInstanceBuffer<T>::Release() {
 
+		frameRegistration_.Reset();
 		for (uint32_t frameIndex = 0; frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 			RetireFrame(frameIndex);
 		}
@@ -157,7 +171,7 @@ namespace Engine {
 		publishedCounts_ = {};
 		uploadedCounts_ = {};
 		srvGPUHandles_ = {};
-		uploadedGenerations_ = { 0, 0, 0 };
+		uploadedGenerations_ = {};
 		dirtyRanges_.clear();
 		capacity_ = 0;
 		resourceCount_ = 0;

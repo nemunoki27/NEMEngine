@@ -14,6 +14,19 @@
 
 // c++
 #include <stdexcept>
+#include <array>
+#include <algorithm>
+
+namespace {
+
+	// 既に含まれる読み取り用途は遷移せず使う
+	bool CanReuseShaderRead(D3D12_RESOURCE_STATES current, D3D12_RESOURCE_STATES next) {
+
+		constexpr auto kRead = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+		return next != D3D12_RESOURCE_STATE_COMMON && (next & ~kRead) == 0 && (current & ~kRead) == 0 &&
+			(current & next) == next;
+	}
+}
 
 //============================================================================
 //	RenderTexture2D classMethods
@@ -153,11 +166,38 @@ void Engine::RenderTexture2D::Destroy() {
 void Engine::RenderTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState) {
 
 	// すでにリソースが存在していない場合や、現在の状態と遷移先の状態が同じ場合は遷移しない
-	if (!resource_ || currentState_ == newState) {
+	if (!resource_ || currentState_ == newState || CanReuseShaderRead(currentState_, newState)) {
 		return;
 	}
-	dxCommand.TransitionBarriers({ resource_.Get() }, currentState_, newState);
+	dxCommand.TransitionBarriers(resource_.Get(), currentState_, newState);
 	currentState_ = newState;
+}
+
+void Engine::RenderTexture2D::TransitionAll(DxCommand& dxCommand, std::span<RenderTexture2D* const> textures,
+	D3D12_RESOURCE_STATES newState) {
+
+	std::array<D3D12_RESOURCE_BARRIER, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> barriers{};
+	std::array<RenderTexture2D*, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> changed{};
+	size_t count = 0;
+	const auto flush = [&] {
+		// 発行したTextureだけ管理状態を更新する
+		dxCommand.ResourceBarriers(std::span{ barriers.data(), count });
+		for (size_t index = 0; index < count; ++index) changed[index]->currentState_ = newState;
+		count = 0;
+	};
+	for (auto* texture : textures) {
+		if (!texture || !texture->resource_ || texture->currentState_ == newState || CanReuseShaderRead(texture->currentState_, newState) ||
+			std::find(changed.begin(), changed.begin() + count, texture) != changed.begin() + count) continue;
+		auto& barrier = barriers[count];
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = texture->resource_.Get();
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barrier.Transition.StateBefore = texture->currentState_;
+		barrier.Transition.StateAfter = newState;
+		changed[count++] = texture;
+		if (count == barriers.size()) flush();
+	}
+	if (count) flush();
 }
 
 void Engine::RenderTexture2D::Swap(RenderTexture2D& other) noexcept {

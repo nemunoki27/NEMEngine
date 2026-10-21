@@ -11,9 +11,6 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
@@ -27,7 +24,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
-#include <Externals/DirectXTex/DirectXTex.h>
+#include <psapi.h>
 
 //============================================================================
 //	EditorRenderBenchmark classMethods
@@ -104,10 +101,15 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 		{ "phases", nlohmann::json::array() } };
 	if (continuousCapture_) report_["cpuSamples"] = "completed CPU frame distributions, GPU frame IDs recorded separately";
 	InitComparisonConditions();
-	BeginPhase();
+	BeginPhase(graphicsCore);
 }
 
-void Engine::EditorRenderBenchmark::BeginPhase() {
+void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
+
+	// 通常の切替要求を使って再起動なしの描画を比較する
+	if (report_.contains("frameContextSequence")) {
+		graphicsCore.RequestDoubleBuffering(report_["frameContextSequence"][phase_].get<uint32_t>() == 2);
+	}
 
 	if (!sceneSequence_.empty()) {
 
@@ -124,7 +126,8 @@ void Engine::EditorRenderBenchmark::BeginPhase() {
 
 	// 同じSceneで機能の切替前後を計測
 	features_->SetAllowMeshShader(sceneSequence_.empty() && !report_.contains("ambientOcclusionSequence") &&
-		!report_.contains("shadowSequence") && !report_.contains("transformSequence") ? phase_ != 1 : originalMeshShader_);
+		!report_.contains("shadowSequence") && !report_.contains("transformSequence") &&
+		!report_.contains("frameContextSequence") ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
 	capturedIntervalCount_ = 0;
@@ -308,6 +311,10 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		{ "meshBuildMs", profiler.GetAverageMs(FrameProfiler::Category::MeshBatchBuild) },
 		{ "meshMaterialMs", profiler.GetAverageMs(FrameProfiler::Category::MeshMaterialBuild) },
 		{ "meshTransferBytes", profiler.GetRenderingStatistics().meshTransferBytes },
+		{ "commandCloseCPUMs", profiler.GetAverageMs(FrameProfiler::Category::CommandCloseCPU) },
+		{ "commandSubmitCPUMs", profiler.GetAverageMs(FrameProfiler::Category::CommandSubmitCPU) },
+		{ "bufferSubmitCPUMs", profiler.GetAverageMs(FrameProfiler::Category::BufferSubmitCPU) },
+		{ "uploadContextWaitMs", profiler.GetAverageMs(FrameProfiler::Category::UploadContextWaitCPU) },
 		{ "gpuValid", profiler.HasGPUData() }, { "gpuMs", profiler.GetGPUTotalMs() },
 		{ "passes", nlohmann::json::array() } };
 	// 描画時間とGPUメモリの圧迫を対応付ける
@@ -322,7 +329,23 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	sample["gpuMemoryBudget"] = memory.Budget;
 	sample["retirementPending"] = platform.GetResourceRetirement().GetPendingCount();
 	sample["srvDescriptors"] = graphicsCore.GetSRVDescriptor().GetUseDescriptorCount();
+	const auto& uploads = graphicsCore.GetBufferUploadService().GetStatistics();
+	sample["uploadStagingBytes"] = uploads.pooledBytes + uploads.largePooledBytes;
+	sample["uploadPendingBytes"] = uploads.pendingBytes;
+	sample["uploadStagingCreates"] = uploads.stagingCreationCount;
+	sample["uploadStagingReuses"] = uploads.stagingReuseCount;
+	const auto& pipeline = *application_->renderPipeline_;
+	sample["staticBLASOriginalBytes"] = pipeline.GetStaticBLASOriginalBytes();
+	sample["staticBLASPublishedBytes"] = pipeline.GetStaticBLASPublishedBytes();
+	sample["shadowAnalysisCount"] = pipeline.GetShadowAnalysisCount();
+	sample["renderTextures"] = pipeline.GetViewportRenderService().GetRenderTextureCount();
+	sample["collectedRenderTextures"] = pipeline.GetViewportRenderService().GetCollectedRenderTextureCount();
 	const auto& rendering = profiler.GetRenderingStatistics();
+	sample["graphicsSubmissions"] = rendering.graphicsSubmissionCount;
+	sample["bufferSubmissions"] = rendering.bufferSubmissionCount;
+	sample["barrierCalls"] = rendering.barrierCallCount;
+	sample["transitionBarriers"] = rendering.transitionBarrierCount;
+	sample["uavBarriers"] = rendering.uavBarrierCount;
 	sample["blasGeometries"] = rendering.blasGeometryCount;
 	sample["tlasInstances"] = rendering.tlasInstanceCount;
 	sample["blasBuilds"] = rendering.blasBuildCount;
@@ -335,6 +358,15 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	}
 	if (frames_.empty()) {
 
+		PROCESS_MEMORY_COUNTERS_EX processMemory{};
+		processMemory.cb = sizeof(processMemory);
+		if (K32GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&processMemory), sizeof(processMemory))) {
+			sample["privateBytes"] = processMemory.PrivateUsage;
+			sample["workingSetBytes"] = processMemory.WorkingSetSize;
+		}
+		if (auto* albedo = application_->renderPipeline_->GetViewGBufferTexture(RenderViewKind::Game, GBufferAttachment::Albedo)) {
+			sample["albedoFormat"] = uint32_t(albedo->GetResource()->GetDesc().Format);
+		}
 		const auto textures = graphicsCore.GetTextureUploadService().GetCacheStatistics();
 		sample["textures"] = { { "count", textures.textureCount }, { "allocationBytes", textures.allocationBytes },
 			{ "queuedCount", textures.queuedCount }, { "decodedBytes", textures.decodedBytes } };
@@ -365,6 +397,7 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 	}
 	report_["phases"].push_back({ { "phase", phase_ },
 		{ "meshShader", features_->ShouldUseMeshShader() },
+		{ "frameContextCount", GraphicsFrameState::GetActiveCount() },
 		{ "frames", std::move(frames_) } });
 	if (continuousCapture_) report_["intervalCount"] = capturedIntervalCount_;
 	report_.erase("continuousFrames");
@@ -373,88 +406,10 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 		throw std::runtime_error("描画比較結果を保存できません");
 	}
 	if (++phase_ < phaseCount_) {
-		BeginPhase();
+		BeginPhase(graphicsCore);
 	} else {
 		// 確認専用プロセスを通常の終了処理へ進める
 		PostQuitMessage(0);
-	}
-}
-
-void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
-
-	// 画像の読戻し待機は計測区間の外へ置く
-	for (const auto kind : { RenderViewKind::Game, RenderViewKind::Scene }) {
-		const std::string aoRaw = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionTrace, "Raw"});
-		const std::string aoFiltered = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
-		for (const char* attachment : { "", "InlineShadowRaw", "InlineShadowFiltered", aoRaw.c_str(), aoFiltered.c_str(), RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
-			RenderTargetNames::kScenePositionMain, RenderTargetNames::kSceneMaterialMain,
-			RenderTargetNames::kSceneColorFinal, ViewportRenderService::GetPrimaryColorName(kind) }) {
-			const auto* texture = application_->GetRenderedViewTexture(kind, attachment);
-			if (!texture || !texture->IsValid()) {
-				continue;
-			}
-			DirectX::ScratchImage captured;
-			const auto state = texture->GetCurrentState();
-			if (FAILED(DirectX::CaptureTexture(graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(),
-				texture->GetResource(), false, captured, state, state))) {
-				throw std::runtime_error("Viewの画像取得に失敗しました");
-			}
-			DirectX::ScratchImage converted;
-			const DirectX::Image* image = captured.GetImage(0, 0, 0);
-			if (attachment == aoRaw || attachment == aoFiltered) {
-
-				// AOを浮動小数点で読み戻し、遮蔽率を記録する
-				DirectX::ScratchImage values;
-				if (FAILED(DirectX::Convert(*image, DXGI_FORMAT_R32_FLOAT,
-					DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, values))) {
-					throw std::runtime_error("AOの数値取得に失敗しました");
-				}
-				const auto* data = values.GetImage(0, 0, 0);
-				double sum = 0.0;
-				float minimum = 1.0f;
-				size_t occluded = 0;
-				for (size_t y = 0; y < data->height; ++y) {
-					for (size_t x = 0; x < data->width; ++x) {
-						float value;
-						std::memcpy(&value, data->pixels + y * data->rowPitch + x * sizeof(float), sizeof(float));
-						if (!std::isfinite(value) || value < 0.0f || value > 1.0f) throw std::runtime_error("AOの値が範囲外です");
-						sum += value;
-						minimum = std::min(minimum, value);
-						if (value < 0.99f) ++occluded;
-					}
-				}
-				const double count = static_cast<double>(data->width * data->height);
-				report_["ambientOcclusionCaptures"].push_back({{"phase", phase_}, {"view", kind == RenderViewKind::Game ? "Game" : "Scene"},
-					{"output", attachment == aoRaw ? "Raw" : "Filtered"}, {"minimum", minimum}, {"mean", sum / count}, {"occludedRatio", occluded / count}});
-			}
-			// 表示用の色だけをPNGの色空間へ合わせる
-			const bool displayColor = !*attachment || std::string_view(attachment) == RenderTargetNames::kSceneColorFinal ||
-				std::string_view(attachment) == ViewportRenderService::GetPrimaryColorName(kind);
-			const auto format = displayColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
-			if (image->format != format) {
-				if (FAILED(DirectX::Convert(*image, format,
-					DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted))) {
-					throw std::runtime_error("Viewの画像変換に失敗しました");
-				}
-				image = converted.GetImage(0, 0, 0);
-			}
-			const std::string suffix = *attachment ? std::string("-") + attachment : "";
-			const auto filename = std::to_string(phase_) + (kind == RenderViewKind::Game ? "-Game" : "-Scene") + suffix + ".png";
-			const auto path = output_.parent_path() / filename;
-			if (FAILED(DirectX::SaveToWICFile(*image, DirectX::WIC_FLAGS_NONE,
-				DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str()))) {
-				throw std::runtime_error("Viewの画像保存に失敗しました");
-			}
-			{
-				// 照明結果とGBufferを丸めずに比較用へ残す
-				auto dataPath = path;
-				dataPath.replace_extension(".dds");
-				if (FAILED(DirectX::SaveToDDSFile(captured.GetImages(), captured.GetImageCount(), captured.GetMetadata(),
-					DirectX::DDS_FLAGS_NONE, dataPath.c_str()))) {
-					throw std::runtime_error("Viewの数値保存に失敗しました");
-				}
-			}
-		}
 	}
 }
 

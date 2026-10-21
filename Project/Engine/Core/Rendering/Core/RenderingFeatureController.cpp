@@ -225,7 +225,7 @@ void Engine::GraphicsFeatureController::SetMeshLODThresholds(
 void Engine::GraphicsFeatureController::SetFrameContextCount(
 	uint32_t count) {
 
-	count = std::clamp(count, 1u, 3u);
+	count = std::clamp(count, 1u, 2u);
 	if (preferences_.frameContextCount == count) {
 		return;
 	}
@@ -233,7 +233,7 @@ void Engine::GraphicsFeatureController::SetFrameContextCount(
 	preferences_.frameContextCount = count;
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"Frame Context数: {} 再起動後に反映されます", count);
+		"描画フレーム数を変更しました: {}", count);
 }
 
 void Engine::GraphicsFeatureController::SetDisplayOutputMode(
