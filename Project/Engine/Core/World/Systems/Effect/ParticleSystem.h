@@ -11,12 +11,12 @@ namespace Engine {
 	// front
 	struct ParticleSystemComponent;
 	struct ParticleSystemRuntimeData;
-	struct ParticleEffectInstanceRuntime;
-	struct ParticleGroupRuntimeState;
+	struct ParticleInstanceState;
+	struct ParticleEmitterRuntime;
 
 	//============================================================================
 	//	ParticleSystem class
-	//	エフェクトアセットのモジュールでパーティクルを発生、更新する
+	//	ComponentのPhaseとModuleで粒子を発生、更新する
 	//============================================================================
 	class ParticleSystem :
 		public ISystem {
@@ -40,8 +40,6 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		const float kReloadCheckInterval = 0.5f;
-		float reloadCheckTimer_ = 0.0f;
 		ParticleInstanceUpdater instanceUpdater_;
 
 		//--------- functions ----------------------------------------------------
@@ -49,10 +47,10 @@ namespace Engine {
 		// コンポーネントの再生要求を実行状態へ反映する
 		void ProcessCommands(const ParticleSystemComponent& component,
 			ParticleSystemRuntimeData& runtime) const;
-		// ParticleEffectを先頭から再生する
+		// エミッターを先頭から再生する
 		void StartEffect(ParticleSystemRuntimeData& runtime,
-			AssetID effectID, bool oneShot) const;
-		// ParticleEffectの描画状態を破棄する
+			bool oneShot) const;
+		// エミッターの描画状態を破棄する
 		void ClearEffect(ParticleSystemRuntimeData& runtime) const;
 		// 再生完了時のEntity操作を適用する
 		void ApplyStopAction(ECSWorld& world, const Entity& entity,

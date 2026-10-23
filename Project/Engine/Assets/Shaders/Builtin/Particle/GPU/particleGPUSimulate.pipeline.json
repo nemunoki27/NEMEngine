@@ -1,0 +1,10 @@
+{
+  "name": "particleGPUSimulate",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d4153534554706172740000000a"
+    }
+  ]
+}

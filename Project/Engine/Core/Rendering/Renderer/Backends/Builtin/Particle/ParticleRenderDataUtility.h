@@ -8,7 +8,7 @@
 
 namespace Engine {
 	class MaterialParameterSet;
-	struct ParticleGroupRuntimeState;
+	struct ParticleEmitterRuntime;
 	struct ParticleRenderPayload;
 	struct RenderItem;
 
@@ -21,9 +21,9 @@ namespace Engine {
 		const ShaderReflectionInfo& reflection, const MaterialParameterSet* defaults,
 		const MaterialParameterBufferBuilder::TextureResolver& resolveTexture);
 	// 可変パラメータへモジュールの数値を書き込む
-	void WriteParticleCustomParameter(std::vector<uint8_t>& data,
+	void WriteParticleCustomParameter(std::span<uint8_t> data,
 		const ShaderConstantBufferVariable& variable, const Vector4& value);
 	// RenderItemから現在のParticleグループを解決する
-	const ParticleGroupRuntimeState* ResolveParticleRenderGroup(
+	const ParticleEmitterRuntime* ResolveParticleRenderEmitter(
 		const RenderItem& item, const ParticleRenderPayload& payload);
 } // Engine

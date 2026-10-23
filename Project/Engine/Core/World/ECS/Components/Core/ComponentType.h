@@ -113,6 +113,9 @@ namespace Engine {
 		// コピー、ムーブコンストラクタ
 		void (*copyConstruct)(void* dst, const void* src) = nullptr;
 		void (*moveConstruct)(void* dst, void* src) = nullptr;
+		// 保存用Worldへチャンク外の所有を複製する
+		void (*cloneStorage)(const ECSWorld& sourceWorld, ECSWorld& destinationWorld,
+			const Entity& entity, const void* source, void* destination) = nullptr;
 		// チャンク外データの解放
 		void (*releaseExternal)(ECSWorld& world, const Entity& entity, void* ptr) = nullptr;
 

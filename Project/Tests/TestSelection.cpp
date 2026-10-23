@@ -4,6 +4,7 @@
 #include "GPUFilterTestFixture.h"
 #include "RectLightTests.h"
 #include "DecalTests.h"
+#include "ParticleSystemRuntimeTests.h"
 
 //============================================================================
 //	include
@@ -34,6 +35,12 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--particles") {
+		return RunTest("TestParticleSystemRuntime", TestParticleSystemRuntime) ? 0 : 70;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--particles-hardware") {
+		return RunTest("TestParticleGPUHardware", TestParticleGPUHardware) ? 0 : 71;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--gpu-filter-equivalence") {
 		return RunTest("TestGPUFilterEquivalence", TestGPUFilterEquivalence) ? 0 : 69;
 	}

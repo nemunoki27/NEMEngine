@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Rendering/Particle/ParticleGPUState.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
@@ -75,31 +76,6 @@ void Engine::ParticleSystemComponent::OnRemoved(
 	if (world.HasComponent<ParticleSystemRuntimeComponent>(entity)) {
 		world.RemoveComponent<ParticleSystemRuntimeComponent>(entity);
 	}
-}
-
-void Engine::ParticleSystemComponent::InitializeStorage(
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	[[maybe_unused]] ParticleSystemComponent& component) {
-}
-
-void Engine::ParticleSystemComponent::ReleaseStorage(
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	[[maybe_unused]] ParticleSystemComponent& component) {
-}
-
-void Engine::ParticleSystemComponent::DeserializeECS(
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
-	const nlohmann::json& in, ParticleSystemComponent& component) {
-
-	from_json(in, component);
-}
-
-void Engine::ParticleSystemComponent::SerializeECS(
-	[[maybe_unused]] const ECSWorld& world,
-	[[maybe_unused]] const Entity& entity,
-	const ParticleSystemComponent& component, nlohmann::json& out) {
-
-	to_json(out, component);
 }
 
 Engine::ParticleSystemRuntimeData* Engine::TryGetParticleSystemRuntime(
@@ -188,7 +164,8 @@ bool Engine::IsParticleSystemPlaying(
 
 	const ParticleSystemRuntimeData* runtime =
 		TryGetParticleSystemRuntime(world, entity);
-	return runtime && runtime->playing && !runtime->paused &&
+	return runtime && (!runtime->instance.emitter.gpu || !runtime->instance.emitter.gpu->rejected) &&
+		runtime->playing && !runtime->paused &&
 		!runtime->stopped;
 }
 
@@ -197,8 +174,8 @@ bool Engine::IsParticleSystemEmitting(
 
 	const ParticleSystemRuntimeData* runtime =
 		TryGetParticleSystemRuntime(world, entity);
-	return runtime && runtime->playing && !runtime->paused &&
-		!runtime->stopped && !runtime->effect.emissionStopped;
+	return runtime && (!runtime->instance.emitter.gpu || !runtime->instance.emitter.gpu->rejected) && runtime->playing && !runtime->paused &&
+		!runtime->stopped && !runtime->instance.emissionStopped;
 }
 
 bool Engine::IsParticleSystemPaused(
@@ -214,7 +191,7 @@ bool Engine::IsParticleSystemStopped(
 
 	const ParticleSystemRuntimeData* runtime =
 		TryGetParticleSystemRuntime(world, entity);
-	return !runtime || runtime->stopped;
+	return !runtime || runtime->stopped || (runtime->instance.emitter.gpu && runtime->instance.emitter.gpu->rejected);
 }
 
 bool Engine::IsParticleSystemAlive(
@@ -225,15 +202,16 @@ bool Engine::IsParticleSystemAlive(
 	if (!runtime) {
 		return false;
 	}
+	if (runtime->instance.emitter.gpu && runtime->instance.emitter.gpu->rejected) return false;
 	if ((runtime->playing && !runtime->stopped) || runtime->paused) {
 		return true;
 	}
-	for (const ParticleGroupRuntimeState& group : runtime->effect.runtimeGroups) {
-		if (!group.particles.empty() || !group.trails.empty()) {
-			return true;
-		}
+	if (const auto& gpu = runtime->instance.emitter.gpu) {
+		return !gpu->pending.empty() || !gpu->statisticsValid ||
+			gpu->statistics.particleCount != 0 || gpu->statistics.trailCount != 0;
 	}
-	return false;
+	return !runtime->instance.emitter.particles.empty() ||
+		!runtime->instance.emitter.trails.empty();
 }
 
 int32_t Engine::GetParticleSystemParticleCount(
@@ -245,20 +223,40 @@ int32_t Engine::GetParticleSystemParticleCount(
 		return 0;
 	}
 
-	size_t count = 0;
-	for (const ParticleGroupRuntimeState& group :
-		runtime->effect.runtimeGroups) {
-
-		count += group.particles.size();
-	}
+	const auto& gpu = runtime->instance.emitter.gpu;
+	const size_t count = gpu ? gpu->statistics.particleCount : runtime->instance.emitter.particles.size();
 	return static_cast<int32_t>((std::min)(count,
 		static_cast<size_t>((std::numeric_limits<int32_t>::max)())));
+}
+
+bool Engine::HasParticleSystemStatistics(const ECSWorld& world, const Entity& entity) {
+
+	const auto* runtime = TryGetParticleSystemRuntime(world, entity);
+	return runtime && (!runtime->instance.emitter.gpu || runtime->instance.emitter.gpu->statisticsValid);
+}
+
+int32_t Engine::GetParticleSystemTrailCount(const ECSWorld& world, const Entity& entity) {
+
+	const auto* runtime = TryGetParticleSystemRuntime(world, entity);
+	if (!runtime) return 0;
+	const auto& gpu = runtime->instance.emitter.gpu;
+	return static_cast<int32_t>(gpu ? gpu->statistics.trailCount : runtime->instance.emitter.trails.GetHandles().size());
+}
+
+int32_t Engine::GetParticleSystemDroppedTrailCount(const ECSWorld& world, const Entity& entity) {
+
+	const auto* runtime = TryGetParticleSystemRuntime(world, entity);
+	if (!runtime) return 0;
+	const auto& gpu = runtime->instance.emitter.gpu;
+	const uint64_t count = gpu ? gpu->statistics.overflowCount : runtime->instance.emitter.trails.GetOverflowCount();
+	return static_cast<int32_t>((std::min)(count, uint64_t(INT32_MAX)));
 }
 
 void Engine::from_json(
 	const nlohmann::json& in, ParticleSystemComponent& component) {
 
-	component.effect = ParseAssetID(in, "effect");
+	component.simulationTarget = EnumAdapter<ParticleSimulationTarget>::FromString(
+		in.value("simulationTarget", "CPU")).value_or(ParticleSimulationTarget::CPU);
 	component.playbackSpeed = (std::max)(in.value("playbackSpeed", 1.0f), 0.0f);
 	component.layer = in.value("layer", 0);
 	component.order = in.value("order", 0);
@@ -266,8 +264,8 @@ void Engine::from_json(
 	component.stopAction = EnumAdapter<ParticleSystemStopAction>::FromString(
 		in.value("stopAction", "None")).value_or(ParticleSystemStopAction::None);
 	component.simulationSpace = EnumAdapter<ParticleSystemSimulationSpace>::FromString(
-		in.value("simulationSpace", "EffectAsset")).value_or(
-			ParticleSystemSimulationSpace::EffectAsset);
+		in.value("simulationSpace", "PhaseSettings")).value_or(
+			ParticleSystemSimulationSpace::PhaseSettings);
 	component.enabled = in.value("enabled", true);
 	component.playOnAwake = in.value("playOnAwake", true);
 	component.playInEditMode = in.value("playInEditMode", true);
@@ -281,7 +279,7 @@ void Engine::from_json(
 void Engine::to_json(
 	nlohmann::json& out, const ParticleSystemComponent& component) {
 
-	out["effect"] = ToAssetReferenceJson(component.effect);
+	out["simulationTarget"] = EnumAdapter<ParticleSimulationTarget>::ToString(component.simulationTarget);
 	out["playbackSpeed"] = component.playbackSpeed;
 	out["layer"] = component.layer;
 	out["order"] = component.order;

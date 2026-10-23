@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
 #include <algorithm>
@@ -52,7 +53,7 @@ Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout
 	return layout;
 }
 
-void Engine::WriteParticleCustomParameter(std::vector<uint8_t>& data,
+void Engine::WriteParticleCustomParameter(std::span<uint8_t> data,
 	const ShaderConstantBufferVariable& variable, const Vector4& value) {
 
 	const uint32_t componentCount = GetVariableComponentCount(variable);
@@ -87,7 +88,7 @@ void Engine::WriteParticleCustomParameter(std::vector<uint8_t>& data,
 	std::memcpy(data.data() + variable.offset, converted.data(), writeSize);
 }
 
-const Engine::ParticleGroupRuntimeState* Engine::ResolveParticleRenderGroup(
+const Engine::ParticleEmitterRuntime* Engine::ResolveParticleRenderEmitter(
 	const RenderItem& item, const ParticleRenderPayload& payload) {
 
 	if (!item.world) {
@@ -99,16 +100,8 @@ const Engine::ParticleGroupRuntimeState* Engine::ResolveParticleRenderGroup(
 	if (!runtime) {
 		return nullptr;
 	}
-	const std::vector<ParticleGroupRuntimeState>& groups =
-		runtime->effect.runtimeGroups;
-	if (payload.groupIndex < groups.size() &&
-		groups[payload.groupIndex].groupID == payload.groupID) {
-
-		return &groups[payload.groupIndex];
-	}
-	const auto it = std::find_if(groups.begin(), groups.end(),
-		[&](const ParticleGroupRuntimeState& group) {
-			return group.groupID == payload.groupID;
-		});
-	return it != groups.end() ? &*it : nullptr;
+	const auto* handle = world.TryGetComponent<ParticleSystemRuntimeComponent>(item.entity);
+	if (!handle || handle->handle.index != payload.runtimeIndex ||
+		handle->handle.generation != payload.runtimeGeneration || !runtime->instance.definition) return nullptr;
+	return &runtime->instance.emitter;
 }

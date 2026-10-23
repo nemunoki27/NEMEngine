@@ -23,6 +23,9 @@ public sealed partial class ParticleSystem {
     private const int AliveState = 4;
     private const int ParticleCountState = 5;
     private const int RandomSeedState = 6;
+    private const int StatisticsValidState = 7;
+    private const int TrailCountState = 8;
+    private const int DroppedTrailCountState = 9;
 
     // Seedを明示した場合は自動生成を解除する
     public uint randomSeed {
@@ -70,6 +73,14 @@ public sealed partial class ParticleSystem {
         NativeRenderingAPI.ParticleSystemStateCall(native, StoppedState) != 0;
     public int particleCount =>
         NativeRenderingAPI.ParticleSystemStateCall(native, ParticleCountState);
+
+    // GPUでは数frame遅れて届く確定値を参照する
+    public bool hasValidStatistics =>
+        NativeRenderingAPI.ParticleSystemStateCall(native, StatisticsValidState) != 0;
+    public int trailCount =>
+        NativeRenderingAPI.ParticleSystemStateCall(native, TrailCountState);
+    public int droppedTrailCount =>
+        NativeRenderingAPI.ParticleSystemStateCall(native, DroppedTrailCountState);
 
     // 子階層を含めて生存粒子または再生中のSystemがあるか返す
     public bool IsAlive(bool withChildren = true) =>

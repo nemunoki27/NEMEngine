@@ -11,7 +11,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
@@ -135,6 +135,17 @@ namespace Engine::ParticleDrawPreparation {
 		return materialID != defaultMaterial && tryResolve(defaultMaterial);
 	}
 
+	bool ResolveGPUParticlePass(const RenderDrawContext& context, AssetID requestedMaterial,
+		bool is2D, BackendDrawCommon::ResolvedMaterialPass& outResolved) {
+
+		const AssetID expected = requestedMaterial ? requestedMaterial :
+			(is2D ? BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle);
+		if (!ResolveParticlePass(context, requestedMaterial, is2D, outResolved) || outResolved.materialID != expected) return false;
+		const AssetID particle2DPipeline{0x4e454d4153534554ull, 0xeff0000000000007ull};
+		return !outResolved.pass->shaderOverride && (outResolved.pass->pipeline == BuiltinAssets::Pipelines::DefaultParticle ||
+			outResolved.pass->pipeline == particle2DPipeline);
+	}
+
 	void CollectParticleInstances(const RenderDrawContext& context,
 		std::span<const RenderItem* const> items, const std::vector<ParticleCustomParameterLayout>& customLayouts,
 		std::vector<ParticleDrawInstanceData>& outInstances, std::vector<uint32_t>& outPhaseCounts,
@@ -147,22 +158,41 @@ namespace Engine::ParticleDrawPreparation {
 		if (items.empty()) {
 			return;
 		}
-		// フェーズ数は同じアセットを共有するバッチ先頭から決める
+		// フェーズ数は同じ描画設定を共有するバッチ先頭から決める
 		const ParticleRenderPayload* firstPayload = context.batch->GetPayload<ParticleRenderPayload>(*items.front());
-		if (!firstPayload || !ResolveParticleRenderGroup(*items.front(), *firstPayload)) {
+		if (!firstPayload || !ResolveParticleRenderEmitter(*items.front(), *firstPayload)) {
 			return;
 		}
 		const size_t phaseCount = customLayouts.size();
 		if (phaseCount == 0) {
 			return;
 		}
-		std::vector<std::vector<ParticleDrawInstanceData>> phaseBuckets(phaseCount);
+		outPhaseCounts.resize(phaseCount, 0);
+		for (const auto* item : items) {
+			const auto* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
+			const auto* emitter = payload ? ResolveParticleRenderEmitter(*item, *payload) : nullptr;
+			if (!emitter || (emitter->renderSettings.trail.enabled && !emitter->renderSettings.trail.drawSource)) continue;
+			for (const auto particle : emitter->particles) ++outPhaseCounts[(std::min)(size_t(particle.phaseIndex), phaseCount - 1)];
+		}
+		// Phaseごとの領域を先に決め、粒子単位の動的確保を避ける
+		std::vector<uint32_t> phaseOffsets(phaseCount);
+		uint32_t total = 0;
+		uint32_t customBytes = 0;
+		for (size_t phase = 0; phase < phaseCount; ++phase) {
+			phaseOffsets[phase] = total;
+			outCustomOffsets.push_back(customBytes);
+			total += outPhaseCounts[phase];
+			customBytes += outPhaseCounts[phase] * customLayouts[phase].stride;
+		}
+		outInstances.resize(total);
+		outCustomParameters.resize(customBytes, 0);
+		auto cursors = phaseOffsets;
 
 		for (const RenderItem* item : items) {
 
 			const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-			const ParticleGroupRuntimeState* group = payload ?
-				ResolveParticleRenderGroup(*item, *payload) : nullptr;
+			const ParticleEmitterRuntime* group = payload ?
+				ResolveParticleRenderEmitter(*item, *payload) : nullptr;
 			if (!group) {
 				continue;
 			}
@@ -201,7 +231,9 @@ namespace Engine::ParticleDrawPreparation {
 					}
 				}
 
-				ParticleDrawInstanceData instance{};
+				const size_t phaseIndex = (std::min)(static_cast<size_t>(particle.phaseIndex), phaseCount - 1);
+				const uint32_t instanceIndex = cursors[phaseIndex]++;
+				auto& instance = outInstances[instanceIndex];
 				instance.geometry.worldMatrix = Matrix4x4::MakeAffineMatrix(
 					Vector3::AnyInit(particle.size) * particle.worldScale, rotation, worldPos);
 				instance.geometry.vertexColor = particle.color;
@@ -219,37 +251,40 @@ namespace Engine::ParticleDrawPreparation {
 					particle.alphaReference, flipScreenV ? 1.0f : 0.0f,
 					static_cast<float>(item->blendMode), 0.0f);
 				// フェーズのマテリアル別に描くため、フェーズごとに分けて詰める
-				const size_t phaseIndex = (std::min)(static_cast<size_t>(particle.phaseIndex), phaseCount - 1);
 				const ParticlePhaseMaterialSettings& materialSettings = GetPhaseMaterialSettings(settings, phaseIndex);
 				const float phaseT = particle.lifetime <= 0.0f ?
 					1.0f : (std::clamp)(particle.age / particle.lifetime, 0.0f, 1.0f);
 				instance.material.materialColor = Color4::White();
 				instance.material.uvMatrix = BuildParticleUVMatrix(particle);
 				const ParticleCustomParameterLayout& customLayout = customLayouts[phaseIndex];
-				instance.customParameters = customLayout.defaultData;
-				instance.customParameters.resize(customLayout.stride, 0);
+				auto custom = std::span(outCustomParameters).subspan(outCustomOffsets[phaseIndex] +
+					(instanceIndex - phaseOffsets[phaseIndex]) * customLayout.stride, customLayout.stride);
+				std::copy_n(customLayout.defaultData.begin(), (std::min)(customLayout.defaultData.size(), custom.size()), custom.begin());
 				for (const ShaderConstantBufferVariable& variable : customLayout.variables) {
 
 					auto parameter = materialSettings.parameters.find(variable.name);
 					if (parameter == materialSettings.parameters.end()) {
 						continue;
 					}
-					WriteParticleCustomParameter(instance.customParameters, variable,
+					WriteParticleCustomParameter(custom, variable,
 						EvaluateParticleMaterialParameter(parameter->second, phaseT));
 				}
-				phaseBuckets[phaseIndex].emplace_back(instance);
 			}
-		}
-
-		// フェーズ順に連結する
-		for (std::vector<ParticleDrawInstanceData>& bucket : phaseBuckets) {
-			outCustomOffsets.emplace_back(static_cast<uint32_t>(outCustomParameters.size()));
-			outPhaseCounts.emplace_back(static_cast<uint32_t>(bucket.size()));
-			for (const ParticleDrawInstanceData& instance : bucket) {
-				outCustomParameters.insert(outCustomParameters.end(),
-					instance.customParameters.begin(), instance.customParameters.end());
-			}
-			outInstances.insert(outInstances.end(), bucket.begin(), bucket.end());
 		}
 	}
+}
+
+
+Engine::PrimitiveRendererComponent Engine::ParticleDrawPreparation::MakeShapeComponent(const Engine::ParticleRenderSettings& settings) {
+
+	Engine::PrimitiveRendererComponent shape{};
+	shape.type = settings.shape;
+	shape.plane = settings.plane;
+	shape.crossPlane = settings.crossPlane;
+	shape.ring = settings.ring;
+	shape.cylinder = settings.cylinder;
+	shape.sphere = settings.sphere;
+	shape.hemisphere = settings.hemisphere;
+	shape.cube = settings.cube;
+	return shape;
 }

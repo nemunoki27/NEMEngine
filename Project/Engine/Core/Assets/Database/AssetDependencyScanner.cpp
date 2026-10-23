@@ -54,7 +54,6 @@ namespace Engine::AssetDependencyScanner {
 			{ "prefab", Engine::AssetType::Prefab },
 			{ "prefabAsset", Engine::AssetType::Prefab },
 			{ "PrefabAsset", Engine::AssetType::Prefab },
-			{ "effect", Engine::AssetType::ParticleEffect },
 			{ "shader", Engine::AssetType::Shader },
 			{ "shaderOverride", Engine::AssetType::Shader },
 			{ "sourceShader", Engine::AssetType::Shader },

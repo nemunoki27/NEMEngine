@@ -9,6 +9,7 @@ internal static unsafe class ParticleSeedTests {
 
     private static uint configuredSeed;
     private static bool automatic;
+    private static int simulationTarget;
 
     internal static void Run() {
 
@@ -25,6 +26,7 @@ internal static unsafe class ParticleSeedTests {
         try {
             automatic = true;
             configuredSeed = 0;
+            simulationTarget = 0;
             NativeEntity entity = new() { world = new() { index = 79, generation = 4 }, index = 1, generation = 2 };
             var particles = ParticleSystem.FromEntity(GameObject.FromNative(entity)!);
             Check(particles.randomSeed == 0xF1234567u);
@@ -32,6 +34,9 @@ internal static unsafe class ParticleSeedTests {
             Check(!particles.useAutoRandomSeed && !automatic && configuredSeed == 0xFEDCBA98u && particles.randomSeed == configuredSeed);
             particles.useAutoRandomSeed = true;
             Check(particles.randomSeed == 0xF1234567u && configuredSeed == 0xFEDCBA98u);
+            particles.SimulationTarget = ParticleSimulationTarget.GPU;
+            Check(simulationTarget == 1 && particles.SimulationTarget == ParticleSimulationTarget.GPU);
+            Check(particles.hasValidStatistics && particles.trailCount == 17 && particles.droppedTrailCount == 3);
         } finally {
             NativeAPI.IsAlive = previousAlive;
             NativeAPI.GetComponentInstanceID = previousInstance;
@@ -48,19 +53,27 @@ internal static unsafe class ParticleSeedTests {
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static int Get(NativeEntity entity, int typeID, int propertyID, void* value, int size) {
         if (propertyID == 11) { *(int*)value = automatic ? 1 : 0; }
-        else if (propertyID == 6) { *(uint*)value = configuredSeed; }
+        else if (propertyID == 5) { *(uint*)value = configuredSeed; }
+        else if (propertyID == 8) { *(int*)value = simulationTarget; }
         else { return (int)ManagedStatus.InvalidArgument; }
         return (int)ManagedStatus.Ok;
     }
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static int Set(NativeEntity entity, int typeID, int propertyID, void* value, int size) {
         if (propertyID == 11) { automatic = *(int*)value != 0; }
-        else if (propertyID == 6) { configuredSeed = *(uint*)value; }
+        else if (propertyID == 5) { configuredSeed = *(uint*)value; }
+        else if (propertyID == 8) { simulationTarget = *(int*)value; }
         else { return (int)ManagedStatus.InvalidArgument; }
         return (int)ManagedStatus.Ok;
     }
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    private static int State(NativeEntity entity, int state, int withChildren) => state == 6 ? unchecked((int)0xF1234567u) : 0;
+    private static int State(NativeEntity entity, int state, int withChildren) => state switch {
+        6 => unchecked((int)0xF1234567u),
+        7 => 1,
+        8 => 17,
+        9 => 3,
+        _ => 0,
+    };
     private static void Check(bool value) {
         if (!value) { throw new InvalidOperationException("Particle seed contract failed."); }
     }

@@ -36,7 +36,7 @@ float3 GetTrailSide(ParticleTrailPointData trailPoint) {
 
 	const float3 direction = NormalizeTrailVector(trailPoint.tangent, float3(0.0f, 0.0f, 1.0f));
 	const float3 viewDirection = NormalizeTrailVector(
-		cameraPosition - trailPoint.position, float3(0.0f, 0.0f, 1.0f));
+		orthographic != 0 ? -cameraForward : cameraPosition - trailPoint.position, float3(0.0f, 0.0f, 1.0f));
 	float3 side = cross(direction, viewDirection);
 	if (dot(side, side) <= 1e-8f) {
 		side = cross(direction, float3(0.0f, 1.0f, 0.0f));

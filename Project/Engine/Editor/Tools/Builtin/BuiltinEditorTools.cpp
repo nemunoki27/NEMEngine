@@ -8,8 +8,7 @@
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
-#include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
-#include <Engine/Editor/Tools/Builtin/Effect/ParticleEmitterDebugDraw.h>
+#include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDebugDraw.h>
 #include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
@@ -58,7 +57,6 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
-	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();
 	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
 	RegisterBuiltinEditorTool<PerformanceCheckTool>();

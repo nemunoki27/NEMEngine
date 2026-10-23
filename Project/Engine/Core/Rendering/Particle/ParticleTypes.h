@@ -13,8 +13,7 @@
 
 // c++
 #include <cstdint>
-#include <deque>
-#include <unordered_map>
+#include <span>
 
 namespace Engine {
 
@@ -63,7 +62,7 @@ namespace Engine {
 		// 現在の回転
 		Quaternion rotation = Quaternion::Identity();
 		// Moduleごとに抽選した角速度
-		std::unordered_map<UUID, Vector3> rotationSpeeds;
+		std::span<Vector3> rotationSpeeds;
 
 		// フリップブックのUVスケールとオフセット
 		Vector2 uvScale = Vector2::AnyInit(1.0f);
@@ -74,7 +73,9 @@ namespace Engine {
 		Vector2 uvPivot = Vector2::AnyInit(0.0f);
 
 		// トレイル追跡用のエミッター内で一意なID
-		uint32_t id = 0;
+		uint64_t id = 0;
+		uint32_t trailIndex = UINT32_MAX;
+		uint32_t trailGeneration = 0;
 		// 現在のフェーズ
 		uint32_t phaseIndex = 0;
 		// 直前のフェーズ
@@ -102,22 +103,9 @@ namespace Engine {
 		float age = 0.0f;
 		// 記録時のフェーズ
 		uint32_t phaseIndex = 0;
+		Color4 color = Color4::White();
+		Vector4 emissive = Vector4(0, 0, 0, 0);
+		float alphaReference = 0.0f;
 	};
 
-	// 粒子から独立して残るトレイルの状態
-	struct ParticleTrailRuntime {
-
-		// 記録済みの軌跡点
-		std::deque<ParticleTrailPoint> points{};
-		// 軌跡の先頭
-		ParticleTrailPoint head{};
-		// 死亡後の更新に使用する粒子状態
-		Particle owner{};
-		// 粒子から切り離されたか
-		bool detached = false;
-		// 死亡後の粒子状態を保持しているか
-		bool hasOwner = false;
-		// このフレームで粒子から切り離されたか
-		bool detachedThisFrame = false;
-	};
 } // Engine

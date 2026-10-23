@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 //============================================================================

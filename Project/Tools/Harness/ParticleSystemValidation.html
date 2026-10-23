@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ParticleSystem確認手順</title>
+<style>
+body{font:16px/1.8 "Yu Gothic UI",sans-serif;max-width:1000px;margin:32px auto;padding:0 24px;color:#ddd;background:#202329}
+h1,h2{line-height:1.5;color:#fff}h2{margin-top:40px}code{background:#303640;padding:2px 6px;border-radius:4px;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #59616e;text-align:left;padding:8px 12px}th{background:#303640}
+li{margin:10px 0}input{margin-right:10px}aside{border-left:4px solid #6db6ff;padding:12px 18px;background:#282f38}
+</style>
+<h1>ParticleSystem確認手順</h1>
+<p>Sandboxを使用します。既存のSponzaは変更せず、確認用Sceneを追加しています。</p>
+<p>新しく作る場合は、EntityのInspectorでParticleSystemを追加します。「エミッター」で発生・形状・描画・Trailを、「フェーズ」で寿命とModuleを編集します。発生源を増やす場合は別Entityへ追加し、親子階層をPrefabとして保存してください。</p>
+<h2>1. CPU／GPUの基本表示</h2>
+<ol>
+<li><label><input type="checkbox">Projectで<code>Scenes/Validation/ParticleSystem.scene.json</code>を開き、GameViewを表示します。</label></li>
+<li><label><input type="checkbox">左からCPU軌跡、GPU軌跡、CPU Ribbon、GPU Ribbonが表示されることを確認します。CPUは橙色、GPUは青色です。</label></li>
+<li><label><input type="checkbox">Playしていない状態でも動き、別Entityを選択しても停止しないことを確認します。</label></li>
+<li><label><input type="checkbox">各EntityのInspectorでParticleSystemComponentを開き、実行方式と粒子数・Trail数を確認します。GPUの個数は数frame遅れて届きます。</label></li>
+</ol>
+<h2>2. 再生操作とScene保存</h2>
+<ol>
+<li><label><input type="checkbox">Inspectorの「一時停止」で時間進行が止まり、「再生」で続きから再開することを確認します。シミュレーション空間をLocalにした場合は、停止中でもEntityの移動には追従します。</label></li>
+<li><label><input type="checkbox">「停止」で新しい発生が止まり、既存粒子とTrailが寿命まで残ることを確認します。</label></li>
+<li><label><input type="checkbox">「消去」で粒子とTrailが消えることを確認します。再生中なら以後の発生は継続します。</label></li>
+<li><label><input type="checkbox">「単発再生」で先頭から1回発生することを確認します。</label></li>
+<li><label><input type="checkbox">「編集中も再生」をOFFにして時間進行が止まり、ONで再開することを確認します。Play中はこのチェックに依存せず再生します。</label></li>
+<li><label><input type="checkbox">色やPhaseを編集して保存し、別Sceneから戻っても設定が残ることを確認します。</label></li>
+<li><label><input type="checkbox">Entityを複製し、複製先だけ色を変更します。複製元の設定が変わらないことを確認します。Prefabへの保存・再配置も同様に確認します。</label></li>
+<li><label><input type="checkbox">Edit中の設定変更をUndo／Redoで戻せることを確認します。Play中の編集は実行Worldだけに適用され、Stopで破棄されます。</label></li>
+</ol>
+<h2>3. Phase／Moduleと変更の反映</h2>
+<ol>
+<li><label><input type="checkbox">「フェーズ」でPhaseを追加・削除・並べ替え、寿命終了時をAdvanceにして次Phaseへ移ることを確認します。</label></li>
+<li><label><input type="checkbox">Moduleの色・大きさなどの数値を再生中に変え、既存粒子へ反映されることを確認します。初速などの発生時パラメータは新しい粒子に適用されます。</label></li>
+<li><label><input type="checkbox">Moduleの追加・削除・並べ替え、最大粒子数、形状の種類、実行方式、Trail方式を変更すると、そのParticleSystemだけ先頭から再開することを確認します。</label></li>
+<li><label><input type="checkbox">CPUでShapeOverLifetimeを途中Phaseに追加し、次Phaseから外しても直前の形状を引き継ぐことを確認します。</label></li>
+<li><label><input type="checkbox">固定Seedを指定して単発再生を繰り返し、同じ実行方式・設定で発生形状を再現できることを確認します。CPUとGPUの乱数列そのものは一致させていません。</label></li>
+</ol>
+<table>
+<tr><th>実行方式</th><th>対応範囲</th></tr>
+<tr><td>CPU</td><td>従来の非Trail Module全16種。Trailは新しい共通設定で指定します。</td></tr>
+<tr><td>GPU</td><td>Color、Size、Scale、Emissive、AlphaReference、ColorUV、GravityForce、固定角度／一定角速度のRotation、LookToVelocity、Flipbook。形状はPlaneまたは共有Mesh、マテリアルは標準Particle Shader。</td></tr>
+<tr><td>GPU未対応</td><td>Noise、Spiral、Pendulum、ShapeOverLifetime、CustomShaderParameter、高度なRotation、ShaderGraph、Skinning。曲線の精度上限などもInspectorとConsoleに理由を表示します。CPUへの自動切替は行いません。設定を直して再生すると再検証します。</td></tr>
+</table>
+<h2>4. Trail／Ribbon</h2>
+<ol>
+<li><label><input type="checkbox">軌跡の「粒子消滅後もトレイルを残す」をONにし、「点の寿命」を増やします。粒子が死んでも尾が残り、αフェードして消えることを確認します。</label></li>
+<li><label><input type="checkbox">先頭／末尾の幅と色、最小移動距離、点の上限を変更して形状を確認します。</label></li>
+<li><label><input type="checkbox">UV方式をStretch／Tileで切り替えます。模様のあるParticleマテリアルを指定すると、Tileの「繰り返し距離」の違いを確認できます。</label></li>
+<li><label><input type="checkbox">Trail上限を少なくし、既存の尾を消さずに新しい尾だけが見送られ、「Trail容量超過」が増えることを確認します。</label></li>
+<li><label><input type="checkbox">Ribbonでは配列スロットの順ではなく、粒子の発生順に接続されることを確認します。</label></li>
+<li><label><input type="checkbox">2D用のCameraを追加し、ParticleSystemの描画空間をScreen2Dへ変更します。Emitterの位置と幅をピクセル単位に調整し、2DでもTrailが描かれることを確認します。</label></li>
+</ol>
+<aside>「点のメモリ上限MB」は軌跡点の保存領域です。粒子属性、Module状態、Cameraごとの描画領域、管理情報は別に使用します。Inspectorの容量表示は目安です。</aside>
+<h2>5. Cameraと負荷</h2>
+<ol>
+<li><label><input type="checkbox">SceneViewとGameViewを同時に表示しても、片方だけ表示した場合の2倍の速度で粒子が動かないことを確認します。</label></li>
+<li><label><input type="checkbox">Viewを閉じたりタブの裏へ隠してから戻しても、シミュレーションがView数に依存しないことを確認します。</label></li>
+<li><label><input type="checkbox">グラフィックス設定のFPS上限内で、ダブルバッファリングをON→OFF→ONに切り替え、描画と個数表示を確認します。</label></li>
+<li><label><input type="checkbox"><code>ParticleSystemGPU100k.scene.json</code>を開き、10万個を確認します。通常αブレンドの固定点群で、Cameraごとのソートを使います。</label></li>
+<li><label><input type="checkbox"><code>ParticleSystemGPU1M.scene.json</code>は、小さい板・Trailなしの100万個容量確認です。FPS保証用のSceneではありません。</label></li>
+<li><label><input type="checkbox">大量粒子のSceneは点群を維持する設定です。「消去」で消し、粒子数が0へ変わることを確認します。「単発再生」で作り直せます。</label></li>
+</ol>
+<h2>6. C#での基本操作</h2>
+<p>参照したParticleSystemに<code>Play()</code>、<code>Pause()</code>、<code>Stop()</code>、<code>Clear()</code>、<code>PlayOneShot()</code>を呼べます。<code>withChildren</code>は既定でtrueです。複数の発生源は親子EntityにParticleSystemを1つずつ付けて構成します。</p>
+<p><code>particleCount</code>、<code>trailCount</code>、<code>droppedTrailCount</code>、<code>hasValidStatistics</code>で状態を確認できます。GPUでは読戻しが終わるまで<code>hasValidStatistics</code>がfalseになります。</p>
+<p>旧Effect作成ツールと<code>.effect</code>アセットは廃止しています。再利用するエフェクトはEntity階層をPrefabとして保存してください。</p>
+<h2>検証時の条件</h2>
+<p>RTX 3060 Laptop GPU、Develop、1280×720、10万個の小さい板、通常αブレンド、ソートありで、GPU平均約5.3ms・60fps上限を確認しています。重いMesh・大きな半透明・Trailを付けた場合の性能は、この値とは分けて確認してください。</p>
+<p>Debug／DevelopのCPU・実GPUテスト、両Viewの描画、描画フレーム数2→1→2、製品のShader Cookと起動・通常終了を検証しています。Inspectorの操作は上の手順で確認できます。</p>
+</html>

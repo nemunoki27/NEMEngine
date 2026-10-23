@@ -73,7 +73,6 @@ namespace Engine {
 
 		ParticleGeometryData geometry{};
 		ParticleMaterialData material{};
-		std::vector<uint8_t> customParameters{};
 	};
 
 	//============================================================================

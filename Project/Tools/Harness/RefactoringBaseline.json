@@ -64,10 +64,6 @@
         "lines": 1546
       },
       {
-        "path": "Project/Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.cpp",
-        "lines": 1407
-      },
-      {
         "path": "Project/Engine/Editor/UI/Panels/Builtin/ViewportPanel.cpp",
         "lines": 1368
       },

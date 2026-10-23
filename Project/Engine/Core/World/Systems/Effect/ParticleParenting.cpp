@@ -113,11 +113,12 @@ void Engine::ParticleParenting::UpdateParticleParent(Particle& particle,
 	AttachParticleParent(particle, parent.matrix, parent.rotation, parent.scale, preserveWorldRotationScale);
 }
 
-void Engine::ParticleParenting::UpdateParticleParents(std::vector<Particle>& particles,
-	const ParticleGroupDefinition& group, const ParticlePhaseParentSettings& parentSettings,
+void Engine::ParticleParenting::UpdateParticleParents(ParticleStorage& particles,
+	const ParticleSystemDefinition& group, const ParticlePhaseParentSettings& parentSettings,
 	bool useAssetParentSettings, const std::vector<ParticleParentPose>& parents) {
 
-	for (Particle& particle : particles) {
+	for (size_t i = 0; i < particles.size(); ++i) {
+		Particle particle = particles.GetMutable(i);
 
 		if (particle.phaseIndex < group.phases.size()) {
 			const ParticlePhaseDefinition& phase = group.phases[particle.phaseIndex];
@@ -129,11 +130,12 @@ void Engine::ParticleParenting::UpdateParticleParents(std::vector<Particle>& par
 		const ParticleParentPose* parent = particle.phaseIndex < parents.size() ?
 			&parents[particle.phaseIndex] : nullptr;
 		RefreshParticleWorldTransform(particle, parent);
+		particles.Set(i, particle);
 	}
 }
 
 void Engine::ParticleParenting::ResolveParticleParents(const Matrix4x4& emitterWorld,
-	const ParticleGroupDefinition& group, const ParticlePhaseParentSettings& parentSettings,
+	const ParticleSystemDefinition& group, const ParticlePhaseParentSettings& parentSettings,
 	bool useAssetParentSettings, std::vector<ParticleParentPose>& outParents) {
 
 	constexpr float kMinScale = 1.0e-6f;

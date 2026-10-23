@@ -162,6 +162,11 @@ std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECS
 					const void* source = sourceChunk.GetRawByColumnIndex(sourceColumns[column], sourceRow);
 					destinationChunk.CopyConstructByColumnIndex(destinationColumn, destinationRow, source,
 						sourceChunk.GetComponentInstanceID(sourceColumns[column], sourceRow));
+					lifetime->ThrowIfEnded();
+					if (info.cloneStorage) {
+						info.cloneStorage(world, *snapshot, entity, source,
+							destinationChunk.GetRawByColumnIndex(destinationColumn, destinationRow));
+					}
 					// コピー処理で終了した元Worldへ戻らない
 					lifetime->ThrowIfEnded();
 					if (info.enableable) {
@@ -181,6 +186,12 @@ std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECS
 					const auto value = component->AcquireValueLease();
 					destinationChunk.CopyConstructByColumnIndex(rowArchetype->GetColumnIndex(component->GetInfo().id),
 						destinationRow, component->GetData(), component->GetInstanceID());
+					lifetime->ThrowIfEnded();
+					const auto& info = component->GetInfo();
+					if (info.cloneStorage) {
+						info.cloneStorage(world, *snapshot, entity, component->GetData(),
+							destinationChunk.GetRawByColumnIndex(rowArchetype->GetColumnIndex(info.id), destinationRow));
+					}
 					lifetime->ThrowIfEnded();
 				}
 				// 後続のコピーで取り消された予約も公開しない

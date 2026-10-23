@@ -73,7 +73,6 @@ void Engine::RenderAssetLibrary::Clear() {
 	fontCache_.clear();
 	invalidatedFonts_.clear();
 	fontCacheIdentity_ = fontIdentity;
-	particleEffectCache_.clear();
 	renderTextureCache_.clear();
 	renderPassesCache_.clear();
 	renderPassesPreviews_.clear();
@@ -190,11 +189,6 @@ const Engine::RenderPipelineAsset* Engine::RenderAssetLibrary::LoadPipeline(Asse
 const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID assetID) {
 
 	return LoadCachedAsset(materialCache_, assetID);
-}
-
-const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {
-
-	return LoadCachedAsset(particleEffectCache_, assetID);
 }
 
 const Engine::RenderTextureAsset* Engine::RenderAssetLibrary::LoadRenderTexture(AssetID assetID) {

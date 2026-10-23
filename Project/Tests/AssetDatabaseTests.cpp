@@ -131,12 +131,12 @@ namespace NEMTests {
 		passed &= database.FindDependencies(fontID) == std::vector<AssetID>{ atlasID };
 
 		// 独自拡張子と任意名Textureを同じ依存解析へ通す
-		const auto effectPath = root / "test.effect";
+		const auto effectPath = root / "test.prefab";
 		passed &= JsonFile::Save(effectPath, nlohmann::json{
 			{ "model", ToString(atlasID) },
 			{ "textureOverrides", { { "arbitraryName", ToString(atlasID) } } }
 		});
-		const auto effectID = database.ImportOrGet(RuntimePaths::ToAssetPath(effectPath), AssetType::ParticleEffect);
+		const auto effectID = database.ImportOrGet(RuntimePaths::ToAssetPath(effectPath), AssetType::Prefab);
 		passed &= effectID && database.FindDependencies(effectID) == std::vector<AssetID>{ atlasID };
 		passed &= std::any_of(database.GetIssues().begin(), database.GetIssues().end(), [&](const auto& issue) {
 			return issue.type == AssetDatabaseIssueType::ReferenceTypeMismatch && issue.assetID == effectID &&

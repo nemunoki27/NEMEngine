@@ -1,0 +1,28 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Editor/UI/Inspectors/Particle/ShapeParams/ParticlePrimitiveShapeDrawerRegistry.h>
+
+namespace Engine {
+
+	//============================================================================
+	//	ParticlePlaneShapeDrawer class
+	//	Plane形状のパラメータ編集UI
+	//============================================================================
+	class ParticlePlaneShapeDrawer :
+		public IParticlePrimitiveShapeDrawer {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		ParticlePlaneShapeDrawer() = default;
+		~ParticlePlaneShapeDrawer() override = default;
+
+		bool DrawImGui(ParticleSystemSettings& group) const override;
+	};
+
+	ENGINE_REGISTER_PARTICLE_PRIMITIVE_SHAPE_DRAWER(ParticlePlaneShapeDrawer, PrimitiveType::Plane);
+} // Engine

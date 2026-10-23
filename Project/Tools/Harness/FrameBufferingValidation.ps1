@@ -11,7 +11,9 @@ param(
     [switch]$BuildDebugAssimp,
     [switch]$Performance,
     [switch]$FixedFrameCount,
-    [switch]$CameraMotion
+    [switch]$CameraMotion,
+    [string]$ScenePath = 'GameAssets/Scenes/View/Sponza.scene.json',
+    [switch]$Animate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,7 +134,7 @@ try {
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/GraphicsFeatures.json') -Encoding utf8
     @{ targetFps = 0; editorTargetFps = 0 } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/FrameRate.json') -Encoding utf8
-    $meta = Get-Content -LiteralPath (Join-Path $projectRoot 'GameAssets/Scenes/View/Sponza.scene.json.meta') -Raw | ConvertFrom-Json
+    $meta = Get-Content -LiteralPath (Join-Path $projectRoot ($ScenePath + '.meta')) -Raw | ConvertFrom-Json
     @{ activeScene = $meta.guid } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Editor/ActiveScene.json') -Encoding utf8
     $catalog = Get-Content -LiteralPath (Join-Path $engineRoot 'Project/Engine/Assets/Config/editorLayouts.exeConfig.json') -Raw |
@@ -157,7 +159,7 @@ try {
     $env:NEM_RENDER_BENCHMARK = Join-Path $outputRoot 'Report.json'
     $env:NEM_RENDER_BENCHMARK_FRAME_CONTEXTS = Join-Path $outputRoot 'FrameCounts.json'
     $env:NEM_RENDER_BENCHMARK_QUICK = if ($Performance) { '0' } else { '1' }
-    $env:NEM_RENDER_BENCHMARK_FREEZE = '1'
+    $env:NEM_RENDER_BENCHMARK_FREEZE = if ($Animate) { '0' } else { '1' }
     $env:NEM_RENDER_BENCHMARK_VISIBLE = '0'
     $env:NEM_RENDER_BENCHMARK_WIDTH = "$Width"
     $env:NEM_RENDER_BENCHMARK_HEIGHT = "$Height"
@@ -191,6 +193,13 @@ try {
         -WorkingDirectory $projectRoot -TimeoutSeconds 600
     $result.output | Set-Content -LiteralPath (Join-Path $outputRoot 'Editor.log') -Encoding utf8
     if ($result.exitCode -ne 0 -or $result.timedOut) { throw "描画検証に失敗しました: $($result.exitCode)" }
+    $activeScenePath = [IO.Path]::GetFullPath((Join-Path $settingsRoot 'Editor/ActiveScene.json'))
+    $missingScene = @($result.output -split "`n" | Where-Object {
+        $_ -match '設定が存在しないシーンを参照' -and $_.IndexOf($activeScenePath, [StringComparison]::OrdinalIgnoreCase) -ge 0
+    })
+    if ($missingScene.Count -or $result.output -match '索引の更新に失敗|起動シーンを読み込めません|D3D12 ERROR|\[Assert') {
+        throw '描画検証の入力またはGPU処理にエラーがあります'
+    }
     if ((Get-Item -LiteralPath $env:NEM_RENDER_BENCHMARK).LastWriteTimeUtc -lt $started) { throw '新しい描画結果がありません' }
     $report = Get-Content -LiteralPath $env:NEM_RENDER_BENCHMARK -Raw | ConvertFrom-Json
     if ($report.phases.Count -ne 3 -or ($report.phases.frameContextCount -join ',') -ne ($sequence -join ',')) {
@@ -210,11 +219,10 @@ try {
         if (!($phase.frames | Where-Object { $_.gpuValid -and $_.passes.Count -gt 0 })) {
             throw "GPU計測がありません: $($phase.phase)"
         }
-        if ($View -eq 'Both') {
-            $names = @($phase.frames | ForEach-Object { $_.passes.name })
-            if (!($names -like 'Game/*') -or !($names -like 'Scene/*')) {
-                throw "両Viewの描画を確認できません: $($phase.phase)"
-            }
+        $names = @($phase.frames | ForEach-Object { $_.passes.name })
+        if (($View -ne 'Scene' -and !($names -like 'Game/*')) -or
+            ($View -ne 'Game' -and !($names -like 'Scene/*'))) {
+            throw "要求したViewの描画を確認できません: $($phase.phase)"
         }
     }
     Write-Output "描画フレーム数$($sequence -join '→')の検証完了: $env:NEM_RENDER_BENCHMARK"

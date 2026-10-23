@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Editor/Build/GameBuildService.h>
+#include <Engine/Editor/Build/GameBuildManifest.h>
 
 // c++
 #include <algorithm>
@@ -21,7 +22,7 @@
 int main(int argc, char** argv) {
 
 	if (argc != 4 && argc != 5) {
-		std::cerr << "使い方: GameBuildServiceProbe <検証用ゲーム> <開始シーンGUID> <出力先> [--collect]\n";
+		std::cerr << "使い方: GameBuildServiceProbe <検証用ゲーム> <開始シーンGUID> <出力先> [--collect|--manifest]\n";
 		return 1;
 	}
 	// 配置前後で実際の衝突フィルターが一致するかを調べる
@@ -55,6 +56,21 @@ int main(int argc, char** argv) {
 	Engine::GameBuildService service{};
 	std::string error;
 	if (argc == 5) {
+		if (std::string_view(argv[4]) == "--manifest") {
+			// 収集とハッシュはEditorと同じ実装へ渡す
+			const auto destination = settings.outputRoot;
+			settings.outputRoot = destination.parent_path() / "Products";
+			std::filesystem::path manifest, output, script;
+			std::vector<Engine::GameBuildWarning> warnings;
+			if (!Engine::GameBuildManifest::Write(settings, database, manifest, output, script, error, nullptr, warnings)) {
+				std::cerr << error << '\n';
+				return 3;
+			}
+			std::filesystem::copy_file(manifest, destination, std::filesystem::copy_options::overwrite_existing);
+			std::filesystem::remove(manifest);
+			std::cout << "Editorと共通の製品マニフェストを作成しました\n";
+			return 0;
+		}
 		if (std::string_view(argv[4]) != "--collect") return 1;
 		// 日本語パスも登録時と検索時で同じGUIDへ正規化されることを確認する
 		for (const auto& [assetID, meta] : database.GetAssets()) {

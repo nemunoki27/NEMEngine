@@ -1,0 +1,11 @@
+{
+  "name": "particleGPURibbonSelect",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345547061727400000105",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

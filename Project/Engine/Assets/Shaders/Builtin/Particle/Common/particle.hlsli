@@ -13,6 +13,8 @@ cbuffer ViewConstants : register(b0) {
 	float4x4 viewProjection;
 	float3 cameraPosition;
 	float _viewPad0;
+	float3 cameraForward;
+	float orthographic;
 };
 
 struct ParticleGeometryData {

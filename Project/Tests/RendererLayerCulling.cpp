@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Systems/Effect/ParticleDefinitionCompiler.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteRenderItemExtractor.h>
@@ -43,9 +44,8 @@ namespace NEMTests {
 		const std::vector<LinePoint> points = { { Vector3(0, 0, 0), Color4::White() },
 			{ Vector3(1, 0, 0), Color4::White() } };
 		SetLinePoints(world, entity, points);
-		ParticleGroupRuntimeState group{};
-		group.groupID = Engine::UUID{ 1 };
-		TryGetParticleSystemRuntime(world, entity)->effect.runtimeGroups.push_back(group);
+		ParticleDefinitionCompiler compiler;
+		TryGetParticleSystemRuntime(world, entity)->instance.definition = compiler.Resolve(GetParticleSystemSettings(world, entity));
 
 		ResolvedRenderView left{};
 		left.valid = true;

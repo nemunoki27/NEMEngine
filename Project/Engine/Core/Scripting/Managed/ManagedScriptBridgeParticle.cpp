@@ -8,6 +8,9 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
+// c++
+#include <algorithm>
+
 namespace Engine {
 
 	namespace {
@@ -32,6 +35,9 @@ namespace Engine {
 			Alive,
 			ParticleCount,
 			RandomSeed,
+			StatisticsValid,
+			TrailCount,
+			DroppedTrailCount,
 		};
 
 		// 対象と子孫のParticleへ操作を適用
@@ -125,7 +131,7 @@ namespace Engine {
 		const Entity root = ResolveEntity(entity);
 		if (!world || !world->IsAlive(root) ||
 			state < static_cast<int32_t>(ParticleSystemStateQuery::Playing) ||
-			static_cast<int32_t>(ParticleSystemStateQuery::RandomSeed) < state) {
+			static_cast<int32_t>(ParticleSystemStateQuery::DroppedTrailCount) < state) {
 			return 0;
 		}
 
@@ -136,20 +142,25 @@ namespace Engine {
 			if (!component) { return 0; }
 			// 編集用のSeedを書き換えず実行Instanceの使用値を返す
 			const auto* runtime = TryGetParticleSystemRuntime(*world, root);
-			const uint32_t seed = component->useAutoRandomSeed && runtime && runtime->effect.randomInitialized ?
-				runtime->effect.randomSeed : component->randomSeed;
+			const uint32_t seed = component->useAutoRandomSeed && runtime && runtime->instance.randomInitialized ?
+				runtime->instance.randomSeed : component->randomSeed;
 			return static_cast<int32_t>(seed);
 		}
-		if (query == ParticleSystemStateQuery::ParticleCount) {
+		if (query == ParticleSystemStateQuery::StatisticsValid) {
+			return HasParticleSystemStatistics(*world, root) ? 1 : 0;
+		}
+		if (query == ParticleSystemStateQuery::ParticleCount || query == ParticleSystemStateQuery::TrailCount ||
+			query == ParticleSystemStateQuery::DroppedTrailCount) {
 
-			int32_t particleCount = 0;
+			int64_t particleCount = 0;
 			ForEachParticleSystem(*world, root, withChildren != 0,
 				[&](const Entity& target) {
 
-					particleCount +=
-						GetParticleSystemParticleCount(*world, target);
+					if (query == ParticleSystemStateQuery::ParticleCount) particleCount += GetParticleSystemParticleCount(*world, target);
+					else if (query == ParticleSystemStateQuery::TrailCount) particleCount += GetParticleSystemTrailCount(*world, target);
+					else particleCount += GetParticleSystemDroppedTrailCount(*world, target);
 				});
-			return particleCount;
+			return static_cast<int32_t>((std::min)(particleCount, int64_t(INT32_MAX)));
 		}
 
 		bool matched = false;

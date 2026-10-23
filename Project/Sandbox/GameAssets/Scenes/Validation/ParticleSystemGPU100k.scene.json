@@ -1,0 +1,210 @@
+{
+  "SchemaVersion": 3,
+  "Header": {
+    "name": "ParticleSystemGPU100k",
+    "subScenes": []
+  },
+  "Entities": [
+    {
+      "LocalFileID": "7061727469630012",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 19
+        },
+        "Name": {
+          "name": "Camera3D"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "7061727469630012",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": -9
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PerspectiveCamera": {
+          "enabled": true,
+          "isMain": true,
+          "nearClip": 0.1,
+          "farClip": 100,
+          "fovY": 60,
+          "projectionMode": "Perspective",
+          "cullingMask": 16777215,
+          "viewportWidth": 1,
+          "viewportHeight": 1,
+          "reflectionEnabled": false,
+          "ambientOcclusionEnabled": false,
+          "postProcessEnabled": false
+        }
+      }
+    },
+    {
+      "LocalFileID": "7061727469630016",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 23
+        },
+        "Name": {
+          "name": "GPU10万・小さい板"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "7061727469630016",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ParticleSystem": {
+          "simulationTarget": "GPU",
+          "enabled": true,
+          "visible": true,
+          "playOnAwake": true,
+          "playInEditMode": true,
+          "useAutoRandomSeed": false,
+          "randomSeed": 412,
+          "simulationSpace": "World",
+          "settings": {
+            "version": 1,
+            "space": "World3D",
+            "looping": false,
+            "shape": "Plane",
+            "billboardAxes": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "blendMode": "Normal",
+            "queue": "Transparent",
+            "renderingLayerMask": 1,
+            "emitter": {
+              "shape": "Sphere",
+              "sphereRadius": 2,
+              "circleRadius": 0.5,
+              "circleSpawnMode": "Progressive",
+              "circleStepAngle": 15,
+              "circleVelocityMode": "Normal",
+              "emitInterval": 0.03,
+              "emitCount": {
+                "type": "Constant",
+                "constant": 100000,
+                "min": 100000,
+                "max": 100000
+              },
+              "maxParticles": 100000,
+              "speed": {
+                "type": "Constant",
+                "constant": 0,
+                "min": 0,
+                "max": 0
+              }
+            },
+            "phases": [
+              {
+                "id": "7061727469630013",
+                "name": "フェーズ1",
+                "lifetime": {
+                  "type": "Constant",
+                  "constant": 600,
+                  "min": 600,
+                  "max": 600
+                },
+                "lifeEndMode": "Clamp",
+                "modules": [
+                  {
+                    "instanceID": "7061727469630014",
+                    "id": "SizeOverLifetime",
+                    "params": {
+                      "startScale": 0.02,
+                      "endScale": 0.02
+                    }
+                  },
+                  {
+                    "instanceID": "7061727469630015",
+                    "id": "ColorOverLifetime",
+                    "params": {
+                      "startColor": {
+                        "r": 0.1,
+                        "g": 0.5,
+                        "b": 1,
+                        "a": 1
+                      },
+                      "endColor": {
+                        "r": 0.1,
+                        "g": 0.5,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "trail": {
+              "enabled": false,
+              "mode": "Particle",
+              "drawSource": true,
+              "keepAfterParticleDeath": true,
+              "maxPoints": 32,
+              "maxTrails": 128,
+              "memoryBudgetMB": 8,
+              "minDistance": 0.025,
+              "pointLifetime": 0.8,
+              "startWidth": 0.08,
+              "endWidth": 0,
+              "startColor": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              },
+              "endColor": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "PrefabInstances": []
+}

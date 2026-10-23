@@ -59,11 +59,6 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID RectLTCAmplitude{ 0x4e454d4153534554ull, 0x4c54430000000002ull };
 	}
 
-	namespace Effects {
-
-		// パーティクルの既定エフェクト
-		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000010ull };
-	}
 
 	namespace RenderPasses {
 
@@ -93,7 +88,17 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000005ull };
 		inline constexpr AssetID ParticleRingMS{ 0x4e454d4153534554ull, 0xeff000000000000bull };
 		inline constexpr AssetID ParticleCylinderMS{ 0x4e454d4153534554ull, 0xeff000000000000eull };
+		inline constexpr AssetID ParticleGPUSimulate{ 0x4e454d4153534554ull, 0x706172740000000bull };
+		inline constexpr AssetID ParticleGPUView{ 0x4e454d4153534554ull, 0x706172740000000dull };
+		inline constexpr AssetID ParticleGPUDraw{ 0x4e454d4153534554ull, 0x706172740000000full };
+		inline constexpr AssetID ParticleGPUDraw2D{ 0x4e454d4153534554ull, 0x7061727400000010ull };
+		inline constexpr AssetID ParticleGPUTrailUpdate{ 0x4e454d4153534554ull, 0x7061727400000111ull };
+		inline constexpr AssetID ParticleGPUTrailPrepare{ 0x4e454d4153534554ull, 0x7061727400000113ull };
+		inline constexpr AssetID ParticleGPUTrailDraw{ 0x4e454d4153534554ull, 0x7061727400000115ull };
+		inline constexpr AssetID ParticleGPUTrailDraw2D{ 0x4e454d4153534554ull, 0x7061727400000116ull };
+		inline constexpr AssetID ParticleGPURibbonSelect{ 0x4e454d4153534554ull, 0x7061727400000118ull };
 		inline constexpr AssetID ParticleTrail{ 0x4e454d4153534554ull, 0xeff0000000000012ull };
+		inline constexpr AssetID ParticleTrail2D{ 0x4e454d4153534554ull, 0x7061727400000120ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6021ull };
 		inline constexpr AssetID SpriteOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6042ull };
 		inline constexpr AssetID Primitive2DOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6046ull };
@@ -149,10 +154,13 @@ namespace Engine::BuiltinAssets {
 			Materials::PostProcessMaskComposite, Materials::ScreenSpaceOutlineMask,
 			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
 			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
-			Materials::DefaultParticle, Materials::DefaultParticle2D, Effects::DefaultParticle,
+			Materials::DefaultParticle, Materials::DefaultParticle2D,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
-			Pipelines::ParticleTrail, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,
+			Pipelines::ParticleTrail, Pipelines::ParticleTrail2D, Pipelines::ParticleGPUSimulate, Pipelines::ParticleGPUView,
+			Pipelines::ParticleGPUDraw, Pipelines::ParticleGPUDraw2D,
+			Pipelines::ParticleGPUTrailUpdate, Pipelines::ParticleGPUTrailPrepare, Pipelines::ParticleGPURibbonSelect,
+			Pipelines::ParticleGPUTrailDraw, Pipelines::ParticleGPUTrailDraw2D, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,
 			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial,
 		};
 	}

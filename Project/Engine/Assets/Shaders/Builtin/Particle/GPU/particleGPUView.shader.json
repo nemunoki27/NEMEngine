@@ -1,0 +1,11 @@
+{
+  "name": "particleGPUView",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345547061727400000008",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

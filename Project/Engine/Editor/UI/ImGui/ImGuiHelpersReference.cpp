@@ -25,7 +25,6 @@ namespace Engine {
 			case AssetType::Font:             return ".font";
 			case AssetType::Audio:            return ".wav/.mp3";
 			case AssetType::AnimationClip:    return ".animclip";
-			case AssetType::ParticleEffect:   return ".effect";
 			case AssetType::Prefab:           return ".prefab";
 			case AssetType::Scene:            return ".scene";
 			case AssetType::Shader:           return ".hlsl/.shader";

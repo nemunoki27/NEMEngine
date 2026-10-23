@@ -15,7 +15,7 @@ void Engine::ParticleRenderItemExtractor::Extract(
 
 	world.ForEach<ParticleSystemComponent, ParticleSystemRuntimeComponent>(
 		[&](const Entity& entity, const ParticleSystemComponent& component,
-			const ParticleSystemRuntimeComponent&) {
+			const ParticleSystemRuntimeComponent& storage) {
 
 			if (!RenderItemExtract::IsVisible(world, entity, component.visible)) {
 				return;
@@ -25,41 +25,37 @@ void Engine::ParticleRenderItemExtractor::Extract(
 			if (!runtime) {
 				return;
 			}
-			const std::vector<ParticleGroupRuntimeState>& groups =
-				runtime->effect.runtimeGroups;
-			for (size_t groupIndex = 0; groupIndex < groups.size(); ++groupIndex) {
+			if (!runtime->instance.definition) return;
+			const ParticleEmitterRuntime& group = runtime->instance.emitter;
 
-				const ParticleGroupRuntimeState& group = groups[groupIndex];
+			ParticleRenderPayload payload{};
+			payload.runtimeIndex = storage.handle.index;
+			payload.runtimeGeneration = storage.handle.generation;
 
-				ParticleRenderPayload payload{};
-				payload.groupID = group.groupID;
-				payload.groupIndex = static_cast<uint32_t>(groupIndex);
-
-				RenderItem item{};
-				item.entity = entity;
-				item.world = &world;
-				item.sceneInstanceID =
-					SceneObjectUtility::GetSceneInstanceID(world, entity);
-				item.renderPhase = group.renderSettings.queue;
-				// 全Groupに所有Rendererの可視レイヤーを適用する
-				item.visibilityLayerMask = RenderItemExtract::GetVisibilityLayerMask(
-					world, entity, component.renderingLayerMask);
-				item.sortingLayer = component.layer;
-				item.sortingOrder = component.order;
-				item.blendMode = group.renderSettings.blendMode;
-				item.renderingLayerMask =
-					group.renderSettings.renderingLayerMask &
-					kRenderingLayerMaskBits;
-				item.worldMatrix = RenderItemExtract::GetWorldMatrix(world, entity);
-				item.backendID = RenderBackendID::Particle;
-				item.batchKey = static_cast<uint64_t>(entity.index + 1) *
-					0x9E3779B97F4A7C15ull ^ group.groupID.value;
-				item.cameraDomain = RenderCameraDomain::Perspective;
-				if (group.renderSettings.space == PrimitiveRenderSpace::Screen2D) {
-					item.cameraDomain = RenderCameraDomain::Orthographic;
-				}
-				item.payload = batch.PushPayload(payload);
-				batch.Add(std::move(item));
+			RenderItem item{};
+			item.entity = entity;
+			item.world = &world;
+			item.sceneInstanceID =
+				SceneObjectUtility::GetSceneInstanceID(world, entity);
+			item.renderPhase = group.renderSettings.queue;
+			// 所有Rendererの可視レイヤーを適用する
+			item.visibilityLayerMask = RenderItemExtract::GetVisibilityLayerMask(
+				world, entity, component.renderingLayerMask);
+			item.sortingLayer = component.layer;
+			item.sortingOrder = component.order;
+			item.blendMode = group.renderSettings.blendMode;
+			item.renderingLayerMask =
+				group.renderSettings.renderingLayerMask &
+				kRenderingLayerMaskBits;
+			item.worldMatrix = RenderItemExtract::GetWorldMatrix(world, entity);
+			item.backendID = RenderBackendID::Particle;
+			item.batchKey = static_cast<uint64_t>(entity.index + 1) *
+				0x9E3779B97F4A7C15ull ^ storage.handle.generation;
+			item.cameraDomain = RenderCameraDomain::Perspective;
+			if (group.renderSettings.space == PrimitiveRenderSpace::Screen2D) {
+				item.cameraDomain = RenderCameraDomain::Orthographic;
 			}
+			item.payload = batch.PushPayload(payload);
+			batch.Add(std::move(item));
 		});
 }

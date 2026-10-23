@@ -23,7 +23,6 @@ namespace {
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
 		CompoundAssetSuffix{ ".rendertexture.json", Engine::AssetType::RenderTexture },
 		CompoundAssetSuffix{ ".renderpasses.json", Engine::AssetType::RenderPasses },
-		CompoundAssetSuffix{ ".effect.json", Engine::AssetType::ParticleEffect },
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
 		CompoundAssetSuffix{ ".shadergraph.json", Engine::AssetType::ShaderGraph },
@@ -69,7 +68,6 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 		return compound->type;
 	}
 	if (extension == ".scene") { return AssetType::Scene; }
-	if (extension == ".effect") { return AssetType::ParticleEffect; }
 	if (extension == ".prefab") { return AssetType::Prefab; }
 	if (extension == ".material") { return AssetType::Material; }
 	if (extension == ".shadergraph") { return AssetType::ShaderGraph; }
@@ -119,7 +117,6 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::AnimationClip:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
-	case AssetType::ParticleEffect:
 	case AssetType::ShaderGraph:
 	case AssetType::RenderTexture:
 	case AssetType::RenderPasses:
@@ -139,6 +136,6 @@ bool Engine::AssetTypeResolver::IsJsonAssetFile(AssetType type, const std::files
 		return false;
 	}
 	return extension == ".json" || extension == ".scene" || extension == ".prefab" ||
-		extension == ".effect" || extension == ".material" || extension == ".shadergraph" ||
+		extension == ".material" || extension == ".shadergraph" ||
 		extension == ".shader" || extension == ".animclip";
 }

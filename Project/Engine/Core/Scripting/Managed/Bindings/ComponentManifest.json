@@ -39,7 +39,7 @@
       "nativeType": "ParticleSystemSimulationSpace",
       "members": [
         {
-          "name": "EffectAsset",
+          "name": "PhaseSettings",
           "value": 0
         },
         {
@@ -465,6 +465,20 @@
         {
           "name": "Default",
           "value": 63
+        }
+      ]
+    },
+    {
+      "managedType": "ParticleSimulationTarget",
+      "nativeType": "ParticleSimulationTarget",
+      "members": [
+        {
+          "name": "CPU",
+          "value": 0
+        },
+        {
+          "name": "GPU",
+          "value": 1
         }
       ]
     }
@@ -1203,18 +1217,11 @@
       "nativeHeader": "Engine/Core/World/Components/Rendering/ParticleSystemComponent.h",
       "exposure": "GeneratedBinding",
       "managedSurface": "NEMEngine.ParticleSystem",
-      "reason": "Entity上のParticleEffect設定をgenerated property、再生操作をgameplay methodで公開する",
+      "reason": "ParticleSystemの再生設定と実行方式を公開する",
       "managedType": "ParticleSystem",
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-        {
-          "managedName": "Effect",
-          "nativeMember": "effect",
-          "kind": "AssetRef",
-          "assetType": "ParticleEffect",
-          "access": "ReadWrite"
-        },
         {
           "managedName": "PlaybackSpeed",
           "nativeMember": "playbackSpeed",
@@ -1282,6 +1289,13 @@
           "managedName": "RenderingLayerMask",
           "nativeMember": "renderingLayerMask",
           "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SimulationTarget",
+          "nativeMember": "simulationTarget",
+          "kind": "Enum",
+          "enumType": "ParticleSimulationTarget",
           "access": "ReadWrite"
         }
       ]

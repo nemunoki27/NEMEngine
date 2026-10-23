@@ -167,8 +167,6 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Material/MaterialCreationImportUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Camera/SceneViewCameraSettings.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureEditSession.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditSession.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditHistory.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipEditorUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipQuaternionUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Animation/Curves/CurveEditorState.cpp"),

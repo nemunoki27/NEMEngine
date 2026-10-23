@@ -18,7 +18,7 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
@@ -72,19 +72,7 @@ namespace {
 		return entity;
 	}
 
-	// Effectの描画空間から変換の次元を決める
-	Engine::Dimension ResolveParticleEffectDimension(Engine::AssetDatabase& database, Engine::AssetID effectID) {
 
-		const std::filesystem::path path = database.ResolveFullPath(effectID);
-		if (path.empty()) {
-			return Engine::Dimension::Type3D;
-		}
-		Engine::ParticleEffectAsset effect{};
-		if (!Engine::FromJson(Engine::JsonAdapter::Load(path, false), effect)) {
-			return Engine::Dimension::Type3D;
-		}
-		return effect.space == Engine::PrimitiveRenderSpace::Screen2D ? Engine::Dimension::Type2D : Engine::Dimension::Type3D;
-	}
 }
 
 //============================================================================
@@ -101,7 +89,6 @@ bool Engine::AssetEntityFactory::CanSpawn(const EditorAssetDragDropPayload& payl
 	case AssetType::Texture:
 	case AssetType::Prefab:
 	case AssetType::Font:
-	case AssetType::ParticleEffect:
 		return true;
 	default:
 		return false;
@@ -173,18 +160,6 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 
 		result.root = entity;
 		result.isThreeD = false;
-		result.valid = true;
-		break;
-	}
-	case AssetType::ParticleEffect: {
-		// エフェクトはParticleSystemを持つ単一エンティティにする
-		const Dimension dimension = ResolveParticleEffectDimension(database, payload.assetID);
-		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID, dimension);
-		auto& particleSystem = world.AddComponent<ParticleSystemComponent>(entity);
-		particleSystem.effect = payload.assetID;
-
-		result.root = entity;
-		result.isThreeD = dimension == Dimension::Type3D;
 		result.valid = true;
 		break;
 	}

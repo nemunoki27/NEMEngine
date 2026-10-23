@@ -34,8 +34,7 @@ namespace {
 		std::vector<ProjectJsonDocument> documents;
 		for (const auto& [assetID, meta] : database.GetAssets()) {
 			if (meta.type != Engine::AssetType::Scene &&
-				meta.type != Engine::AssetType::Prefab &&
-				meta.type != Engine::AssetType::ParticleEffect) {
+				meta.type != Engine::AssetType::Prefab) {
 				continue;
 			}
 			// 開いている文書はWorld側のCommandだけを更新する

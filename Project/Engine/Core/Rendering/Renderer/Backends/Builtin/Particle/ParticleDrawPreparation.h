@@ -5,7 +5,7 @@
 //============================================================================
 #include "ParticleBatchResources.h"
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 
 namespace Engine {
 
@@ -15,10 +15,15 @@ namespace Engine {
 
 namespace Engine::ParticleDrawPreparation {
 
+	// 共有する形状の生成要求を作る
+	PrimitiveRendererComponent MakeShapeComponent(const ParticleRenderSettings& settings);
+
 	// UVの変換行列を生成する
 	Engine::Matrix4x4 BuildParticleUVMatrix(const Engine::Particle& particle);
 
-	// 静的な形状データを作成する
+	// GPU経路で使える標準パスだけを選択する
+	bool ResolveGPUParticlePass(const RenderDrawContext& context, AssetID requestedMaterial,
+		bool is2D, BackendDrawCommon::ResolvedMaterialPass& outResolved);
 
 	// PhaseのMaterial設定を取得する
 	const Engine::ParticlePhaseMaterialSettings& GetPhaseMaterialSettings(

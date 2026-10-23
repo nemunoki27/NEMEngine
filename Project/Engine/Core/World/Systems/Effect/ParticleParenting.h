@@ -3,7 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include "ParticleEffectDefinition.h"
+#include "ParticleDefinition.h"
+#include <Engine/Core/Rendering/Particle/ParticleStorage.h>
 
 namespace Engine::ParticleParenting {
 
@@ -14,11 +15,11 @@ namespace Engine::ParticleParenting {
 	void UpdateParticleParent(Particle& particle, const ParticlePhaseParentSettings& settings,
 		const ParticleParentPose& parent, bool preserveWorldRotationScale = true);
 	// 全粒子の親行列と描画用ワールド姿勢を更新する
-	void UpdateParticleParents(std::vector<Particle>& particles, const ParticleGroupDefinition& group,
+	void UpdateParticleParents(ParticleStorage& particles, const ParticleSystemDefinition& group,
 		const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 		const std::vector<ParticleParentPose>& parents);
 	// 各フェーズの親姿勢をエミッター単位で解決する
-	void ResolveParticleParents(const Matrix4x4& emitterWorld, const ParticleGroupDefinition& group,
+	void ResolveParticleParents(const Matrix4x4& emitterWorld, const ParticleSystemDefinition& group,
 		const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 		std::vector<ParticleParentPose>& outParents);
 	// 粒子の描画用ワールド姿勢を更新する

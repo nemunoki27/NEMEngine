@@ -42,28 +42,6 @@ bool Engine::ParticleModuleExecution::AdvancePhaseOnLifeEnd(Particle& particle, 
 	}
 }
 
-void Engine::ParticleModuleExecution::UpdatePhaseModules(std::vector<Particle>& particles,
-	const ParticleGroupDefinition& group, float deltaTime) {
-
-	// Batchモジュール用にフェーズ順の連続範囲を作る
-	std::sort(particles.begin(), particles.end(), [](const Particle& lhs, const Particle& rhs) {		 return lhs.phaseIndex < rhs.phaseIndex; });
-	size_t begin = 0;
-	while (begin < particles.size()) {
-
-		const uint32_t phaseIndex = particles[begin].phaseIndex;
-		size_t end = begin;
-		while (end < particles.size() && particles[end].phaseIndex == phaseIndex) {
-			++end;
-		}
-		if (phaseIndex < group.phases.size()) {
-
-			std::span<Particle> range(particles.data() + begin, end - begin);
-			ExecuteUpdateModules(range, group.phases[phaseIndex], deltaTime);
-		}
-		begin = end;
-	}
-}
-
 void Engine::ParticleModuleExecution::ApplySpawnModules(Particle& particle, const ParticlePhaseDefinition& phase) {
 
 	for (const ParticleModuleExecutionGroup& group : phase.spawnExecution) {

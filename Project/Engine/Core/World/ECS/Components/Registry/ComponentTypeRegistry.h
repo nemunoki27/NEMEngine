@@ -268,6 +268,16 @@ namespace Engine {
 				};
 			info.moveConstruct = [](void* dst, void* src) { new (dst) T(std::move(*(T*)src)); };
 		}
+		if constexpr (requires(const ECSWorld& sourceWorld, ECSWorld& destinationWorld,
+			const Entity& entity, const T& source, T& destination) {
+				T::CloneStorage(sourceWorld, destinationWorld, entity, source, destination);
+			}) {
+			info.cloneStorage = [](const ECSWorld& sourceWorld, ECSWorld& destinationWorld,
+				const Entity& entity, const void* source, void* destination) {
+					T::CloneStorage(sourceWorld, destinationWorld, entity,
+						*static_cast<const T*>(source), *static_cast<T*>(destination));
+				};
+		}
 		info.releaseExternal = []([[maybe_unused]] ECSWorld& world,
 			[[maybe_unused]] const Entity& entity, [[maybe_unused]] void* ptr) {
 

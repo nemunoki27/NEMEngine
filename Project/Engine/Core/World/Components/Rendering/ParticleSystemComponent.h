@@ -5,8 +5,9 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
-#include <Engine/Core/Rendering/Particle/ParticleTypes.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleStorage.h>
+#include <Engine/Core/Rendering/Particle/ParticleTrailStorage.h>
+#include "ParticleSystemSettingsStorage.h"
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
@@ -38,7 +39,7 @@ namespace Engine {
 	enum class ParticleSystemSimulationSpace :
 		uint8_t {
 
-		EffectAsset,
+		PhaseSettings,
 		Local,
 		World,
 	};
@@ -54,35 +55,36 @@ namespace Engine {
 		Restart,
 	};
 
-	// パーティクルグループの実行状態
-	struct ParticleGroupRuntimeState {
+	struct ParticleSystemDefinition;
+	struct ParticleGPUState;
 
-		UUID groupID{};
+	// 1つのエミッターの実行状態
+	struct ParticleEmitterRuntime {
+
 		float emitTimer = 0.0f;
 		bool emitted = false;
-		std::vector<Particle> particles{};
-		uint32_t nextParticleID = 0;
-		std::unordered_map<uint32_t, ParticleTrailRuntime> trails{};
+		ParticleStorage particles{};
+		std::shared_ptr<ParticleGPUState> gpu;
+		uint64_t nextParticleID = 0;
+		ParticleTrailStorage trails{};
+		ParticleTrailHandle ribbon{};
+		uint64_t trailSerial = 0;
 		ParticleRenderSettings renderSettings{};
 	};
 
-	// ParticleEffectアセット1つ分の実行状態
-	struct ParticleEffectInstanceRuntime {
+	// 再生単位の定義と乱数列
+	struct ParticleInstanceState {
 
 		std::mt19937 randomGenerator{};
 		uint32_t randomSeed = 0;
 		bool randomInitialized = false;
 		bool useAutoRandomSeed = true;
-		AssetID effect{};
 		bool oneShot = false;
 		bool emissionStopped = false;
-		float runtimeGroupEmitTimer = 0.0f;
-		bool runtimeGroupEmitted = false;
-		ParticleEffectGroupEmissionMode runtimeGroupEmissionMode =
-			ParticleEffectGroupEmissionMode::Independent;
-		AssetID runtimeEffectID{};
-		uint64_t runtimeEffectRevision = 0;
-		std::vector<ParticleGroupRuntimeState> runtimeGroups{};
+		ParticleSimulationTarget target = ParticleSimulationTarget::CPU;
+		std::shared_ptr<const ParticleSystemDefinition> definition;
+		std::shared_ptr<const ParticleSystemSettings> rejectedSettings;
+		ParticleEmitterRuntime emitter;
 	};
 
 	// C#とエディターから受け取る再生要求
@@ -102,8 +104,7 @@ namespace Engine {
 		bool paused = false;
 		bool stopped = true;
 		bool stopActionPending = false;
-		AssetID activeEffect{};
-		ParticleEffectInstanceRuntime effect{};
+		ParticleInstanceState instance{};
 		std::vector<ParticleSystemCommand> commands{};
 	};
 
@@ -135,7 +136,7 @@ namespace Engine {
 	//============================================================================
 	//	ParticleSystemComponent struct
 	//============================================================================
-	// Entity上でParticleEffectアセット1つを再生するコンポーネント
+	// Entity上で1つのエミッターを再生するコンポーネント
 	struct ParticleSystemComponent {
 
 		static constexpr bool kHasECSHooks = true;
@@ -144,7 +145,7 @@ namespace Engine {
 		static constexpr ComponentChangeChannel kTransformChannels =
 			ComponentChangeChannel::Render;
 
-		AssetID effect{};
+		ParticleSystemSettingsHandle settings{};
 		float playbackSpeed = 1.0f;
 		int32_t layer = 0;
 		int32_t order = 0;
@@ -152,7 +153,8 @@ namespace Engine {
 		uint32_t renderingLayerMask = 1u;
 		ParticleSystemStopAction stopAction = ParticleSystemStopAction::None;
 		ParticleSystemSimulationSpace simulationSpace =
-			ParticleSystemSimulationSpace::EffectAsset;
+			ParticleSystemSimulationSpace::PhaseSettings;
+		ParticleSimulationTarget simulationTarget = ParticleSimulationTarget::CPU;
 		bool enabled = true;
 		bool playOnAwake = true;
 		bool playInEditMode = true;
@@ -173,7 +175,12 @@ namespace Engine {
 			const nlohmann::json& in, ParticleSystemComponent& component);
 		static void SerializeECS(const ECSWorld& world, const Entity& entity,
 			const ParticleSystemComponent& component, nlohmann::json& out);
+		// 保存用Worldへ設定の所有だけを複製する
+		static void CloneStorage(const ECSWorld& sourceWorld, ECSWorld& destinationWorld,
+			const Entity& entity, const ParticleSystemComponent& source, ParticleSystemComponent& destination);
 	};
+	static_assert(sizeof(ParticleSystemComponent) <= 64);
+	static_assert(sizeof(ParticleSystemRuntimeComponent) == sizeof(ParticleSystemRuntimeHandle));
 
 	// ParticleSystemのRuntimeデータを返す
 	ParticleSystemRuntimeData* TryGetParticleSystemRuntime(
@@ -196,6 +203,11 @@ namespace Engine {
 	bool IsParticleSystemAlive(const ECSWorld& world, const Entity& entity);
 	int32_t GetParticleSystemParticleCount(
 		const ECSWorld& world, const Entity& entity);
+
+	// GPUでは数frame遅れた確定値を返す
+	bool HasParticleSystemStatistics(const ECSWorld& world, const Entity& entity);
+	int32_t GetParticleSystemTrailCount(const ECSWorld& world, const Entity& entity);
+	int32_t GetParticleSystemDroppedTrailCount(const ECSWorld& world, const Entity& entity);
 
 	// json変換
 	void from_json(const nlohmann::json& in, ParticleSystemComponent& component);

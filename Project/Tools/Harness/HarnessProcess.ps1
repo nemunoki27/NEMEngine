@@ -15,6 +15,17 @@ function Invoke-HarnessProcess {
     foreach ($entry in [Environment]::GetEnvironmentVariables().GetEnumerator()) {
         $info.Environment[$entry.Key] = $entry.Value
     }
+    if ([IO.Path]::GetFileName($FilePath) -ieq 'powershell.exe') {
+        # PowerShell7のモジュールをWindowsPowerShellへ持ち込まない
+        $moduleRoots = @(
+            (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsPowerShell/Modules'),
+            (Join-Path $env:ProgramFiles 'WindowsPowerShell/Modules'),
+            (Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/Modules'),
+            [Environment]::GetEnvironmentVariable('PSModulePath', 'Machine'),
+            [Environment]::GetEnvironmentVariable('PSModulePath', 'User')
+        )
+        $info.Environment['PSModulePath'] = [Environment]::ExpandEnvironmentVariables(($moduleRoots | Where-Object { $_ }) -join ';')
+    }
     # 診断言語を揃え、検証後のビルドプロセスを残さない
     $info.Environment['DOTNET_CLI_UI_LANGUAGE'] = 'en'
     $info.Environment['VSLANG'] = '1033'

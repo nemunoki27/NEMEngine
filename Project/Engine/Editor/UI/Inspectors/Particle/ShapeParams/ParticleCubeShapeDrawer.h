@@ -1,0 +1,28 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Editor/UI/Inspectors/Particle/ShapeParams/ParticlePrimitiveShapeDrawerRegistry.h>
+
+namespace Engine {
+
+	//============================================================================
+	//	ParticleCubeShapeDrawer class
+	//	Cube形状のパラメータ編集UI
+	//============================================================================
+	class ParticleCubeShapeDrawer :
+		public IParticlePrimitiveShapeDrawer {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		ParticleCubeShapeDrawer() = default;
+		~ParticleCubeShapeDrawer() override = default;
+
+		bool DrawImGui(ParticleSystemSettings& group) const override;
+	};
+
+	ENGINE_REGISTER_PARTICLE_PRIMITIVE_SHAPE_DRAWER(ParticleCubeShapeDrawer, PrimitiveType::Cube);
+} // Engine

@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleBatchResources.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
+#include <Engine/Core/Rendering/Particle/ParticleGPUService.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 
@@ -18,6 +19,7 @@ namespace Engine {
 
 	// front
 	struct ParticleRenderSettings;
+	struct ParticleEmitterRuntime;
 	class IParticleParametricShape;
 
 	//============================================================================
@@ -39,6 +41,9 @@ namespace Engine {
 			std::span<const AssetID> meshAssets);
 		// Model粒子のメッシュを旧表示を保ったまま再読込する
 		void RequestMeshReload(AssetID meshAssetID);
+
+		// View数に関係なくGPU更新を記録する
+		void PrepareSimulation(GraphicsCore& graphics, ECSWorld& world, RenderAssetLibrary& assets, PipelineStateCache& pipelines);
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 
@@ -63,6 +68,7 @@ namespace Engine {
 		bool meshManagerInitialized_ = false;
 
 		FrameBatchResourcePool<ParticleBatchResources> resourcePool_;
+		ParticleGPUService gpuService_;
 		ParticleTrailRenderData trailDataScratch_{};
 
 		PipelineBindingCache::SlotID shapeConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
@@ -75,6 +81,12 @@ namespace Engine {
 		PipelineBindingCache::SlotID trailSegmentsSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		//--------- functions ----------------------------------------------------
+
+		// GPUが持つ粒子を間接描画する
+		void DrawGPU(const RenderDrawContext& context, const RenderItem& item, const ParticleEmitterRuntime& emitter);
+		// GPUの点列と間接描画要求を接続する
+		void DrawGPUTrails(const RenderDrawContext& context, const RenderItem& item, const ParticleEmitterRuntime& emitter,
+			const ParticleGPUDrawData& data, const ParticleGPUViewConstants& constants);
 
 		// パラメトリックMS生成で描画する、パイプラインを解決できなければfalse
 		bool DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,

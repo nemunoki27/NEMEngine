@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include "ParticleEffectDefinitionCache.h"
+#include "ParticleDefinitionCompiler.h"
 #include "ParticleTrailUpdater.h"
 
 namespace Engine {
@@ -18,12 +18,12 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		// ParticleEffect1つ分を更新する
-		bool UpdateEffectInstance(ECSWorld& world,
-			ParticleEffectInstanceRuntime& instance, const Matrix4x4& emitterWorld,
-			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
-			SystemContext& context, float deltaTime, bool updateSimulation,
-			bool emissionEnabled, bool drawEmitterShape, bool checkReload);
+		// 設定の更新を反映し、1つのエミッターを進める
+		bool UpdateInstance(ECSWorld& world, ParticleInstanceState& instance,
+			std::shared_ptr<const ParticleSystemSettings> settings, const Matrix4x4& emitterWorld,
+			const ParticlePhaseParentSettings& parentSettings, bool usePhaseParentSettings,
+			float deltaTime, bool updateSimulation, bool emissionEnabled, bool drawEmitterShape,
+			ParticleSimulationTarget target = ParticleSimulationTarget::CPU);
 	private:
 		//========================================================================
 		//	private Methods
@@ -31,30 +31,22 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ParticleEffectDefinitionCache definitions_;
+		ParticleDefinitionCompiler definitions_;
 		ParticleTrailUpdater trails_;
 		std::vector<ParticleParentPose> parentRuntimes_;
+		std::vector<Particle> particleScratch_;
+		std::vector<size_t> particleIndices_;
 
 		//--------- functions ----------------------------------------------------
 
-		// ParticleEffect実行状態をアセットのグループ順へ同期する
-		bool SynchronizeRuntimeGroups(
-			ParticleEffectInstanceRuntime& instance, const ParticleEffectDefinition& effect) const;
-		// ParticleEffectの再生状態を先頭へ戻す
-		void RestartEffectInstance(ParticleEffectInstanceRuntime& instance, const ParticleEffectAsset& asset) const;
-		// 同時発生を行うフレームか判定する
-		uint32_t UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
-			const ParticleEffectAsset& asset, float deltaTime, bool emissionEnabled) const;
-		// グループ1つ分の粒子とトレイルを更新する
-		void UpdateGroup(const Matrix4x4& emitterWorld,
-			ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
-			const ParticleEffectGroup& group, const ParticleGroupDefinition& runtime,
+		// 粒子とTrailを更新する
+		void UpdateEmitter(const Matrix4x4& emitterWorld, ParticleEmitterRuntime& state,
+			const ParticleSystemSettings& group, const ParticleSystemDefinition& runtime,
 			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
-			float deltaTime, bool updateSimulation, uint32_t simultaneousEmit, bool emissionEnabled,
-			bool oneShot, bool drawEmitterShape);
+			float deltaTime, bool updateSimulation, bool emissionEnabled, bool oneShot, bool drawEmitterShape);
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
-			const ParticleValue<float>& lifetime, bool is2D, uint32_t firstSpawnIndex) const;
+			const ParticleValue<float>& lifetime, bool is2D, uint64_t firstSpawnIndex) const;
 		// エミッター形状をデバッグ線で描画する
 		void DrawEmitterShape(const Matrix4x4& emitterWorld, const ParticleEmitterSettings& settings, bool is2D) const;
 	};

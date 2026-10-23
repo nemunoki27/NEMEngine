@@ -143,9 +143,6 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 			}
 			break;
 		}
-		case AssetType::ParticleEffect:
-			context.assetLibrary.LoadParticleEffect(meta->guid);
-			break;
 		case AssetType::Mesh:
 			meshAssets.emplace_back(meta->guid);
 			break;

@@ -59,8 +59,11 @@ namespace Engine {
 
 		UUID GetInstanceID() const { return instanceID_; }
 		void SetInstanceID(UUID instanceID) { instanceID_ = instanceID; }
+		uint32_t GetStateSlot() const { return stateSlot_; }
+		void SetStateSlot(uint32_t slot) { stateSlot_ = slot; }
 	private:
 		// 保存されたModule識別子
 		UUID instanceID_ = UUID::New();
+		uint32_t stateSlot_ = UINT32_MAX;
 	};
 } // Engine

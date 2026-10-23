@@ -4,7 +4,7 @@
 #include "AnimationSnapshotTests.h"
 #include "SkeletonAnimationTests.h"
 #include "AnimationClipPreviewTests.h"
-#include "ParticleEffectRuntimeTests.h"
+#include "ParticleSystemRuntimeTests.h"
 #include "AudioDecoderTests.h"
 #include "RuntimePreloadTests.h"
 #include "ShaderCookInputTests.h"
@@ -21,7 +21,6 @@
 #include <Engine/Core/World/Systems/Animation/AnimationPlaybackTime.h>
 #include <Engine/Core/World/Systems/Effect/ParticleModuleExecution.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailSizeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleFloatAnimationSettings.h>
 #include <Engine/Core/Foundation/Utility/Random/RandomGenerator.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
@@ -100,11 +99,6 @@ namespace {
 
 	bool TestParticleSettingsPublication() {
 
-		ParticleTrailSizeOverLifetimeModule trailSize;
-		if (trailSize.GetSettings().startScale != 0.1f ||
-			trailSize.GetUpdateExecutionMode() != ParticleModuleExecutionMode::None) {
-			return false;
-		}
 		ParticleShapeOverLifetimeModule module;
 		module.FromJson(nlohmann::json::object());
 		auto settings = module.GetSettings();
@@ -362,7 +356,7 @@ bool TestGameplayContracts() {
 		std::cerr << "Audio WAV contract failed\n";
 		return false;
 	}
-	if (!TestParticleRandomSequence() || !NEMTests::TestParticleEffectRuntime()) {
+	if (!TestParticleRandomSequence() || !NEMTests::TestParticleSystemRuntime()) {
 		std::cerr << "Particle random sequence contract failed\n";
 		return false;
 	}

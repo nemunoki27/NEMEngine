@@ -100,8 +100,8 @@ namespace Engine {
 	struct ParticleRenderPayload {
 
 		// 外部Runtime Storage内のグループを描画時に安全に引き直す
-		UUID groupID{};
-		uint32_t groupIndex = 0;
+		uint32_t runtimeIndex = 0;
+		uint32_t runtimeGeneration = 0;
 	};
 	// 描画アイテム
 	struct RenderItem {

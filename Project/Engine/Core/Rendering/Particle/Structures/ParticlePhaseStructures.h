@@ -28,7 +28,7 @@ namespace Engine {
 	};
 
 	// モジュール1つ分の定義、idでモジュールを引きparamsは各モジュールが解釈する
-	struct ParticleEffectModuleEntry {
+	struct ParticleModuleEntry {
 
 		// モジュールの識別子
 		std::string id;
@@ -54,7 +54,7 @@ namespace Engine {
 	};
 
 	// 1フェーズ分の定義
-	struct ParticleEffectPhase {
+	struct ParticlePhaseSettings {
 
 		// フェーズの名前
 		std::string name = "Phase";
@@ -69,7 +69,7 @@ namespace Engine {
 		// 粒子を追従させる親設定
 		ParticlePhaseParentSettings parentSettings{};
 		// 使用されるモジュールのリスト
-		std::vector<ParticleEffectModuleEntry> modules;
+		std::vector<ParticleModuleEntry> modules;
 		UUID id = UUID::New();
 	};
 } // Engine

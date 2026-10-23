@@ -248,9 +248,9 @@ void Engine::ParticleRotationModule::OnSpawn(Particle& particle) {
 			Quaternion::FromEulerDegrees(settings_.addAngle.Sample()) :
 			MakeAxisRotation(settings_.addAxis, settings_.addQuaternionAngle.Sample())) * particle.rotation);
 		// 他のRotation Moduleの抽選値を上書きしない
-		particle.rotationSpeeds.erase(GetInstanceID());
-		if (settings_.speedMode == ParticleRotationSpeedMode::Constant) {
-			particle.rotationSpeeds[GetInstanceID()] = settings_.valueType == ParticleRotationValueType::Euler ?
+		if (GetStateSlot() < particle.rotationSpeeds.size()) particle.rotationSpeeds[GetStateSlot()] = Vector3::AnyInit(0.0f);
+		if (settings_.speedMode == ParticleRotationSpeedMode::Constant && GetStateSlot() < particle.rotationSpeeds.size()) {
+			particle.rotationSpeeds[GetStateSlot()] = settings_.valueType == ParticleRotationValueType::Euler ?
 				settings_.rotationSpeed.Sample() :
 				GetAxisDirection(settings_.rotationSpeedAxis) * settings_.rotationQuaternionSpeed.Sample();
 		}
@@ -271,8 +271,8 @@ void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTim
 	if (settings_.mode == ParticleRotationMode::Additive) {
 
 		Vector3 speed = Vector3::AnyInit(0.0f);
-		if (auto it = particle.rotationSpeeds.find(GetInstanceID()); it != particle.rotationSpeeds.end()) {
-			speed = it->second;
+		if (GetStateSlot() < particle.rotationSpeeds.size()) {
+			speed = particle.rotationSpeeds[GetStateSlot()];
 		}
 		if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) {
 

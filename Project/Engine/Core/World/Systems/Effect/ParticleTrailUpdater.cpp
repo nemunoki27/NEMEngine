@@ -1,130 +1,82 @@
 #include "ParticleTrailUpdater.h"
 
 //============================================================================
-//	include
+// include
 //============================================================================
-#include "ParticleParenting.h"
-#include "ParticleModuleExecution.h"
-#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
-
-// c++
 #include <algorithm>
 
-using namespace Engine::ParticleParenting;
-using namespace Engine::ParticleModuleExecution;
+using namespace Engine;
 
-//============================================================================
-//	ParticleSystem trail methods
-//============================================================================
-void Engine::ParticleTrailUpdater::RecordTrails(ParticleGroupRuntimeState& state,
-	const ParticleTrailSettings& trail, float deltaTime) {
+namespace {
 
-	aliveTrailIDs_.clear();
-	aliveTrailIDs_.reserve(state.particles.size());
-	for (const Particle& particle : state.particles) {
-		aliveTrailIDs_.insert(particle.id);
-	}
+	ParticleTrailPoint MakePoint(const Particle& particle) {
 
-	const bool keepAfterParticleDeath = trail.keepAfterParticleDeath && 0.0f < trail.pointLifetime;
-	for (auto it = state.trails.begin(); it != state.trails.end();) {
-
-		ParticleTrailRuntime& runtime = it->second;
-		const bool alive = aliveTrailIDs_.contains(it->first);
-		if (!alive && !keepAfterParticleDeath) {
-			it = state.trails.erase(it);
-			continue;
-		}
-		runtime.detached = !alive;
-		if (alive) {
-			runtime.hasOwner = false;
-			runtime.detachedThisFrame = false;
-		}
-		for (ParticleTrailPoint& point : runtime.points) {
-			point.age += deltaTime;
-		}
-		if (runtime.detached) {
-			runtime.head.age += deltaTime;
-		}
-		if (0.0f < trail.pointLifetime) {
-			while (!runtime.points.empty() && trail.pointLifetime < runtime.points.front().age) {
-				runtime.points.pop_front();
-			}
-		}
-		if (runtime.detached && runtime.points.empty()) {
-			it = state.trails.erase(it);
-			continue;
-		}
-		++it;
-	}
-
-	const int32_t maxPoints = (std::max)(trail.maxPoints, 2);
-	for (const Particle& particle : state.particles) {
-
-		const Vector3 worldPos = particle.worldPos;
-		ParticleTrailRuntime& runtime = state.trails[particle.id];
-		runtime.head = ParticleTrailPoint{ worldPos, 0.0f, particle.phaseIndex };
-		runtime.detached = false;
-		runtime.hasOwner = false;
-		runtime.detachedThisFrame = false;
-		std::deque<ParticleTrailPoint>& points = runtime.points;
-
-		if (points.empty()) {
-			points.emplace_back(runtime.head);
-			continue;
-		}
-		const Vector3 diff = worldPos - points.back().position;
-		if (trail.minDistance * trail.minDistance <= Vector3::Dot(diff, diff)) {
-
-			points.emplace_back(runtime.head);
-			if (maxPoints < static_cast<int32_t>(points.size())) {
-				points.pop_front();
-			}
-		}
+		return {particle.worldPos, 0.0f, particle.phaseIndex, particle.color, particle.emissive, particle.alphaReference};
 	}
 }
 
-void Engine::ParticleTrailUpdater::UpdateDetachedTrailOwners(ParticleGroupRuntimeState& state,
-	const ParticleGroupDefinition& group, const ParticlePhaseParentSettings& parentSettings,
-	bool useAssetParentSettings, const std::vector<ParticleParentPose>& parents,
-	const ParticleTrailSettings& trail, float deltaTime) const {
+void ParticleTrailUpdater::RecordTrails(ParticleEmitterRuntime& state,
+	const ParticleTrailSettings& settings, float deltaTime) {
 
-	if (!trail.keepAfterParticleDeath) {
-		return;
+	state.trails.Configure(settings);
+	++state.trailSerial;
+	expired_.clear();
+	for (const auto handle : state.trails.GetHandles()) {
+		auto& trail = *state.trails.TryGet(handle);
+		state.trails.Expire(trail, deltaTime, settings.pointLifetime);
 	}
-	for (auto& [id, runtime] : state.trails) {
-
-		if (!runtime.detached || !runtime.hasOwner) {
-			continue;
+	if (settings.mode == ParticleTrailMode::Ribbon) {
+		RecordRibbon(state);
+	} else {
+		for (size_t i = 0; i < state.particles.size(); ++i) {
+			auto particle = state.particles.GetMutable(i);
+			if (particle.trailIndex == UINT32_MAX && particle.trailGeneration == UINT32_MAX) continue;
+			ParticleTrailHandle handle{particle.trailIndex, particle.trailGeneration};
+			auto* trail = state.trails.TryGet(handle);
+			if (!trail) {
+				handle = state.trails.Allocate();
+				trail = state.trails.TryGet(handle);
+				particle.trailIndex = handle.index;
+				particle.trailGeneration = handle.IsValid() ? handle.generation : UINT32_MAX;
+				state.particles.Set(i, particle);
+			}
+			if (!trail) continue;
+			trail->detached = false;
+			trail->lastTouched = state.trailSerial;
+			state.trails.Record(*trail, MakePoint(particle), settings.minDistance);
 		}
-		Particle& owner = runtime.owner;
-		if (trail.continueUpdateAfterParticleDeath) {
-
-			if (!runtime.detachedThisFrame) {
-				owner.previousAge = owner.age;
-				owner.previousPhaseIndex = owner.phaseIndex;
-				owner.age += deltaTime;
-			}
-			if (owner.phaseIndex < group.phases.size()) {
-
-				const ParticlePhaseDefinition& phase = group.phases[owner.phaseIndex];
-				UpdateParticleParent(owner, ResolveParticleParentSettings(
-					phase, parentSettings, useAssetParentSettings), parents[owner.phaseIndex]);
-			}
-			owner.pos += owner.velocity * deltaTime;
-			if (owner.phaseIndex < group.phases.size()) {
-
-				const ParticlePhaseDefinition& phase = group.phases[owner.phaseIndex];
-				if (phase.hasUpdateBatch) {
-					ExecuteUpdateModules(std::span<Particle>(&owner, 1), phase, deltaTime);
-				} else {
-					ApplyUpdateModules(owner, phase, deltaTime);
-				}
-			}
-		}
-		const ParticleParentPose* parent = owner.phaseIndex < parents.size() ? &parents[owner.phaseIndex] : nullptr;
-		RefreshParticleWorldTransform(owner, parent);
-		runtime.head.position = owner.worldPos;
-		runtime.head.phaseIndex = owner.phaseIndex;
-		runtime.detachedThisFrame = false;
 	}
+	// 死亡した粒子を持たず、最後の点列だけを残す
+	for (const auto handle : state.trails.GetHandles()) {
+		const auto* trail = state.trails.TryGet(handle);
+		if (trail->lastTouched == state.trailSerial) continue;
+		if (!settings.keepAfterParticleDeath || trail->count == 0) {
+			expired_.push_back(handle);
+		} else {
+			state.trails.TryGet(handle)->detached = true;
+		}
+	}
+	for (const auto handle : expired_) state.trails.Release(handle);
+}
+
+void ParticleTrailUpdater::RecordRibbon(ParticleEmitterRuntime& state) {
+
+	if (state.particles.empty()) return;
+	auto* trail = state.trails.TryGet(state.ribbon);
+	if (!trail) {
+		state.ribbon = state.trails.Allocate();
+		trail = state.trails.TryGet(state.ribbon);
+	}
+	if (!trail) return;
+	ribbonParticles_.clear();
+	for (const auto particle : state.particles) ribbonParticles_.push_back(particle);
+	// 記録上限の新しい粒子を、常に同じ発生順で結ぶ
+	const size_t count = (std::min)(ribbonParticles_.size(), size_t(state.trails.GetPointCapacity()));
+	std::partial_sort(ribbonParticles_.begin(), ribbonParticles_.begin() + count, ribbonParticles_.end(),
+		[](const Particle& a, const Particle& b) { return a.id > b.id; });
+	trail->begin = 0;
+	trail->count = 0;
+	trail->detached = false;
+	trail->lastTouched = state.trailSerial;
+	for (size_t i = count; i > 0; --i) state.trails.Record(*trail, MakePoint(ribbonParticles_[i - 1]), 0.0f);
 }

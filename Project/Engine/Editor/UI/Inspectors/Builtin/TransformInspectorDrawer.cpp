@@ -260,7 +260,6 @@ void Engine::TransformInspectorDrawer::CommitTransformIfNeeded(
 
 	// コマンドを作成して実行
 	context.host->ExecuteEditorCommand(std::make_unique<SetTransformCommand>(entity, beforeTransform, afterTransform));
-
 	previewActive_ = false;
 	if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
 

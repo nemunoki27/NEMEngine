@@ -54,8 +54,8 @@ namespace {
 			std::filesystem::exists(directory.GetPath() / "Orphan.animclip.json")) return false;
 
 		// 複合拡張子だけを除き、名前の途中のピリオドを保つ
-		return ProjectAssetPath::SplitAssetFileName(Algorithm::PathFromUTF8("火花.v2.effect.json")).first == "火花.v2" &&
-			ProjectAssetPath::SplitAssetFileName("Fire.effect").first == "Fire" &&
+		return ProjectAssetPath::SplitAssetFileName(Algorithm::PathFromUTF8("火花.v2.prefab.json")).first == "火花.v2" &&
+			ProjectAssetPath::SplitAssetFileName("Fire.prefab").first == "Fire" &&
 			ProjectAssetPath::SplitAssetFileName("cube.obj").first == "cube";
 	}
 

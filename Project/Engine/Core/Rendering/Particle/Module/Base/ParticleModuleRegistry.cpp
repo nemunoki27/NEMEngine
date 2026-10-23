@@ -19,10 +19,6 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSpiralMovementModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorUVModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailCustomShaderParameterModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailSizeOverLifetimeModule.h>
 
 //============================================================================
 //	ParticleModuleRegistry classMethods
@@ -54,10 +50,6 @@ Engine::ParticleModuleRegistry::ParticleModuleRegistry() {
 	Register("ShapeOverLifetime", &CreateParticleModule<ParticleShapeOverLifetimeModule>);
 	Register("SizeOverLifetime", &CreateParticleModule<ParticleSizeOverLifetimeModule>);
 	Register("SpiralMovement", &CreateParticleModule<ParticleSpiralMovementModule>);
-	Register("TrailColorOverLifetime", &CreateParticleModule<ParticleTrailColorOverLifetimeModule>);
-	Register("TrailColorUV", &CreateParticleModule<ParticleTrailColorUVModule>);
-	Register("TrailCustomShaderParameter", &CreateParticleModule<ParticleTrailCustomShaderParameterModule>);
-	Register("TrailSizeOverLifetime", &CreateParticleModule<ParticleTrailSizeOverLifetimeModule>);
 }
 
 Engine::ParticleModuleRegistry& Engine::ParticleModuleRegistry::GetInstance() {

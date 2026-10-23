@@ -238,6 +238,16 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(), graphicsCore.GetDXObject().GetResourceRetirement());
 
+	// 粒子のGPU更新を全Viewより前に1回だけ記録する
+	if (particleBackend_) {
+		auto& profiler = GPUFrameProfiler::GetInstance();
+		auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+		profiler.SetViewID({});
+		profiler.BeginPass(commandList, "Shared/ParticleSimulation");
+		particleBackend_->PrepareSimulation(graphicsCore, *request.world, renderAssetLibrary_, pipelineStateCache_);
+		profiler.EndPass(commandList);
+	}
+
 	// 描画アイテムの抽出
 	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, &assetReloadService_);
 

@@ -12,7 +12,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
@@ -102,8 +102,11 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	const PipelineVariantKind desiredKind = context.runtimeFeatures.useMeshShader && !context.forceVertexMeshVariant ?
 		PipelineVariantKind::GraphicsMesh : PipelineVariantKind::GraphicsVertex;
 	const PipelineVariantDesc* variant = nullptr;
+	const auto* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
+	const auto* emitter = payload ? ResolveParticleRenderEmitter(*item, *payload) : nullptr;
+	const bool is2D = emitter && emitter->renderSettings.space == PrimitiveRenderSpace::Screen2D;
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveComposedGraphicsPipeline(
-		context, *resolvedPass.pass, BuiltinAssets::Pipelines::ParticleTrail, desiredKind, &variant);
+		context, *resolvedPass.pass, is2D ? BuiltinAssets::Pipelines::ParticleTrail2D : BuiltinAssets::Pipelines::ParticleTrail, desiredKind, &variant);
 	if (!pipelineState) {
 		return;
 	}
@@ -129,6 +132,8 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
 		viewConstants.cameraPosition = camera->cameraPos;
+		viewConstants.cameraForward = camera->forward;
+		viewConstants.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic ? 1.0f : 0.0f;
 	}
 	const FrameConstantBufferAllocation viewAlloc =
 		constantBufferAllocator_.AllocateAndUpload(
@@ -169,12 +174,9 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	if (resolvedPass.material) {
 
 		MaterialParameterSet trailInstance{};
-		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		const ParticleGroupRuntimeState* group = payload ?
-			ResolveParticleRenderGroup(*item, *payload) : nullptr;
-		if (group) {
+		if (emitter) {
 			BuildPhaseMaterialInstance(
-				group->renderSettings.trail.materialSettings,
+				emitter->renderSettings.trail.materialSettings,
 				trailInstance);
 		}
 		BindMaterial(context, *pipelineState, *resolvedPass.material,
@@ -204,8 +206,12 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	const RenderItem* item = items.front();
 	const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-	const ParticleGroupRuntimeState* group = payload ?
-		ResolveParticleRenderGroup(*item, *payload) : nullptr;
+	const ParticleEmitterRuntime* group = payload ?
+		ResolveParticleRenderEmitter(*item, *payload) : nullptr;
+	if (group && group->gpu) {
+		DrawGPU(context, *item, *group);
+		return;
+	}
 	if (!group || (group->particles.empty() && group->trails.empty())) {
 		return;
 	}
@@ -317,8 +323,8 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 	}
 
-	// トレイルは3Dのみリボンを構築して重ねて描画する、専用マテリアル未設定は粒子と同じものを使う
-	if (settings.trail.enabled && !is2D) {
+	// 専用マテリアルがなければ粒子と同じものを使う
+	if (settings.trail.enabled) {
 
 		const AssetID trailMaterial = settings.trail.material ? settings.trail.material : settings.material;
 		BackendDrawCommon::ResolvedMaterialPass trailPass{};

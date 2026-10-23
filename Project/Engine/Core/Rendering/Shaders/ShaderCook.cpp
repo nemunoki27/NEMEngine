@@ -7,6 +7,7 @@
 #include "ShaderCookCompiler.h"
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetDependencyScanner.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -42,6 +43,27 @@ namespace {
 		std::transform(key.begin(), key.end(), key.begin(),
 			[](wchar_t value) { return static_cast<wchar_t>(std::towlower(value)); });
 		return key;
+	}
+
+	// Editor専用Passだけが使う参照を製品の必須検証から除く
+	std::unordered_set<Engine::AssetID> FindEditorMaterialDependencies(const std::filesystem::path& path) {
+
+		auto material = Engine::JsonAdapter::Load(path, false);
+		if (!material.is_object() || !material.contains("passes") || !material["passes"].is_array()) return {};
+		Engine::AssetDependencyScanner::IDReferences editor, runtime;
+		Engine::AssetDependencyScanner::PathReferences paths;
+		auto& passes = material["passes"].get_ref<nlohmann::json::array_t&>();
+		std::erase_if(passes, [&](const auto& pass) {
+			if (!pass.is_object() || pass.value("passKind", std::string{}) != "EditorPicking") return false;
+			Engine::AssetDependencyScanner::ScanReferences(pass, editor, paths, true);
+			return true;
+		});
+		Engine::AssetDependencyScanner::ScanReferences(material, runtime, paths, true);
+		std::unordered_set<Engine::AssetID> result;
+		for (const auto& [assetID, type] : editor) {
+			if (!runtime.contains(assetID)) result.insert(assetID);
+		}
+		return result;
 	}
 
 }
@@ -116,8 +138,10 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 				" path=" + Algorithm::PathToUTF8(path);
 			return false;
 		}
+		const auto editorDependencies = meta->type == AssetType::Material ?
+			FindEditorMaterialDependencies(path) : std::unordered_set<AssetID>{};
 		for (const AssetID dependency : database.FindDependencies(assetID)) {
-			requiredAssets.push_back(dependency);
+			if (!editorDependencies.contains(dependency)) requiredAssets.push_back(dependency);
 		}
 	}
 	for (const auto& [assetID, meta] : database.GetAssets()) {

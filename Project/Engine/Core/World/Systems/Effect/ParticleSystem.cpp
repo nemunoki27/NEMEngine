@@ -4,14 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/Rendering/Particle/ParticleGPUState.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
-#include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Foundation/Math/AffineDecompose.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -24,13 +20,6 @@
 //	ParticleSystem classMethods
 //============================================================================
 void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
-
-	// ホットリロードの確認は間隔を空けて行う
-	reloadCheckTimer_ += context.unscaledDeltaTime;
-	const bool checkReload = kReloadCheckInterval <= reloadCheckTimer_;
-	if (checkReload) {
-		reloadCheckTimer_ = 0.0f;
-	}
 
 	world.ForEach<ParticleSystemComponent, ParticleSystemRuntimeComponent>(
 		[&](const Entity& entity, ParticleSystemComponent& component,
@@ -47,36 +36,33 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			const bool canPlay = active &&
 				(context.mode == WorldMode::Play || component.playInEditMode);
 
-			if (!runtime->initialized) {
+			if (!runtime->initialized && canPlay) {
 				runtime->initialized = true;
-				if (component.enabled && component.playOnAwake && canPlay) {
-					StartEffect(*runtime, component.effect, false);
+				if (component.enabled && component.playOnAwake && !runtime->playing) {
+					StartEffect(*runtime, false);
 				}
 			}
 			ProcessCommands(component, *runtime);
 
-			if (runtime->activeEffect != component.effect &&
-				(runtime->playing || runtime->paused)) {
-				StartEffect(*runtime, component.effect, runtime->effect.oneShot);
-			}
 			if (runtime->stopActionPending) {
 				ApplyStopAction(world, entity, component, *runtime, context.mode);
 			}
-			if (!runtime->playing || runtime->paused) {
+			if (!runtime->playing && !runtime->paused) {
 				return;
 			}
 
 			const float baseDeltaTime = component.useUnscaledTime ||
 				context.mode != WorldMode::Play ? context.unscaledDeltaTime : context.deltaTime;
 			const float deltaTime = baseDeltaTime * (std::max)(component.playbackSpeed, 0.0f);
-			const bool updateSimulation = component.enabled && canPlay && 0.0f < deltaTime;
-			const bool emissionEnabled = component.enabled &&
-				!runtime->effect.emissionStopped;
+			// 一時停止中も親の姿勢と編集値を同期する
+			const bool updateSimulation = !runtime->paused && component.enabled && canPlay && 0.0f < deltaTime;
+			const bool emissionEnabled = !runtime->paused && component.enabled &&
+				!runtime->instance.emissionStopped;
 			ResolvedWorldTransform emitterTransform{};
 			// 再生開始時だけSeed設定を実行Instanceへ渡す
-			if (!runtime->effect.randomInitialized) {
-				runtime->effect.randomSeed = component.randomSeed;
-				runtime->effect.useAutoRandomSeed = component.useAutoRandomSeed;
+			if (!runtime->instance.randomInitialized) {
+				runtime->instance.randomSeed = component.randomSeed;
+				runtime->instance.useAutoRandomSeed = component.useAutoRandomSeed;
 			}
 			const Matrix4x4 emitterWorld =
 				TransformWorldUtility::ResolveWorldTransform(
@@ -85,20 +71,19 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 			ParticlePhaseParentSettings parentSettings{};
 			bool useAssetParentSettings =
-				component.simulationSpace == ParticleSystemSimulationSpace::EffectAsset;
+				component.simulationSpace == ParticleSystemSimulationSpace::PhaseSettings;
 			switch (component.simulationSpace) {
 			case ParticleSystemSimulationSpace::Local:
 				parentSettings.useEmitter = true;
 				break;
-			case ParticleSystemSimulationSpace::EffectAsset:
+			case ParticleSystemSimulationSpace::PhaseSettings:
 			case ParticleSystemSimulationSpace::World:
 				break;
 			}
 
-			if (instanceUpdater_.UpdateEffectInstance(world, runtime->effect, emitterWorld,
-				parentSettings, useAssetParentSettings, context, deltaTime,
-				updateSimulation, emissionEnabled, component.drawEmitterShape,
-				checkReload)) {
+			if (instanceUpdater_.UpdateInstance(world, runtime->instance,
+				GetParticleSystemSettings(world, entity), emitterWorld, parentSettings, useAssetParentSettings,
+				deltaTime, updateSimulation, emissionEnabled, component.drawEmitterShape, component.simulationTarget)) {
 
 				runtime->playing = false;
 				runtime->paused = false;
@@ -110,20 +95,20 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 }
 
 void Engine::ParticleSystem::ProcessCommands(
-	const ParticleSystemComponent& component,
+	[[maybe_unused]] const ParticleSystemComponent& component,
 	ParticleSystemRuntimeData& runtime) const {
 
-	std::vector<ParticleSystemCommand> commands = std::move(runtime.commands);
-	runtime.commands.clear();
-	for (const ParticleSystemCommand& command : commands) {
+	for (const ParticleSystemCommand& command : runtime.commands) {
 
+		const bool gpuRejected = runtime.instance.emitter.gpu && runtime.instance.emitter.gpu->rejected;
 		switch (command.type) {
 		case ParticleSystemCommandType::Play:
-			if (runtime.paused && !runtime.stopped) {
+			if (runtime.paused && !runtime.stopped && !gpuRejected) {
 				runtime.paused = false;
 				runtime.playing = true;
-			} else if (runtime.stopped) {
-				StartEffect(runtime, component.effect, command.oneShot);
+			} else if (runtime.stopped || gpuRejected) {
+				// GPUの実行失敗後も再生操作で設定を再検証する
+				StartEffect(runtime, command.oneShot);
 			}
 			break;
 		case ParticleSystemCommandType::Pause:
@@ -133,7 +118,7 @@ void Engine::ParticleSystem::ProcessCommands(
 			}
 			break;
 		case ParticleSystemCommandType::Stop:
-			runtime.effect.emissionStopped = true;
+			runtime.instance.emissionStopped = true;
 			runtime.paused = false;
 			runtime.stopped = true;
 			if (command.stopBehavior ==
@@ -151,19 +136,18 @@ void Engine::ParticleSystem::ProcessCommands(
 			ClearEffect(runtime);
 			break;
 		case ParticleSystemCommandType::Restart:
-			StartEffect(runtime, component.effect, command.oneShot);
+			StartEffect(runtime, command.oneShot);
 			break;
 		}
 	}
+	runtime.commands.clear();
 }
 
 void Engine::ParticleSystem::StartEffect(ParticleSystemRuntimeData& runtime,
-	AssetID effectID, bool oneShot) const {
+	bool oneShot) const {
 
-	runtime.effect = ParticleEffectInstanceRuntime{};
-	runtime.effect.effect = effectID;
-	runtime.effect.oneShot = oneShot;
-	runtime.activeEffect = effectID;
+	runtime.instance = ParticleInstanceState{};
+	runtime.instance.oneShot = oneShot;
 	runtime.playing = true;
 	runtime.paused = false;
 	runtime.stopped = false;
@@ -173,9 +157,13 @@ void Engine::ParticleSystem::StartEffect(ParticleSystemRuntimeData& runtime,
 void Engine::ParticleSystem::ClearEffect(
 	ParticleSystemRuntimeData& runtime) const {
 
-	for (ParticleGroupRuntimeState& group : runtime.effect.runtimeGroups) {
-		group.particles.clear();
-		group.trails.clear();
+	runtime.instance.emitter.particles.clear();
+	runtime.instance.emitter.trails.clear();
+	if (auto& gpu = runtime.instance.emitter.gpu) {
+		++gpu->epoch;
+		gpu->pending.clear();
+		gpu->statisticsValid = false;
+		gpu->emissionEndSequence = UINT64_MAX;
 	}
 }
 

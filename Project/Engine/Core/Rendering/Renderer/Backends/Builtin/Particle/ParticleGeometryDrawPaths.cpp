@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ParticleDrawConstants.h"
+#include "ParticleDrawPreparation.h"
 #include "ParticleRenderDataUtility.h"
 #include "ParticleTrailDataBuilder.h"
 
@@ -11,7 +12,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
+#include <Engine/Core/Rendering/Particle/ParticleSystemSettings.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Particle/Parametric/ParticleParametricShapeRegistry.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
@@ -28,22 +29,7 @@
 //============================================================================
 //	ParticleRenderBackend internal
 //============================================================================
-namespace {
-
-	Engine::PrimitiveRendererComponent MakeShapeComponent(const Engine::ParticleRenderSettings& settings) {
-
-		Engine::PrimitiveRendererComponent shape{};
-		shape.type = settings.shape;
-		shape.plane = settings.plane;
-		shape.crossPlane = settings.crossPlane;
-		shape.ring = settings.ring;
-		shape.cylinder = settings.cylinder;
-		shape.sphere = settings.sphere;
-		shape.hemisphere = settings.hemisphere;
-		shape.cube = settings.cube;
-		return shape;
-	}
-}
+using Engine::ParticleDrawPreparation::MakeShapeComponent;
 
 bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
 	const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,

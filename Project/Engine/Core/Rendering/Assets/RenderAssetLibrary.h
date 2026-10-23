@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/MSDFFontAsset.h>
-#include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderPassesAsset.h>
 
@@ -49,7 +48,6 @@ namespace Engine {
 		const MSDFFontAsset* LoadFont(AssetID assetID);
 		// FontとAtlasの固定した読込世代を取得する
 		std::shared_ptr<const FontSourceSnapshot> LoadFontSource(AssetID assetID);
-		const ParticleEffectAsset* LoadParticleEffect(AssetID assetID);
 		const RenderTextureAsset* LoadRenderTexture(AssetID assetID);
 		const RenderPassesAsset* LoadRenderPasses(AssetID assetID);
 		// Library内の派生Shaderを実行時キャッシュへ登録
@@ -70,7 +68,6 @@ namespace Engine {
 		// 次回の読込を予約し、失敗時は旧Fontを保持する
 		void InvalidateFont(AssetID assetID);
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
-		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
 		void InvalidateRenderTexture(AssetID assetID) { renderTextureCache_.erase(assetID); }
 		void InvalidateRenderPasses(AssetID assetID);
 
@@ -107,7 +104,6 @@ namespace Engine {
 		std::unordered_map<AssetID, MaterialAsset> materialCache_;
 		std::unordered_map<AssetID, std::shared_ptr<const FontSourceSnapshot>> fontCache_;
 		std::unordered_set<AssetID> invalidatedFonts_;
-		std::unordered_map<AssetID, ParticleEffectAsset> particleEffectCache_;
 		std::unordered_map<AssetID, RenderTextureAsset> renderTextureCache_;
 		std::unordered_map<AssetID, RenderPassesAsset> renderPassesCache_;
 		std::unordered_map<AssetID, RenderPassesAsset> renderPassesPreviews_;

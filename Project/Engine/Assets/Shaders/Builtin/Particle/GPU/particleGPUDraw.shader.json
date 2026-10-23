@@ -1,0 +1,17 @@
+{
+  "name": "particleGPUDraw",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "4e454d41535345547061727400000002",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "4e454d41535345547061727400000001",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}
