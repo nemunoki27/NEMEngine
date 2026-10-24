@@ -189,7 +189,7 @@ const char* Engine::ImGuiUtility::GetDisplayName(const char* name) {
 		{ "Custom Function", "カスタム関数" },
 		{ "AlphaReference", "アルファ切り抜き" },
 		{ "ColorOverLifetime", "寿命による色" },
-		{ "ColorUV", "UV変形" },
+		{ "ColorUV", "UVトランスフォーム" },
 		{ "CustomShaderParameter", "シェーダーパラメータ" },
 		{ "Flipbook", "フリップブック" },
 		{ "GravityForce", "重力" },

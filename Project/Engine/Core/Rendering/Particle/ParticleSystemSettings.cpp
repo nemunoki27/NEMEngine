@@ -88,8 +88,6 @@ namespace {
 		group.blendMode =
 			EnumAdapter<BlendMode>::FromString(groupJson.value("blendMode", "Add")).value_or(BlendMode::Add);
 		group.queue = RenderPhaseFromString(groupJson.value("queue", "Transparent"), RenderPhase::Transparent);
-		group.renderingLayerMask =
-			groupJson.value("renderingLayerMask", group.renderingLayerMask) & kRenderingLayerMaskBits;
 		if (const auto it = groupJson.find("billboardAxes"); it != groupJson.end() && it->is_array()) {
 
 			group.billboardAxes.clear();
@@ -256,7 +254,6 @@ nlohmann::json Engine::ToJson(const ParticleSystemSettings& group) {
 	groupJson["material"] = ToAssetReferenceJson(group.material);
 	groupJson["blendMode"] = EnumAdapter<BlendMode>::ToString(group.blendMode);
 	groupJson["queue"] = std::string(ToString(group.queue));
-	groupJson["renderingLayerMask"] = group.renderingLayerMask & kRenderingLayerMaskBits;
 	groupJson["billboardAxes"] = nlohmann::json::array();
 	for (Axis axis : group.billboardAxes) {
 		groupJson["billboardAxes"].push_back(EnumAdapter<Axis>::ToString(axis));

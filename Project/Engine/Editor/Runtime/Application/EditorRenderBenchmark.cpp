@@ -7,6 +7,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
@@ -63,6 +64,17 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 			static_cast<int32_t>(std::clamp(std::wcstoul(height, nullptr, 10), 1ul, 8192ul))));
 	}
 	application_->Init(graphicsCore);
+	// Project設定を保存せず、計測プロセスだけFPS上限を変更する
+	wchar_t fps[32]{};
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_FPS", fps, 32) > 0) {
+		auto& frameRate = FrameRateSettings::GetInstance();
+		originalTargetFps_ = frameRate.GetTargetFps();
+		originalEditorTargetFps_ = frameRate.GetEditorTargetFps();
+		overridesFrameRate_ = true;
+		const auto target = static_cast<uint32_t>(std::wcstoul(fps, nullptr, 10));
+		frameRate.SetTargetFps(target);
+		frameRate.SetEditorTargetFps(target);
+	}
 	// 長時間確認とScene反復は専用プロセスだけで行う
 	wchar_t setting[32]{};
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_PHASE_COUNT", setting, 32) > 0u) {
@@ -92,6 +104,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
 		{ "graphicsFrameCount", GraphicsFrameState::GetActiveCount() },
+		{ "frameRateLimit", FrameRateSettings::GetInstance().GetPresentTargetFps() },
 		{ "freezeAnimation", freezeAnimation_ },
 		{ "comparison", sceneSequence_.empty() ? "MeshShader" : "SceneSwitch" },
 		{ "quickCheck", quickCheck_ }, { "gpuValidation", gpuValidation },
@@ -425,6 +438,12 @@ void Engine::EditorRenderBenchmark::RenderPlatformWindows(GraphicsCore& graphics
 
 void Engine::EditorRenderBenchmark::Finalize() {
 
+	if (overridesFrameRate_) {
+		auto& frameRate = FrameRateSettings::GetInstance();
+		frameRate.SetTargetFps(originalTargetFps_);
+		frameRate.SetEditorTargetFps(originalEditorTargetFps_);
+		overridesFrameRate_ = false;
+	}
 	if (features_) {
 		features_->SetAllowMeshShader(originalMeshShader_);
 	}

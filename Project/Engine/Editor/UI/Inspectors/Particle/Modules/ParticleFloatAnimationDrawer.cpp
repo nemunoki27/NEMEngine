@@ -11,6 +11,7 @@ bool Engine::ParticleFloatAnimationDrawer::Draw(
 	}
 
 	ImGui::PushID(id);
+	ImGui::Indent();
 	bool changed = false;
 	changed |= MyGUI::DragFloat(
 		startLabel, settings.start, ParticleGUI::MakeDragSetting(minValue, maxValue)).valueChanged;
@@ -28,12 +29,15 @@ bool Engine::ParticleFloatAnimationDrawer::Draw(
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = { { "値", { 0u } } };
 			changed |= DrawCurveGenerator(
 				state.generatorState, GetCurveChannels(settings.curve), targets);
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.loop);
+	ImGui::Unindent();
 	ImGui::PopID();
 	return changed;
 }

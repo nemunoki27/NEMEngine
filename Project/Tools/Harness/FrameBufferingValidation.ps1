@@ -132,8 +132,7 @@ try {
     }
     $preferences | ConvertTo-Json -Depth 20 |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/GraphicsFeatures.json') -Encoding utf8
-    @{ targetFps = 0; editorTargetFps = 0 } | ConvertTo-Json |
-        Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/FrameRate.json') -Encoding utf8
+    $env:NEM_RENDER_BENCHMARK_FPS = '0'
     $meta = Get-Content -LiteralPath (Join-Path $projectRoot ($ScenePath + '.meta')) -Raw | ConvertFrom-Json
     @{ activeScene = $meta.guid } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Editor/ActiveScene.json') -Encoding utf8

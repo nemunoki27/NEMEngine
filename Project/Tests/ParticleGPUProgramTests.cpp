@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/ParticleGPUProgram.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUTrailTypes.h>
 #include <Engine/Core/World/Systems/Effect/ParticleDefinitionCompiler.h>
 #include <Engine/Core/World/Systems/Effect/ParticleInstanceUpdater.h>
@@ -20,6 +21,14 @@ using namespace Engine;
 bool NEMTests::TestParticleGPUProgram() {
 
 	ParticleDefinitionCompiler compiler;
+	// 追加候補の判定と実際のGPU変換結果を照合する
+	for (const auto& descriptor : ParticleModuleRegistry::GetInstance().GetDescriptors()) {
+		auto candidate = MakeDefaultParticleSystemSettings();
+		candidate.phases[0].modules = {{ descriptor.id, descriptor.create()->ToJson() }};
+		const auto converted = CompileParticleGPUProgram(*compiler.Resolve(std::make_shared<const ParticleSystemSettings>(candidate)));
+		if (IsParticleGPUModuleSupported(descriptor.id) != converted.unsupportedReason.empty()) return false;
+	}
+	if (IsParticleGPUModuleSupported("UnknownModule")) return false;
 	auto settings = MakeDefaultParticleSystemSettings();
 	auto program = CompileParticleGPUProgram(*compiler.Resolve(std::make_shared<const ParticleSystemSettings>(settings)));
 	if (!program.unsupportedReason.empty() || program.instructions.size() != 2 || program.curves.empty()) return false;

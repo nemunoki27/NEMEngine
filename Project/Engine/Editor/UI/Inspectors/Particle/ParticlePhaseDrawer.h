@@ -20,7 +20,8 @@ namespace Engine {
 
 		ParticlePhaseDrawer(ParticleSettingsEditSession& session, std::string& status, TextSearchFilter& search);
 		// 編集結果を呼出元のsessionへ返す
-		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSettingsEditState& editorState);
+		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group,
+			ParticleSettingsEditState& editorState, ParticleSimulationTarget simulationTarget);
 	private:
 		//========================================================================
 		//	private Methods
@@ -38,7 +39,7 @@ namespace Engine {
 		bool DrawPhaseMaterialSection(const EditorPanelContext& context, ParticleSystemSettings& group, ParticlePhaseSettings& phase);
 		// 選択Moduleの編集用instanceを表示する
 		bool DrawPhaseModules(const EditorPanelContext& context, ParticleSystemSettings& group,
-			ParticleSettingsEditState& editorState, ParticlePhaseSettings& phase);
+			ParticleSettingsEditState& editorState, ParticlePhaseSettings& phase, ParticleSimulationTarget simulationTarget);
 		// 親への追従設定を表示する
 		bool DrawPhaseParentSection(ParticleSystemSettings& group, ParticlePhaseSettings& phase, int32_t selectedPhase);
 	};

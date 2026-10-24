@@ -10,7 +10,7 @@ RWStructuredBuffer<uint4> gGPUTrailArguments : register(u1);
 void main(uint index : SV_DispatchThreadID) {
 	if (trailOperation == 0u) {
 		if (index == 0) gGPUTrailArguments[0] = uint4(6, 0, 0, 0);
-		if (index < trailCapacity * pointCapacity) gGPUTrailSegments[index] = 0xffffffffu.xx;
+		if (sortEnabled != 0 && index < trailCapacity * pointCapacity) gGPUTrailSegments[index] = 0xffffffffu.xx;
 		return;
 	}
 	if (index >= trailCapacity) return;
@@ -35,6 +35,7 @@ void main(uint index : SV_DispatchThreadID) {
 		float depth = max(dot(position - cameraPosition.xyz, cameraForward.xyz), 0.0f);
 		uint key = sortEnabled != 0 ? 0x00ffffffu - (asuint(depth) >> 8) : 0u;
 		uint segment = index * pointCapacity + i;
-		gGPUTrailSegments[segment] = uint2(key, segment);
+		// 加算描画は可視セグメントを詰め、奥行きソートを省く
+		gGPUTrailSegments[sortEnabled != 0 ? segment : offset + i] = uint2(key, segment);
 	}
 }

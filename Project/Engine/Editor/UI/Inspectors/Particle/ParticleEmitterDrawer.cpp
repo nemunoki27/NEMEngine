@@ -11,7 +11,6 @@
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
-#include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -154,8 +153,6 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 			}
 			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
-			changed |= InspectorDrawerCommon::DrawLayerMaskField(context,
-				"描画レイヤー", group.renderingLayerMask).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };
@@ -229,7 +226,5 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 
 bool ParticleEmitterDrawer::DrawTrailMaterialSection(const EditorPanelContext& context, ParticleSystemSettings& group) {
 
-	if (!MyGUI::CollapsingHeader("トレイルテクスチャ設定", false)) { return false; }
-	MyGUI::ScopedPropertyLabelWidth labelWidth("TrailTextureSettings");
 	return ParticleTextureDrawer::Draw(context, group.trail.materialSettings, ResolveTrailMaterialID(group));
 }

@@ -118,6 +118,7 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	} else {
 		ImGui::Text("停止中");
 	}
+	ImGui::Separator();
 	const bool statisticsValid = HasParticleSystemStatistics(world, entity);
 	MyGUI::Text("粒子数", statisticsValid ? std::to_string(GetParticleSystemParticleCount(world, entity)) : "読戻し待ち");
 	MyGUI::Text("Trail数", statisticsValid ? std::to_string(GetParticleSystemTrailCount(world, entity)) : "読戻し待ち");
@@ -143,12 +144,13 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 			cpuTrails * cpuPointCount * sizeof(ParticleTrailPoint);
 		MyGUI::Text("軌跡点容量の目安MB", std::to_string(bytes / (1024.0 * 1024.0)));
 	}
+	ImGui::Separator();
 	bool changed = false;
 	if (ImGui::BeginTabBar("##ParticleSystemSettings")) {
 		ParticleEmitterDrawer emitter(settingsEditor_, status_);
 		ParticlePhaseDrawer phases(settingsEditor_, status_, moduleSearch_);
 		changed |= emitter.Draw(context, settingsEditor_.GetDraft());
-		changed |= phases.Draw(context, settingsEditor_.GetDraft(), settingsEditor_.GetEditorState());
+		changed |= phases.Draw(context, settingsEditor_.GetDraft(), settingsEditor_.GetEditorState(), draft.simulationTarget);
 		ImGui::EndTabBar();
 	}
 	const bool active = ImGui::IsAnyItemActive();

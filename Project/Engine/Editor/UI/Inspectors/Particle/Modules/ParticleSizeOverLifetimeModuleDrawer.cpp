@@ -28,10 +28,12 @@ bool ParticleSizeOverLifetimeModuleDrawer::Draw(IParticleModule& module) {
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = { { "値", { 0u } } };
 			if (DrawCurveGenerator(generatorState_, std::span<CurveChannel>(&settings.curve.channel, 1), targets)) {
 				changed = true;
 			}
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.loop);

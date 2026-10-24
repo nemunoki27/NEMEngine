@@ -135,7 +135,63 @@ namespace {
 		fixture.commands.UAVBarrierAll();
 	}
 
-	bool CheckTrails(ParticleGPUFixture& fixture, const PipelineState& simulate, const PipelineState& trailPipeline) {
+	bool CheckTrailCompaction(ParticleGPUFixture& fixture, ParticleGPUInstance& instance,
+		const ParticleTrailSettings& settings, const PipelineState& pipeline) {
+
+		StructuredRWBuffer<ParticleGPUViewResources::Key> segments;
+		StructuredRWBuffer<ParticleUInt4GPU> arguments;
+		segments.Init(fixture.device.Get(), &fixture.descriptors);
+		arguments.Init(fixture.device.Get(), &fixture.descriptors);
+		segments.EnsureCapacity(instance.trailCapacity * instance.pointCapacity);
+		arguments.EnsureCapacity(1);
+		segments.Transition(fixture.commands, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		arguments.Transition(fixture.commands, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		instance.trails.Transition(fixture.commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		instance.trailPoints.Transition(fixture.commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		instance.ribbonOrder.Transition(fixture.commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		const ParticleGPUViewConstants view{};
+		const auto viewAllocation = fixture.constants.AllocateAndUpload(fixture.retirement, fixture.device.Get(), view);
+		auto trail = MakeParticleGPUTrailConstants(settings, instance.capacity);
+		for (uint32_t operation : {0u, 1u}) {
+			trail.operation = operation;
+			const auto allocation = fixture.constants.AllocateAndUpload(fixture.retirement, fixture.device.Get(), trail);
+			auto* commands = fixture.commands.GetCommandList();
+			commands->SetComputeRootSignature(pipeline.GetRootSignature());
+			commands->SetPipelineState(pipeline.GetComputePipeline());
+			RootBindingCommand::SetComputeCBV(commands, pipeline.FindBindingByName("ParticleGPUViewConstants", ShaderBindingKind::CBV), viewAllocation.gpuAddress);
+			RootBindingCommand::SetComputeCBV(commands, pipeline.FindBindingByName("ParticleGPUTrailConstants", ShaderBindingKind::CBV), allocation.gpuAddress);
+			const auto srv = [&](const char* name, auto& buffer) {
+				RootBindingCommand::SetComputeSRV(commands, pipeline.FindBindingByName(name, ShaderBindingKind::SRV), buffer.GetGPUAddress());
+			};
+			srv("gGPUTrails", instance.trails);
+			srv("gGPUTrailPoints", instance.trailPoints);
+			srv("gGPURibbonOrder", instance.ribbonOrder);
+			RootBindingCommand::SetComputeUAV(commands, pipeline.FindBindingByName("gGPUTrailSegments", ShaderBindingKind::UAV),
+				segments.GetGPUAddress(), segments.GetUAVGPUHandle());
+			RootBindingCommand::SetComputeUAV(commands, pipeline.FindBindingByName("gGPUTrailArguments", ShaderBindingKind::UAV),
+				arguments.GetGPUAddress(), arguments.GetUAVGPUHandle());
+			commands->Dispatch(1, 1, 1);
+			fixture.commands.UAVBarrierAll();
+		}
+		arguments.Transition(fixture.commands, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		auto bytes = fixture.ReadResource(arguments.GetResource(), sizeof(ParticleUInt4GPU));
+		ParticleUInt4GPU draw;
+		std::memcpy(&draw, bytes.data(), sizeof(draw));
+		if (draw.x != 6 || draw.y != 2) return false;
+		segments.Transition(fixture.commands, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		bytes = fixture.ReadResource(segments.GetResource(), 2 * sizeof(ParticleGPUViewResources::Key));
+		std::unordered_set<uint32_t> found;
+		for (uint32_t i = 0; i < 2; ++i) {
+			ParticleGPUViewResources::Key segment;
+			std::memcpy(&segment, bytes.data() + i * sizeof(segment), sizeof(segment));
+			if (segment.particleIndex % instance.pointCapacity != 0 ||
+				segment.particleIndex / instance.pointCapacity >= 2 || !found.insert(segment.particleIndex).second) return false;
+		}
+		return true;
+	}
+
+	bool CheckTrails(ParticleGPUFixture& fixture, const PipelineState& simulate,
+		const PipelineState& trailPipeline, const PipelineState& prepare) {
 
 		auto step = MakeStep(4);
 		auto settings = std::make_shared<ParticleSystemSettings>(*step.definition->settings);
@@ -162,6 +218,8 @@ namespace {
 		ParticleStatisticsGPU statistics;
 		std::memcpy(&statistics, bytes.data(), sizeof(statistics));
 		if (statistics.trailCount != 2 || statistics.overflowCount != 2) return false;
+		// 加算描画の可視セグメントが先頭へ詰められることを確認する
+		if (!CheckTrailCompaction(fixture, instance, trail, prepare)) return false;
 		step.spawnCount = 0;
 		step.deltaTime = 0.6f;
 		for (int frame = 0; frame < 2; ++frame) {
@@ -256,7 +314,7 @@ namespace {
 		return true;
 	}
 
-	bool CheckView(ParticleGPUFixture& fixture, const PipelineState& pipeline) {
+	bool CheckView(ParticleGPUFixture& fixture, const PipelineState& pipeline, uint32_t phaseCount) {
 
 		auto step = MakeStep(1003);
 		auto state = std::make_shared<ParticleGPUState>();
@@ -270,7 +328,7 @@ namespace {
 		for (uint32_t i = 0; i < instance.capacity; ++i) {
 			auto& particle = particles[i];
 			particle.alive = i % 5 != 0 ? 1u : 0u;
-			particle.phase = i % 2;
+			particle.phase = i % phaseCount;
 			particle.positionAge.z = float(i % 100);
 			if (particle.alive && particle.positionAge.z >= 20 && particle.positionAge.z <= 80) ++counts[particle.phase];
 		}
@@ -292,7 +350,7 @@ namespace {
 		for (bool reverse : {false, true}) {
 			ParticleGPUViewConstants values;
 			values.capacity = instance.capacity;
-			values.phaseCount = 2;
+			values.phaseCount = phaseCount;
 			values.indexCount = 6;
 			values.groupCount = 4;
 			values.sortEnabled = 1;
@@ -325,7 +383,7 @@ namespace {
 			}
 			dispatch(6, 1);
 			auto bytes = fixture.Read(view.arguments, sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) * 2);
-			for (uint32_t phase = 0; phase < 2; ++phase) {
+			for (uint32_t phase = 0; phase < phaseCount; ++phase) {
 				D3D12_DRAW_INDEXED_ARGUMENTS argument;
 				std::memcpy(&argument, bytes.data() + phase * sizeof(argument), sizeof(argument));
 				if (argument.IndexCountPerInstance != 6 || argument.InstanceCount != counts[phase]) return false;
@@ -409,10 +467,13 @@ bool NEMTests::TestParticleGPUHardware() {
 	return simulate && view && trail && ribbon && prepare &&
 		RunTest("ParticleDrawPipelines", [&] { return CheckDrawPipelines(fixture); }) &&
 		RunTest("ParticleCPUShapePipelines", [&] { return CheckParticleShapePipelines(fixture.device.Get(), fixture.retirement); }) &&
-		RunTest("ParticleGPUView", [&] { return CheckView(fixture, *view); }) &&
+		RunTest("ParticleGPUView", [&] { return CheckView(fixture, *view, 1) && CheckView(fixture, *view, 2); }) &&
 		RunTest("ParticleGPUFlipbook", [&] { return CheckFlipbook(fixture, *simulate); }) &&
+		RunTest("ParticleGPUPartialGroups", [&] {
+			return CheckSimulation(fixture, *simulate, 255) && CheckSimulation(fixture, *simulate, 257);
+		}) &&
 		RunTest("ParticleGPU100k", [&] { return CheckSimulation(fixture, *simulate, 100000); }) &&
 		RunTest("ParticleGPU1M", [&] { return CheckSimulation(fixture, *simulate, 1000000); }) &&
-		RunTest("ParticleGPUTrails", [&] { return CheckTrails(fixture, *simulate, *trail); }) &&
+		RunTest("ParticleGPUTrails", [&] { return CheckTrails(fixture, *simulate, *trail, *prepare); }) &&
 		RunTest("ParticleGPURibbon", [&] { return CheckRibbon(fixture, *simulate, *trail, *ribbon); }) && fixture.CheckMessages();
 }

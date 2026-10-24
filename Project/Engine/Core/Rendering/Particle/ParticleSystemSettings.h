@@ -88,8 +88,6 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Transparent;
-		// Cameraの描画選別に使うレイヤー
-		uint32_t renderingLayerMask = 1u;
 		// カメラ方向へ向ける回転軸、BillboardComponentと同じ軸マスク方式
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
 		// トレイル設定
@@ -122,8 +120,6 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Transparent;
-		// Cameraの描画選別に使うレイヤー
-		uint32_t renderingLayerMask = 1u;
 		// カメラ方向へ向ける回転軸
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
 		// トレイル設定

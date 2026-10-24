@@ -69,6 +69,8 @@ namespace NEMTests {
 		RenderPassItemList rightItems;
 		for (const RenderItem& item : batch.GetItems()) {
 
+			// 粒子の描画レイヤーもComponentの表示設定に揃える
+			if (item.backendID == RenderBackendID::Particle && item.renderingLayerMask != 8) return false;
 			RenderPassItemCollector::CollectForView(batch, item.renderPhase, left, leftItems);
 			RenderPassItemCollector::CollectForView(batch, item.renderPhase, right, rightItems);
 			if (item.visibilityLayerMask != 8 || !leftItems.IsEmpty() ||

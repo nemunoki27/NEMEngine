@@ -30,11 +30,13 @@ bool ParticleColorOverLifetimeModuleDrawer::Draw(IParticleModule& module) {
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = {
 				{ "RGB", { 0u, 1u, 2u } }, { "R", { 0u } }, { "G", { 1u } }, { "B", { 2u } }, { "A", { 3u } } };
 			if (DrawCurveGenerator(generatorState_, settings.curve.channels, targets)) {
 				changed = true;
 			}
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.loop);

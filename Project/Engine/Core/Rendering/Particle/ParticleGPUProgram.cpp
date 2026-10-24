@@ -11,11 +11,31 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
+#include <utility>
 
 using namespace Engine;
 
 namespace {
+
+	// 実行とInspectorで同じModuleの対応表を使う
+	constexpr std::pair<std::string_view, ParticleGPUOperation> kModuleOperations[] = {
+		{ "ColorOverLifetime", ParticleGPUOperation::Color }, { "SizeOverLifetime", ParticleGPUOperation::Size },
+		{ "ScaleOverLifetime", ParticleGPUOperation::Scale }, { "Emissive", ParticleGPUOperation::Emissive },
+		{ "AlphaReference", ParticleGPUOperation::AlphaReference }, { "ColorUV", ParticleGPUOperation::UV },
+		{ "GravityForce", ParticleGPUOperation::Gravity }, { "Rotation", ParticleGPUOperation::Rotation },
+		{ "LookToVelocity", ParticleGPUOperation::LookToVelocity }, { "Flipbook", ParticleGPUOperation::Flipbook },
+	};
+
+	// Module名をGPUの命令へ対応付ける
+	std::optional<ParticleGPUOperation> FindModuleOperation(std::string_view moduleID) {
+
+		for (const auto& [id, operation] : kModuleOperations) {
+			if (id == moduleID) return operation;
+		}
+		return std::nullopt;
+	}
 
 	template<typename T>
 	T Minimum(const ParticleValue<T>& value) {
@@ -165,34 +185,28 @@ namespace {
 
 	ParticleGPUInstruction CompileInstruction(const std::string& id, IParticleModule& module, ParticleGPUProgram& program) {
 
+		const auto operation = FindModuleOperation(id);
+		if (!operation) throw std::invalid_argument("GPU未対応のModuleです: " + id);
 		ParticleGPUInstruction instruction;
-		if (id == "ColorOverLifetime") instruction.operation = ParticleGPUOperation::Color;
-		else if (id == "SizeOverLifetime") instruction.operation = ParticleGPUOperation::Size;
-		else if (id == "ScaleOverLifetime") instruction.operation = ParticleGPUOperation::Scale;
-		else if (id == "Emissive") instruction.operation = ParticleGPUOperation::Emissive;
-		else if (id == "AlphaReference") instruction.operation = ParticleGPUOperation::AlphaReference;
-		else if (id == "ColorUV") {
-			instruction.operation = ParticleGPUOperation::UV;
+		instruction.operation = *operation;
+		if (*operation == ParticleGPUOperation::UV) {
 			const auto& settings = static_cast<ParticleColorUVModule&>(module).GetSettings();
 			instruction.flags = settings.updateType == ParticleUVUpdateType::Scroll ? 1u : 0u;
 			instruction.parameter0 = Vector4(settings.scrollSpeed.x, settings.scrollSpeed.y, 0, 0);
-		} else if (id == "GravityForce") {
-			instruction.operation = ParticleGPUOperation::Gravity;
+		} else if (*operation == ParticleGPUOperation::Gravity) {
 			const auto& settings = static_cast<ParticleGravityForceModule&>(module).GetSettings();
 			instruction.flags = settings.reflectGround ? 1u : 0u;
 			instruction.parameter0 = Pack(settings.gravity, settings.reflectGroundY);
 			instruction.parameter1.x = settings.restitution;
 			return instruction;
-		} else if (id == "Rotation") {
+		} else if (*operation == ParticleGPUOperation::Rotation) {
 			instruction = CompileRotation(static_cast<ParticleRotationModule&>(module));
 			if (instruction.flags & 1u) instruction.parameter3.w = static_cast<float>(program.stateCount++);
 			return instruction;
 		}
-		else if (id == "LookToVelocity") {
-			instruction.operation = ParticleGPUOperation::LookToVelocity;
+		else if (*operation == ParticleGPUOperation::LookToVelocity) {
 			return instruction;
-		} else if (id == "Flipbook") {
-			instruction.operation = ParticleGPUOperation::Flipbook;
+		} else if (*operation == ParticleGPUOperation::Flipbook) {
 			const auto& settings = static_cast<ParticleFlipbookModule&>(module).GetSettings();
 			uint64_t total = 0;
 			for (const auto columns : settings.tilesX) total += columns;
@@ -211,10 +225,15 @@ namespace {
 				}
 			}
 			return instruction;
-		} else throw std::invalid_argument("GPU未対応のModuleです: " + id);
+		}
 		CompileCurve(module, instruction, program);
 		return instruction;
 	}
+}
+
+bool Engine::IsParticleGPUModuleSupported(std::string_view moduleID) {
+
+	return FindModuleOperation(moduleID).has_value();
 }
 
 ParticleGPUProgram Engine::CompileParticleGPUProgram(const ParticleSystemDefinition& definition) {

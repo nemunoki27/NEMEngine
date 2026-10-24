@@ -9,6 +9,8 @@ RWStructuredBuffer<uint> gGPUIndirectArgs : register(u4);
 
 groupshared uint localCounts[16];
 groupshared uint localMasks[128];
+groupshared uint groupVisibleCount;
+groupshared uint groupVisibleBase;
 
 bool ParticleVisible(ParticleAttributesGPU particle, float3 position) {
 	float3 scale = particle.scaleSize.xyz;
@@ -28,22 +30,41 @@ void main(uint index : SV_DispatchThreadID, uint localIndex : SV_GroupIndex, uin
 		return;
 	}
 	if (operation == 1u) {
-		if (index >= capacity) return;
-		ParticleAttributesGPU particle = gGPUParticles[index];
-		if (particle.alive == 0) return;
-		float3 position = ParticleWorldPosition(particle, gGPUParents[particle.phase]);
-		if (!ParticleVisible(particle, position)) return;
-		uint compact;
-		InterlockedAdd(gGPUViewCounts[phaseCount * 2], 1u, compact);
-		InterlockedAdd(gGPUViewCounts[particle.phase], 1u);
-		float depth = max(dot(position - cameraPosition.xyz, cameraForward.xyz), 0.0f);
-		uint key = particle.phase << 24;
-		if (sortEnabled != 0) key |= 0x00ffffffu - (asuint(depth) >> 8);
-		gGPUViewKeysOut[compact] = uint2(key, index);
+		if (localIndex == 0) {
+			groupVisibleCount = 0;
+			groupVisibleBase = 0;
+		}
+		bool visible = false;
+		uint key = 0;
+		uint particlePhase = 0;
+		if (index < capacity) {
+			ParticleAttributesGPU particle = gGPUParticles[index];
+			if (particle.alive != 0) {
+				float3 position = ParticleWorldPosition(particle, gGPUParents[particle.phase]);
+				visible = ParticleVisible(particle, position);
+				particlePhase = particle.phase;
+				float depth = max(dot(position - cameraPosition.xyz, cameraForward.xyz), 0.0f);
+				key = particle.phase << 24;
+				if (sortEnabled != 0) key |= 0x00ffffffu - (asuint(depth) >> 8);
+			}
+		}
+		GroupMemoryBarrierWithGroupSync();
+		uint compact = 0;
+		if (visible) InterlockedAdd(groupVisibleCount, 1u, compact);
+		GroupMemoryBarrierWithGroupSync();
+		// 描画領域の割当はGroupごとに一度だけ行う
+		if (localIndex == 0 && groupVisibleCount != 0)
+			InterlockedAdd(gGPUViewCounts[phaseCount * 2], groupVisibleCount, groupVisibleBase);
+		GroupMemoryBarrierWithGroupSync();
+		if (visible) {
+			if (phaseCount > 1) InterlockedAdd(gGPUViewCounts[particlePhase], 1u);
+			gGPUViewKeysOut[groupVisibleBase + compact] = uint2(key, index);
+		}
 		return;
 	}
 	if (operation == 2u) {
 		if (index != 0) return;
+		if (phaseCount == 1) gGPUViewCounts[0] = gGPUViewCounts[2];
 		uint start = 0;
 		for (uint phase = 0; phase < phaseCount; ++phase) {
 			gGPUViewCounts[phaseCount + phase] = start;

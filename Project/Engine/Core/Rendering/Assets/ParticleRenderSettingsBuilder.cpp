@@ -29,7 +29,6 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 	settings.material = group.material;
 	settings.blendMode = group.blendMode;
 	settings.queue = group.queue;
-	settings.renderingLayerMask = group.renderingLayerMask & kRenderingLayerMaskBits;
 	settings.billboardAxes = group.billboardAxes;
 	settings.trail = group.trail;
 	settings.emitter = group.emitter;

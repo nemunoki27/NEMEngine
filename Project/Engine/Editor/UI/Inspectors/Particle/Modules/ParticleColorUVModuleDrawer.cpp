@@ -39,11 +39,13 @@ bool ParticleColorUVModuleDrawer::DrawOffsetSettings(ParticleColorUVModule::Sett
 	}
 
 	ImGui::PushID("移動量");
+	ImGui::Indent();
 	bool changed = false;
 	changed |= MyGUI::EnumCombo("更新方法", settings.updateType).valueChanged;
 	if (settings.updateType == ParticleUVUpdateType::Scroll) {
 
 		changed |= MyGUI::DragVector2("スクロール速度", settings.scrollSpeed, ParticleGUI::MakeDragSetting(-100.0f, 100.0f)).valueChanged;
+		ImGui::Unindent();
 		ImGui::PopID();
 		return changed;
 	}
@@ -61,12 +63,15 @@ bool ParticleColorUVModuleDrawer::DrawOffsetSettings(ParticleColorUVModule::Sett
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = {
 				{ "XY", { 0u, 1u } }, { "X", { 0u } }, { "Y", { 1u } } };
 			changed |= DrawCurveGenerator(offsetGeneratorState_, channels, targets);
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.offsetLoop);
+	ImGui::Unindent();
 	ImGui::PopID();
 	return changed;
 }
@@ -78,6 +83,7 @@ bool ParticleColorUVModuleDrawer::DrawScaleSettings(ParticleColorUVModule::Setti
 	}
 
 	ImGui::PushID("スケール");
+	ImGui::Indent();
 	bool changed = false;
 	changed |= MyGUI::DragVector2("開始スケール", settings.startScale, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragVector2("終了スケール", settings.endScale, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;
@@ -93,12 +99,15 @@ bool ParticleColorUVModuleDrawer::DrawScaleSettings(ParticleColorUVModule::Setti
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = {
 				{ "XY", { 0u, 1u } }, { "X", { 0u } }, { "Y", { 1u } } };
 			changed |= DrawCurveGenerator(scaleGeneratorState_, channels, targets);
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.scaleLoop);
+	ImGui::Unindent();
 	ImGui::PopID();
 	return changed;
 }
@@ -110,6 +119,7 @@ bool ParticleColorUVModuleDrawer::DrawRotationSettings(ParticleColorUVModule::Se
 	}
 
 	ImGui::PushID("回転");
+	ImGui::Indent();
 	bool changed = false;
 	changed |= MyGUI::DragVector2("UVピボット", settings.pivot, ParticleGUI::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("開始回転", settings.startRotation, ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;
@@ -125,11 +135,14 @@ bool ParticleColorUVModuleDrawer::DrawRotationSettings(ParticleColorUVModule::Se
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			static const CurveBakeTarget targets[] = { { "値", { 0u } } };
 			changed |= DrawCurveGenerator(rotationGeneratorState_, GetCurveChannels(settings.rotationCurve), targets);
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.rotationLoop);
+	ImGui::Unindent();
 	ImGui::PopID();
 	return changed;
 }

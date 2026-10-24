@@ -168,6 +168,7 @@ bool ParticleRotationModuleDrawer::DrawAdditiveSettings(ParticleRotationModule::
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			if (settings.valueType == ParticleRotationValueType::Euler) {
 
 				static const CurveBakeTarget targets[] = {
@@ -179,6 +180,7 @@ bool ParticleRotationModuleDrawer::DrawAdditiveSettings(ParticleRotationModule::
 				changed |= DrawCurveGenerator(speedQuaternionGeneratorState_,
 					settings.speedQuaternionCurve.channels, targets);
 			}
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.speedLoop);
@@ -215,6 +217,7 @@ bool ParticleRotationModuleDrawer::DrawInterpolationSettings(ParticleRotationMod
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			if (settings.valueType == ParticleRotationValueType::Euler) {
 
 				static const CurveBakeTarget targets[] = {
@@ -226,6 +229,7 @@ bool ParticleRotationModuleDrawer::DrawInterpolationSettings(ParticleRotationMod
 				changed |= DrawCurveGenerator(
 					quaternionGeneratorState_, settings.quaternionCurve.channels, targets);
 			}
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(settings.angleLoop);

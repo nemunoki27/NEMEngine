@@ -23,6 +23,7 @@ bool ParticlePendulumMovementModuleDrawer::Draw(IParticleModule& module) {
 
 	if (MyGUI::CollapsingHeader("軌道", false)) {
 
+		ImGui::Indent();
 		changed |= MyGUI::DragFloat(
 			"振り子平面角度", settings.planeAngle,
 			ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;
@@ -36,6 +37,7 @@ bool ParticlePendulumMovementModuleDrawer::Draw(IParticleModule& module) {
 			"円弧の強さ", settings.arcStrength,
 			ParticleGUI::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
 		changed |= MyGUI::Checkbox("逆方向", settings.reverse);
+		ImGui::Unindent();
 	}
 	if (changed) {
 		concrete->SetSettings(settings);

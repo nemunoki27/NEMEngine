@@ -70,6 +70,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::Draw(IParticleModule& mo
 		ImGui::PushID(variable.name.c_str());
 		if (MyGUI::CollapsingHeader(variable.name.c_str(), false)) {
 
+			ImGui::Indent();
 			// 未指定と明示的な0を区別する
 			bool enabled = parameters.contains(variable.name);
 			if (MyGUI::Checkbox("値を上書き", enabled)) {
@@ -85,6 +86,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::Draw(IParticleModule& mo
 				parameter.componentCount = std::clamp(GetVariableComponentCount(variable), 1u, 4u);
 				changed |= DrawParameter(variable, parameter, uiStates_[variable.name]);
 			}
+			ImGui::Unindent();
 		}
 		ImGui::PopID();
 	}
@@ -174,6 +176,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::DrawParameter(
 
 		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+			ImGui::Indent();
 			if (parameter.componentCount <= 1) {
 
 				static const CurveBakeTarget targets[] = { { "値", { 0u } } };
@@ -210,6 +213,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::DrawParameter(
 					ImGui::PopID();
 				}
 			}
+			ImGui::Unindent();
 		}
 	}
 	changed |= ParticleGUI::DrawLoopSettings(parameter.loop);

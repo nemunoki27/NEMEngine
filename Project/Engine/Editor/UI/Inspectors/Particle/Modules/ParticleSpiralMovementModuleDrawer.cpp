@@ -21,12 +21,14 @@ bool ParticleSpiralMovementModuleDrawer::Draw(IParticleModule& module) {
 
 	if (MyGUI::CollapsingHeader("角度", false)) {
 
+		ImGui::Indent();
 		changed |= MyGUI::DragFloat(
 			"開始角度", settings.startAngle, ParticleGUI::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;
 		changed |= MyGUI::DragFloat(
 			"粒子ごとの角度差", settings.particleAngleOffset,
 			ParticleGUI::MakeDragSetting(-360.0f, 360.0f)).valueChanged;
 		changed |= MyGUI::Checkbox("逆回転", settings.reverse);
+		ImGui::Unindent();
 	}
 	if (changed) {
 		concrete->SetSettings(settings);

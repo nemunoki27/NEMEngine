@@ -91,6 +91,7 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawParameter(
 	ImGui::PushID(key);
 	if (MyGUI::CollapsingHeader(label, false)) {
 
+		ImGui::Indent();
 		changed |= MyGUI::EnumCombo("更新方法", parameter.mode).valueChanged;
 		const FloatEditSetting editSetting = ParticleGUI::MakeDragSetting(minValue, maxValue, dragSpeed);
 		if (parameter.mode == ParticleMaterialParameterMode::Constant) {
@@ -112,13 +113,16 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawParameter(
 					uiState.curveState, setting).valueChanged;
 				if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+					ImGui::Indent();
 					static const CurveBakeTarget targets[] = { { "値", { 0u } } };
 					changed |= DrawCurveGenerator(uiState.curveGeneratorState,
 						GetCurveChannels(parameter.curveW), targets);
+					ImGui::Unindent();
 				}
 			}
 			changed |= ParticleGUI::DrawLoopSettings(parameter.loop);
 		}
+		ImGui::Unindent();
 	}
 	ImGui::PopID();
 	return changed;
@@ -138,6 +142,7 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawColorParameter(
 	ImGui::PushID(key);
 	if (MyGUI::CollapsingHeader(label, false)) {
 
+		ImGui::Indent();
 		changed |= MyGUI::EnumCombo("更新方法", parameter.mode).valueChanged;
 		auto drawColor = [&](const char* colorLabel, Vector4& value) {
 
@@ -174,6 +179,7 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawColorParameter(
 					uiState.curveState, setting).valueChanged;
 				if (MyGUI::CollapsingHeader("カーブ生成", false)) {
 
+					ImGui::Indent();
 					static const CurveBakeTarget colorTargets[] = {
 						{ "RGB", { 0u, 1u, 2u } }, { "R", { 0u } },
 						{ "G", { 1u } }, { "B", { 2u } } };
@@ -184,10 +190,12 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::DrawColorParameter(
 					static const CurveBakeTarget alphaTargets[] = { { "値", { 0u } } };
 					changed |= DrawCurveGenerator(uiState.alphaGeneratorState,
 						GetCurveChannels(parameter.curveW), alphaTargets);
+					ImGui::Unindent();
 				}
 			}
 			changed |= ParticleGUI::DrawLoopSettings(parameter.loop);
 		}
+		ImGui::Unindent();
 	}
 	ImGui::PopID();
 	return changed;

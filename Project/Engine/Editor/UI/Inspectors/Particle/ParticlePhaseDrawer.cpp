@@ -11,6 +11,7 @@
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
+#include <Engine/Core/Rendering/Particle/ParticleGPUProgram.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -25,7 +26,7 @@ ParticlePhaseDrawer::ParticlePhaseDrawer(ParticleSettingsEditSession& session, s
 	session_(session), statusMessage_(status), addModuleSearchFilter_(search) {}
 
 bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
-	ParticleSystemSettings& group, ParticleSettingsEditState& editorState) {
+	ParticleSystemSettings& group, ParticleSettingsEditState& editorState, ParticleSimulationTarget simulationTarget) {
 
 	if (!ImGui::BeginTabItem("フェーズ")) return false;
 	bool changed = false;
@@ -35,15 +36,24 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 	editorState.moduleCache.resize(group.phases.size());
 
 	// 選択と順序を分けて表示する
-	if (ImGui::BeginCombo("フェーズ##Select", group.phases[selected].name.c_str())) {
-		for (int32_t i = 0; i < static_cast<int32_t>(group.phases.size()); ++i) {
-			ImGui::PushID(i);
-			if (ImGui::Selectable(group.phases[i].name.c_str(), selected == i)) selected = i;
-			ImGui::PopID();
+	if (MyGUI::BeginPropertyRow("フェーズ")) {
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		if (ImGui::BeginCombo("##Value", group.phases[selected].name.c_str())) {
+			for (int32_t i = 0; i < static_cast<int32_t>(group.phases.size()); ++i) {
+				ImGui::PushID(i);
+				if (ImGui::Selectable(group.phases[i].name.c_str(), selected == i)) selected = i;
+				if (selected == i) ImGui::SetItemDefaultFocus();
+				ImGui::PopID();
+			}
+			ImGui::EndCombo();
 		}
-		ImGui::EndCombo();
+		MyGUI::EndPropertyRow();
 	}
-	if (ImGui::Button("追加##Phase")) {
+	// 余白を除いた幅を4つの操作へ均等に割り当てる
+	const float spacing = ImGui::GetStyle().ItemSpacing.x;
+	const float buttonWidth = (std::max)(1.0f, (ImGui::GetContentRegionAvail().x - spacing * 3.0f) / 4.0f);
+	const ImVec2 buttonSize(buttonWidth, 0.0f);
+	if (ImGui::Button("追加##Phase", buttonSize)) {
 		ParticlePhaseSettings phase;
 		phase.name = "フェーズ" + std::to_string(group.phases.size() + 1);
 		group.phases.push_back(std::move(phase));
@@ -53,7 +63,7 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 	}
 	ImGui::SameLine();
 	ImGui::BeginDisabled(group.phases.size() <= 1);
-	if (ImGui::Button("削除##Phase")) {
+	if (ImGui::Button("削除##Phase", buttonSize)) {
 		group.phases.erase(group.phases.begin() + selected);
 		editorState.moduleCache.erase(editorState.moduleCache.begin() + selected);
 		selected = (std::max)(0, selected - 1);
@@ -68,11 +78,11 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 	};
 	ImGui::SameLine();
 	ImGui::BeginDisabled(selected == 0);
-	if (ImGui::Button("上へ##Phase")) move(selected - 1);
+	if (ImGui::Button("上へ##Phase", buttonSize)) move(selected - 1);
 	ImGui::EndDisabled();
 	ImGui::SameLine();
 	ImGui::BeginDisabled(selected + 1 >= static_cast<int32_t>(group.phases.size()));
-	if (ImGui::Button("下へ##Phase")) move(selected + 1);
+	if (ImGui::Button("下へ##Phase", buttonSize)) move(selected + 1);
 	ImGui::EndDisabled();
 
 	ParticlePhaseSettings& phase = group.phases[selected];
@@ -84,7 +94,7 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 		context.editorContext->assetDatabase, {AssetType::Material}, setting).valueChanged;
 	changed |= DrawPhaseMaterialSection(context, group, phase);
 	changed |= DrawPhaseParentSection(group, phase, selected);
-	changed |= DrawPhaseModules(context, group, editorState, phase);
+	changed |= DrawPhaseModules(context, group, editorState, phase, simulationTarget);
 	ImGui::EndTabItem();
 	return changed;
 }
@@ -92,7 +102,6 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 bool ParticlePhaseDrawer::DrawPhaseMaterialSection(const EditorPanelContext& context,
 	ParticleSystemSettings& group, ParticlePhaseSettings& phase) {
 
-	if (!MyGUI::CollapsingHeader("テクスチャ設定", false)) { return false; }
 	return ParticleTextureDrawer::Draw(context, phase.materialSettings, ResolvePhaseMaterialID(group, phase));
 }
 
@@ -118,15 +127,19 @@ bool ParticlePhaseDrawer::DrawPhaseParentSection(ParticleSystemSettings& group, 
 }
 
 bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
-	ParticleSystemSettings& group, ParticleSettingsEditState& editorState, ParticlePhaseSettings& phase) {
+	ParticleSystemSettings& group, ParticleSettingsEditState& editorState,
+	ParticlePhaseSettings& phase, ParticleSimulationTarget simulationTarget) {
 
 	bool changed = false;
+	const bool gpu = simulationTarget == ParticleSimulationTarget::GPU;
 	auto& cache = editorState.moduleCache[editorState.selectedPhase];
 	cache.resize(phase.modules.size());
+	ImGui::Separator();
 	if (ImGui::Button("モジュール追加", ImVec2(-FLT_MIN, 0.0f))) ImGui::OpenPopup("##AddParticleModule");
 	if (ImGui::BeginPopup("##AddParticleModule")) {
 		addModuleSearchFilter_.DrawInput("##ModuleSearch", {}, "検索...");
 		for (const auto& descriptor : ParticleModuleRegistry::GetInstance().GetDescriptors()) {
+			if (gpu && !IsParticleGPUModuleSupported(descriptor.id)) continue;
 			if (!addModuleSearchFilter_.Matches(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) continue;
 			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) {
 				ParticleModuleEntry entry;
@@ -139,11 +152,15 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		}
 		ImGui::EndPopup();
 	}
+	ImGui::SeparatorText("モジュール一覧");
+	ImGui::Indent();
 	int32_t remove = -1;
 	int32_t from = -1;
 	int32_t to = -1;
 	for (int32_t i = 0; i < static_cast<int32_t>(phase.modules.size()); ++i) {
 		auto& entry = phase.modules[i];
+		// CPU用の設定は保持し、GPUでは対応するModuleだけを表示する
+		if (gpu && !IsParticleGPUModuleSupported(entry.id)) continue;
 		ImGui::PushID(ToString(entry.instanceID).c_str());
 		const bool open = MyGUI::CollapsingHeader(ImGuiUtility::GetDisplayName(entry.id.c_str()));
 		if (ImGui::BeginPopupContextItem()) {
@@ -153,6 +170,7 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 			ImGui::EndPopup();
 		}
 		if (open) {
+			ImGui::Indent();
 			if (auto* module = session_.ResolveModuleCache(cache[i], entry)) {
 				MyGUI::ScopedPropertyLabelWidth labelWidth(entry.id.c_str());
 				if (auto* drawer = dynamic_cast<ParticleCustomShaderParameterModuleDrawer*>(cache[i].drawer.get())) {
@@ -166,9 +184,11 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 					changed = true;
 				}
 			}
+			ImGui::Unindent();
 		}
 		ImGui::PopID();
 	}
+	ImGui::Unindent();
 	// 表示中の参照を使い終えてから構造を変える
 	if (remove >= 0) {
 		phase.modules.erase(phase.modules.begin() + remove);

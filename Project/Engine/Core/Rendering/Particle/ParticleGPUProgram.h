@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/World/Systems/Effect/ParticleDefinition.h>
 
+// c++
+#include <string_view>
+
 namespace Engine {
 
 	// GPUが実行するModule命令
@@ -55,4 +58,6 @@ namespace Engine {
 
 	// Moduleを命令へ変換し、未対応の入力は理由を返す
 	ParticleGPUProgram CompileParticleGPUProgram(const ParticleSystemDefinition& definition);
+	// GPUの命令へ変換できるModuleか確認する
+	bool IsParticleGPUModuleSupported(std::string_view moduleID);
 }

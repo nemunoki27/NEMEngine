@@ -67,6 +67,10 @@ namespace Engine {
 		// 計測終了時に元の描画設定へ戻す
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
+		// 計測用のFPS上限を終了時に戻す
+		uint32_t originalTargetFps_ = 0;
+		uint32_t originalEditorTargetFps_ = 0;
+		bool overridesFrameRate_ = false;
 		bool quickCheck_ = false;
 		CaptureMode captureMode_ = CaptureMode::Final;
 		// 起動から全frameを一秒単位で集計する
