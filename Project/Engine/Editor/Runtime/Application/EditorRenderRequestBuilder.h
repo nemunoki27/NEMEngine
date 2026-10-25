@@ -45,6 +45,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		DisplayOutputSettings previousGameOutput_{};
+		DisplayOutputSettings previousSceneOutput_{};
+
 		std::chrono::steady_clock::time_point nextSecondaryViewUpdate_{};
 		std::chrono::steady_clock::time_point secondaryRecoveryStarted_{};
 		uint64_t lastGPUFrameID_ = UINT64_MAX;

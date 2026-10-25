@@ -6,6 +6,17 @@
 // c++
 #include <algorithm>
 
+namespace {
+
+	// 色Moduleの更新が終わってから発光色を揃える
+	void ApplyCurrentEmissiveColor(Engine::Particle& particle) {
+
+		particle.emissive.x = particle.color.r;
+		particle.emissive.y = particle.color.g;
+		particle.emissive.z = particle.color.b;
+	}
+}
+
 bool Engine::ParticleModuleExecution::AdvancePhaseOnLifeEnd(Particle& particle, const std::vector<ParticlePhaseDefinition>& phases) {
 
 	if (phases.size() <= particle.phaseIndex) {
@@ -67,6 +78,7 @@ void Engine::ParticleModuleExecution::ApplyUpdateModules(
 			module->OnUpdate(particle, deltaTime);
 		}
 	}
+	if (phase.useParticleColorForEmissive) ApplyCurrentEmissiveColor(particle);
 }
 
 void Engine::ParticleModuleExecution::ExecuteSpawnModules(
@@ -106,5 +118,8 @@ void Engine::ParticleModuleExecution::ExecuteUpdateModules(
 		for (IParticleModule* module : group.modules) {
 			module->OnUpdateBatch(particles, deltaTime);
 		}
+	}
+	if (phase.useParticleColorForEmissive) {
+		for (Particle& particle : particles) ApplyCurrentEmissiveColor(particle);
 	}
 }

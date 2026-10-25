@@ -68,6 +68,7 @@
 #include <d3d12.h>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 #include <dxgi1_5.h>
 #include <d3dcompiler.h>
 #ifdef _MSC_VER
@@ -106,6 +107,13 @@ struct ImGui_ImplDX12_Data
     ID3D12RootSignature*        pRootSignatureNearest;
     ID3D12PipelineState*        pPipelineStateLinear;
     ID3D12PipelineState*        pPipelineStateNearest;
+    ID3D12PipelineState*        pPipelineStateLinearFloat;
+    ID3D12PipelineState*        pPipelineStateNearestFloat;
+    ID3D12PipelineState*        pPipelineStateLinearBGRA;
+    ID3D12PipelineState*        pPipelineStateNearestBGRA;
+    ImGui_ImplDX12_OutputConfig CurrentOutput;
+    float                       CurrentBrightness;
+    float                       CurrentProjection[16];
     ID3D12CommandQueue*         pCommandQueue;
     bool                        commandQueueOwned;
     DXGI_FORMAT                 RTVFormat;
@@ -144,10 +152,10 @@ static DXGI_FORMAT ImGui_ImplDX12_GetSwapChainFormat(DXGI_FORMAT rtv_format)
     return rtv_format;
 }
 
-static void ImGui_ImplDX12_CreateRenderTargetView(ImGui_ImplDX12_Data* bd, ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)
+static void ImGui_ImplDX12_CreateRenderTargetView(ImGui_ImplDX12_Data* bd, ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE descriptor, DXGI_FORMAT format)
 {
     D3D12_RENDER_TARGET_VIEW_DESC desc = {};
-    desc.Format = bd->RTVFormat;
+    desc.Format = format;
     desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     bd->pd3dDevice->CreateRenderTargetView(resource, &desc, descriptor);
 }
@@ -181,6 +189,7 @@ struct ImGui_ImplDX12_BackBuffer
 struct ImGui_ImplDX12_ViewportData
 {
     // Window
+    ImGui_ImplDX12_OutputConfig Output;
     ID3D12CommandQueue*             CommandQueue;
     ID3D12GraphicsCommandList*      CommandList;
     ID3D12DescriptorHeap*           RtvDescHeap;
@@ -251,15 +260,25 @@ static void ImGui_ImplDX12_ShutdownMultiViewportSupport();
 static void ImGui_ImplDX12_SetupSamplerLinear(ID3D12GraphicsCommandList* command_list)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-    command_list->SetPipelineState(bd->pPipelineStateLinear);
+    ID3D12PipelineState* pipeline = bd->pPipelineStateLinear;
+    if (bd->CurrentOutput.UIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT) pipeline = bd->pPipelineStateLinearFloat;
+    else if (bd->CurrentOutput.UIFormat == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB) pipeline = bd->pPipelineStateLinearBGRA;
+    command_list->SetPipelineState(pipeline);
     command_list->SetGraphicsRootSignature(bd->pRootSignatureLinear);
+    command_list->SetGraphicsRoot32BitConstants(0, 16, bd->CurrentProjection, 0);
+    command_list->SetGraphicsRoot32BitConstants(2, 1, &bd->CurrentBrightness, 0);
 }
 
 static void ImGui_ImplDX12_SetupSamplerNearest(ID3D12GraphicsCommandList* command_list)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-    command_list->SetPipelineState(bd->pPipelineStateNearest);
+    ID3D12PipelineState* pipeline = bd->pPipelineStateNearest;
+    if (bd->CurrentOutput.UIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT) pipeline = bd->pPipelineStateNearestFloat;
+    else if (bd->CurrentOutput.UIFormat == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB) pipeline = bd->pPipelineStateNearestBGRA;
+    command_list->SetPipelineState(pipeline);
     command_list->SetGraphicsRootSignature(bd->pRootSignatureNearest);
+    command_list->SetGraphicsRoot32BitConstants(0, 16, bd->CurrentProjection, 0);
+    command_list->SetGraphicsRoot32BitConstants(2, 1, &bd->CurrentBrightness, 0);
 }
 
 static void ImGui_ImplDX12_SetupRenderState(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list, ImGui_ImplDX12_RenderBuffers* fr)
@@ -305,8 +324,10 @@ static void ImGui_ImplDX12_SetupRenderState(ImDrawData* draw_data, ID3D12Graphic
     ibv.Format = sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
     command_list->IASetIndexBuffer(&ibv);
     command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
+    memcpy(bd->CurrentProjection, &vertex_constant_buffer, sizeof(vertex_constant_buffer));
+    bd->CurrentBrightness = bd->CurrentOutput.UIWhiteScale;
     ImGui_ImplDX12_SetupSamplerLinear(command_list);
-    command_list->SetGraphicsRoot32BitConstants(0, 16, &vertex_constant_buffer, 0);
 
     // Setup blend factor
     const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -364,13 +385,21 @@ static bool ImGui_ImplDX12_WaitForGPU(ID3D12Fence* fence, UINT64 value, HANDLE e
     }
 }
 
+void ImGui_ImplDX12_SetImageWhiteLevel(float nits)
+{
+    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
+    if (!bd || !bd->RenderState) return;
+    bd->CurrentBrightness = bd->CurrentOutput.UIFormat == DXGI_FORMAT_R16G16B16A16_FLOAT ? nits / 80.0f : 1.0f;
+    bd->RenderState->CommandList->SetGraphicsRoot32BitConstants(2, 1, &bd->CurrentBrightness, 0);
+}
+
 // Draw callbacks
 static void ImGui_ImplDX12_DrawCallback_ResetRenderState(const ImDrawList*, const ImDrawCmd*)   {} // Intentionally empty. Used as an identifier for rendering loop to call its code. Simpler to implement this way.
 static void ImGui_ImplDX12_DrawCallback_SetSamplerLinear(const ImDrawList*, const ImDrawCmd*)   { ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData(); ImGui_ImplDX12_SetupSamplerLinear(bd->RenderState->CommandList); }
 static void ImGui_ImplDX12_DrawCallback_SetSamplerNearest(const ImDrawList*, const ImDrawCmd*)  { ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData(); ImGui_ImplDX12_SetupSamplerNearest(bd->RenderState->CommandList); }
 
 // Render function
-void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list)
+void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list, const ImGui_ImplDX12_OutputConfig* output)
 {
     if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     // Avoid rendering when minimized
@@ -459,6 +488,10 @@ void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandL
     range.End = (SIZE_T)((intptr_t)idx_dst - (intptr_t)idx_resource);
     IM_ASSERT(range.End == draw_data->TotalIdxCount * sizeof(ImDrawIdx));
     fr->IndexBuffer->Unmap(0, &range);
+
+    // NEM: 各Windowの形式を描画中だけ使用する
+    bd->CurrentOutput = output ? *output : ImGui_ImplDX12_OutputConfig{};
+    if (!output) bd->CurrentOutput.UIFormat = bd->RTVFormat;
 
     // Setup desired DX state
     ImGui_ImplDX12_SetupRenderState(draw_data, command_list, fr);
@@ -748,7 +781,7 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         descRange.RegisterSpace = 0;
         descRange.OffsetInDescriptorsFromTableStart = 0;
 
-        D3D12_ROOT_PARAMETER param[2] = {};
+        D3D12_ROOT_PARAMETER param[3] = {};
 
         param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
         param[0].Constants.ShaderRegister = 0;
@@ -760,6 +793,11 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         param[1].DescriptorTable.NumDescriptorRanges = 1;
         param[1].DescriptorTable.pDescriptorRanges = &descRange;
         param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        param[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+        param[2].Constants.ShaderRegister = 1;
+        param[2].Constants.Num32BitValues = 1;
+        param[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
         // Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling.
         D3D12_STATIC_SAMPLER_DESC staticSampler[1] = {};
@@ -903,12 +941,14 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
               float4 col : COLOR0;\
               float2 uv  : TEXCOORD0;\
             };\
+            cbuffer PixelBrightness : register(b1) { float brightness; };\
             SamplerState sampler0 : register(s0);\
             Texture2D texture0 : register(t0);\
             \
             float4 main(PS_INPUT input) : SV_Target\
             {\
               float4 out_col = input.col * texture0.Sample(sampler0, input.uv); \
+              out_col.rgb *= brightness; \
               return out_col; \
             }";
 
@@ -973,10 +1013,32 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
     psoDesc.pRootSignature = bd->pRootSignatureNearest;
 
     result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineStateNearest));
+    if (SUCCEEDED(result_pipeline_state))
+    {
+        // NEM: HDRとSDRの描画形式をContextを維持したまま選択する
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        psoDesc.pRootSignature = bd->pRootSignatureLinear;
+        result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineStateLinearFloat));
+        if (SUCCEEDED(result_pipeline_state))
+        {
+            psoDesc.pRootSignature = bd->pRootSignatureNearest;
+            result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineStateNearestFloat));
+        }
+        if (SUCCEEDED(result_pipeline_state))
+        {
+            psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+            psoDesc.pRootSignature = bd->pRootSignatureLinear;
+            result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineStateLinearBGRA));
+        }
+        if (SUCCEEDED(result_pipeline_state))
+        {
+            psoDesc.pRootSignature = bd->pRootSignatureNearest;
+            result_pipeline_state = bd->pd3dDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&bd->pPipelineStateNearestBGRA));
+        }
+    }
     vertexShaderBlob->Release();
     pixelShaderBlob->Release();
-    if (result_pipeline_state != S_OK)
-        return false;
+    if (FAILED(result_pipeline_state)) return false;
 
     // Create command allocator and command list for ImGui_ImplDX12_UpdateTexture()
     hr = bd->pd3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&bd->pTexCmdAllocator));
@@ -1020,6 +1082,10 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     ImGui_ImplDX12_RetireResource(bd->pRootSignatureNearest);
     ImGui_ImplDX12_RetireResource(bd->pPipelineStateLinear);
     ImGui_ImplDX12_RetireResource(bd->pPipelineStateNearest);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateLinearFloat);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateNearestFloat);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateLinearBGRA);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateNearestBGRA);
 
     if (bd->pTexUploadBufferMapped)
     {
@@ -1220,6 +1286,12 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     IM_ASSERT(res == S_OK);
     vd->CommandList->Close();
 
+    // NEM: 作成前に表示先の形式を解決する
+    vd->Output.RTVFormat = vd->Output.UIFormat = bd->RTVFormat;
+    vd->Output.SwapChainFormat = ImGui_ImplDX12_GetSwapChainFormat(bd->RTVFormat);
+    if (bd->InitInfo.WindowOutputFn)
+        bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, nullptr, &vd->Output, 0);
+
     // Create swap chain
     // FIXME-VIEWPORT: May want to copy/inherit swap chain settings from the user/application.
     DXGI_SWAP_CHAIN_DESC1 sd1;
@@ -1227,7 +1299,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     sd1.BufferCount = 2;
     sd1.Width = (UINT)viewport->Size.x;
     sd1.Height = (UINT)viewport->Size.y;
-    sd1.Format = ImGui_ImplDX12_GetSwapChainFormat(bd->RTVFormat);
+    sd1.Format = vd->Output.SwapChainFormat;
     sd1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd1.SampleDesc.Count = 1;
     sd1.SampleDesc.Quality = 0;
@@ -1252,6 +1324,15 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     IM_ASSERT(vd->SwapChain == nullptr);
     swap_chain->QueryInterface(IID_PPV_ARGS(&vd->SwapChain));
     swap_chain->Release();
+
+    // NEM: 実際のSwapChainが受け付ける色空間を確定する
+    if (vd->SwapChain && bd->InitInfo.WindowOutputFn &&
+        !bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &vd->Output, 1))
+    {
+        res = vd->SwapChain->ResizeBuffers(2, sd1.Width, sd1.Height, vd->Output.SwapChainFormat, sd1.Flags);
+        if (FAILED(res) || !bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &vd->Output, 1))
+            throw std::runtime_error("外部Windowの表示出力を作成できません");
+    }
 
     // Create the render targets and waitable object
     if (vd->SwapChain)
@@ -1279,7 +1360,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
         {
             IM_ASSERT(vd->BackBuffers[i].RenderTarget == nullptr);
             vd->SwapChain->GetBuffer(i, IID_PPV_ARGS(&back_buffer));
-            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->BackBuffers[i].RenderTargetCpuDescriptors);
+            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->BackBuffers[i].RenderTargetCpuDescriptors, vd->Output.RTVFormat);
             vd->BackBuffers[i].RenderTarget = back_buffer;
         }
 
@@ -1301,6 +1382,63 @@ static bool ImGui_WaitForPendingOperations(ImGui_ImplDX12_ViewportData* vd)
     const HRESULT result = vd->CommandQueue->Signal(bd->Fence, ++bd->FenceLastSignaledValue);
     if (FAILED(result)) return false;
     return ImGui_ImplDX12_WaitForGPU(bd->Fence, bd->FenceLastSignaledValue, bd->FenceEvent);
+}
+
+// NEM: 未提出の描画を作る前に表示形式を切り替える
+static void ImGui_ImplDX12_UpdateWindowOutput(ImGuiViewport* viewport)
+{
+    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
+    auto* vd = static_cast<ImGui_ImplDX12_ViewportData*>(viewport->RendererUserData);
+    if (!vd || !vd->SwapChain || !bd->InitInfo.WindowOutputFn) return;
+    ImGui_ImplDX12_OutputConfig output = vd->Output;
+    bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 0);
+    if (output.Revision == vd->Output.Revision) return;
+
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+    vd->SwapChain->GetDesc1(&desc);
+    bool released = false;
+    auto resize = [&]() {
+        if (desc.Format == output.SwapChainFormat) return true;
+        if (!released)
+        {
+            if (!ImGui_WaitForPendingOperations(vd)) return false;
+            for (auto& buffer : vd->BackBuffers) SafeRelease(buffer.RenderTarget);
+            released = true;
+        }
+        if (FAILED(vd->SwapChain->ResizeBuffers(2, desc.Width, desc.Height, output.SwapChainFormat, desc.Flags))) return false;
+        desc.Format = output.SwapChainFormat;
+        return true;
+    };
+    bool applied = resize();
+    if (applied && !bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 1))
+        applied = resize() && bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 1);
+    if (!applied)
+    {
+        // 途中失敗時は有効だった形式へ戻す
+        bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 2);
+        if (!resize() || !bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 1))
+        {
+            ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr);
+            throw std::runtime_error("外部Windowの表示出力を復元できません");
+        }
+    }
+    vd->Output = output;
+    if (released)
+    {
+        for (UINT i = 0; i < 2; ++i)
+        {
+            if (FAILED(vd->SwapChain->GetBuffer(i, IID_PPV_ARGS(&vd->BackBuffers[i].RenderTarget))))
+                throw std::runtime_error("外部Windowの表示画像を取得できません");
+            ImGui_ImplDX12_CreateRenderTargetView(bd, vd->BackBuffers[i].RenderTarget,
+                vd->BackBuffers[i].RenderTargetCpuDescriptors, vd->Output.RTVFormat);
+        }
+    }
+}
+
+void ImGui_ImplDX12_SyncDisplayOutputs()
+{
+    for (ImGuiViewport* viewport : ImGui::GetPlatformIO().Viewports)
+        ImGui_ImplDX12_UpdateWindowOutput(viewport);
 }
 
 static ImGui_ImplDX12_FrameContext* ImGui_WaitForNextFrameContext(ImGui_ImplDX12_ViewportData* vd)
@@ -1335,6 +1473,7 @@ static void ImGui_ImplDX12_DestroyWindow(ImGuiViewport* viewport)
         }
         IM_DELETE(vd);
     }
+    if (bd->InitInfo.DestroyOutputFn) bd->InitInfo.DestroyOutputFn(&bd->InitInfo, viewport);
     viewport->RendererUserData = nullptr;
 }
 
@@ -1343,6 +1482,7 @@ static void ImGui_ImplDX12_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
     ImGui_ImplDX12_ViewportData* vd = (ImGui_ImplDX12_ViewportData*)viewport->RendererUserData;
 
+    if (size.x <= 0.0f || size.y <= 0.0f) return;
     if (!ImGui_WaitForPendingOperations(vd)) return;
 
     for (auto& buffer : vd->BackBuffers) SafeRelease(buffer.RenderTarget);
@@ -1352,12 +1492,23 @@ static void ImGui_ImplDX12_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
         ID3D12Resource* back_buffer = nullptr;
         DXGI_SWAP_CHAIN_DESC1 desc = {};
         vd->SwapChain->GetDesc1(&desc);
-        vd->SwapChain->ResizeBuffers(0, (UINT)size.x, (UINT)size.y, desc.Format, desc.Flags);
+        const HRESULT resize_result = vd->SwapChain->ResizeBuffers(0, (UINT)size.x, (UINT)size.y, desc.Format, desc.Flags);
+        if (FAILED(resize_result))
+        {
+            ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr);
+            IM_ASSERT(SUCCEEDED(resize_result));
+        }
         for (UINT i = 0; i < 2; i++)
         {
             vd->SwapChain->GetBuffer(i, IID_PPV_ARGS(&back_buffer));
-            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->BackBuffers[i].RenderTargetCpuDescriptors);
+            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->BackBuffers[i].RenderTargetCpuDescriptors, vd->Output.RTVFormat);
             vd->BackBuffers[i].RenderTarget = back_buffer;
+        }
+        if (bd->InitInfo.WindowOutputFn)
+        {
+            ImGui_ImplDX12_OutputConfig output = vd->Output;
+            if (bd->InitInfo.WindowOutputFn(&bd->InitInfo, viewport, vd->SwapChain, &output, 1)) vd->Output = output;
+            else ImGui_ImplDX12_UpdateWindowOutput(viewport);
         }
     }
 }
@@ -1391,7 +1542,10 @@ static void ImGui_ImplDX12_RenderWindow(ImGuiViewport* viewport, void*)
         cmd_list->ClearRenderTargetView(vd->BackBuffers[back_buffer_idx].RenderTargetCpuDescriptors, (const float*)&clear_color, 0, nullptr);
     cmd_list->SetDescriptorHeaps(1, &bd->pd3dSrvDescHeap);
 
-    ImGui_ImplDX12_RenderDrawData(viewport->DrawData, cmd_list);
+    if (bd->InitInfo.RenderOutputFn)
+        bd->InitInfo.RenderOutputFn(&bd->InitInfo, viewport, cmd_list, vd->BackBuffers[back_buffer_idx].RenderTargetCpuDescriptors);
+    else
+        ImGui_ImplDX12_RenderDrawData(viewport->DrawData, cmd_list, &vd->Output);
 
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

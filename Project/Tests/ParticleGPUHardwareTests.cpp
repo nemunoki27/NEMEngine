@@ -1,6 +1,7 @@
 #include "ParticleSystemRuntimeTests.h"
 #include "ParticleGPUFixture.h"
 #include "GPUParticleShapeTests.h"
+#include "ParticleGPUEmissiveTests.h"
 #include "TestRunner.h"
 
 //============================================================================
@@ -469,6 +470,7 @@ bool NEMTests::TestParticleGPUHardware() {
 		RunTest("ParticleCPUShapePipelines", [&] { return CheckParticleShapePipelines(fixture.device.Get(), fixture.retirement); }) &&
 		RunTest("ParticleGPUView", [&] { return CheckView(fixture, *view, 1) && CheckView(fixture, *view, 2); }) &&
 		RunTest("ParticleGPUFlipbook", [&] { return CheckFlipbook(fixture, *simulate); }) &&
+		RunTest("ParticleGPUEmissive", [&] { return CheckParticleEmissive(fixture, *simulate); }) &&
 		RunTest("ParticleGPUPartialGroups", [&] {
 			return CheckSimulation(fixture, *simulate, 255) && CheckSimulation(fixture, *simulate, 257);
 		}) &&

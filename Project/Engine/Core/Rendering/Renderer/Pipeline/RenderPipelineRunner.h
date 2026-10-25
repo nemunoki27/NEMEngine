@@ -82,6 +82,8 @@ namespace Engine {
 
 		// ビューの種類
 		RenderViewKind kind = RenderViewKind::Game;
+		// 最終表示先に対応する色変換設定
+		DisplayOutputSettings displayOutput{};
 		// シーンインスタンスの情報
 		const SceneInstance* sceneInstance = nullptr;
 		const ResolvedRenderView* view = nullptr;
@@ -233,6 +235,10 @@ namespace Engine {
 
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
+		// UI合成画像を指定Windowの色空間へ出力する
+		bool PresentTexture(GraphicsCore& graphicsCore, ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE source, const RenderTarget& target,
+			const DisplayOutputSettings& output, float sourceWhiteNits);
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
 		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
 		// プレビューMeshの読込結果を公開し、現在の世代を返す

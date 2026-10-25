@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameResources.h>
 #include <Engine/Editor/Core/EditorShortcutState.h>
+#include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
 
 // c++
 #include <cstdint>
@@ -21,6 +22,8 @@ namespace Engine {
 
 	// 前方宣言
 	class SRVDescriptor;
+	class GraphicsCore;
+	class RenderPipelineRunner;
 
 	//============================================================================
 	//	ImGuiManager class
@@ -37,7 +40,7 @@ namespace Engine {
 
 		// ImGui機能の初期化
 		void Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
-			SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat);
+			SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, GraphicsCore& graphicsCore);
 
 		// フレームを開始する
 		void Begin();
@@ -48,6 +51,8 @@ namespace Engine {
 
 		// 描画
 		void Draw(ID3D12GraphicsCommandList* commandList);
+		void SetOutputRenderer(RenderPipelineRunner& renderer) { displayOutput_.SetRenderer(renderer); }
+		DisplayOutputSettings GetDisplayOutputSettings(HWND hwnd) const { return displayOutput_.GetSettings(hwnd); }
 		// ネイティブ外部ウィンドウを描画してPresentする
 		void DrawPlatformWindows();
 
@@ -67,6 +72,7 @@ namespace Engine {
 		// 初期化済みか
 		bool initialized_ = false;
 		EditorShortcutState shortcutState_;
+		ImGuiDisplayOutput displayOutput_;
 		// 初期化できた段階だけ終了する
 		bool contextCreated_ = false;
 		bool platformInitialized_ = false;

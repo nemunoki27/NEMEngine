@@ -47,17 +47,19 @@ float3 LinearToPQ(float3 color) {
 //============================================================================
 //	main
 //============================================================================
+float3 TransformDisplayOutput(float3 color, uint mode, float referenceWhiteNits) {
+
+	if (mode == 1) {
+
+		const float3 rec2020 = max(LinearRec709ToRec2020(color), 0.0f);
+		return LinearToPQ(rec2020 * referenceWhiteNits / 10000.0f);
+	}
+	if (mode == 2) return color * referenceWhiteNits / 80.0f;
+	return color;
+}
+
 float4 main(VSOutput input) : SV_TARGET0 {
 
 	const float4 src = gTexture.Sample(gSampler, input.texcoord);
-	if (outputMode == 1) {
-
-		const float3 rec2020 = max(LinearRec709ToRec2020(src.rgb), 0.0f);
-		const float3 normalizedNits = rec2020 * paperWhiteNits / 10000.0f;
-		return float4(LinearToPQ(normalizedNits), src.a);
-	}
-	if (outputMode == 2) {
-		return float4(src.rgb * paperWhiteNits / 80.0f, src.a);
-	}
-	return src;
+	return float4(TransformDisplayOutput(src.rgb, outputMode, paperWhiteNits), src.a);
 }

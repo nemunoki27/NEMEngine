@@ -190,6 +190,11 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// プレビュー資源はframe境界で一度だけ初期化する
 	previewResources_.previewBackendFrameStarted_ = false;
 
+	// Worldの読込中もUI出力のAssetと定数領域を使用する
+	renderAssetLibrary_.Init(request.assetDatabase);
+	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
+	colorPipelineProcessor_.BeginFrame();
+
 	// ワールドがない場合は描画できないので処理しない
 	if (!request.world) {
 		pickingState_.lastRenderRequest_ = {};
@@ -203,11 +208,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	pickingState_.pickRecordOffsets_.clear();
 
 	// アセットライブラリの初期化、フレーム開始処理
-	renderAssetLibrary_.Init(request.assetDatabase);
-	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
 	postProcessExecutor_.BeginFrame(request.systemContext->unscaledDeltaTime);
 	rayTracingExecutor_.BeginFrame();
-	colorPipelineProcessor_.BeginFrame();
 
 	// World切替前のGPU処理を待ってbatchを破棄する
 	if (request.world != lastRenderedWorld_) {
@@ -312,6 +314,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		// 出力先を同じ描画の入力から除外
 		RuntimeTextureResolver::BeginRenderTextureWrite(view.targetTexture);
 		context.clearDefaultSurface = clearDefaultSurface;
+		if (!view.targetTexture) viewportRenderService_->SetDisplayOutput(kind, context.displayOutput);
 		// 描画対象をPassごとのbucketへ振り分ける
 		RenderPassItemCollector::BuildBucketsForViewAndScene(
 			scenePreparation_.renderBatch_, view, context.sceneInstance->instanceID, passBuckets_);

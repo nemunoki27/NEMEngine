@@ -5,80 +5,17 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Core/DxDevice.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
-#include <algorithm>
 #include <stdexcept>
 
 //============================================================================
 //	DxSwapChain classMethods
 //============================================================================
-namespace {
-
-	struct SwapChainOutputFormat {
-
-		DXGI_FORMAT bufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		DXGI_COLOR_SPACE_TYPE colorSpace =
-			DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	};
-
-	SwapChainOutputFormat ResolveSDRFormat(DXGI_FORMAT format) {
-
-		SwapChainOutputFormat result{};
-		switch (format) {
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			result.bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
-			result.rtvFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-			break;
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		default:
-			break;
-		}
-		return result;
-	}
-
-	SwapChainOutputFormat ResolveOutputFormat(DXGI_FORMAT sdrFormat,
-		Engine::DisplayOutputMode mode) {
-
-		if (mode == Engine::DisplayOutputMode::HDR10) {
-			return {
-				DXGI_FORMAT_R10G10B10A2_UNORM,
-				DXGI_FORMAT_R10G10B10A2_UNORM,
-				DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
-			};
-		}
-		if (mode == Engine::DisplayOutputMode::ScRGB) {
-			return {
-				DXGI_FORMAT_R16G16B16A16_FLOAT,
-				DXGI_FORMAT_R16G16B16A16_FLOAT,
-				DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
-			};
-		}
-		return ResolveSDRFormat(sdrFormat);
-	}
-
-	const char* GetDisplayOutputName(Engine::DisplayOutputMode mode) {
-
-		switch (mode) {
-		case Engine::DisplayOutputMode::HDR10:
-			return "HDR10";
-		case Engine::DisplayOutputMode::ScRGB:
-			return "scRGB";
-		case Engine::DisplayOutputMode::SDR:
-		default:
-			return "SDR";
-		}
-	}
-}
-
 void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 	IDXGIFactory7* factory, ID3D12CommandQueue* queue,
 	RTVDescriptor* rtvDescriptor, uint32_t width, uint32_t height,
@@ -90,30 +27,27 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 	}
 	if (swapChain_) throw std::logic_error("SwapChainは作成済みです");
 	device_ = device;
+	hwnd_ = winApp->GetHwnd();
+	factory_ = factory;
+	sdrFormat_ = format;
 	rtvDescriptor_ = rtvDescriptor;
 	// 表示用の2枚は実行フレーム数から独立させる
 	bufferCount_ = 2;
-	displayOutput_ = displayOutput;
-	displayOutput_.paperWhiteNits = std::clamp(
-		displayOutput_.paperWhiteNits, 80.0f, 1000.0f);
-	displayOutput_.maxLuminanceNits = std::clamp(
-		displayOutput_.maxLuminanceNits,
-		displayOutput_.paperWhiteNits, 10000.0f);
-	SwapChainOutputFormat outputFormat = ResolveOutputFormat(
-		format, displayOutput_.mode);
-	colorSpace_ = outputFormat.colorSpace;
+	outputState_.Refresh(hwnd_, factory_, displayOutput, true);
+	pendingOutput_ = outputState_;
+	DisplayOutputFormat outputFormat = DisplayOutputState::ResolveFormat(outputState_.GetSettings().mode, sdrFormat_);
 
 	// レンダーターゲットの設定
 	renderTarget_.width = width;
 	renderTarget_.height = height;
-	renderTarget_.format = outputFormat.rtvFormat;
+	renderTarget_.format = outputFormat.target;
 	renderTarget_.clearColor = clearColor;
 
 	swapChain_ = nullptr;
 	desc_ = {};
 	desc_.Width = width;
 	desc_.Height = height;
-	desc_.Format = outputFormat.bufferFormat;
+	desc_.Format = outputFormat.buffer;
 	desc_.SampleDesc.Count = 1;
 	desc_.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	desc_.BufferCount = bufferCount_;
@@ -135,30 +69,22 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 		throw std::runtime_error("SwapChainのInterfaceを取得できませんでした");
 	}
 
-	if (displayOutput_.mode != DisplayOutputMode::SDR &&
-		!SupportsDisplayOutput()) {
+	if (!outputState_.Apply(swapChain_.Get())) {
 
-		Logger::Output(LogType::Engine,
-			"表示出力{}を利用できないためSDRへ戻します",
-			GetDisplayOutputName(displayOutput_.mode));
-		displayOutput_.mode = DisplayOutputMode::SDR;
-		outputFormat = ResolveOutputFormat(format, displayOutput_.mode);
-		colorSpace_ = outputFormat.colorSpace;
-		desc_.Format = outputFormat.bufferFormat;
-		renderTarget_.format = outputFormat.rtvFormat;
-		const HRESULT fallbackResult = swapChain_->ResizeBuffers(
-			bufferCount_, width, height, desc_.Format, desc_.Flags);
-		if (!DxDREDDiagnostics::CheckHRESULT(device_, fallbackResult, "DxSwapChain::Create/SDRFallback")) {
-			throw std::runtime_error("SwapChainのSDR切り替えに失敗しました");
-		}
+		// 表示先が受け付けない形式はSDRへ戻す
+		outputState_.UseSDR(DisplayOutputFallback::ColorSpaceUnsupported);
+		outputFormat = DisplayOutputState::ResolveFormat(DisplayOutputMode::SDR, sdrFormat_);
+		desc_.Format = outputFormat.buffer;
+		renderTarget_.format = outputFormat.target;
+		if (FAILED(swapChain_->ResizeBuffers(bufferCount_, width, height, desc_.Format, desc_.Flags)) ||
+			!outputState_.Apply(swapChain_.Get())) throw std::runtime_error("SwapChainのSDR切替に失敗しました");
 	}
-	if (!ApplyDisplayOutput()) throw std::runtime_error("SwapChainの表示出力設定に失敗しました");
+	pendingOutput_ = outputState_;
 
 	if (!CreateBackBufferResources(true)) throw std::runtime_error("SwapChainのBackBuffer作成に失敗しました");
 	Logger::Output(LogType::Engine, "表示出力: {} ({:.0f}/{:.0f} nits)",
-		GetDisplayOutputName(displayOutput_.mode),
-		displayOutput_.paperWhiteNits,
-		displayOutput_.maxLuminanceNits);
+		static_cast<uint32_t>(outputState_.GetSettings().mode),
+		outputState_.GetSettings().paperWhiteNits, outputState_.GetSettings().maxLuminanceNits);
 }
 
 bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
@@ -184,72 +110,68 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 	desc_.Height = height;
 	renderTarget_.width = width;
 	renderTarget_.height = height;
-	if (!ApplyDisplayOutput()) throw std::runtime_error("SwapChainの表示出力設定に失敗しました");
+	if (!outputState_.Apply(swapChain_.Get())) throw std::runtime_error("SwapChainの表示出力設定に失敗しました");
 
 	if (!CreateBackBufferResources(false)) throw std::runtime_error("SwapChainのBackBuffer再作成に失敗しました");
 	return true;
 }
 
-bool DxSwapChain::SupportsDisplayOutput() const {
+bool DxSwapChain::RefreshDisplayOutput(const DisplayOutputSettings& requested, bool force) {
 
-	UINT colorSpaceSupport = 0;
-	if (!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
-		colorSpace_, &colorSpaceSupport), "DxSwapChain::SupportsDisplayOutput") ||
-		!(colorSpaceSupport &
-			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT)) {
-		return false;
-	}
-
-	ComPtr<IDXGIOutput> output{};
-	if (FAILED(swapChain_->GetContainingOutput(output.GetAddressOf()))) {
-		return false;
-	}
-	ComPtr<IDXGIOutput6> output6{};
-	if (FAILED(output.As(&output6))) {
-		return false;
-	}
-	DXGI_OUTPUT_DESC1 outputDesc{};
-	if (FAILED(output6->GetDesc1(&outputDesc))) {
-		return false;
-	}
-	return outputDesc.ColorSpace ==
-		DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+	return pendingOutput_.Refresh(hwnd_, factory_, requested, force);
 }
 
-bool DxSwapChain::ApplyDisplayOutput() {
+bool DxSwapChain::NeedsOutputResize() const {
 
-	UINT colorSpaceSupport = 0;
-	if (!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
-		colorSpace_, &colorSpaceSupport), "DxSwapChain::ApplyDisplayOutput/Support") ||
-		!(colorSpaceSupport &
-			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) ||
-		!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetColorSpace1(colorSpace_), "DxSwapChain::ApplyDisplayOutput/ColorSpace")) {
-		return false;
+	return desc_.Format != DisplayOutputState::ResolveFormat(pendingOutput_.GetSettings().mode, sdrFormat_).buffer;
+}
+
+bool DxSwapChain::ApplyPendingDisplayOutput() {
+
+	const DisplayOutputState previous = outputState_;
+	if (!NeedsOutputResize()) {
+
+		// 輝度だけの変更では描画資源に触れない
+		if (!pendingOutput_.Apply(swapChain_.Get())) {
+			if (!previous.Apply(swapChain_.Get())) throw std::runtime_error("SwapChainの表示設定を復元できませんでした");
+			pendingOutput_.RestoreOutput(previous);
+			outputState_ = pendingOutput_;
+			return false;
+		}
+		outputState_ = pendingOutput_;
+		return true;
+	}
+	auto apply = [&](DisplayOutputState& state) {
+		const auto format = DisplayOutputState::ResolveFormat(state.GetSettings().mode, sdrFormat_);
+		if (desc_.Format != format.buffer) {
+
+			// GPU完了後にバックバッファ参照を解除する
+			for (auto& resource : resources_) resource.Reset();
+			if (FAILED(swapChain_->ResizeBuffers(bufferCount_, desc_.Width, desc_.Height, format.buffer, desc_.Flags))) return false;
+			desc_.Format = format.buffer;
+		}
+		renderTarget_.format = format.target;
+		return state.Apply(swapChain_.Get()) && (resources_[0] || CreateBackBufferResources(false));
+	};
+	if (apply(pendingOutput_)) {
+		outputState_ = pendingOutput_;
+		return true;
 	}
 
-	if (displayOutput_.mode != DisplayOutputMode::HDR10) {
-		return DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
-			DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr), "DxSwapChain::ApplyDisplayOutput/SDR");
+	// HDR切替が失敗した場合は利用可能なSDR出力を試す
+	if (pendingOutput_.GetSettings().mode != DisplayOutputMode::SDR) {
+		pendingOutput_.UseSDR(DisplayOutputFallback::ColorSpaceUnsupported);
+		if (apply(pendingOutput_)) {
+			outputState_ = pendingOutput_;
+			return true;
+		}
 	}
-
-	DXGI_HDR_METADATA_HDR10 metadata{};
-	metadata.RedPrimary[0] = 35400;
-	metadata.RedPrimary[1] = 14600;
-	metadata.GreenPrimary[0] = 8500;
-	metadata.GreenPrimary[1] = 39850;
-	metadata.BluePrimary[0] = 6550;
-	metadata.BluePrimary[1] = 2300;
-	metadata.WhitePoint[0] = 15635;
-	metadata.WhitePoint[1] = 16450;
-	metadata.MaxMasteringLuminance = static_cast<uint32_t>(
-		displayOutput_.maxLuminanceNits * 10000.0f);
-	metadata.MinMasteringLuminance = 50;
-	metadata.MaxContentLightLevel = static_cast<uint16_t>(
-		displayOutput_.maxLuminanceNits);
-	metadata.MaxFrameAverageLightLevel = static_cast<uint16_t>(
-		displayOutput_.maxLuminanceNits * 0.5f);
-	return DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
-		DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata), "DxSwapChain::ApplyDisplayOutput/HDR");
+	DisplayOutputState recovery = previous;
+	if (!apply(recovery)) throw std::runtime_error("SwapChainの表示出力を復元できませんでした");
+	pendingOutput_.RestoreOutput(previous);
+	outputState_ = pendingOutput_;
+	Logger::Output(LogType::Engine, spdlog::level::err, "表示出力の変更に失敗したため旧出力を維持します");
+	return false;
 }
 
 bool DxSwapChain::CreateBackBufferResources(bool allocateDescriptors) {

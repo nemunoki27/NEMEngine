@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 
 // c++
@@ -58,6 +59,10 @@ namespace Engine {
 		RenderTexture2D* GetDisplayTexture(RenderViewKind kind, size_t colorIndex = 0);
 		const RenderTexture2D* GetDisplayTexture(RenderViewKind kind, size_t colorIndex = 0) const;
 
+		// 最後に描画した画像の輝度基準を保持する
+		void SetDisplayOutput(RenderViewKind kind, const DisplayOutputSettings& output) { GetSlot(kind).displayOutput = output; }
+		const DisplayOutputSettings& GetDisplayOutput(RenderViewKind kind) const { return GetSlot(kind).displayOutput; }
+
 		// 描画ビューのエイリアスの取得
 		static const char* GetViewAlias(RenderViewKind kind);
 		//描画ビューの名前取得
@@ -73,6 +78,7 @@ namespace Engine {
 		// 描画ビューのスロット
 		struct SurfaceSlot {
 
+			DisplayOutputSettings displayOutput{};
 			uint32_t width = 0;
 			uint32_t height = 0;
 			std::unique_ptr<MultiRenderTarget> surface;

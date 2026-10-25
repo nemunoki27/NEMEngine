@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -42,6 +43,9 @@ namespace Engine {
 		bool renderThisFrame = true;
 		// 既定の画面出力をこのフレームに描画するか
 		bool renderDefaultSurfaceThisFrame = true;
+
+		// 表示先の出力設定
+		DisplayOutputSettings displayOutput{};
 
 		// 出力サイズ
 		uint32_t width = 0;

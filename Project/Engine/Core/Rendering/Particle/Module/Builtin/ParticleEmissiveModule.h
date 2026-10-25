@@ -19,6 +19,8 @@ namespace Engine {
 		// 保存と実行に使う設定
 		struct Settings {
 
+			// 発光色に粒子の現在のRGBを使う
+			bool useParticleColor = true;
 			// 発光色の始点と終点
 			Color3 startColor = Color3::White();
 			Color3 endColor = Color3::White();

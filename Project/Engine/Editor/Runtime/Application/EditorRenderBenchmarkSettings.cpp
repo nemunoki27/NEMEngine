@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 
 // c++
@@ -13,6 +14,22 @@
 void Engine::EditorRenderBenchmark::InitComparisonConditions() {
 
 	InitCaptureSettings();
+	// 表示設定の切替を同じEditorのまま比較する
+	const auto outputSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_DISPLAY_OUTPUT");
+	if (!outputSequence.empty()) {
+		auto sequence = JsonFile::Load(outputSequence, false);
+		if (!sequence.is_array() || sequence.empty() || sequence.size() > 128 ||
+			std::any_of(sequence.begin(), sequence.end(), [](const auto& value) {
+				return !value.is_object() || !value.contains("mode") || !value["mode"].is_number_unsigned() || value["mode"] > 2;
+			})) throw std::runtime_error("表示出力の比較指定が不正です");
+		phaseCount_ = static_cast<uint32_t>(sequence.size());
+		report_["displayOutputSequence"] = std::move(sequence);
+		report_["comparison"] = "DisplayOutput";
+		report_["phaseCount"] = phaseCount_;
+		const auto& original = features_->GetPreferences().displayOutput;
+		report_["originalDisplayOutput"] = { {"mode", static_cast<uint32_t>(original.mode)},
+			{"paperWhiteNits", original.paperWhiteNits}, {"maxLuminanceNits", original.maxLuminanceNits} };
+	}
 	// AOの切替とパラメータ変更を同じCameraで比較する
 	const auto aoSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_AO");
 	if (!aoSequence.empty()) {
@@ -58,4 +75,21 @@ void Engine::EditorRenderBenchmark::InitComparisonConditions() {
 		report_["phaseCount"] = phaseCount_;
 		report_["frameContextSequence"] = std::move(sequence);
 	}
+}
+
+void Engine::EditorRenderBenchmark::BeginDisplayOutputPhase(GraphicsCore& graphicsCore) {
+
+	if (!report_.contains("displayOutputSequence")) return;
+	const auto& settings = report_["displayOutputSequence"][phase_];
+	features_->SetDisplayOutputMode(static_cast<DisplayOutputMode>(settings.at("mode").get<uint32_t>()));
+	features_->SetDisplayLuminance(settings.value("paperWhiteNits", 200.0f), settings.value("maxLuminanceNits", 1000.0f));
+	if (settings.contains("frameContextCount")) graphicsCore.RequestDoubleBuffering(settings.at("frameContextCount") == 2);
+}
+
+void Engine::EditorRenderBenchmark::RestoreDisplayOutput() {
+
+	if (!features_ || !report_.contains("originalDisplayOutput")) return;
+	const auto& original = report_["originalDisplayOutput"];
+	features_->SetDisplayOutputMode(static_cast<DisplayOutputMode>(original.at("mode").get<uint32_t>()));
+	features_->SetDisplayLuminance(original.at("paperWhiteNits").get<float>(), original.at("maxLuminanceNits").get<float>());
 }

@@ -105,6 +105,10 @@ namespace Engine {
 		void BeginPhase(GraphicsCore& graphicsCore);
 		// 比較する機能と段階数を検証環境から読み込む
 		void InitComparisonConditions();
+		// 表示出力を通常の設定窓口から切り替える
+		void BeginDisplayOutputPhase(GraphicsCore& graphicsCore);
+		// 検証前の表示設定へ戻す
+		void RestoreDisplayOutput();
 		// 画像と数値の保存範囲を指定する
 		void InitCaptureSettings();
 		// 今回の結果を保存して次の描画経路へ進む

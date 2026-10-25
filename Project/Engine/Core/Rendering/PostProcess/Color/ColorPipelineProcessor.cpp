@@ -113,7 +113,6 @@ void Engine::ColorPipelineProcessor::Release() {
 		state.bufferInitialized = false;
 	}
 	viewStates_.clear();
-	outputTransformLogged_ = false;
 	constantBufferAllocator_.Release();
 }
 
@@ -140,7 +139,7 @@ bool Engine::ColorPipelineProcessor::PrepareExposure(GraphicsCore& graphicsCore,
 	if (state.initialized && state.lastUpdatedFrame == frameSerial) return true;
 	const bool resetExposure = !state.initialized;
 	const ColorPipelineConstants constants = BuildConstants(
-		graphicsCore, context, *source, settings, resetExposure);
+		context, *source, settings, resetExposure);
 	const FrameConstantBufferAllocation allocation =
 		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), constants);
@@ -179,7 +178,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	if ((updateExposure || !state.initialized || state.world != context.world ||
 			!context.postProcessCamera.postProcessEnabled) &&
 		!PrepareExposure(graphicsCore, context, source, assetLibrary, pipelineCache, settings)) return false;
-	const auto constants = BuildConstants(graphicsCore, context, *source, settings, false);
+	const auto constants = BuildConstants(context, *source, settings, false);
 	const auto allocation = constantBufferAllocator_.AllocateAndUpload(
 		graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice(), constants);
 	if (!allocation.gpuAddress) return false;
@@ -193,89 +192,6 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	return drawn;
 }
 
-bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
-	GraphicsCore& graphicsCore, MultiRenderTarget* source,
-	RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache) {
-
-	if (!source || !source->GetColorTexture(0)) {
-		return false;
-	}
-	const MaterialAsset* material = assetLibrary.LoadMaterial(
-		BuiltinAssets::Materials::OutputTransform);
-	if (!material) {
-		return false;
-	}
-	const MaterialPassBinding* pass = FindPass(*material,
-		MaterialPassKind::Blit);
-	if (!pass) {
-		pass = FindPass(*material, MaterialPassKind::Fullscreen);
-	}
-	if (!pass || pass->preferredVariant == PipelineVariantKind::Compute ||
-		pass->preferredVariant == PipelineVariantKind::Raytracing) {
-		return false;
-	}
-
-	const DXGI_FORMAT backBufferFormat =
-		graphicsCore.GetBackBufferRenderTarget().format;
-	const PipelineState* pipeline = pipelineCache.GetORCreate(
-		graphicsCore.GetDXObject(), assetLibrary, pass->pipeline,
-		pass->preferredVariant,
-		std::span<const DXGI_FORMAT>(&backBufferFormat, 1),
-		DXGI_FORMAT_UNKNOWN);
-	if (!pipeline || !pipeline->GetGraphicsPipeline(BlendMode::Normal)) {
-		return false;
-	}
-
-	const DisplayOutputSettings& output =
-		graphicsCore.GetDisplayOutputSettings();
-	OutputTransformConstants constants{};
-	constants.outputMode = static_cast<uint32_t>(output.mode);
-	constants.paperWhiteNits = output.paperWhiteNits;
-	constants.maxLuminanceNits = output.maxLuminanceNits;
-	const FrameConstantBufferAllocation allocation =
-		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
-			graphicsCore.GetDXObject().GetDevice(), constants);
-	if (!allocation.gpuAddress) {
-		return false;
-	}
-
-	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-	auto* commandList = dxCommand->GetCommandList();
-	source->TransitionForShaderRead(*dxCommand);
-	dxCommand->SetDescriptorHeaps({
-		graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
-	commandList->SetGraphicsRootSignature(pipeline->GetRootSignature());
-	commandList->SetPipelineState(
-		pipeline->GetGraphicsPipeline(BlendMode::Normal));
-
-	outputTransformBindingCache_.Sync(*pipeline);
-	if (!outputTransformBindingCache_.Has(outputTransformConstantsSlot_) ||
-		!outputTransformBindingCache_.Has(outputTransformSourceSlot_)) {
-		return false;
-	}
-	RootBindingCommand::SetGraphicsCBV(commandList,
-		outputTransformBindingCache_.Get(outputTransformConstantsSlot_),
-		allocation.gpuAddress);
-	RootBindingCommand::SetGraphicsSRV(commandList,
-		outputTransformBindingCache_.Get(outputTransformSourceSlot_), 0,
-		source->GetColorTexture(0)->GetSRVGPUHandle());
-
-	const RenderTarget& backBuffer = graphicsCore.GetBackBufferRenderTarget();
-	dxCommand->BindRenderTargets(
-		std::optional<RenderTarget>(backBuffer), std::nullopt);
-	dxCommand->SetViewportAndScissor(backBuffer.width, backBuffer.height);
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	commandList->DrawInstanced(3, 1, 0, 0);
-	if (!outputTransformLogged_) {
-		Logger::Output(LogType::Engine,
-			"ColorPipelineの出力変換が有効です mode={} format={}",
-			static_cast<uint32_t>(output.mode),
-			static_cast<uint32_t>(backBuffer.format));
-		outputTransformLogged_ = true;
-	}
-	return true;
-}
-
 Engine::ColorPipelineProcessor::ViewExposureState&
 Engine::ColorPipelineProcessor::GetViewState(const std::string& key) {
 
@@ -284,7 +200,7 @@ Engine::ColorPipelineProcessor::GetViewState(const std::string& key) {
 
 Engine::ColorPipelineProcessor::ColorPipelineConstants
 Engine::ColorPipelineProcessor::BuildConstants(
-	GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+	const SceneExecutionContext& context,
 	const MultiRenderTarget& source,
 	const ColorPipelineSettings& settings, bool resetExposure) const {
 
@@ -323,8 +239,7 @@ Engine::ColorPipelineProcessor::BuildConstants(
 	constants.gamma = settings.colorGrading.gamma;
 	constants.gain = settings.colorGrading.gain;
 	constants.offset = settings.colorGrading.offset;
-	const DisplayOutputSettings& output =
-		graphicsCore.GetDisplayOutputSettings();
+	const DisplayOutputSettings& output = context.displayOutput;
 	constants.outputMode = static_cast<uint32_t>(output.mode);
 	constants.paperWhiteNits = output.paperWhiteNits;
 	constants.maxLuminanceNits = output.maxLuminanceNits;

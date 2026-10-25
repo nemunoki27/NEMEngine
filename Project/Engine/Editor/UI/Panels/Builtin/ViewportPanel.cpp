@@ -1,4 +1,5 @@
 #include "ViewportPanel.h"
+#include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
 #include "ViewportDecalGizmo.h"
 
 //============================================================================
@@ -126,6 +127,12 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 	ImGui::BeginChild(id, size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
+	// 次の描画要求へ実際の表示先を渡す
+	ImGuiViewport* viewport = ImGui::GetWindowViewport();
+	void* hwnd = viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw : viewport->PlatformHandle;
+	if (kind_ == ViewportPanelKind::Game) context.editorState->gameViewportWindow = hwnd;
+	else context.editorState->sceneViewportWindow = hwnd;
+
 	// ビューポートの種類に応じた描画ビューのサーフェスを取得
 	RenderViewKind viewKind = (kind_ == ViewportPanelKind::Game) ? RenderViewKind::Game : RenderViewKind::Scene;
 	InputViewArea inputArea = (kind_ == ViewportPanelKind::Game) ? InputViewArea::Game : InputViewArea::Scene;
@@ -204,7 +211,12 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			srcSize, InputViewCoordinateSpace::Screen);
 
 		// 描画画像を表示する
-		ImGui::Image(static_cast<ImTextureID>(imageSRV.ptr), viewSize_);
+		if (context.editorState->gbufferDebugView == GBufferDebugView::None) {
+			ImGuiDisplayOutput::DrawViewImage(static_cast<ImTextureID>(imageSRV.ptr), viewSize_,
+				context.viewportRenderService->GetDisplayOutput(viewKind).paperWhiteNits);
+		} else {
+			ImGui::Image(static_cast<ImTextureID>(imageSRV.ptr), viewSize_);
+		}
 
 		// 他のUIに隠れていない画像のホバーを記録する
 		if (context.editorState) {

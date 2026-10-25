@@ -31,6 +31,18 @@
 #pragma clang diagnostic ignored "-Wold-style-cast" // warning: use of old-style cast
 #endif
 
+struct IDXGISwapChain3;
+
+// NEM: Windowごとの表示形式とUIの輝度
+struct ImGui_ImplDX12_OutputConfig
+{
+    DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    DXGI_FORMAT RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    DXGI_FORMAT UIFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    float UIWhiteScale = 1.0f;
+    ImU64 Revision = 0;
+};
+
 // Initialization data, for ImGui_ImplDX12_Init()
 struct ImGui_ImplDX12_InitInfo
 {
@@ -40,6 +52,13 @@ struct ImGui_ImplDX12_InitInfo
     DXGI_FORMAT                 RTVFormat;          // RenderTarget format.
     DXGI_FORMAT                 DSVFormat;          // DepthStencilView format.
     void*                       UserData;
+
+    // NEM: 表示方針とHDR合成をEngineへ接続する
+    void*                       OutputUserData;
+    // 0で解決、1で適用、2で復元する
+    bool                        (*WindowOutputFn)(ImGui_ImplDX12_InitInfo*, ImGuiViewport*, IDXGISwapChain3*, ImGui_ImplDX12_OutputConfig*, int operation);
+    void                        (*RenderOutputFn)(ImGui_ImplDX12_InitInfo*, ImGuiViewport*, ID3D12GraphicsCommandList*, D3D12_CPU_DESCRIPTOR_HANDLE);
+    void                        (*DestroyOutputFn)(ImGui_ImplDX12_InitInfo*, ImGuiViewport*);
 
     // Allocating SRV descriptors for textures is up to the application, so we provide callbacks.
     // (current version of the backend will only allocate one descriptor, from 1.92 the backend will need to allocate more)
@@ -66,7 +85,7 @@ IMGUI_IMPL_API bool     ImGui_ImplDX12_PrepareFrameCount(int count);
 IMGUI_IMPL_API void     ImGui_ImplDX12_ApplyFrameCount();
 IMGUI_IMPL_API void     ImGui_ImplDX12_CancelFrameCount();
 IMGUI_IMPL_API void     ImGui_ImplDX12_NewFrame();
-IMGUI_IMPL_API void     ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* graphics_command_list);
+IMGUI_IMPL_API void     ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* graphics_command_list, const ImGui_ImplDX12_OutputConfig* output = nullptr);
 
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 // Legacy initialization API Obsoleted in 1.91.5
@@ -74,6 +93,11 @@ IMGUI_IMPL_API void     ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3
 // - When we introduced the ImGui_ImplDX12_InitInfo struct we also added a 'ID3D12CommandQueue* CommandQueue' field.
 IMGUI_IMPL_API bool     ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap* srv_descriptor_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle);
 #endif
+
+// NEM: 描画画像の基準白をUIと分けて設定する
+IMGUI_IMPL_API void     ImGui_ImplDX12_SetImageWhiteLevel(float nits);
+// NEM: 外部Windowの出力を記録開始前に同期する
+IMGUI_IMPL_API void     ImGui_ImplDX12_SyncDisplayOutputs();
 
 // Use if you want to reset your rendering device without losing Dear ImGui state.
 IMGUI_IMPL_API bool     ImGui_ImplDX12_CreateDeviceObjects();

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -68,6 +69,9 @@ std::shared_ptr<const ParticleSystemDefinition> ParticleDefinitionCompiler::Comp
 			module->SetInstanceID(entry.instanceID);
 			if (entry.id == "Rotation") module->SetStateSlot(compiled->stateCount++);
 			module->FromJson(entry.params);
+			if (entry.id == "Emissive") {
+				phase.useParticleColorForEmissive = static_cast<ParticleEmissiveModule&>(*module).GetSettings().useParticleColor;
+			}
 			const auto spawn = module->GetSpawnExecutionMode();
 			const auto update = module->GetUpdateExecutionMode();
 			AppendExecution(phase.spawnExecution, spawn, module.get());

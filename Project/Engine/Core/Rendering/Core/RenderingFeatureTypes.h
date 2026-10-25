@@ -87,6 +87,8 @@ namespace Engine {
 		DisplayOutputMode mode = DisplayOutputMode::SDR;
 		float paperWhiteNits = 200.0f;
 		float maxLuminanceNits = 1000.0f;
+
+		bool operator==(const DisplayOutputSettings&) const = default;
 	};
 
 	// ユーザー参照設定
@@ -121,7 +123,7 @@ namespace Engine {
 			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 		// 起動時に使用するフレームコンテキスト数
 		uint32_t frameContextCount = 2;
-		// 製品ランタイムのDisplay出力設定、エディターUIはSDR固定
+		// Editorと製品で共通の表示出力
 		DisplayOutputSettings displayOutput{};
 	};
 

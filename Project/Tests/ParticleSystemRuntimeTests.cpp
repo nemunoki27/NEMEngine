@@ -12,6 +12,8 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleLookToVelocityModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleBoxEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleRectEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmissionClock.h>
@@ -20,6 +22,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Systems/Effect/ParticleInstanceUpdater.h>
+#include <Engine/Core/World/Systems/Effect/ParticleModuleExecution.h>
 #include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
@@ -27,6 +30,7 @@
 #include <Engine/Editor/UI/Inspectors/Particle/ParticleSettingsEditSession.h>
 
 // c++
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -106,6 +110,61 @@ namespace {
 		return restored.GetParameters().contains("dissolve") &&
 			restored.GetParameters().at("dissolve").constant.x == 0.0f &&
 			!restored.GetParameters().contains("edgeWidth");
+	}
+
+	bool TestEmissiveCurrentColor() {
+
+		ParticleEmissiveModule emissive;
+		if (!emissive.GetSettings().useParticleColor) return false;
+		auto emission = emissive.GetSettings();
+		emission.startColor = Color3(0.9f, 0.1f, 0.3f);
+		emission.endColor = Color3(0.1f, 0.5f, 0.7f);
+		emission.startIntensity = 2.0f;
+		emission.endIntensity = 6.0f;
+		emission.colorEasingType = EasingType::Linear;
+		emission.intensityEasingType = EasingType::Linear;
+		ParticleColorOverLifetimeModule color;
+		auto colorSettings = color.GetSettings();
+		colorSettings.startColor = Color4(0.2f, 0.4f, 0.8f, 0.1f);
+		colorSettings.endColor = Color4(0.8f, 0.6f, 0.2f, 0.7f);
+		colorSettings.easingType = EasingType::Linear;
+		color.SetSettings(colorSettings);
+		ParticleDefinitionCompiler compiler;
+		// 参照の切替と並び替えを、通常更新と一括更新の両方で確認する
+		for (bool follow : {false, true}) for (bool reverse : {false, true}) {
+			emission.useParticleColor = follow;
+			emissive.SetSettings(emission);
+			ParticleEmissiveModule restored;
+			restored.FromJson(emissive.ToJson());
+			if (restored.GetSettings().useParticleColor != follow) return false;
+			auto settings = MakeDefaultParticleSystemSettings();
+			settings.phases[0].modules = {{"ColorOverLifetime", color.ToJson()}, {"Emissive", emissive.ToJson()}};
+			if (reverse) std::reverse(settings.phases[0].modules.begin(), settings.phases[0].modules.end());
+			const auto definition = compiler.Resolve(std::make_shared<const ParticleSystemSettings>(settings));
+			for (float age : {0.0f, 0.25f, 1.0f}) {
+				Particle single;
+				single.age = age;
+				Particle batch = single;
+				ParticleModuleExecution::ApplyUpdateModules(single, definition->phases[0], 0.0f);
+				ParticleModuleExecution::ExecuteUpdateModules(std::span<Particle>(&batch, 1), definition->phases[0], 0.0f);
+				const Color4 expectedColor = Color4::Lerp(colorSettings.startColor, colorSettings.endColor, age);
+				const Color3 expectedRGB = follow ? Color3(expectedColor.r, expectedColor.g, expectedColor.b) :
+					Color3::Lerp(emission.startColor, emission.endColor, age);
+				const Vector4 expected(expectedRGB.r, expectedRGB.g, expectedRGB.b, 2.0f + 4.0f * age);
+				const Vector4 difference = single.emissive - expected;
+				if ((std::max)({std::abs(difference.x), std::abs(difference.y), std::abs(difference.z), std::abs(difference.w)}) >
+					0.0001f || batch.emissive != single.emissive) return false;
+			}
+		}
+		// 未指定の保存値は既定の参照状態へ戻す
+		emission.useParticleColor = false;
+		emissive.SetSettings(emission);
+		emissive.FromJson(nlohmann::json::object());
+		if (!emissive.GetSettings().useParticleColor) return false;
+		Particle particle;
+		particle.color = Color4(0.3f, 0.6f, 0.9f, 0.0f);
+		emissive.OnUpdate(particle, 0.0f);
+		return particle.emissive == Vector4(0.3f, 0.6f, 0.9f, 2.0f);
 	}
 
 	ParticleSystemSettings MakeSettings() {
@@ -293,7 +352,7 @@ bool NEMTests::TestParticleSystemRuntime() {
 	auto duplicate = saved;
 	duplicate["phases"][1]["id"] = duplicate["phases"][0]["id"];
 	if (FromJson(duplicate, restored) || ToJson(restored) != saved) return false;
-	return TestEmissionAndRotation() && TestCurveAndCustomParameter() &&
+	return TestEmissionAndRotation() && TestCurveAndCustomParameter() && TestEmissiveCurrentColor() &&
 		TestInstanceShapeAndSeed() && TestPauseAndParent() && TestGPURejectionAndRetry() && TestSettingsOwnership() &&
 		TestParticleSystemTrails() && TestParticleGPUProgram();
 }

@@ -21,6 +21,7 @@ ParticleGPUCurveSample ParticleCurve(ParticleGPUInstruction instruction, float p
 void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, bool spawn, uint seed, uint particleIndex) {
 	ParticleGPUPhase phase = gGPUPhases[particle.phase];
 	float progress = particle.positionAge.w / max(particle.velocityLifetime.w, 0.001f);
+	bool useParticleColorForEmissive = false;
 	for (uint i = 0; i < phase.instructionCount; ++i) {
 		uint index = phase.instructionOffset + i;
 		ParticleGPUInstruction instruction = gGPUInstructions[index];
@@ -31,7 +32,10 @@ void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, b
 		case 0u: particle.color = sample.value0; break;
 		case 1u: particle.scaleSize.w = sample.value0.x; break;
 		case 2u: particle.scaleSize.xyz = sample.value0.xyz; break;
-		case 3u: particle.emissive = sample.value0; break;
+		case 3u:
+			particle.emissive = sample.value0;
+			useParticleColorForEmissive = (instruction.flags & 1u) != 0;
+			break;
 		case 4u: particle.uvRotationPivotAlpha.w = sample.value0.x; break;
 		case 5u:
 			particle.uv.xy = instruction.flags != 0 ? particle.uv.xy + instruction.parameter0.xy * deltaTime : sample.value0.xy;
@@ -101,6 +105,8 @@ void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, b
 		}
 		}
 	}
+	// Moduleの並び順にかかわらず、確定した現在色を使う
+	if (useParticleColorForEmissive) particle.emissive.xyz = particle.color.rgb;
 }
 
 #endif

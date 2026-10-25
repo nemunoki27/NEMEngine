@@ -59,7 +59,7 @@ ImGuiManager* ImGuiManager::instance_ = nullptr;
 //	ImGuiManager classMethods
 //============================================================================
 void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
-	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) try {
+	SRVDescriptor* srvDescriptor, [[maybe_unused]] DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat, GraphicsCore& graphicsCore) try {
 
 	if (initialized_) {
 		return;
@@ -96,7 +96,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.Device = device;
 	dxInitInfo.CommandQueue = commandQueue;
 	dxInitInfo.NumFramesInFlight = bufferCount;
-	dxInitInfo.RTVFormat = rtvFormat;
+	dxInitInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	dxInitInfo.DSVFormat = dsvFormat;
 	dxInitInfo.SrvDescriptorHeap = srvDescriptor->GetDescriptorHeap();
 	dxInitInfo.UserData = this;
@@ -104,6 +104,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.ResourceRetireFn = &ImGuiManager::RetireResource;
 	dxInitInfo.SrvDescriptorAllocFn = &ImGuiManager::AllocateSRVDescriptor;
 	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
+	displayOutput_.Init(graphicsCore, dxInitInfo);
 	rendererInitialized_ = ImGui_ImplDX12_Init(&dxInitInfo);
 	if (!rendererInitialized_) {
 		throw std::runtime_error("ImGuiの描画初期化に失敗しました");
@@ -132,7 +133,9 @@ void ImGuiManager::Begin() {
 		return;
 	}
 
+	displayOutput_.Begin();
 	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplDX12_SyncDisplayOutputs();
 	CheckGPUFailure();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
@@ -161,7 +164,7 @@ void ImGuiManager::Draw(ID3D12GraphicsCommandList* commandList) {
 	ID3D12DescriptorHeap* heaps[] = {srvDescriptor_->GetDescriptorHeap()};
 	commandList->SetDescriptorHeaps(1, heaps);
 
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+	displayOutput_.Draw(commandList);
 	CheckGPUFailure();
 }
 
@@ -194,6 +197,8 @@ void ImGuiManager::Finalize() {
 		ImGui::DestroyContext();
 		contextCreated_ = false;
 	}
+
+	displayOutput_.Finalize();
 
 	// 初期化前の失敗でも借用を解除
 	imguiSRVIndices_.clear();

@@ -165,11 +165,24 @@ void Engine::RenderTexture2D::Destroy() {
 
 void Engine::RenderTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState) {
 
+	if (!NeedsTransition(newState)) return;
+	dxCommand.TransitionBarriers(resource_.Get(), currentState_, newState);
+	currentState_ = newState;
+}
+
+void Engine::RenderTexture2D::Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES newState) {
+
 	// すでにリソースが存在していない場合や、現在の状態と遷移先の状態が同じ場合は遷移しない
-	if (!resource_ || currentState_ == newState || CanReuseShaderRead(currentState_, newState)) {
+	if (!NeedsTransition(newState)) {
 		return;
 	}
-	dxCommand.TransitionBarriers(resource_.Get(), currentState_, newState);
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Transition.pResource = resource_.Get();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = currentState_;
+	barrier.Transition.StateAfter = newState;
+	commandList->ResourceBarrier(1, &barrier);
 	currentState_ = newState;
 }
 
@@ -214,4 +227,9 @@ void Engine::RenderTexture2D::Swap(RenderTexture2D& other) noexcept {
 	std::swap(rtvIndex_, other.rtvIndex_);
 	std::swap(srvIndex_, other.srvIndex_);
 	std::swap(uavIndex_, other.uavIndex_);
+}
+
+bool Engine::RenderTexture2D::NeedsTransition(D3D12_RESOURCE_STATES newState) const {
+
+	return resource_ && currentState_ != newState && !CanReuseShaderRead(currentState_, newState);
 }

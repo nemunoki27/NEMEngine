@@ -62,6 +62,14 @@ using namespace Engine;
 //	RenderPipelineRunner classMethods
 //============================================================================
 
+bool RenderPipelineRunner::PresentTexture(GraphicsCore& graphicsCore, ID3D12GraphicsCommandList* commandList,
+	D3D12_GPU_DESCRIPTOR_HANDLE source, const RenderTarget& target,
+	const DisplayOutputSettings& output, float sourceWhiteNits) {
+
+	return colorPipelineProcessor_.PresentTexture(graphicsCore, commandList, source, target,
+		output, sourceWhiteNits, renderAssetLibrary_, pipelineStateCache_);
+}
+
 bool RenderPipelineRunner::PresentViewToBackBuffer(
 	GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material) {
 
@@ -279,6 +287,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.kind = kind;
 	context.sceneInstance = sceneInstance;
 	context.view = &view;
+	if (const auto* viewRequest = request.FindView(kind); viewRequest && !view.targetTexture) {
+		context.displayOutput = viewRequest->displayOutput;
+	}
 	context.gameView = gameViewState_.view.valid ? &gameViewState_.view : nullptr;
 	// SceneViewの描画カメラは変えず、設定に応じてカリングカメラだけを切り替える
 	const bool useGameViewCameraForSceneCulling = graphicsCore.GetDXObject()

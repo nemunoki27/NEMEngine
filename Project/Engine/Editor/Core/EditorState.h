@@ -180,6 +180,9 @@ namespace Engine {
 		// Panel内容の可視状態を次の描画要求へ渡す
 		bool sceneViewportVisible = true;
 		bool gameViewportVisible = true;
+		// View画像を表示しているネイティブWindow
+		void* gameViewportWindow = nullptr;
+		void* sceneViewportWindow = nullptr;
 		// SceneView/GameViewのImageが最前面でホバーされているか、ViewportPanelが毎フレーム更新する
 		bool sceneViewportHovered = false;
 		bool gameViewportHovered = false;

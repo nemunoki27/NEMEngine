@@ -326,6 +326,7 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	HandleGlobalShortcuts(context);
 	ApplyPendingPanelDuplicate(panelContext);
 
+	if (renderPipeline) imguiManager_.SetOutputRenderer(*renderPipeline);
 	imguiManager_.End();
 	if (ImGui::GetIO().WantSaveIniSettings) {
 

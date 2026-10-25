@@ -123,6 +123,7 @@ void Framework::Tick() {
 		return;
 	}
 	// ウィンドウ変更を描画と入力更新より前に反映する
+	graphicsCore_->SyncDisplayOutput();
 	graphicsCore_->SyncWindowSize();
 
 	// UIや描画用の更新が始まる前にフレーム資源を切り替える

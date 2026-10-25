@@ -91,10 +91,25 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			}
 		}
 	}
+	DisplayOutputSettings gameOutput = graphicsCore.GetDisplayOutputSettings();
+	DisplayOutputSettings sceneOutput = gameOutput;
+	if constexpr (BuildConfig::kEditorEnabled) {
+		if (!editorManager_.GetLayoutState().hidePanels) {
+			gameOutput = editorManager_.GetViewDisplayOutput(RenderViewKind::Game);
+			sceneOutput = editorManager_.GetViewDisplayOutput(RenderViewKind::Scene);
+		}
+	}
+	// 出力変更時は副Viewもそのフレームで更新する
+	if (gameOutput != previousGameOutput_) renderGameView = showGameView;
+	if (sceneOutput != previousSceneOutput_) renderSceneView = showSceneView;
+	previousGameOutput_ = gameOutput;
+	previousSceneOutput_ = sceneOutput;
+
 	// ゲームビューの要求を構築
 	{
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
 		viewRequest.kind = RenderViewKind::Game;
+		viewRequest.displayOutput = gameOutput;
 		// Camera情報とRenderTexture出力はPanel非表示中も維持する
 		viewRequest.enabled = true;
 		viewRequest.renderThisFrame = true;
@@ -109,6 +124,7 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	{
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
 		viewRequest.kind = RenderViewKind::Scene;
+		viewRequest.displayOutput = sceneOutput;
 		viewRequest.enabled = BuildConfig::kEditorEnabled;
 		viewRequest.renderThisFrame = renderSceneView;
 		viewRequest.renderDefaultSurfaceThisFrame = renderSceneView;

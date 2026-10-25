@@ -119,6 +119,8 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 
 void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 
+	BeginDisplayOutputPhase(graphicsCore);
+
 	// 通常の切替要求を使って再起動なしの描画を比較する
 	if (report_.contains("frameContextSequence")) {
 		graphicsCore.RequestDoubleBuffering(report_["frameContextSequence"][phase_].get<uint32_t>() == 2);
@@ -140,7 +142,7 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 	// 同じSceneで機能の切替前後を計測
 	features_->SetAllowMeshShader(sceneSequence_.empty() && !report_.contains("ambientOcclusionSequence") &&
 		!report_.contains("shadowSequence") && !report_.contains("transformSequence") &&
-		!report_.contains("frameContextSequence") ? phase_ != 1 : originalMeshShader_);
+		!report_.contains("frameContextSequence") && !report_.contains("displayOutputSequence") ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
 	capturedIntervalCount_ = 0;
@@ -411,6 +413,11 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 	report_["phases"].push_back({ { "phase", phase_ },
 		{ "meshShader", features_->ShouldUseMeshShader() },
 		{ "frameContextCount", GraphicsFrameState::GetActiveCount() },
+		{ "displayOutput", {{"mode", static_cast<uint32_t>(graphicsCore.GetDisplayOutputSettings().mode)},
+			{"format", static_cast<uint32_t>(graphicsCore.GetBackBufferRenderTarget().format)},
+			{"paperWhiteNits", graphicsCore.GetDisplayOutputSettings().paperWhiteNits},
+			{"maxLuminanceNits", graphicsCore.GetDisplayOutputSettings().maxLuminanceNits},
+			{"uiWhiteNits", graphicsCore.GetDisplayOutputState().GetUIWhiteNits()}} },
 		{ "frames", std::move(frames_) } });
 	if (continuousCapture_) report_["intervalCount"] = capturedIntervalCount_;
 	report_.erase("continuousFrames");
@@ -447,6 +454,7 @@ void Engine::EditorRenderBenchmark::Finalize() {
 	if (features_) {
 		features_->SetAllowMeshShader(originalMeshShader_);
 	}
+	RestoreDisplayOutput();
 	application_->Finalize();
 	if (diagnostics_) diagnostics_->UnregisterMessageCallback(diagnosticsCookie_);
 	diagnostics_.Reset();

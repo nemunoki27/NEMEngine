@@ -28,6 +28,8 @@ namespace Engine {
 		std::vector<ParticleModuleExecutionGroup> updateExecution;
 		bool hasSpawnBatch = false;
 		bool hasUpdateBatch = false;
+		// 最後の発光Moduleが粒子の現在色を参照するか
+		bool useParticleColorForEmissive = false;
 	};
 
 	// 設定のSnapshotと、1つのSystemの実行順を共有する

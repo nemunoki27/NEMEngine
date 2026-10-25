@@ -1,5 +1,6 @@
 #include "TestSuite.h"
 #include "BloomTests.h"
+#include "DisplayOutputTests.h"
 #include "RectLightTests.h"
 #include "DecalTests.h"
 
@@ -244,6 +245,7 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestEditorTransactionRollback", TestEditorTransactionRollback) ||
 		!RunTest("TestRenderPassesReflectionCache", TestRenderPassesReflectionCache) ||
 		!RunTest("TestBloomSettings", TestBloomSettings) ||
+		!RunTest("TestDisplayOutputSettings", TestDisplayOutputSettings) ||
 		!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension) ||
 		!RunTest("TestPostProcessPublication", TestPostProcessPublication) ||
 		!RunTest("TestPostProcessLivePreview", TestPostProcessLivePreview)) {

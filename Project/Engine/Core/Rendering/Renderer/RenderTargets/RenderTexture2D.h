@@ -60,6 +60,7 @@ namespace Engine {
 
 		// リソースの状態を遷移
 		void Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState);
+		void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES newState);
 		// 同じ同期地点の色Textureをまとめて遷移する
 		static void TransitionAll(DxCommand& dxCommand, std::span<RenderTexture2D* const> textures,
 			D3D12_RESOURCE_STATES newState);
@@ -110,6 +111,8 @@ namespace Engine {
 		uint32_t rtvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
+		// 既存の読み取り状態を再利用できるか判定する
+		bool NeedsTransition(D3D12_RESOURCE_STATES newState) const;
 		// 完成した資源と管理状態を交換する
 		void Swap(RenderTexture2D& other) noexcept;
 

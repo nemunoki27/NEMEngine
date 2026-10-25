@@ -120,14 +120,14 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			ImGui::EndMenu();
 		}
 
-		// 製品の出力形式と輝度を設定
+		// 表示出力の形式と輝度を設定
 		if (ImGui::BeginMenu("表示出力")) {
 			const char* outputModeLabels[] = {"SDR", "HDR10", "scRGB"};
 			int outputMode = static_cast<int>(preferences.displayOutput.mode);
 			if (ImGui::Combo("出力モード", &outputMode, outputModeLabels, 3)) {
 				featureController.SetDisplayOutputMode(static_cast<DisplayOutputMode>(outputMode));
 			}
-			DrawGraphicsTooltip("製品ランタイムのSwapChain形式と色空間を変更します");
+			DrawGraphicsTooltip("Editorと製品の表示出力を変更します");
 
 			float paperWhiteNits = preferences.displayOutput.paperWhiteNits;
 			float maxLuminanceNits = preferences.displayOutput.maxLuminanceNits;
@@ -139,7 +139,15 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 				featureController.SetDisplayLuminance(paperWhiteNits, maxLuminanceNits);
 			}
 			DrawGraphicsTooltip("HDR10メタデータと最終出力変換に使用します");
-			ImGui::TextDisabled("NEMEditorはSDR固定、変更は製品ランタイム再起動後に反映");
+			const auto& display = context.graphicsCore->GetDisplayOutputState();
+			ImGui::Text("現在の出力: %s", outputModeLabels[static_cast<int>(display.GetSettings().mode)]);
+			if (display.GetFallback() == DisplayOutputFallback::HDRUnavailable) {
+				ImGui::TextDisabled("この画面でHDRを使用できません。WindowsのHDR設定を確認してください");
+			} else if (display.GetFallback() == DisplayOutputFallback::ReconfigurationFailed) {
+				ImGui::TextDisabled("指定の出力へ変更できないため、現在の出力を維持しています");
+			} else if (display.GetFallback() != DisplayOutputFallback::None) {
+				ImGui::TextDisabled("この画面で指定の出力を使用できないためSDRで表示しています");
+			}
 			ImGui::EndMenu();
 		}
 

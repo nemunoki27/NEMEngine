@@ -245,7 +245,7 @@ void Engine::GraphicsFeatureController::SetDisplayOutputMode(
 	preferences_.displayOutput.mode = mode;
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"表示出力: {} 再起動後に反映されます",
+		"表示出力を変更しました: {}",
 		EnumAdapter<DisplayOutputMode>::ToString(mode));
 }
 

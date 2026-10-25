@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorUVModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
@@ -189,7 +190,9 @@ namespace {
 		if (!operation) throw std::invalid_argument("GPU未対応のModuleです: " + id);
 		ParticleGPUInstruction instruction;
 		instruction.operation = *operation;
-		if (*operation == ParticleGPUOperation::UV) {
+		if (*operation == ParticleGPUOperation::Emissive) {
+			instruction.flags = static_cast<ParticleEmissiveModule&>(module).GetSettings().useParticleColor ? 1u : 0u;
+		} else if (*operation == ParticleGPUOperation::UV) {
 			const auto& settings = static_cast<ParticleColorUVModule&>(module).GetSettings();
 			instruction.flags = settings.updateType == ParticleUVUpdateType::Scroll ? 1u : 0u;
 			instruction.parameter0 = Vector4(settings.scrollSpeed.x, settings.scrollSpeed.y, 0, 0);

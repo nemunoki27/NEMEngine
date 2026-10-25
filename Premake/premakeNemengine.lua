@@ -170,6 +170,7 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipEditorUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Animation/AnimationClipQuaternionUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Animation/Curves/CurveEditorState.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiDisplayOutput.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveViewGeometry.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveKeyUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveSelection.cpp"),

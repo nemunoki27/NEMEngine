@@ -11096,6 +11096,27 @@
                                             },
                                             "useCurve": true
                                         }
+                                    },
+                                    {
+                                        "id": "Emissive",
+                                        "instanceID": "54198d446af777db",
+                                        "params": {
+                                            "colorEasingType": "EaseOutSine",
+                                            "endColor": {
+                                                "b": 1.0,
+                                                "g": 1.0,
+                                                "r": 1.0
+                                            },
+                                            "endIntensity": 4.0,
+                                            "intensityEasingType": "EaseOutSine",
+                                            "startColor": {
+                                                "b": 1.0,
+                                                "g": 1.0,
+                                                "r": 1.0
+                                            },
+                                            "startIntensity": 4.0,
+                                            "useParticleColor": true
+                                        }
                                     }
                                 ],
                                 "name": "Phase",

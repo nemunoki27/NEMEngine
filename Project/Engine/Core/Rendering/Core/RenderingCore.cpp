@@ -46,10 +46,6 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	swapChain_ = std::make_unique<DxSwapChain>();
 	DisplayOutputSettings displayOutput = graphicsPlatform_->GetFeatureController()
 		.GetPreferences().displayOutput;
-	if (usesEditorUI) {
-		// ImGuiのPlatform Windowを含むエディター出力はSDRへ統一する
-		displayOutput.mode = DisplayOutputMode::SDR;
-	}
 	swapChain_->Create(engineContext_->GetWinApp(), device, graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetCommandQueue()->GetQueue(),
 		rtvDescriptor_.get(), frameWidth, frameHeight, graphics.swapChainFormat,
 		graphics.clearColor, displayOutput);
@@ -88,6 +84,8 @@ void Engine::GraphicsCore::SyncWindowSize() {
 		return;
 	}
 
+	// 表示先変更と同時のリサイズでも旧HDR設定を使わない
+	SyncDisplayOutput(true);
 	const uint32_t previousWidth = swapChain_->GetDesc().Width;
 	const uint32_t previousHeight = swapChain_->GetDesc().Height;
 	graphicsPlatform_->WaitForGPU();
@@ -96,6 +94,14 @@ void Engine::GraphicsCore::SyncWindowSize() {
 		Logger::Output(LogType::Engine, "SwapChainをリサイズしました: {}x{} -> {}x{}",
 			previousWidth, previousHeight, width, height);
 	}
+}
+
+void Engine::GraphicsCore::SyncDisplayOutput(bool force) {
+
+	const auto& requested = graphicsPlatform_->GetFeatureController().GetPreferences().displayOutput;
+	if (!swapChain_->RefreshDisplayOutput(requested, force)) return;
+	if (swapChain_->NeedsOutputResize()) graphicsPlatform_->WaitForGPU();
+	swapChain_->ApplyPendingDisplayOutput();
 }
 
 void Engine::GraphicsCore::BeginRenderFrame() {

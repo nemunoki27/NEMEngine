@@ -13,12 +13,14 @@ bool ParticleEmissiveModuleDrawer::Draw(IParticleModule& module) {
 	}
 	auto settings = concrete->GetSettings();
 
-	bool changed = false;
+	bool changed = MyGUI::Checkbox("現在の色で発光", settings.useParticleColor);
+	ImGui::BeginDisabled(settings.useParticleColor);
 	ImGui::PushID("色");
 	changed |= MyGUI::ColorEdit("開始色", settings.startColor).valueChanged;
 	changed |= MyGUI::ColorEdit("終了色", settings.endColor).valueChanged;
 	changed |= ParticleGUI::DrawInterpolationEasing(settings.colorEasingType);
 	ImGui::PopID();
+	ImGui::EndDisabled();
 
 	ImGui::PushID("強度");
 	changed |= MyGUI::DragFloat("開始強度", settings.startIntensity, ParticleGUI::MakeDragSetting(0.0f, 100.0f)).valueChanged;

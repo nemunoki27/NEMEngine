@@ -35,7 +35,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	// ImGuiの初期化
 	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), GraphicsFrameState::GetActiveCount(),
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetCommandQueue()->GetQueue(), &graphicsCore.GetSRVDescriptor(),
-		graphicsCore.GetBackBufferRenderTarget().format, DXGI_FORMAT_D24_UNORM_S8_UINT);
+		graphicsCore.GetBackBufferRenderTarget().format, DXGI_FORMAT_D24_UNORM_S8_UINT, graphicsCore);
 	initialized_ = true;
 
 	// ImGuizmoのImGuiコンテキストを設定
@@ -131,4 +131,10 @@ void Engine::EditorManager::Finalize() {
 	if (failure) {
 		std::rethrow_exception(failure);
 	}
+}
+
+Engine::DisplayOutputSettings Engine::EditorManager::GetViewDisplayOutput(RenderViewKind kind) const {
+
+	const HWND hwnd = static_cast<HWND>(kind == RenderViewKind::Game ? editorState_.gameViewportWindow : editorState_.sceneViewportWindow);
+	return imguiManager_.GetDisplayOutputSettings(hwnd);
 }

@@ -6,7 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
-#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Core/DisplayOutputState.h>
 
 // c++
 #include <array>
@@ -44,6 +44,12 @@ namespace Engine {
 			const DisplayOutputSettings& displayOutput);
 		// バックバッファを指定サイズへ再作成する
 		bool Resize(uint32_t width, uint32_t height);
+		// 次のフレームで使用する表示出力を解決する
+		bool RefreshDisplayOutput(const DisplayOutputSettings& requested, bool force = false);
+		// バックバッファの形式変更が必要か
+		bool NeedsOutputResize() const;
+		// GPU完了後に表示出力を切り替える
+		bool ApplyPendingDisplayOutput();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -56,7 +62,8 @@ namespace Engine {
 		// 現在のレンダーターゲット情報を取得する
 		const RenderTarget& GetRenderTarget();
 		const DXGI_SWAP_CHAIN_DESC1& GetDesc() const { return desc_; }
-		const DisplayOutputSettings& GetDisplayOutputSettings() const { return displayOutput_; }
+		const DisplayOutputSettings& GetDisplayOutputSettings() const { return outputState_.GetSettings(); }
+		const DisplayOutputState& GetDisplayOutputState() const { return outputState_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -73,9 +80,11 @@ namespace Engine {
 
 		ComPtr<IDXGISwapChain4> swapChain_;
 		DXGI_SWAP_CHAIN_DESC1 desc_{};
-		DisplayOutputSettings displayOutput_{};
-		DXGI_COLOR_SPACE_TYPE colorSpace_ =
-			DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+		DisplayOutputState outputState_{};
+		DisplayOutputState pendingOutput_{};
+		HWND hwnd_ = nullptr;
+		IDXGIFactory* factory_ = nullptr;
+		DXGI_FORMAT sdrFormat_ = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		std::array<ComPtr<ID3D12Resource>,
 			kGraphicsFrameContextCount> resources_;
@@ -88,7 +97,5 @@ namespace Engine {
 
 		// バックバッファとRTVを取得して保持する
 		bool CreateBackBufferResources(bool allocateDescriptors);
-		bool SupportsDisplayOutput() const;
-		bool ApplyDisplayOutput();
 	};
 }; // Engine

@@ -41,6 +41,8 @@ namespace Engine {
 		void TickFrameServices();
 		// 実クライアントサイズへバックバッファを同期する
 		void SyncWindowSize();
+		// UIと描画の開始前に表示出力を同期する
+		void SyncDisplayOutput(bool force = false);
 
 		// 次の更新開始前にダブルバッファリングを切り替える
 		void RequestDoubleBuffering(bool enabled);
@@ -85,6 +87,8 @@ namespace Engine {
 		ID3D12Resource* GetBackBufferResource() const { return swapChain_->GetCurrentResource(); }
 		const DXGI_SWAP_CHAIN_DESC1& GetSwapChainDesc() const { return swapChain_->GetDesc(); }
 		const DisplayOutputSettings& GetDisplayOutputSettings() const { return swapChain_->GetDisplayOutputSettings(); }
+
+		const DisplayOutputState& GetDisplayOutputState() const { return swapChain_->GetDisplayOutputState(); }
 
 		// フレームバッファのDSVを取得
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetFrameDepthHandle() const { return dsvDescriptor_->GetFrameCPUHandle(); }

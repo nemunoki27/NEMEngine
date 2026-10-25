@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
@@ -60,6 +62,10 @@ namespace Engine {
 		bool PresentToBackBuffer(GraphicsCore& graphicsCore,
 			MultiRenderTarget* source, RenderAssetLibrary& assetLibrary,
 			PipelineStateCache& pipelineCache);
+		// 指定された描画先へ線形画像を出力変換する
+		bool PresentTexture(GraphicsCore& graphicsCore, ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE source, const RenderTarget& target, const DisplayOutputSettings& output,
+			float sourceWhiteNits, RenderAssetLibrary& assetLibrary, PipelineStateCache& pipelineCache);
 	private:
 		//============================================================================
 		//	private Methods
@@ -143,7 +149,6 @@ namespace Engine {
 
 		std::unordered_map<std::string, ViewExposureState> viewStates_{};
 		FrameConstantBufferAllocator constantBufferAllocator_{};
-		bool outputTransformLogged_ = false;
 
 		PipelineBindingCache exposureBindingCache_{};
 		PipelineBindingCache toneMapBindingCache_{};
@@ -163,8 +168,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		ViewExposureState& GetViewState(const std::string& key);
-		ColorPipelineConstants BuildConstants(GraphicsCore& graphicsCore,
-			const SceneExecutionContext& context,
+		ColorPipelineConstants BuildConstants(const SceneExecutionContext& context,
 			const MultiRenderTarget& source, const ColorPipelineSettings& settings,
 			bool resetExposure) const;
 		bool UpdateExposure(GraphicsCore& graphicsCore, const SceneExecutionContext& context,

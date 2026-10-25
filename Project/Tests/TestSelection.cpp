@@ -1,5 +1,6 @@
 #include "TestSelection.h"
 #include "BloomTests.h"
+#include "DisplayOutputTests.h"
 #include "FrameBufferingTests.h"
 #include "GPUFilterTestFixture.h"
 #include "RectLightTests.h"
@@ -35,6 +36,11 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--display-output") {
+		return RunTest("TestDisplayOutputSettings", TestDisplayOutputSettings) &&
+			RunTest("TestDisplayOutputGPU", TestDisplayOutputGPU) &&
+			RunTest("TestDisplayOutputImGuiGPU", TestDisplayOutputImGuiGPU) ? 0 : 72;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--particles") {
 		return RunTest("TestParticleSystemRuntime", TestParticleSystemRuntime) ? 0 : 70;
 	}
