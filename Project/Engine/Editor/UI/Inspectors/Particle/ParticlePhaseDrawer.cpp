@@ -164,7 +164,7 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		// CPU用の設定は保持し、GPUでは対応するModuleだけを表示する
 		if (gpu && !IsParticleGPUModuleSupported(entry.id)) continue;
 		ImGui::PushID(ToString(entry.instanceID).c_str());
-		const bool open = MyGUI::CollapsingHeader(ImGuiUtility::GetDisplayName(entry.id.c_str()));
+		const bool open = MyGUI::CollapsingHeader(ImGuiUtility::GetDisplayName(entry.id.c_str()), false);
 		if (ImGui::BeginPopupContextItem()) {
 			if (ImGui::MenuItem("上へ", nullptr, false, i > 0)) { from = i; to = i - 1; }
 			if (ImGui::MenuItem("下へ", nullptr, false, i + 1 < static_cast<int32_t>(phase.modules.size()))) { from = i; to = i + 1; }
