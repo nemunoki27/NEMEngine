@@ -299,6 +299,14 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionGetShapeProperty;
     // Colliderの形状値を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionSetShapeProperty;
+    // 曲線の制御点と弧長評価を操作する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SplineGetProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SplineSetProperty;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, float, int, void*, int, int> SplineEvaluate;
+    // 粒子設定のSnapshotと塗装の消去を操作する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int*, int> CopyParticleSystemSettings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> SetParticleSystemSettings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> ClearParticlePaint;
     // 指定Clipの再生時間を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
     // 指定Clipを先頭から再生する
@@ -514,6 +522,12 @@ internal static unsafe class NativeAPI {
         EasedValue = callbacks->easedValue;
         CollisionGetShapeProperty = callbacks->collisionGetShapeProperty;
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
+        SplineGetProperty = callbacks->splineGetProperty;
+        SplineSetProperty = callbacks->splineSetProperty;
+        SplineEvaluate = callbacks->splineEvaluate;
+        CopyParticleSystemSettings = callbacks->copyParticleSystemSettings;
+        SetParticleSystemSettings = callbacks->setParticleSystemSettings;
+        ClearParticlePaint = callbacks->clearParticlePaint;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;

@@ -34,6 +34,10 @@ namespace Engine::ParticleDrawPreparation {
 		const Engine::ParticlePhaseMaterialSettings& materialSettings,
 		Engine::MaterialParameterSet& outInstance);
 
+	// PhaseとSystemの法線Textureを解決する
+	AssetID ResolveNormalTexture(const ParticleRenderSettings& settings,
+		const ParticlePhaseMaterialSettings& phase, const MaterialAsset& material);
+
 	// 描画空間と互換性からMaterialを選択する
 	bool ResolveParticlePass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		bool is2D, Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved);

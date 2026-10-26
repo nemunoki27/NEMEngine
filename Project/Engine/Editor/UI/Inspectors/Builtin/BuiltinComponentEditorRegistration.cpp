@@ -7,6 +7,8 @@
 
 // ビルトインDrawer群
 #include <Engine/Editor/UI/Inspectors/Builtin/TransformInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/SplineInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/UVTransformInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/ScriptInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraInspectorDrawer.h>
@@ -18,6 +20,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ParticleSystemInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/ParticlePaintReceiverInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/FlipbookAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
@@ -74,6 +77,14 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		"Transform", "Transform", "Core", "UI/Inspectors/Builtin/TransformInspectorDrawer.cpp");
 	transformDescriptor.showInComponentMenu = false;
 	registry.Register(std::move(transformDescriptor));
+	registry.Register(MakeComponentEditorDescriptor<SplineInspectorDrawer>(
+		"Spline", "Spline", "Core", "UI/Inspectors/Builtin/SplineInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<ForceFieldInspectorDrawer>(
+		"Force Field", "ForceField", "Physics", "UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<VectorFieldInspectorDrawer>(
+		"Vector Field", "VectorField", "Physics", "UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<HeightmapColliderInspectorDrawer>(
+		"Heightmap Collider", "HeightmapCollider", "Physics", "UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.cpp"));
 	// オーディオ
 	{
 		registry.Register(MakeComponentEditorDescriptor<AudioSourceInspectorDrawer>(
@@ -110,6 +121,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 			"UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<ParticleSystemInspectorDrawer>(
 			"Particle System", "ParticleSystem", "Rendering", "UI/Inspectors/Builtin/Render/ParticleSystemInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<ParticlePaintReceiverInspectorDrawer>(
+			"Particle Paint Receiver", "ParticlePaintReceiver", "Rendering", "UI/Inspectors/Builtin/Render/ParticlePaintReceiverInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<FlipbookAnimationInspectorDrawer>(
 			"Flipbook Animation", "FlipbookAnimation", "Rendering",
 			"UI/Inspectors/Builtin/Render/FlipbookAnimationInspectorDrawer.cpp"));

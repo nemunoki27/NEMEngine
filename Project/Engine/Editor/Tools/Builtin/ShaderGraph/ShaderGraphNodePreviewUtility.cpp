@@ -57,6 +57,10 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		case NodeKind::WorldPosition:
 		case NodeKind::NormalUnpack: result = ValueType::Float3;
 			break;
+		case NodeKind::ParticleData:
+			result = outputSlot == 0 || outputSlot >= 6 ? ValueType::Float4 :
+				outputSlot == 1 ? ValueType::Float3 : ValueType::Float;
+			break;
 		case NodeKind::Time: result = ValueType::Float;
 			break;
 		case NodeKind::Add:
@@ -199,7 +203,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 
 		return kind != Engine::ShaderGraphNodeKind::SurfaceOutput && kind != Engine::ShaderGraphNodeKind::UnlitOutput &&
 			   kind != Engine::ShaderGraphNodeKind::PostProcessOutput && kind != Engine::ShaderGraphNodeKind::VertexOutput &&
-			   kind != Engine::ShaderGraphNodeKind::SamplerState;
+			   kind != Engine::ShaderGraphNodeKind::SamplerState && kind != Engine::ShaderGraphNodeKind::ParticleData;
 	}
 
 	// ノード専用の描画先名を作る

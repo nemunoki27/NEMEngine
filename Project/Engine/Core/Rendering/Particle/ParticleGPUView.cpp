@@ -33,6 +33,7 @@ ParticleGPUDrawData ParticleGPUService::PrepareView(GraphicsCore& graphics,
 	const auto result = [&]() {
 		ParticleGPUDrawData data{view->arguments.GetResource(), instance.particles.GetGPUAddress(),
 			instance.parents.GetGPUAddress(), view->keys[0].GetGPUAddress(), view->counts.GetGPUAddress()};
+		data.moduleStates = instance.moduleStates.GetGPUAddress();
 		if (instance.trailCapacity) {
 			data.trailArguments = view->trailArguments.GetResource();
 			data.trails = instance.trails.GetGPUAddress();

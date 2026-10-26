@@ -481,6 +481,78 @@
           "value": 1
         }
       ]
+    },
+    {
+      "managedType": "ParticleForceFieldType",
+      "nativeType": "ParticleForceFieldType",
+      "members": [
+        {
+          "name": "Attraction",
+          "value": 0
+        },
+        {
+          "name": "Repulsion",
+          "value": 1
+        },
+        {
+          "name": "Vortex",
+          "value": 2
+        },
+        {
+          "name": "Wind",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "managedType": "ParticleVectorFieldPreset",
+      "nativeType": "ParticleVectorFieldPreset",
+      "members": [
+        {
+          "name": "Wind",
+          "value": 0
+        },
+        {
+          "name": "Vortex",
+          "value": 1
+        },
+        {
+          "name": "Asset",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "ParticleCollisionResponse",
+      "nativeType": "ParticleCollisionResponse",
+      "members": [
+        {
+          "name": "Bounce",
+          "value": 0
+        },
+        {
+          "name": "Stop",
+          "value": 1
+        },
+        {
+          "name": "Kill",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "ParticlePaintProjection",
+      "nativeType": "ParticlePaintProjection",
+      "members": [
+        {
+          "name": "UV",
+          "value": 0
+        },
+        {
+          "name": "PlanarXZ",
+          "value": 1
+        }
+      ]
     }
   ],
   "components": [
@@ -3960,6 +4032,218 @@
           "managedName": "receiverRenderingLayerMask",
           "nativeMember": "receiverRenderingLayerMask",
           "kind": "UInt",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "registryName": "Spline",
+      "nativeType": "SplineComponent",
+      "nativeHeader": "Engine/Core/World/Components/Transform/SplineComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Spline",
+      "reason": "Sceneの共有入力を保存し、実行時の設定を公開する",
+      "managedType": "Spline",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
+    },
+    {
+      "id": 66,
+      "registryName": "ForceField",
+      "nativeType": "ForceFieldComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/ParticleFieldComponents.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.ForceField",
+      "reason": "Sceneの共有入力を保存し、実行時の設定を公開する",
+      "managedType": "ForceField",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "type",
+          "nativeMember": "type",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "enumType": "ParticleForceFieldType"
+        },
+        {
+          "managedName": "axis",
+          "nativeMember": "axis",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "strength",
+          "nativeMember": "strength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "range",
+          "nativeMember": "range",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "falloff",
+          "nativeMember": "falloff",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "layerMask",
+          "nativeMember": "layerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "registryName": "VectorField",
+      "nativeType": "VectorFieldComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/ParticleFieldComponents.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.VectorField",
+      "reason": "Sceneの共有入力を保存し、実行時の設定を公開する",
+      "managedType": "VectorField",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "field",
+          "nativeMember": "field",
+          "kind": "AssetRef",
+          "access": "ReadWrite",
+          "assetType": "DefaultAsset"
+        },
+        {
+          "managedName": "size",
+          "nativeMember": "size",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "preset",
+          "nativeMember": "preset",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "enumType": "ParticleVectorFieldPreset"
+        },
+        {
+          "managedName": "intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "tightness",
+          "nativeMember": "tightness",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "layerMask",
+          "nativeMember": "layerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "registryName": "HeightmapCollider",
+      "nativeType": "HeightmapColliderComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/ParticleFieldComponents.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.HeightmapCollider",
+      "reason": "Sceneの共有入力を保存し、実行時の設定を公開する",
+      "managedType": "HeightmapCollider",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "heightmap",
+          "nativeMember": "heightmap",
+          "kind": "AssetRef",
+          "access": "ReadWrite",
+          "assetType": "Texture"
+        },
+        {
+          "managedName": "size",
+          "nativeMember": "size",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "layerMask",
+          "nativeMember": "layerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "registryName": "ParticlePaintReceiver",
+      "nativeType": "ParticlePaintReceiverComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/ParticlePaintReceiverComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.ParticlePaintReceiver",
+      "reason": "GPU粒子の塗装先と消去操作を公開する",
+      "managedType": "ParticlePaintReceiver",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "projection",
+          "nativeMember": "projection",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "enumType": "ParticlePaintProjection"
+        },
+        {
+          "managedName": "resolution",
+          "nativeMember": "resolution",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "planarSize",
+          "nativeMember": "planarSize",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "opacity",
+          "nativeMember": "opacity",
+          "kind": "Float",
           "access": "ReadWrite"
         }
       ]

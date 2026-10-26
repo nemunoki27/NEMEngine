@@ -111,6 +111,8 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
 		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
+		instanceShaderData.entityIndex = src.entity.index;
+		instanceShaderData.entityGeneration = src.entity.generation;
 		instanceShaderData.geometryDataOffset =
 			static_cast<uint32_t>(result_.sceneGeometryScratch_.size());
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(

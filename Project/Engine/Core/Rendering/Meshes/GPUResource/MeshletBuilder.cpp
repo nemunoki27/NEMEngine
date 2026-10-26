@@ -157,19 +157,28 @@ void Engine::MeshletBuilder::BuildLODs(
 	}
 
 	// 法線とUVを簡略化誤差へ含め、形状だけでなく見た目の境界も保つ
-	std::vector<float> attributes(mesh.vertices.size() * 5);
+	const bool hasVertexColors = mesh.vertexColors.size() == mesh.vertices.size();
+	const uint32_t attributeCount = hasVertexColors ? 9u : 5u;
+	std::vector<float> attributes(mesh.vertices.size() * attributeCount);
 	for (size_t index = 0; index < mesh.vertices.size(); ++index) {
 
 		const MeshVertex& vertex = mesh.vertices[index];
-		const size_t offset = index * 5;
+		const size_t offset = index * attributeCount;
 		attributes[offset + 0] = vertex.normal.x;
 		attributes[offset + 1] = vertex.normal.y;
 		attributes[offset + 2] = vertex.normal.z;
 		attributes[offset + 3] = vertex.uv.x;
 		attributes[offset + 4] = vertex.uv.y;
+		if (hasVertexColors) {
+			const Vector4& color = mesh.vertexColors[index];
+			attributes[offset + 5] = color.x;
+			attributes[offset + 6] = color.y;
+			attributes[offset + 7] = color.z;
+			attributes[offset + 8] = color.w;
+		}
 	}
-	static constexpr float kAttributeWeights[5] = {
-		0.5f, 0.5f, 0.5f, 0.5f, 0.5f
+	static constexpr float kAttributeWeights[9] = {
+		0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f
 	};
 
 	for (uint32_t lodIndex = 1; lodIndex < kMeshLODCount; ++lodIndex) {
@@ -219,8 +228,8 @@ void Engine::MeshletBuilder::BuildLODs(
 					simplified.data(), sourceIndices.data(), sourceIndices.size(),
 					reinterpret_cast<const float*>(&mesh.vertices[0].position.x),
 					mesh.vertices.size(), sizeof(MeshVertex),
-					attributes.data(), sizeof(float) * 5,
-					kAttributeWeights, 5, nullptr,
+					attributes.data(), sizeof(float) * attributeCount,
+					kAttributeWeights, attributeCount, nullptr,
 					targetCount,
 					settings.lodTargetErrors[lodIndex - 1],
 					meshopt_SimplifyLockBorder |

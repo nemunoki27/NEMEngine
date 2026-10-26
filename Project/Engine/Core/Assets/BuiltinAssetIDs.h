@@ -83,11 +83,18 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0x4e454d4153534554ull, 0xe0400afbd444f5d6ull };
+		inline constexpr AssetID InclusiveScan{ 0x4e454d4153534554ull, 0x7363616e00000003ull };
 		inline constexpr AssetID BuildDepthPyramid{ 0x4e454d4153534554ull, 0xd9a171e5f80901a3ull };
 		// パーティクルの形状アニメ用MSパイプラインとトレイル用パイプライン
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000005ull };
 		inline constexpr AssetID ParticleRingMS{ 0x4e454d4153534554ull, 0xeff000000000000bull };
 		inline constexpr AssetID ParticleCylinderMS{ 0x4e454d4153534554ull, 0xeff000000000000eull };
+		inline constexpr AssetID ParticleMeshSampling{ 0x4e454d4153534554ull, 0x7061727400030003ull };
+		inline constexpr AssetID ParticleGPUExtendedSimulate{ 0x4e454d4153534554ull, 0x7061727400030023ull };
+		inline constexpr AssetID ParticleGPUEventPrepare{ 0x4e454d4153534554ull, 0x7061727400000340ull };
+		inline constexpr AssetID ParticleGPUPaint{ 0x4e454d4153534554ull, 0x7061727400000341ull };
+		inline constexpr AssetID ParticleGPUImpactDecal{ 0x4e454d4153534554ull, 0x7061727400000342ull };
+		inline constexpr AssetID ParticleGPUCurlSimulate{ 0x4e454d4153534554ull, 0x7061727400030013ull };
 		inline constexpr AssetID ParticleGPUSimulate{ 0x4e454d4153534554ull, 0x706172740000000bull };
 		inline constexpr AssetID ParticleGPUView{ 0x4e454d4153534554ull, 0x706172740000000dull };
 		inline constexpr AssetID ParticleGPUDraw{ 0x4e454d4153534554ull, 0x706172740000000full };
@@ -112,6 +119,7 @@ namespace Engine::BuiltinAssets {
 
 	namespace Shaders {
 
+		inline constexpr AssetID ParticleGPUImpactDecalDraw{ 0x4e454d4153534554ull, 0x7061727400000333ull };
 		inline constexpr AssetID Decal{ 0x4e454d4153534554ull, 0x444543414c000001ull };
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x8ed3590f7d583b7aull };
 		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
@@ -143,7 +151,7 @@ namespace Engine::BuiltinAssets {
 	namespace Runtime {
 
 		inline constexpr AssetID Assets[] = {
-			Shaders::Decal,
+			Shaders::Decal, Shaders::ParticleGPUImpactDecalDraw,
 			Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
 			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,
 			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,
@@ -157,7 +165,8 @@ namespace Engine::BuiltinAssets {
 			Materials::DefaultParticle, Materials::DefaultParticle2D,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
-			Pipelines::ParticleTrail, Pipelines::ParticleTrail2D, Pipelines::ParticleGPUSimulate, Pipelines::ParticleGPUView,
+			Pipelines::ParticleGPUExtendedSimulate, Pipelines::ParticleGPUEventPrepare, Pipelines::ParticleGPUPaint, Pipelines::ParticleGPUImpactDecal,
+			Pipelines::ParticleMeshSampling, Pipelines::ParticleGPUCurlSimulate, Pipelines::InclusiveScan, Pipelines::ParticleTrail, Pipelines::ParticleTrail2D, Pipelines::ParticleGPUSimulate, Pipelines::ParticleGPUView,
 			Pipelines::ParticleGPUDraw, Pipelines::ParticleGPUDraw2D,
 			Pipelines::ParticleGPUTrailUpdate, Pipelines::ParticleGPUTrailPrepare, Pipelines::ParticleGPURibbonSelect,
 			Pipelines::ParticleGPUTrailDraw, Pipelines::ParticleGPUTrailDraw2D, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,

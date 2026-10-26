@@ -1,6 +1,8 @@
 #ifndef NEM_PARTICLE_GPU_MODULES
 #define NEM_PARTICLE_GPU_MODULES
 #include "particleGPUShared.hlsli"
+#include "particleGPUNoise.hlsli"
+#include "particleGPUMovement.hlsli"
 
 StructuredBuffer<ParticleGPUInstruction> gGPUInstructions : register(t0);
 StructuredBuffer<ParticleGPUCurveSample> gGPUCurves : register(t1);
@@ -8,27 +10,82 @@ StructuredBuffer<ParticleGPUPhase> gGPUPhases : register(t2);
 StructuredBuffer<ParticleParentGPU> gGPUParents : register(t3);
 RWStructuredBuffer<float4> gGPUModuleStates : register(u2);
 
-ParticleGPUCurveSample ParticleCurve(ParticleGPUInstruction instruction, float progress) {
-	float position = saturate(progress) * (instruction.curveCount - 1);
-	uint index = min((uint) position, instruction.curveCount - 2);
-	ParticleGPUCurveSample a = gGPUCurves[instruction.curveOffset + index];
-	ParticleGPUCurveSample b = gGPUCurves[instruction.curveOffset + index + 1];
-	a.value0 = lerp(a.value0, b.value0, position - index);
-	a.value1 = lerp(a.value1, b.value1, position - index);
-	return a;
+
+#ifdef NEM_PARTICLE_EXTENDED
+#include "particleGPUWorld.hlsli"
+
+ParticleAttributesGPU ParticleToWorld(ParticleAttributesGPU particle) {
+	if (particle.hasParent != 0) {
+		ParticleParentGPU parent = gGPUParents[particle.parentPhase];
+		particle.positionAge.xyz = mul(float4(particle.positionAge.xyz, 1), parent.matrix).xyz;
+		particle.velocityLifetime.xyz = mul(float4(particle.velocityLifetime.xyz, 0), parent.matrix).xyz;
+		particle.rotation = ParticleQuaternionMultiply(parent.rotation, particle.rotation);
+	}
+	return particle;
 }
 
-void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, bool spawn, uint seed, uint particleIndex) {
+void ParticleFromWorld(inout ParticleAttributesGPU particle) {
+	if (particle.hasParent != 0) {
+		ParticleParentGPU parent = gGPUParents[particle.parentPhase];
+		particle.positionAge.xyz = mul(float4(particle.positionAge.xyz, 1), parent.inverse).xyz;
+		particle.velocityLifetime.xyz = mul(float4(particle.velocityLifetime.xyz, 0), parent.inverse).xyz;
+		particle.rotation = ParticleQuaternionMultiply(parent.rotation * float4(-1, -1, -1, 1), particle.rotation);
+	}
+}
+
+void ParticleInitializeSpline(inout ParticleAttributesGPU particle, uint particleIndex) {
+	ParticleGPUPhase phase = gGPUPhases[particle.phase];
+	ParticleAttributesGPU world = ParticleToWorld(particle);
+	for (uint i = 0; i < phase.instructionCount; ++i) {
+		ParticleGPUInstruction instruction = gGPUInstructions[phase.instructionOffset + i];
+		if (instruction.operation != 18u) continue;
+		uint slot = particleIndex * moduleStateCount + (uint) instruction.parameter3.y;
+		float4 state = 0;
+		ParticleRunSpline(world, instruction, 0, true, state);
+		gGPUModuleStates[slot] = state;
+	}
+	ParticleFromWorld(world);
+	particle = world;
+}
+#endif
+
+ParticleGPUCurveSample ParticleCurve(ParticleGPUInstruction instruction, float progress) {
+	return SampleParticleGPUCurve(gGPUCurves, instruction.curveOffset, instruction.curveCount, progress);
+}
+
+void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, bool spawn, uint seed, uint particleIndex,
+	float previousAge) {
 	ParticleGPUPhase phase = gGPUPhases[particle.phase];
 	float progress = particle.positionAge.w / max(particle.velocityLifetime.w, 0.001f);
 	bool useParticleColorForEmissive = false;
 	for (uint i = 0; i < phase.instructionCount; ++i) {
 		uint index = phase.instructionOffset + i;
 		ParticleGPUInstruction instruction = gGPUInstructions[index];
-		if (spawn && instruction.operation != 7u && instruction.operation != 8u) continue;
+		if (spawn && instruction.operation != 7u && instruction.operation != 8u &&
+			instruction.operation != 12u && instruction.operation != 13u && instruction.operation != 14u) continue;
 		ParticleGPUCurveSample sample = (ParticleGPUCurveSample) 0;
-		if (!spawn && instruction.operation != 9u && instruction.curveCount > 1) sample = ParticleCurve(instruction, progress);
+		if (instruction.operation != 9u && instruction.curveCount > 1) sample = ParticleCurve(instruction, progress);
 		switch (instruction.operation) {
+
+#ifdef NEM_PARTICLE_EXTENDED
+		case 16u:
+		case 17u:
+		case 18u: {
+			ParticleAttributesGPU world = ParticleToWorld(particle);
+			if (instruction.operation == 16u) ParticleRunForceFields(world, instruction, deltaTime);
+			else if (instruction.operation == 17u) ParticleRunVectorFields(world, instruction, deltaTime);
+			else {
+				uint slot = particleIndex * moduleStateCount + (uint) instruction.parameter3.y;
+				float4 state = gGPUModuleStates[slot];
+				ParticleRunSpline(world, instruction, deltaTime, false, state);
+				gGPUModuleStates[slot] = state;
+			}
+			ParticleFromWorld(world);
+			particle = world;
+			break;
+		}
+#endif
+
 		case 0u: particle.color = sample.value0; break;
 		case 1u: particle.scaleSize.w = sample.value0.x; break;
 		case 2u: particle.scaleSize.xyz = sample.value0.xyz; break;
@@ -50,6 +107,11 @@ void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, b
 			}
 			break;
 		case 7u: {
+			// 補間回転と寿命角速度はCPUで評価したテーブルを参照する
+			if ((instruction.flags & 4u) != 0) {
+				particle.rotation = normalize(sample.value0);
+				break;
+			}
 			uint random = ParticleHash(seed ^ particle.birthLow ^ ParticleHash(particle.birthHigh) ^ ParticleHash(index));
 			float3 angle;
 			float3 speed;
@@ -63,16 +125,48 @@ void ParticleRunModules(inout ParticleAttributesGPU particle, float deltaTime, b
 				speed = ParticleNormalize(instruction.parameter2.xyz, float3(1, 0, 0)) *
 					lerp(instruction.parameter2.w, instruction.parameter3.x, ParticleRandom(random));
 			}
-			if ((instruction.flags & 1u) != 0) {
+			if ((instruction.flags & 9u) == 1u) {
 				uint stateIndex = particleIndex * moduleStateCount + (uint) instruction.parameter3.w;
 				if (spawn) gGPUModuleStates[stateIndex] = float4(speed, 0);
 				else speed = gGPUModuleStates[stateIndex].xyz;
 			}
+			if ((instruction.flags & 8u) != 0) speed = sample.value0.xyz;
 			if (spawn) particle.rotation = (instruction.flags & 1u) != 0 ? normalize(ParticleQuaternionMultiply(rotation, particle.rotation)) : rotation;
 			else if ((instruction.flags & 1u) != 0) {
 				float magnitude = length(speed);
 				if (magnitude > 0) particle.rotation = normalize(ParticleQuaternionMultiply(ParticleAxisAngle(speed / magnitude, magnitude * deltaTime), particle.rotation));
 			}
+			break;
+		}
+#if defined(NEM_PARTICLE_CURL_NOISE)
+		case 15u:
+			particle.velocityLifetime.xyz += ParticleCurlNoise(particle.positionAge.xyz + instruction.parameter1.xyz * particle.positionAge.w,
+				instruction.parameter0.y) * (instruction.parameter0.x * deltaTime);
+			break;
+#endif
+		case 10u:
+			particle.velocityLifetime.xyz += ParticleNoiseVector(particle.positionAge.xyz + particle.positionAge.www * 0.5f,
+				instruction.parameter0.y) * (instruction.parameter0.x * deltaTime);
+			break;
+		case 14u: {
+			uint slot = particleIndex * moduleStateCount + shapeStateSlot + instruction.flags * 2;
+			gGPUModuleStates[slot] = sample.value0;
+			if (instruction.flags < 2) gGPUModuleStates[slot + 1] = sample.value1;
+			break;
+		}
+		case 11u:
+			particle.uv.xy += ParticleNoiseVector(float3(particle.positionAge.w, float(particle.birthLow) * 0.37f, 0),
+				instruction.parameter0.y).xy * (instruction.parameter0.x * deltaTime);
+			break;
+		case 12u:
+		case 13u: {
+			float3 direction = gGPUModuleStates[particleIndex * moduleStateCount + spawnDirectionSlot].xyz;
+			float3 offset = ParticleMovementOffset(instruction, sample, direction, particle.birthLow);
+			if (!spawn) {
+				ParticleGPUCurveSample previous = ParticleCurve(instruction, previousAge / max(particle.velocityLifetime.w, 0.001f));
+				offset -= ParticleMovementOffset(instruction, previous, direction, particle.birthLow);
+			}
+			particle.positionAge.xyz += offset;
 			break;
 		}
 		case 8u:

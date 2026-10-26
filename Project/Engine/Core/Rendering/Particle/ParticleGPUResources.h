@@ -5,6 +5,8 @@
 //============================================================================
 #include "ParticleGPUService.h"
 #include "ParticleGPUTrailTypes.h"
+#include "ParticleGPUWorldResources.h"
+#include "Sources/ParticleGPUSourceResources.h"
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
@@ -43,6 +45,9 @@ namespace Engine {
 	struct ParticleGPUInstance {
 
 		std::weak_ptr<ParticleGPUState> owner;
+		ParticleGPUWorldResources worldInputs;
+		ParticleGPUSourceResources source;
+		ParticleGPUDepthInput collisionDepth;
 		StructuredRWBuffer<ParticleAttributesGPU> particles;
 		StructuredRWBuffer<Vector4> moduleStates;
 		StructuredRWBuffer<uint32_t> statistics;
@@ -60,6 +65,7 @@ namespace Engine {
 		std::shared_ptr<const ParticleSystemDefinition> uploadedDefinition;
 		std::array<std::shared_ptr<const ParticleSystemDefinition>, kGraphicsFrameContextCount> frameDefinitions;
 		std::vector<ParticleParentGPU> lastParents;
+		Matrix4x4 lastEmitterWorld = Matrix4x4::Identity();
 		uint64_t epoch = 0;
 		uint32_t capacity = 0;
 		uint32_t phaseCount = 0;

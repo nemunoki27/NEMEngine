@@ -8,6 +8,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace {
 	// BLASのPrimitiveIndex()と一致する並びでサブメッシュインデックスを並べる
@@ -163,6 +164,11 @@ Engine::MeshUploadData Engine::MeshUploadPreparation::Build(const ImportedMeshAs
 
 	// worker上で描画用配列と境界球を確定する
 	MeshUploadData data{};
+	data.hasVertexColors = !imported.vertexColors.empty();
+	if (data.hasVertexColors && imported.vertexColors.size() != imported.vertices.size()) {
+		throw std::runtime_error("Meshの頂点色と頂点数が一致しません");
+	}
+	data.vertexColors = data.hasVertexColors ? imported.vertexColors : std::vector<Vector4>{Vector4(1, 1, 1, 1)};
 	MeshBoundsUtility::Calculate(imported.vertices, {}, data.boundsCenter, data.boundsRadius);
 	// 重いIndex走査は読込worker上で一度だけ行う
 	data.subMeshBounds.reserve(imported.subMeshes.size());

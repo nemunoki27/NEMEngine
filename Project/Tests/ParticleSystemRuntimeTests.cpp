@@ -1,4 +1,5 @@
 #include "ParticleSystemRuntimeTests.h"
+#include "TestRunner.h"
 #include "TestFixtures.h"
 
 //============================================================================
@@ -288,7 +289,10 @@ namespace {
 		const Entity entity = world.CreateEntity();
 		world.AddComponent<ParticleSystemComponent>(entity);
 		world.GetComponent<ParticleSystemComponent>(entity).simulationTarget = ParticleSimulationTarget::GPU;
-		SetParticleSystemSettings(world, entity, MakeSettings());
+		auto settings = MakeSettings();
+		settings.trail.enabled = true;
+		settings.trail.maxPoints = 1025;
+		SetParticleSystemSettings(world, entity, settings);
 		ParticleSystem system;
 		SystemContext context;
 		context.mode = WorldMode::Play;
@@ -352,7 +356,13 @@ bool NEMTests::TestParticleSystemRuntime() {
 	auto duplicate = saved;
 	duplicate["phases"][1]["id"] = duplicate["phases"][0]["id"];
 	if (FromJson(duplicate, restored) || ToJson(restored) != saved) return false;
-	return TestEmissionAndRotation() && TestCurveAndCustomParameter() && TestEmissiveCurrentColor() &&
-		TestInstanceShapeAndSeed() && TestPauseAndParent() && TestGPURejectionAndRetry() && TestSettingsOwnership() &&
-		TestParticleSystemTrails() && TestParticleGPUProgram();
+	return RunTest("TestEmissionAndRotation", TestEmissionAndRotation) &&
+		RunTest("TestCurveAndCustomParameter", TestCurveAndCustomParameter) &&
+		RunTest("TestEmissiveCurrentColor", TestEmissiveCurrentColor) &&
+		RunTest("TestInstanceShapeAndSeed", TestInstanceShapeAndSeed) &&
+		RunTest("TestPauseAndParent", TestPauseAndParent) &&
+		RunTest("TestGPURejectionAndRetry", TestGPURejectionAndRetry) &&
+		RunTest("TestSettingsOwnership", TestSettingsOwnership) &&
+		RunTest("TestParticleSystemTrails", TestParticleSystemTrails) &&
+		RunTest("TestParticleGPUProgram", TestParticleGPUProgram);
 }

@@ -110,6 +110,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		});
 	previewLightBuffers.Upload(previewResources_.previewLightSet_);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
+	// PreviewのEntity番号へ本描画の塗装を対応付けない
+	previewResources_.previewFeedback_.Publish(graphicsCore, context.bufferRegistry);
 
 	auto* meshBackendBase = previewResources_.previewBackendRegistry_.Find(RenderBackendID::Mesh);
 	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);

@@ -36,6 +36,8 @@ namespace Engine {
 		nlohmann::json params = nlohmann::json::object();
 		// 同種Moduleを区別する保存ID
 		UUID instanceID = UUID::New();
+		// 設定を保持したまま実行を切り替える
+		bool enabled = true;
 	};
 
 	// フェーズ中の粒子を追従させる親設定

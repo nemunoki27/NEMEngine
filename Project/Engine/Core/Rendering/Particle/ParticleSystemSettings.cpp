@@ -23,6 +23,9 @@ namespace {
 		group = ParticleSystemSettings{};
 		group.space = EnumAdapter<PrimitiveRenderSpace>::FromString(groupJson.value("space", "World3D")).value_or(PrimitiveRenderSpace::World3D);
 		group.looping = groupJson.value("looping", group.looping);
+		if (const auto it = groupJson.find("source"); it != groupJson.end() && it->is_object()) from_json(*it, group.source);
+		if (const auto it = groupJson.find("surface"); it != groupJson.end() && it->is_object()) from_json(*it, group.surface);
+		if (const auto it = groupJson.find("feedback"); it != groupJson.end() && it->is_object()) from_json(*it, group.feedback);
 		if (const auto it = groupJson.find("emitter"); it != groupJson.end() && it->is_object()) {
 
 			const nlohmann::json& e = *it;
@@ -141,6 +144,7 @@ namespace {
 				}
 				ParticleModuleEntry entry{};
 				entry.id = moduleJson.value("id", "");
+				entry.enabled = moduleJson.value("enabled", true);
 				if (moduleJson.contains("instanceID")) {
 					entry.instanceID = FromString16Hex(moduleJson.at("instanceID").get<std::string>());
 				}
@@ -225,6 +229,9 @@ nlohmann::json Engine::ToJson(const ParticleSystemSettings& group) {
 	groupJson["version"] = 1;
 	groupJson["space"] = EnumAdapter<PrimitiveRenderSpace>::ToString(group.space);
 	groupJson["looping"] = group.looping;
+	groupJson["source"] = group.source;
+	groupJson["surface"] = group.surface;
+	groupJson["feedback"] = group.feedback;
 	{
 		nlohmann::json e = nlohmann::json::object();
 		const ParticleEmitterSettings& emitter = group.emitter;
@@ -299,6 +306,7 @@ nlohmann::json Engine::ToJson(const ParticleSystemSettings& group) {
 			nlohmann::json moduleJson = nlohmann::json::object();
 			moduleJson["id"] = entry.id;
 			moduleJson["instanceID"] = ToString(entry.instanceID);
+			moduleJson["enabled"] = entry.enabled;
 			moduleJson["params"] = entry.params;
 			phaseJson["modules"].push_back(std::move(moduleJson));
 		}

@@ -102,6 +102,12 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.resetRenderFeatureOverrides = &ManagedScriptRuntime::ResetRenderFeatureOverridesCallback;
 	callbacks.collisionGetShapeProperty = &ManagedScriptRuntime::CollisionGetShapePropertyCallback;
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
+	callbacks.splineGetProperty = &ManagedScriptRuntime::SplineGetPropertyCallback;
+	callbacks.splineSetProperty = &ManagedScriptRuntime::SplineSetPropertyCallback;
+	callbacks.splineEvaluate = &ManagedScriptRuntime::SplineEvaluateCallback;
+	callbacks.copyParticleSystemSettings = &ManagedScriptRuntime::CopyParticleSystemSettingsCallback;
+	callbacks.setParticleSystemSettings = &ManagedScriptRuntime::SetParticleSystemSettingsCallback;
+	callbacks.clearParticlePaint = &ManagedScriptRuntime::ClearParticlePaintCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
 	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
 	callbacks.copySkinnedAnimationCurrentClip = &ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;

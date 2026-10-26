@@ -1,0 +1,95 @@
+{
+  "guid": "f7ab440a907a413b9ef10f02ab70c891",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.GPUParticleFeaturesDemo",
+      "scriptTypeId": "48b26b7a-8f43-4d6b-a03b-b1c4bb93d062",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "e71e1aad-ff8d-4275-8267-2e687b4f791a",
+          "name": "mode",
+          "type": "SandboxScripts.GPUParticleDemoMode",
+          "formerNames": []
+        },
+        {
+          "fieldId": "26f5d191-c933-4d95-9559-f00bb9f84ae5",
+          "name": "createCamera",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
+          "fieldId": "e80ad476-dd38-478d-a0af-ac160730c631",
+          "name": "sourceMesh",
+          "type": "NEMEngine.Mesh",
+          "formerNames": []
+        },
+        {
+          "fieldId": "fc490e83-f695-48b9-8db0-d0f2d5643b5b",
+          "name": "sourceRenderer",
+          "type": "NEMEngine.MeshRenderer",
+          "formerNames": []
+        },
+        {
+          "fieldId": "987d8b0f-fbc3-470f-a43c-31be77795c7c",
+          "name": "sourceTexture",
+          "type": "NEMEngine.Texture",
+          "formerNames": []
+        },
+        {
+          "fieldId": "1b1a7395-29ee-45ce-b3ab-f790a89aac2a",
+          "name": "particleTexture",
+          "type": "NEMEngine.Texture",
+          "formerNames": []
+        },
+        {
+          "fieldId": "2be7f1d1-283e-49d9-952f-943f5c1b04d1",
+          "name": "particleMaterial",
+          "type": "NEMEngine.Material",
+          "formerNames": []
+        },
+        {
+          "fieldId": "3906634a-0d10-489c-b140-c3aca1081648",
+          "name": "customDataMaterial",
+          "type": "NEMEngine.Material",
+          "formerNames": []
+        },
+        {
+          "fieldId": "71a113c2-fa4d-47e6-b08d-54861e5730eb",
+          "name": "decalMaterial",
+          "type": "NEMEngine.Material",
+          "formerNames": []
+        },
+        {
+          "fieldId": "8a4c8b31-58b3-46b8-8a86-ebe5ab77d55d",
+          "name": "vectorField",
+          "type": "NEMEngine.DefaultAsset",
+          "formerNames": []
+        },
+        {
+          "fieldId": "821c5112-dad8-4f36-894e-ee79803a4e62",
+          "name": "maxParticles",
+          "type": "int",
+          "formerNames": []
+        },
+        {
+          "fieldId": "572b6612-f55e-48ff-8c46-301913707f2b",
+          "name": "particlesPerSecond",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "684be964-c393-4a8f-8bb3-fb9ed63e1f24",
+          "name": "moveObstacle",
+          "type": "bool",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

@@ -55,16 +55,20 @@ void main(uint3 id : SV_DispatchThreadID) {
 	if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)))) return false;
 	CD3DX12_DESCRIPTOR_RANGE textures;
 	textures.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 126);
-	CD3DX12_ROOT_PARAMETER parameters[6];
+	CD3DX12_ROOT_PARAMETER parameters[10];
 	parameters[0].InitAsConstants(4, 0, 5);
 	parameters[1].InitAsShaderResourceView(0, 5);
 	parameters[2].InitAsShaderResourceView(1, 5);
 	parameters[3].InitAsShaderResourceView(2, 5);
 	parameters[4].InitAsUnorderedAccessView(0);
 	parameters[5].InitAsDescriptorTable(1, &textures);
+	parameters[6].InitAsConstants(4, 3, 4);
+	parameters[7].InitAsShaderResourceView(7, 4);
+	parameters[8].InitAsShaderResourceView(10, 4);
+	parameters[9].InitAsShaderResourceView(11, 4);
 	const CD3DX12_STATIC_SAMPLER_DESC sampler(1, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
-	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(6, parameters, 1, &sampler);
+	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(10, parameters, 1, &sampler);
 	ComPtr<ID3DBlob> bytes, errors;
 	ComPtr<ID3D12RootSignature> root;
 	if (FAILED(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &bytes, &errors)) ||
@@ -73,7 +77,11 @@ void main(uint3 id : SV_DispatchThreadID) {
 	desc.pRootSignature = root.Get();
 	desc.CS = {shader.GetBytecodePointer(), shader.GetBytecodeSize()};
 	ComPtr<ID3D12PipelineState> pipeline;
-	if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
+	const HRESULT pipelineResult = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline));
+	if (FAILED(pipelineResult)) {
+		std::cerr << "Decal GPU Pipeline creation failed: " << std::hex << pipelineResult << std::dec << '\n';
+		return false;
+	}
 	std::array<DecalGPUData, 2> decals;
 	for (auto& decal : decals) {
 		decal.direction = Vector4(0, 0, 1, 0);
@@ -134,6 +142,12 @@ void main(uint3 id : SV_DispatchThreadID) {
 	command->SetComputeRootShaderResourceView(3, candidates->GetGPUVirtualAddress());
 	command->SetComputeRootUnorderedAccessView(4, output->GetGPUVirtualAddress());
 	command->SetComputeRootDescriptorTable(5, descriptors->GetGPUDescriptorHandleForHeapStart());
+	const uint32_t impactCounts[4]{};
+	command->SetComputeRoot32BitConstants(6, 4, impactCounts, 0);
+	command->SetComputeRootShaderResourceView(7, input->GetGPUVirtualAddress());
+	// GPU投影数が0でも宣言された候補Bufferを接続する
+	command->SetComputeRootShaderResourceView(8, candidates->GetGPUVirtualAddress());
+	command->SetComputeRootShaderResourceView(9, candidates->GetGPUVirtualAddress());
 	command->Dispatch(1, 1, 1);
 	const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	command->ResourceBarrier(1, &barrier);

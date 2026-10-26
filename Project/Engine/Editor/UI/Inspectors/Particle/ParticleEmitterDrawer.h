@@ -19,7 +19,7 @@ namespace Engine {
 
 		ParticleEmitterDrawer(ParticleSettingsEditSession& session, std::string& status);
 		// 編集結果を呼出元のsessionへ返す
-		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group);
+		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget);
 	private:
 		//========================================================================
 		//	private Methods

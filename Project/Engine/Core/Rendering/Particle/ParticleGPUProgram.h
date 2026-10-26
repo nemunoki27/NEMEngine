@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Systems/Effect/ParticleDefinition.h>
+#include "ParticleMotionSettings.h"
 
 // c++
 #include <string_view>
@@ -14,14 +15,17 @@ namespace Engine {
 	enum class ParticleGPUOperation : uint32_t {
 
 		Color, Size, Scale, Emissive, AlphaReference, UV, Gravity, Rotation, LookToVelocity, Flipbook,
+		NoiseForce, NoiseUV, Spiral, Pendulum, Shape, CurlNoise, ForceField, VectorField, Spline,
+		Collision = 22,
 	};
 
 	struct ParticleGPUCurveSample {
 
 		Vector4 value0 = Vector4(0, 0, 0, 0);
 		Vector4 value1 = Vector4(0, 0, 0, 0);
+		Vector4 timing = Vector4(0, 0, 0, 0);
 	};
-	static_assert(sizeof(ParticleGPUCurveSample) == 32);
+	static_assert(sizeof(ParticleGPUCurveSample) == 48);
 
 	struct ParticleGPUInstruction {
 
@@ -53,6 +57,16 @@ namespace Engine {
 		std::vector<ParticleGPUCurveSample> curves;
 		std::vector<ParticleGPUPhase> phases;
 		uint32_t stateCount = 0;
+		uint32_t spawnDirectionSlot = UINT32_MAX;
+		uint32_t shapeStateSlot = UINT32_MAX;
+		uint32_t initialShapeOffset = 0;
+		uint32_t sourceStateSlot = UINT32_MAX;
+		bool usesCurlNoise = false;
+		bool usesWorldInputs = false;
+		bool hasCollisionDepthCamera = false;
+		std::vector<SceneEntityReference> splines;
+		ParticleCollisionSettings collision{.sceneColliders = false};
+		SceneEntityReference depthCamera{};
 		std::string unsupportedReason;
 	};
 

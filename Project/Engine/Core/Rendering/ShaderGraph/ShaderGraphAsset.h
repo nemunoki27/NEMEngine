@@ -167,6 +167,7 @@ namespace Engine {
 		Keyword,
 		VertexOutput,
 		Dither,
+		ParticleData,
 	};
 
 	struct ShaderGraphPort {

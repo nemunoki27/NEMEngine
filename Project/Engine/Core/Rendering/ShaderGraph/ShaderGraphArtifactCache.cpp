@@ -43,6 +43,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 									   : std::string(EnumAdapter<ShaderGraphTarget>::ToString(graph.target));
 	artifact.root = RuntimePaths::GetLibraryPath(Algorithm::PathFromUTF8("ShaderGraph/" + graphIDText + "/" + targetName));
 	artifact.surfacePath = artifact.root / "surface.generated.hlsli";
+	artifact.particleGPUPixelPath = artifact.root / "particleGPU.PS.hlsl";
 	artifact.opaquePixelPath = artifact.root / "opaque.PS.hlsl";
 	artifact.transparentPixelPath = artifact.root / "transparent.PS.hlsl";
 	artifact.depthPixelPath = artifact.root / "depth.PS.hlsl";
@@ -181,6 +182,13 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 
 			return false;
 		}
+	}
+
+	if (!artifact.compileOutput.particleGPUPixelHLSL.empty()) {
+		queueSource(artifact.particleGPUPixelPath, artifact.compileOutput.particleGPUPixelHLSL);
+		artifact.particleGPUShaderID = MakeParticleGPUShaderID(graphID);
+		artifact.particleGPUShader = MakePixelShader(graph.name + "ParticleGPU", artifact.particleGPUShaderID,
+			artifact.particleGPUPixelPath, "main", artifact.compileOutput.parameters);
 	}
 
 	// 不透明と透明のShaderを構成する
@@ -335,6 +343,9 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 		artifact.rayTracingShaderID = derived(0x5241594645415455ull);
 		return artifact;
 	}
+	if (graph.target == ShaderGraphTarget::Particle || graph.target == ShaderGraphTarget::Trail) {
+		artifact.particleGPUShaderID = MakeParticleGPUShaderID(graphID);
+	}
 	artifact.opaquePipelineID = derived(0x4f50415155455f4cull ^ target);
 	artifact.opaqueShaderID = derived(0x4f50415155455f50ull ^ target);
 	artifact.transparentPipelineID = derived(0x5452414e535f504cull ^ target);
@@ -356,6 +367,11 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 		artifact.rayTracingShaderID = derived(0x5241595452414345ull ^ target);
 	}
 	return artifact;
+}
+
+Engine::AssetID Engine::ShaderGraphArtifactCache::MakeParticleGPUShaderID(AssetID graphID) {
+
+	return MakeDerivedID(graphID, 0x5041525447505550ull);
 }
 
 Engine::AssetID Engine::ShaderGraphArtifactCache::MakeDerivedID(AssetID graphID, uint64_t discriminator) {

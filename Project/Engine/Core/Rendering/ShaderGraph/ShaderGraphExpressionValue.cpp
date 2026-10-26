@@ -91,6 +91,22 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitValueNode(const ShaderG
 			ShaderGraphValueType::Float4,
 			"graphInput.vertexColor",
 		};
+	case ShaderGraphNodeKind::ParticleData: {
+		if (graph_.target != ShaderGraphTarget::Particle && graph_.target != ShaderGraphTarget::Trail) {
+			AddDiagnostic(node.id, "Particle DataはParticleまたはTrailで使用できます");
+			return {};
+		}
+		static constexpr std::array expressions{
+			"graphInput.particleColor", "graphInput.particleVelocity", "graphInput.particleAge",
+			"graphInput.particleLifetime", "graphInput.particleNormalizedAge", "graphInput.particleRandom",
+			"graphInput.particleCustomData1", "graphInput.particleCustomData2",
+		};
+		static constexpr std::array types{ShaderGraphValueType::Float4, ShaderGraphValueType::Float3,
+			ShaderGraphValueType::Float, ShaderGraphValueType::Float, ShaderGraphValueType::Float,
+			ShaderGraphValueType::Float, ShaderGraphValueType::Float4, ShaderGraphValueType::Float4};
+		if (outputSlot >= expressions.size()) return {};
+		return {types[outputSlot], expressions[outputSlot]};
+	}
 	case ShaderGraphNodeKind::Time: {
 		static constexpr std::array timeValues{
 			"shaderGraphTime",

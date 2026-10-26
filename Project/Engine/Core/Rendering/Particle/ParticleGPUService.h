@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ParticleGPUConstants.h"
+#include "ParticleGPUFrameInputs.h"
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 
 // c++
@@ -16,6 +17,9 @@ namespace Engine {
 	class RenderAssetLibrary;
 	class PipelineStateCache;
 	class PipelineState;
+	class MeshRenderBackend;
+	class RenderBufferRegistry;
+	struct ParticleGPUEnvironment;
 	struct ParticleGPUInstance;
 	struct ParticleGPUViewResources;
 
@@ -31,6 +35,7 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS trailPoints = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS trailSegments = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS ribbonOrder = 0;
+		D3D12_GPU_VIRTUAL_ADDRESS moduleStates = 0;
 	};
 
 	//============================================================================
@@ -47,7 +52,10 @@ namespace Engine {
 		~ParticleGPUService();
 
 		// World更新の要求を各Viewより前に1回だけ実行する
-		void UpdateWorld(GraphicsCore& graphics, ECSWorld& world, RenderAssetLibrary& assets, PipelineStateCache& pipelines);
+		void UpdateWorld(GraphicsCore& graphics, ECSWorld& world, RenderAssetLibrary& assets, PipelineStateCache& pipelines, const ParticleGPUFrameInputs& inputs = {});
+		// World共通の塗装と残留デカールを各Viewへ渡す
+		void PublishFeedback(GraphicsCore& graphics, RenderBufferRegistry& registry);
+		uint64_t GetFeedbackRevision() const { return feedbackRevision_; }
 		// Cameraごとのカリングと並べ替えを行う
 		ParticleGPUDrawData PrepareView(GraphicsCore& graphics, const std::shared_ptr<ParticleGPUState>& state,
 			RenderAssetLibrary& assets, PipelineStateCache& pipelines, const std::string& viewKey,
@@ -65,6 +73,8 @@ namespace Engine {
 
 		std::unordered_map<const ParticleGPUState*, std::unique_ptr<ParticleGPUInstance>> instances_;
 		FrameConstantBufferAllocator constants_;
+		std::unique_ptr<ParticleGPUEnvironment> environment_;
+		uint64_t feedbackRevision_ = 0;
 		ComPtr<ID3D12CommandSignature> indexedSignature_;
 		ComPtr<ID3D12CommandSignature> trailSignature_;
 		GraphicsResourceRetirement* retirement_ = nullptr;

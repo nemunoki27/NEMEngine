@@ -232,6 +232,7 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 			const std::array shaderIDs{
 				artifact.opaqueShaderID,
 				artifact.transparentShaderID,
+				artifact.particleGPUShaderID,
 				artifact.depthShaderID,
 				artifact.pickingShaderID,
 				artifact.outlineShaderID,
@@ -248,6 +249,7 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 				std::move(artifact.opaqueShader));
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.transparentShader));
+			renderAssetLibrary_.RegisterDerivedShader(std::move(artifact.particleGPUShader));
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.depthShader));
 			renderAssetLibrary_.RegisterDerivedShader(

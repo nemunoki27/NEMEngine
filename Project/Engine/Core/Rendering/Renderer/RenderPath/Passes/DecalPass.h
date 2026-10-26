@@ -30,7 +30,7 @@ namespace Engine {
 		//========================================================================
 
 		explicit DecalPass(const RenderPipelineDeps& deps);
-		~DecalPass() override = default;
+		~DecalPass() override;
 
 		// 各Viewの表面へ投影する
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
@@ -74,6 +74,9 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 		std::unique_ptr<PipelineState> pipeline_;
+		std::unique_ptr<PipelineState> impactPipeline_;
+		ComPtr<ID3D12CommandSignature> impactSignature_;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::unordered_map<std::string, std::unique_ptr<State>> states_;
 		FrameConstantBufferAllocator constants_{4096};
 		uint64_t constantFrameSerial_ = UINT64_MAX;
@@ -87,5 +90,7 @@ namespace Engine {
 		void EnsureNormalTarget(GraphicsCore& graphicsCore, State& state, uint32_t width, uint32_t height);
 		// チャンネルごとの合成状態を持つPipelineを生成する
 		void EnsurePipeline(GraphicsCore& graphicsCore);
+		// GPUの生存Poolから投影矩形を間接描画する
+		void DrawImpacts(GraphicsCore& graphicsCore, SceneExecutionContext& context, const DrawConstants& draw);
 	};
 }

@@ -14,6 +14,16 @@ bool Engine::ParticleTextureDrawer::Draw(const EditorPanelContext& context,
 	AssetEditSetting editSetting{};
 	bool changed = MyGUI::AssetReferenceField("ベースカラーテクスチャ", settings.baseColorTexture,
 		database, { AssetType::Texture, AssetType::RenderTexture }, editSetting).valueChanged;
+	AssetID normalTexture{};
+	if (const auto found = settings.textureOverrides.find("particleNormalTexture"); found != settings.textureOverrides.end()) {
+		normalTexture = found->second;
+	}
+	if (MyGUI::AssetReferenceField("法線テクスチャ", normalTexture, database,
+		{AssetType::Texture, AssetType::RenderTexture}, editSetting).valueChanged) {
+		if (normalTexture) settings.textureOverrides["particleNormalTexture"] = normalTexture;
+		else settings.textureOverrides.erase("particleNormalTexture");
+		changed = true;
+	}
 	const auto material = LoadMaterialAsset(context, materialID);
 	if (!material) {
 		ImGui::TextDisabled("マテリアルを解決できません");
@@ -26,6 +36,7 @@ bool Engine::ParticleTextureDrawer::Draw(const EditorPanelContext& context,
 	}
 	// Shaderが公開するTextureだけを名前で対応付ける
 	for (const ShaderResourceBinding& texture : CollectMaterialTextures(*reflection)) {
+		if (texture.name == "particleNormalTexture") continue;
 		ImGui::PushID(texture.name.c_str());
 		AssetID textureID{};
 		if (auto found = settings.textureOverrides.find(texture.name); found != settings.textureOverrides.end()) {

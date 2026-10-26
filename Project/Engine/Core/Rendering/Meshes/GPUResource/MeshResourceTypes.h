@@ -254,6 +254,8 @@ namespace Engine {
 		bool usePackedMeshletIndices = false;
 		std::vector<Vector4> subMeshBounds;
 		std::vector<MeshPackedVertex> packedVertices;
+		std::vector<Vector4> vertexColors;
+		bool hasVertexColors = false;
 		std::vector<uint16_t> indices16;
 		std::vector<uint32_t> primitiveSubMeshIndices;
 		std::vector<MeshletDrawDesc> meshletDraws;
@@ -272,6 +274,7 @@ namespace Engine {
 
 		// 頂点データ
 		std::vector<MeshVertex> vertices;
+		std::vector<Vector4> vertexColors;
 		std::vector<uint32_t> indices;
 		std::vector<SubMeshDesc> subMeshes;
 
@@ -383,6 +386,7 @@ namespace Engine {
 		MeshStructuredHandle<MeshVertex> vertexSRV;
 		// MeshShader経路で読む圧縮頂点SRV
 		MeshStructuredHandle<MeshPackedVertex> packedVertexSRV;
+		MeshStructuredHandle<Vector4> vertexColorSRV;
 		MeshStructuredHandle<uint32_t> indexSRV;
 		MeshStructuredHandle<uint32_t> vertexSubMeshIndexSRV;
 
@@ -404,6 +408,7 @@ namespace Engine {
 		ImmutableIndexBuffer indexBuffer;
 
 		uint32_t vertexCount = 0;
+		bool hasVertexColors = false;
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
 		std::array<MeshLODRange, kMeshLODCount> lods{};

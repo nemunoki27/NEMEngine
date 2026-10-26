@@ -68,6 +68,7 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	MeshGPUResource mesh{};
 	mesh.assetID = imported.assetID;
 	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
+	mesh.hasVertexColors = upload.hasVertexColors;
 	mesh.lods = imported.lods;
 	mesh.ditherLODTransitions = imported.ditherLODTransitions;
 	mesh.indexCount = mesh.lods[0].indexCount;
@@ -106,6 +107,10 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 		CreateImmutableSRV(device, *uploadService, *srvDescriptor,
 			mesh.packedVertexSRV, packedVertices, L"MeshPackedVertices");
 	}
+
+	// 頂点色がないMeshも白の最小領域を接続する
+	CreateImmutableSRV(device, *uploadService, *srvDescriptor,
+		mesh.vertexColorSRV, upload.vertexColors, L"MeshVertexColors");
 
 	// 32bit IndexはShaderとIndex描画で同じBufferを読む
 	CreateImmutableSRV(device, *uploadService, *srvDescriptor,
@@ -187,6 +192,7 @@ void Engine::MeshGPUBuilder::Release(MeshGPUResource& mesh) {
 
 	mesh.vertexSRV.Release();
 	mesh.packedVertexSRV.Release();
+	mesh.vertexColorSRV.Release();
 	mesh.indexSRV.Release();
 	mesh.vertexSubMeshIndexSRV.Release();
 	mesh.primitiveSubMeshIndexSRV.Release();

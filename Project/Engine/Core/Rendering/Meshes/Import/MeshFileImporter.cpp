@@ -103,6 +103,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 
 	// メッシュデータの集計
 	bool containsSkinnedMesh = false;
+	bool containsVertexColors = false;
 	size_t totalVertexCount = 0;
 	size_t totalIndexCount = 0;
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
@@ -113,6 +114,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 		}
 
 		totalVertexCount += mesh->mNumVertices;
+		containsVertexColors |= mesh->HasVertexColors(0);
 		totalIndexCount += static_cast<size_t>(mesh->mNumFaces) * 3;
 		// ボーンを持つメッシュがあるかどうかを確認
 		if (mesh->HasBones() && mesh->mNumBones > 0) {
@@ -121,6 +123,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 	}
 
 	result.vertices.reserve(totalVertexCount);
+	if (containsVertexColors) result.vertexColors.reserve(totalVertexCount);
 	result.indices.reserve(totalIndexCount);
 	result.subMeshes.reserve(scene->mNumMeshes);
 	result.vertexSubMeshIndices.reserve(totalVertexCount);
@@ -189,6 +192,10 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 				vertex.tangentSign = 1.0f;
 			}
 			result.vertices.emplace_back(vertex);
+			if (containsVertexColors) {
+				const aiColor4D color = mesh->HasVertexColors(0) ? mesh->mColors[0][v] : aiColor4D(1, 1, 1, 1);
+				result.vertexColors.emplace_back(color.r, color.g, color.b, color.a);
+			}
 
 			// 頂点が属するサブメッシュのインデックスを保存
 			result.vertexSubMeshIndices.emplace_back(subMeshIndex);
@@ -341,6 +348,11 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 		}
 
 		result.vertices.insert(result.vertices.end(), source.vertices.begin(), source.vertices.end());
+		if (!result.vertexColors.empty() || !source.vertexColors.empty()) {
+			result.vertexColors.resize(vertexOffset, Vector4(1, 1, 1, 1));
+			if (source.vertexColors.empty()) result.vertexColors.resize(result.vertices.size(), Vector4(1, 1, 1, 1));
+			else result.vertexColors.insert(result.vertexColors.end(), source.vertexColors.begin(), source.vertexColors.end());
+		}
 		for (uint32_t sourceSubMesh : source.vertexSubMeshIndices) {
 			result.vertexSubMeshIndices.emplace_back(sourceSubMesh < subMeshMap.size() ? subMeshMap[sourceSubMesh] : 0u);
 		}

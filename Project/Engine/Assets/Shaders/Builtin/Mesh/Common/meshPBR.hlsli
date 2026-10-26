@@ -6,6 +6,7 @@
 //============================================================================
 #include "pbrShading.hlsli"
 #include "../../Common/descriptorHeapCompatibility.hlsli"
+#include "../../Particle/GPU/particlePaintRead.hlsli"
 
 //============================================================================
 //	MeshのPBR共通定義、サブメッシュバッファ依存部分
@@ -38,6 +39,9 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 	float4 baseColor = SamplePBRTexture(params.baseColorTexture, uv, 1.0f.xxxx);
 	baseColor.a *= SamplePBRTexture(params.opacityTexture, uv, 1.0f.xxxx).r;
 	baseColor *= params.color;
+	MeshInstance paintInstance = gMeshInstances[input.instanceID];
+	ApplyParticlePaint(uint2(paintInstance.entityIndex, paintInstance.entityGeneration), input.uv,
+		input.worldPos, gSampler, baseColor);
 
 	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness
 	float4 mrSample = SamplePBRTexture(params.metallicRoughnessTexture, uv, 1.0f.xxxx);

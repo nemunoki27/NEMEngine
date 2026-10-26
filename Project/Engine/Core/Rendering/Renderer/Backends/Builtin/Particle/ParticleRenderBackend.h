@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Particle/ParticleGPUService.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
+#include "ParticleGPUMaterialCurves.h"
 
 // c++
 #include <string>
@@ -43,7 +44,11 @@ namespace Engine {
 		void RequestMeshReload(AssetID meshAssetID);
 
 		// View数に関係なくGPU更新を記録する
-		void PrepareSimulation(GraphicsCore& graphics, ECSWorld& world, RenderAssetLibrary& assets, PipelineStateCache& pipelines);
+		void PrepareSimulation(GraphicsCore& graphics, ECSWorld& world, RenderAssetLibrary& assets, PipelineStateCache& pipelines,
+			const ParticleGPUFrameInputs& inputs = {});
+		// World共通の描き込み結果を描画先へ接続する
+		void PublishFeedback(GraphicsCore& graphics, RenderBufferRegistry& registry) { gpuService_.PublishFeedback(graphics, registry); }
+		uint64_t GetFeedbackRevision() const { return gpuService_.GetFeedbackRevision(); }
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 
@@ -69,6 +74,8 @@ namespace Engine {
 
 		FrameBatchResourcePool<ParticleBatchResources> resourcePool_;
 		ParticleGPUService gpuService_;
+		ParticleGPUMaterialCurveCache materialCurveCache_;
+		FrameUploadBufferAllocator materialCurveUpload_;
 		ParticleTrailRenderData trailDataScratch_{};
 
 		PipelineBindingCache::SlotID shapeConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
@@ -82,6 +89,14 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// Camera固有の深度と表面設定を描画へ渡す
+		void BindGPUSurface(const RenderDrawContext& context, const RenderItem& item, const ParticleRenderSettings& settings,
+			const PipelineState& pipeline, bool customDataAvailable, AssetID normalTexture, ID3D12GraphicsCommandList* commands);
+		// PhaseのMaterial曲線を描画へ渡す
+		void BindGPUMaterialCurves(const RenderDrawContext& context, const ParticleRenderSettings& settings,
+			const BackendDrawCommon::ResolvedMaterialPass& material, const PipelineState& pipeline, uint32_t phase,
+			const ParticlePhaseMaterialSettings& phaseMaterial, const ParticleCustomDataSettings& customData,
+			ID3D12GraphicsCommandList* commands);
 		// GPUが持つ粒子を間接描画する
 		void DrawGPU(const RenderDrawContext& context, const RenderItem& item, const ParticleEmitterRuntime& emitter);
 		// GPUの点列と間接描画要求を接続する

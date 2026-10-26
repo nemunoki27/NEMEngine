@@ -45,6 +45,7 @@ void ParticleGPUInstance::Init(ID3D12Device* device, SRVDescriptor& descriptor,
 	GraphicsResourceRetirement& retirement, const std::shared_ptr<ParticleGPUState>& state) {
 
 	owner = state;
+	worldInputs.Init(device, descriptor, retirement);
 	auto* descriptors = &descriptor;
 	capacity = state->definition->settings->emitter.maxParticles;
 	phaseCount = static_cast<uint32_t>(state->definition->phases.size());

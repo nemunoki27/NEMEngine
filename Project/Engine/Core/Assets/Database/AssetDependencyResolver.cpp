@@ -125,7 +125,7 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 						}
 					}
 				};
-				for (const AssetID id : { artifact.opaqueShaderID, artifact.transparentShaderID,
+				for (const AssetID id : { artifact.opaqueShaderID, artifact.transparentShaderID, artifact.particleGPUShaderID,
 					artifact.depthShaderID, artifact.pickingShaderID, artifact.computeShaderID,
 					artifact.rayTracingShaderID }) {
 					removeGenerated(id, AssetType::Shader);

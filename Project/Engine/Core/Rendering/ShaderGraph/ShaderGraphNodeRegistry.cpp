@@ -74,6 +74,12 @@ namespace {
 		Port{ "R", Type::Float }, Port{ "G", Type::Float },
 		Port{ "B", Type::Float }, Port{ "A", Type::Float },
 	};
+	constexpr std::array kParticleOutputs{
+		Port{ "Color", Type::Float4 }, Port{ "Velocity", Type::Float3 },
+		Port{ "Age", Type::Float }, Port{ "Lifetime", Type::Float },
+		Port{ "Normalized Age", Type::Float }, Port{ "Stable Random", Type::Float },
+		Port{ "CustomData1", Type::Float4 }, Port{ "CustomData2", Type::Float4 },
+	};
 	constexpr std::array kTimeOutputs{
 		Port{ "Time", Type::Float }, Port{ "Sine Time", Type::Float },
 		Port{ "Cosine Time", Type::Float }, Port{ "Delta Time", Type::Float },
@@ -181,6 +187,7 @@ namespace {
 		Node{ Kind::ObjectTangent, "Object Tangent", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
 		Node{ Kind::ViewDirection, "View Direction", "入力", Stage::Fragment, EmptyPorts(), Ports(kFloat3Output) },
 		Node{ Kind::ScreenPosition, "Screen Position", "入力", Stage::Fragment, EmptyPorts(), Ports(kFloat4Output) },
+		Node{ Kind::ParticleData, "Particle Data", "入力", Stage::Fragment, EmptyPorts(), Ports(kParticleOutputs) },
 		Node{ Kind::VertexColor, "Vertex Color", "入力", Stage::Any, EmptyPorts(), Ports(kFloat4Output) },
 		Node{ Kind::Time, "Time", "入力", Stage::Any, EmptyPorts(), Ports(kTimeOutputs) },
 		Node{ Kind::Add, "Add", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },

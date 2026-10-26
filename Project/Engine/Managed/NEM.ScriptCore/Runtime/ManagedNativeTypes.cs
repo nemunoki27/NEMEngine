@@ -6,7 +6,7 @@ namespace NEMEngine;
 internal static class ManagedABI {
 
     // NativeとManagedを同じ版で接続する
-    internal const uint Version = 67;
+    internal const uint Version = 68;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;

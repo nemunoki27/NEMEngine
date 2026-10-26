@@ -254,7 +254,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			ViewportDecalGizmo::Draw(context, imagePos, viewSize_);
-			gizmoSession_.DrawSceneGizmo(context);
+			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
 		DrawViewportEntityDragDropSource(context, blockDragByGizmo);
@@ -265,5 +265,6 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 void Engine::ViewportPanel::EndPreview() {
 
 	gizmoSession_.EndPreview();
+	splineGizmo_.EndPreview();
 	placementSession_.EndPreview();
 }

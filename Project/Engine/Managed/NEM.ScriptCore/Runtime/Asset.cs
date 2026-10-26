@@ -99,3 +99,8 @@ public sealed class AnimationClip : Asset {
 public sealed class ShaderGraph : Asset {
     internal ShaderGraph(AssetGUID id) : base(id) { }
 }
+
+[NativeAssetType("DefaultAsset")]
+public sealed class DefaultAsset : Asset {
+    internal DefaultAsset(AssetGUID id) : base(id) { }
+}

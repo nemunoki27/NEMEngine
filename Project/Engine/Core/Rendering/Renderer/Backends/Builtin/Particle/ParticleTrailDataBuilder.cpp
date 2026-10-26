@@ -60,6 +60,11 @@ namespace {
 		material.materialParams.z =
 			static_cast<float>(blendMode);
 		material.materialColor = Engine::Color4::White();
+		material.velocityAge.w = (point0.source.age + point1.source.age) * 0.5f;
+		material.lifetimeRandom = Engine::Vector4(settings.trail.pointLifetime, materialT, 0, 0);
+		material.particleColor = Engine::Vector4((point0.source.color.r + point1.source.color.r) * 0.5f,
+			(point0.source.color.g + point1.source.color.g) * 0.5f, (point0.source.color.b + point1.source.color.b) * 0.5f,
+			(point0.source.color.a + point1.source.color.a) * 0.5f);
 		const uint32_t materialIndex = static_cast<uint32_t>(outData.materials.size());
 		outData.materials.emplace_back(material);
 

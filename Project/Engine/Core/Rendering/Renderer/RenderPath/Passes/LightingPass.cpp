@@ -19,6 +19,8 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderRequirements.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
@@ -191,8 +193,8 @@ void Engine::LightingPass::Execute(
 	const bool requestShadow =
 		context.hasShadowCastingLight && shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable &&
 		!context.disableInlineRayTracing;
-	// 散乱の遮蔽に必要なときだけ追加のCascadeを用意する
-	const bool volumetricShadows = RequiresDirectionalShadowMap(graphicsCore, context);
+	// 散乱と粒子の受光に必要なときだけ追加のCascadeを用意する
+	const bool volumetricShadows = RequiresDirectionalShadowMap(graphicsCore, passBuckets, context);
 	const bool useShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_);
 	profiler.BeginPass(commandList, profilePrefix + " ShadowMap");
 	const bool shadowMapAvailable = (!useShadow || volumetricShadows) &&
@@ -316,10 +318,26 @@ void Engine::LightingPass::Execute(
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawInstanced(3, 1, 0, 0);
 	if (volumetricShadows) PublishDirectionalShadows(graphicsCore, context, shadowMapAvailable);
+	// 後段の粒子も同じSkyboxの環境光で照らす
+	ParticleEnvironmentConstants environment;
+	environment.colorIntensity = Vector4(skybox.color.r, skybox.color.g, skybox.color.b, skybox.iblIntensity);
+	environment.irradianceIndex = irradianceCubemapIndex;
+	environment.specularIndex = skybox.specularIndex != UINT32_MAX ? skybox.specularIndex : skybox.cubemapIndex;
+	environment.brdfIndex = skybox.brdfIndex;
+	environment.physicalEnvironment = skybox.physicalEnvironmentEnabled ? 1u : 0u;
+	particleEnvironmentConstants_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
+	particleEnvironmentConstants_.Upload(environment);
+	context.bufferRegistry.Register({.alias = "ParticleEnvironmentConstants", .resource = nullptr,
+		.gpuAddress = particleEnvironmentConstants_.GetGPUAddress()});
 	profiler.EndPass(commandList);
 }
 
-bool Engine::LightingPass::RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const SceneExecutionContext& context) {
+bool Engine::LightingPass::RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
+	const SceneExecutionContext& context) {
+
+	if (deps_.renderBatch) for (const auto& bucket : passBuckets.buckets) {
+		if (ParticleRenderRequirements::RequiresDirectionalShadows(*deps_.renderBatch, bucket.items)) return true;
+	}
 
 	if (!context.renderPassesRuntime) return false;
 	const auto features = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();

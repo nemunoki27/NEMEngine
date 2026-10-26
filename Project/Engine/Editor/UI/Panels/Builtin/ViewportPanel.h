@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include "ViewportGizmoSession.h"
+#include "ViewportSplineGizmo.h"
 #include "ViewportDepthSurface.h"
 #include "ViewportPlacementSession.h"
 #include "ViewportToolbar.h"
@@ -59,6 +60,7 @@ namespace Engine {
 
 		// ギズモの開始値と編集確定を管理する
 		ViewportGizmoSession gizmoSession_;
+		ViewportSplineGizmo splineGizmo_;
 
 		// 深度表示の描画資源を所有する
 		ViewportDepthSurface depthSurface_;

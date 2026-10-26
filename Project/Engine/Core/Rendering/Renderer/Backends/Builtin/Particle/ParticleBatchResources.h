@@ -66,6 +66,11 @@ namespace Engine {
 		Color4 materialColor = Color4::White();
 		// カラーテクスチャのUV変換行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
+		Vector4 velocityAge{};
+		Vector4 lifetimeRandom{};
+		Vector4 customData1{};
+		Vector4 customData2{};
+		Vector4 particleColor{1, 1, 1, 1};
 	};
 
 	// CPUでフェーズ分割する粒子データ

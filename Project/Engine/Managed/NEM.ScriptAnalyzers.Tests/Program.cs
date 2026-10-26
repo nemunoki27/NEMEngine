@@ -102,6 +102,7 @@ public sealed class StageManager : MonoBehaviour {
             TestPropertyFieldSchema();
             ComponentQueryTests.Run();
             ParticleSeedTests.Run();
+            ParticleSettingsTests.Run();
 			Console.WriteLine("[PASS] Object equality and Fake Null.");
 		} catch (Exception ex) {
 			++failures;

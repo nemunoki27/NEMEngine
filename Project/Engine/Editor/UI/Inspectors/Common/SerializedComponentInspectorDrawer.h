@@ -18,6 +18,7 @@
 #include <utility>
 #include <unordered_map>
 #include <filesystem>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -193,8 +194,13 @@ namespace Engine {
 
 		if constexpr (requires { SerializeComponentDraft(component, out); }) {
 			SerializeComponentDraft(component, out);
-		} else {
+		} else if constexpr (requires { out = component; }) {
 			out = component;
+		} else if constexpr (requires { T::SerializeECS(world, entity, component, out); }) {
+			// チャンク外の保存値はComponentの保存処理へ渡す
+			T::SerializeECS(world, entity, component, out);
+		} else {
+			throw std::logic_error("Componentのドラフト保存処理が設定されていません");
 		}
 	}
 

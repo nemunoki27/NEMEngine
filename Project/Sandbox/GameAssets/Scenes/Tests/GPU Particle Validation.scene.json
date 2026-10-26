@@ -1,0 +1,929 @@
+{
+  "SchemaVersion": 3,
+  "Header": {
+    "name": "GPU Particle Validation",
+    "subScenes": []
+  },
+  "Entities": [
+    {
+      "LocalFileID": "6770757061720101",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 257
+        },
+        "Name": {
+          "name": "Camera3D"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720101",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 3.8,
+            "z": -10
+          },
+          "localRotation": {
+            "x": 0.1305261922,
+            "y": 0,
+            "z": 0,
+            "w": 0.9914448614
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PerspectiveCamera": {
+          "enabled": true,
+          "isMain": true,
+          "nearClip": 0.05,
+          "farClip": 100,
+          "fovY": 60,
+          "projectionMode": "Perspective",
+          "priority": 0,
+          "cullingMask": 16777215,
+          "viewportWidth": 1,
+          "viewportHeight": 1,
+          "reflectionEnabled": false,
+          "ambientOcclusionEnabled": false,
+          "postProcessEnabled": false
+        }
+      }
+    },
+    {
+      "LocalFileID": "6770757061720102",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 258
+        },
+        "Name": {
+          "name": "確認用の光"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720102",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "DirectionalLight": {
+          "enabled": true,
+          "color": {
+            "r": 1,
+            "g": 1,
+            "b": 1,
+            "a": 1
+          },
+          "direction": {
+            "x": 0.4,
+            "y": -1,
+            "z": 0.3
+          },
+          "intensity": 3,
+          "shadowAngularRadius": 0.27,
+          "shadowStrength": 0.7
+        }
+      }
+    },
+    {
+      "LocalFileID": "6770757061720103",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 259
+        },
+        "Name": {
+          "name": "深度と受光を確認する床"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720103",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": -0.15,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "type": "Cube",
+          "renderSpace": "World3D",
+          "cube": {
+            "size": {
+              "x": 10,
+              "y": 0.3,
+              "z": 7
+            },
+            "pivot": {
+              "x": 0.5,
+              "y": 0.5,
+              "z": 0.5
+            }
+          },
+          "material": "d3ca1000000000000000000000000004",
+          "blendMode": "Normal",
+          "queue": "Opaque",
+          "visible": true,
+          "renderingLayerMask": 1,
+          "receiveDecals": true,
+          "castShadow": true,
+          "castReflection": false
+        }
+      }
+    },
+    {
+      "LocalFileID": "6770757061720104",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 260
+        },
+        "Name": {
+          "name": "共有する渦の力場"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720104",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 1.6,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ForceField": {
+          "enabled": true,
+          "type": 2,
+          "axis": {
+            "x": 0,
+            "y": 1,
+            "z": 0
+          },
+          "strength": 3,
+          "range": 3,
+          "falloff": 1,
+          "layerMask": 1
+        }
+      }
+    },
+    {
+      "LocalFileID": "6770757061720118",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 280
+        },
+        "Name": {
+          "name": "メッシュ表面と平面衝突"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720118",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": -2.4,
+            "y": 2.4,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ParticleSystem": {
+          "simulationTarget": "GPU",
+          "simulationSpace": "World",
+          "enabled": true,
+          "visible": true,
+          "playOnAwake": true,
+          "playInEditMode": true,
+          "useAutoRandomSeed": false,
+          "randomSeed": 412,
+          "renderingLayerMask": 1,
+          "settings": {
+            "version": 1,
+            "space": "World3D",
+            "looping": true,
+            "shape": "Plane",
+            "billboardAxes": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "blendMode": "Add",
+            "queue": "Transparent",
+            "emitter": {
+              "shape": "Sphere",
+              "sphereRadius": 0.25,
+              "emitInterval": 0.025,
+              "emitCount": {
+                "type": "Constant",
+                "constant": 2,
+                "min": 2,
+                "max": 2
+              },
+              "maxParticles": 1024,
+              "speed": {
+                "type": "Constant",
+                "constant": 1,
+                "min": 1,
+                "max": 1
+              },
+              "emitOffset": {
+                "type": "Constant",
+                "constant": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "min": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "max": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                }
+              },
+              "pointDirection": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              }
+            },
+            "trail": {
+              "enabled": false
+            },
+            "phases": [
+              {
+                "id": "6770757061720109",
+                "name": "確認用",
+                "lifetime": {
+                  "type": "Constant",
+                  "constant": 3,
+                  "min": 3,
+                  "max": 3
+                },
+                "lifeEndMode": "Kill",
+                "modules": [
+                  {
+                    "id": "SizeOverLifetime",
+                    "instanceID": "6770757061720105",
+                    "params": {
+                      "startScale": 0.065,
+                      "endScale": 0.0195
+                    }
+                  },
+                  {
+                    "id": "ColorOverLifetime",
+                    "instanceID": "6770757061720106",
+                    "params": {
+                      "startColor": {
+                        "r": 1,
+                        "g": 0.4,
+                        "b": 0.08,
+                        "a": 1
+                      },
+                      "endColor": {
+                        "r": 1,
+                        "g": 0.1,
+                        "b": 0.02,
+                        "a": 0
+                      }
+                    }
+                  },
+                  {
+                    "id": "GravityForce",
+                    "instanceID": "6770757061720107",
+                    "params": {
+                      "gravity": {
+                        "x": 0,
+                        "y": -1.5,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "id": "Collision",
+                    "instanceID": "6770757061720108",
+                    "params": {
+                      "enabled": true,
+                      "sceneColliders": false,
+                      "plane": true,
+                      "planeNormal": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                      },
+                      "planeDistance": 0,
+                      "radius": 0.04,
+                      "bounce": 0.55,
+                      "friction": 0.1
+                    }
+                  }
+                ]
+              }
+            ],
+            "source": {
+              "kind": "MeshSurface",
+              "mesh": "4e454d41535345544195d8a0c7815abd",
+              "sequential": false,
+              "inheritColor": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "LocalFileID": "6770757061720119",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 281
+        },
+        "Name": {
+          "name": "カールと共有力場"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "6770757061720119",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 1.8,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ParticleSystem": {
+          "simulationTarget": "GPU",
+          "simulationSpace": "World",
+          "enabled": true,
+          "visible": true,
+          "playOnAwake": true,
+          "playInEditMode": true,
+          "useAutoRandomSeed": false,
+          "randomSeed": 412,
+          "renderingLayerMask": 1,
+          "settings": {
+            "version": 1,
+            "space": "World3D",
+            "looping": true,
+            "shape": "Plane",
+            "billboardAxes": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "blendMode": "Add",
+            "queue": "Transparent",
+            "emitter": {
+              "shape": "Sphere",
+              "sphereRadius": 0.25,
+              "emitInterval": 0.025,
+              "emitCount": {
+                "type": "Constant",
+                "constant": 2,
+                "min": 2,
+                "max": 2
+              },
+              "maxParticles": 1024,
+              "speed": {
+                "type": "Constant",
+                "constant": 1,
+                "min": 1,
+                "max": 1
+              },
+              "emitOffset": {
+                "type": "Constant",
+                "constant": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "min": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "max": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                }
+              },
+              "pointDirection": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              }
+            },
+            "trail": {
+              "enabled": false
+            },
+            "phases": [
+              {
+                "id": "677075706172010f",
+                "name": "確認用",
+                "lifetime": {
+                  "type": "Constant",
+                  "constant": 3,
+                  "min": 3,
+                  "max": 3
+                },
+                "lifeEndMode": "Kill",
+                "modules": [
+                  {
+                    "id": "CurlNoise",
+                    "instanceID": "677075706172010a",
+                    "params": {
+                      "strength": 1.8,
+                      "frequency": 0.8,
+                      "scrollSpeed": {
+                        "x": 0,
+                        "y": 0.2,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "id": "ForceField",
+                    "instanceID": "677075706172010b",
+                    "params": {
+                      "useSceneFields": true,
+                      "strength": 1,
+                      "layerMask": 1
+                    }
+                  },
+                  {
+                    "id": "Collision",
+                    "instanceID": "677075706172010c",
+                    "params": {
+                      "enabled": true,
+                      "sceneColliders": false,
+                      "plane": true,
+                      "planeNormal": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                      },
+                      "planeDistance": 0,
+                      "radius": 0.04,
+                      "bounce": 0.55,
+                      "friction": 0.1
+                    }
+                  },
+                  {
+                    "id": "SizeOverLifetime",
+                    "instanceID": "677075706172010d",
+                    "params": {
+                      "startScale": 0.07,
+                      "endScale": 0.021
+                    }
+                  },
+                  {
+                    "id": "ColorOverLifetime",
+                    "instanceID": "677075706172010e",
+                    "params": {
+                      "startColor": {
+                        "r": 0.15,
+                        "g": 0.55,
+                        "b": 1,
+                        "a": 1
+                      },
+                      "endColor": {
+                        "r": 0.4,
+                        "g": 0.2,
+                        "b": 1,
+                        "a": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "LocalFileID": "677075706172011a",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 282
+        },
+        "Name": {
+          "name": "深度フェードと受光"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "677075706172011a",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 2.4,
+            "y": 3,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ParticleSystem": {
+          "simulationTarget": "GPU",
+          "simulationSpace": "World",
+          "enabled": true,
+          "visible": true,
+          "playOnAwake": true,
+          "playInEditMode": true,
+          "useAutoRandomSeed": false,
+          "randomSeed": 412,
+          "renderingLayerMask": 1,
+          "settings": {
+            "version": 1,
+            "space": "World3D",
+            "looping": true,
+            "shape": "Plane",
+            "billboardAxes": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "blendMode": "Normal",
+            "queue": "Transparent",
+            "emitter": {
+              "shape": "Point",
+              "sphereRadius": 0.25,
+              "emitInterval": 0.06,
+              "emitCount": {
+                "type": "Constant",
+                "constant": 2,
+                "min": 2,
+                "max": 2
+              },
+              "maxParticles": 1024,
+              "speed": {
+                "type": "Constant",
+                "constant": 0.5,
+                "min": 0.5,
+                "max": 0.5
+              },
+              "emitOffset": {
+                "type": "Random",
+                "constant": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "min": {
+                  "x": -0.7,
+                  "y": 0,
+                  "z": -0.7
+                },
+                "max": {
+                  "x": 0.7,
+                  "y": 0,
+                  "z": 0.7
+                }
+              },
+              "pointDirection": {
+                "x": 0,
+                "y": -1,
+                "z": 0
+              }
+            },
+            "trail": {
+              "enabled": false
+            },
+            "phases": [
+              {
+                "id": "6770757061720113",
+                "name": "確認用",
+                "lifetime": {
+                  "type": "Constant",
+                  "constant": 3,
+                  "min": 3,
+                  "max": 3
+                },
+                "lifeEndMode": "Kill",
+                "modules": [
+                  {
+                    "id": "GravityForce",
+                    "instanceID": "6770757061720110",
+                    "params": {
+                      "gravity": {
+                        "x": 0,
+                        "y": -2,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "id": "SizeOverLifetime",
+                    "instanceID": "6770757061720111",
+                    "params": {
+                      "startScale": 0.35,
+                      "endScale": 0.105
+                    }
+                  },
+                  {
+                    "id": "ColorOverLifetime",
+                    "instanceID": "6770757061720112",
+                    "params": {
+                      "startColor": {
+                        "r": 0.4,
+                        "g": 0.8,
+                        "b": 1,
+                        "a": 0.8
+                      },
+                      "endColor": {
+                        "r": 0.1,
+                        "g": 0.4,
+                        "b": 1,
+                        "a": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "surface": {
+              "softParticles": true,
+              "softDistance": 0.5,
+              "lit": true,
+              "receiveShadows": true,
+              "receiveIBL": true,
+              "metallic": 0,
+              "roughness": 0.65
+            }
+          }
+        }
+      }
+    },
+    {
+      "LocalFileID": "677075706172011b",
+      "Components": {
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 283
+        },
+        "Name": {
+          "name": "任意データを色へ渡す"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "677075706172011b",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 1.5,
+            "z": 2
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "ParticleSystem": {
+          "simulationTarget": "GPU",
+          "simulationSpace": "World",
+          "enabled": true,
+          "visible": true,
+          "playOnAwake": true,
+          "playInEditMode": true,
+          "useAutoRandomSeed": false,
+          "randomSeed": 412,
+          "renderingLayerMask": 1,
+          "settings": {
+            "version": 1,
+            "space": "World3D",
+            "looping": true,
+            "shape": "Plane",
+            "billboardAxes": [
+              "X",
+              "Y",
+              "Z"
+            ],
+            "blendMode": "Add",
+            "queue": "Transparent",
+            "emitter": {
+              "shape": "Sphere",
+              "sphereRadius": 0.25,
+              "emitInterval": 0.025,
+              "emitCount": {
+                "type": "Constant",
+                "constant": 2,
+                "min": 2,
+                "max": 2
+              },
+              "maxParticles": 1024,
+              "speed": {
+                "type": "Constant",
+                "constant": 1,
+                "min": 1,
+                "max": 1
+              },
+              "emitOffset": {
+                "type": "Constant",
+                "constant": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "min": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                },
+                "max": {
+                  "x": 0,
+                  "y": 0,
+                  "z": 0
+                }
+              },
+              "pointDirection": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+              }
+            },
+            "trail": {
+              "enabled": false
+            },
+            "phases": [
+              {
+                "id": "6770757061720117",
+                "name": "確認用",
+                "lifetime": {
+                  "type": "Constant",
+                  "constant": 3,
+                  "min": 3,
+                  "max": 3
+                },
+                "lifeEndMode": "Kill",
+                "modules": [
+                  {
+                    "id": "SizeOverLifetime",
+                    "instanceID": "6770757061720114",
+                    "params": {
+                      "startScale": 0.12,
+                      "endScale": 0.036
+                    }
+                  },
+                  {
+                    "id": "ColorOverLifetime",
+                    "instanceID": "6770757061720115",
+                    "params": {
+                      "startColor": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      },
+                      "endColor": {
+                        "r": 1,
+                        "g": 1,
+                        "b": 1,
+                        "a": 1
+                      }
+                    }
+                  },
+                  {
+                    "id": "CustomData",
+                    "instanceID": "6770757061720116",
+                    "params": {
+                      "customData1": {
+                        "mode": "OverLifetime",
+                        "componentCount": 4,
+                        "start": [
+                          0.05,
+                          0.8,
+                          1,
+                          1
+                        ],
+                        "end": [
+                          1,
+                          0.1,
+                          0.15,
+                          1
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "material": "a7c445614a8d41c8a4a2cb70f070a002"
+          }
+        }
+      }
+    }
+  ],
+  "PrefabInstances": []
+}

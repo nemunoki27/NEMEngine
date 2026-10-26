@@ -84,6 +84,7 @@ namespace Engine {
 		ParticleSimulationTarget target = ParticleSimulationTarget::CPU;
 		std::shared_ptr<const ParticleSystemDefinition> definition;
 		std::shared_ptr<const ParticleSystemSettings> rejectedSettings;
+		std::string rejectedReason;
 		ParticleEmitterRuntime emitter;
 	};
 

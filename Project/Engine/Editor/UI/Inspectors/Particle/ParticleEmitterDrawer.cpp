@@ -5,6 +5,8 @@
 //============================================================================
 #include "ParticleMaterialResolver.h"
 #include "ParticleTextureDrawer.h"
+#include "ParticleSurfaceDrawer.h"
+#include "ParticleSourceDrawer.h"
 #include "GUI/ParticleGUIHelpers.h"
 #include "ParticleEditorDescriptorRegistry.h"
 #include "ShapeParams/ParticlePrimitiveShapeDrawerRegistry.h"
@@ -24,7 +26,7 @@ using Engine::ParticleGUI::MakeDragSetting;
 ParticleEmitterDrawer::ParticleEmitterDrawer(ParticleSettingsEditSession& session, std::string& status) :
 	session_(session), statusMessage_(status) {}
 
-bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSystemSettings& group) {
+bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget) {
 
 	AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
 	bool changed = false;
@@ -33,6 +35,7 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 	//	エミッター編集
 	//============================================================================
 	if (ImGui::BeginTabItem("エミッター")) {
+		if (simulationTarget == ParticleSimulationTarget::GPU) changed |= ParticleSourceDrawer::Draw(context, group.source);
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("発生設定", false)) {
 			MyGUI::ScopedPropertyLabelWidth labelWidth("EmitterEmissionSettings");
@@ -171,6 +174,8 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 					}
 				}
 			}
+
+			if (simulationTarget == ParticleSimulationTarget::GPU) changed |= ParticleSurfaceDrawer::Draw(context, group.surface);
 
 			ImGui::SeparatorText("トレイル");
 			changed |= MyGUI::Checkbox("トレイル描画", group.trail.enabled);

@@ -33,6 +33,7 @@ namespace Engine {
 	struct ShaderGraphCompileOutput {
 
 		std::string surfaceHLSL;
+		std::string particleGPUPixelHLSL;
 		std::string opaquePixelHLSL;
 		std::string transparentPixelHLSL;
 		std::string depthPixelHLSL;

@@ -13,264 +13,15 @@
 //============================================================================
 namespace {
 
+	// 整数の範囲外だけ周期内へ戻す
+	float WrapNoiseCoordinate(float value) {
+
+		return value >= 2147483648.0f || value < -2147483648.0f ? std::fmod(value, 256.0f) : value;
+	}
+
 	// 256要素の置換表を周期的に参照
 	constexpr uint8_t kPermutation[256] = {
-		151,
-		160,
-		137,
-		91,
-		90,
-		15,
-		131,
-		13,
-		201,
-		95,
-		96,
-		53,
-		194,
-		233,
-		7,
-		225,
-		140,
-		36,
-		103,
-		30,
-		69,
-		142,
-		8,
-		99,
-		37,
-		240,
-		21,
-		10,
-		23,
-		190,
-		6,
-		148,
-		247,
-		120,
-		234,
-		75,
-		0,
-		26,
-		197,
-		62,
-		94,
-		252,
-		219,
-		203,
-		117,
-		35,
-		11,
-		32,
-		57,
-		177,
-		33,
-		88,
-		237,
-		149,
-		56,
-		87,
-		174,
-		20,
-		125,
-		136,
-		171,
-		168,
-		68,
-		175,
-		74,
-		165,
-		71,
-		134,
-		139,
-		48,
-		27,
-		166,
-		77,
-		146,
-		158,
-		231,
-		83,
-		111,
-		229,
-		122,
-		60,
-		211,
-		133,
-		230,
-		220,
-		105,
-		92,
-		41,
-		55,
-		46,
-		245,
-		40,
-		244,
-		102,
-		143,
-		54,
-		65,
-		25,
-		63,
-		161,
-		1,
-		216,
-		80,
-		73,
-		209,
-		76,
-		132,
-		187,
-		208,
-		89,
-		18,
-		169,
-		200,
-		196,
-		135,
-		130,
-		116,
-		188,
-		159,
-		86,
-		164,
-		100,
-		109,
-		198,
-		173,
-		186,
-		3,
-		64,
-		52,
-		217,
-		226,
-		250,
-		124,
-		123,
-		5,
-		202,
-		38,
-		147,
-		118,
-		126,
-		255,
-		82,
-		85,
-		212,
-		207,
-		206,
-		59,
-		227,
-		47,
-		16,
-		58,
-		17,
-		182,
-		189,
-		28,
-		42,
-		223,
-		183,
-		170,
-		213,
-		119,
-		248,
-		152,
-		2,
-		44,
-		154,
-		163,
-		70,
-		221,
-		153,
-		101,
-		155,
-		167,
-		43,
-		172,
-		9,
-		129,
-		22,
-		39,
-		253,
-		19,
-		98,
-		108,
-		110,
-		79,
-		113,
-		224,
-		232,
-		178,
-		185,
-		112,
-		104,
-		218,
-		246,
-		97,
-		228,
-		251,
-		34,
-		242,
-		193,
-		238,
-		210,
-		144,
-		12,
-		191,
-		179,
-		162,
-		241,
-		81,
-		51,
-		145,
-		235,
-		249,
-		14,
-		239,
-		107,
-		49,
-		192,
-		214,
-		31,
-		181,
-		199,
-		106,
-		157,
-		184,
-		84,
-		204,
-		176,
-		115,
-		121,
-		50,
-		45,
-		127,
-		4,
-		150,
-		254,
-		138,
-		236,
-		205,
-		93,
-		222,
-		114,
-		67,
-		29,
-		24,
-		72,
-		243,
-		141,
-		128,
-		195,
-		78,
-		66,
-		215,
-		61,
-		156,
-		180,
+#include <Engine/Assets/Shaders/Common/Noise/noisePermutation.hlsli>
 	};
 
 	// 格子番号を置換表の範囲へ戻す
@@ -311,12 +62,9 @@ float Math::PerlinNoise3D(float x, float y, float z) {
 		return 0.0f;
 	}
 	// 整数の範囲外だけ周期内へ戻して格子番号を求める
-	const auto wrapLargeCoordinate = [](float value) {
-		return value >= 2147483648.0f || value < -2147483648.0f ? std::fmod(value, 256.0f) : value;
-	};
-	x = wrapLargeCoordinate(x);
-	y = wrapLargeCoordinate(y);
-	z = wrapLargeCoordinate(z);
+	x = WrapNoiseCoordinate(x);
+	y = WrapNoiseCoordinate(y);
+	z = WrapNoiseCoordinate(z);
 	const int32_t cellX = static_cast<int32_t>(std::floor(x)) & 255;
 	const int32_t cellY = static_cast<int32_t>(std::floor(y)) & 255;
 	const int32_t cellZ = static_cast<int32_t>(std::floor(z)) & 255;
@@ -354,4 +102,47 @@ Engine::Vector3 Math::PerlinNoiseVector3(const Engine::Vector3& position, float 
 	// 成分ごとに大きくずらした座標からサンプリングして相関を避ける
 	return Engine::Vector3(PerlinNoise3D(x, y, z), PerlinNoise3D(x + 137.2f, y + 71.9f, z + 291.3f),
 		PerlinNoise3D(x + 511.7f, y + 353.1f, z + 97.4f));
+}
+
+Engine::Vector3 Math::PerlinNoiseGradient3D(const Engine::Vector3& position) {
+
+	if (!std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z)) return {};
+	const float coordinates[]{WrapNoiseCoordinate(position.x), WrapNoiseCoordinate(position.y), WrapNoiseCoordinate(position.z)};
+	int32_t cell[3];
+	float fraction[3], weight[3], derivative[3];
+	for (uint32_t axis = 0; axis < 3; ++axis) {
+		const float floor = std::floor(coordinates[axis]);
+		cell[axis] = static_cast<int32_t>(floor) & 255;
+		fraction[axis] = coordinates[axis] - floor;
+		weight[axis] = Fade(fraction[axis]);
+		const float t = fraction[axis];
+		derivative[axis] = 30.0f * t * t * (t * (t - 2.0f) + 1.0f);
+	}
+	Engine::Vector3 result{};
+	// 8頂点の勾配と補間重みを微分する
+	for (uint32_t corner = 0; corner < 8; ++corner) {
+		const uint32_t x = corner & 1u, y = (corner >> 1) & 1u, z = corner >> 2;
+		const uint8_t hash = Perm(Perm(Perm(cell[0] + x) + cell[1] + y) + cell[2] + z);
+		const Engine::Vector3 gradient(Grad(hash, 1, 0, 0), Grad(hash, 0, 1, 0), Grad(hash, 0, 0, 1));
+		const float value = Grad(hash, fraction[0] - x, fraction[1] - y, fraction[2] - z);
+		const float wx = x ? weight[0] : 1.0f - weight[0];
+		const float wy = y ? weight[1] : 1.0f - weight[1];
+		const float wz = z ? weight[2] : 1.0f - weight[2];
+		result += gradient * (wx * wy * wz) + Engine::Vector3(
+			(x ? derivative[0] : -derivative[0]) * wy * wz,
+			wx * (y ? derivative[1] : -derivative[1]) * wz,
+			wx * wy * (z ? derivative[2] : -derivative[2])) * value;
+	}
+	return result;
+}
+
+Engine::Vector3 Math::CurlNoiseVector3(const Engine::Vector3& position, float frequency) {
+
+	if (!std::isfinite(frequency)) return {};
+	// 解析微分を使い、差分法の18回から3回の格子評価へ減らす
+	const Engine::Vector3 p = position * frequency;
+	const Engine::Vector3 x = PerlinNoiseGradient3D(p);
+	const Engine::Vector3 y = PerlinNoiseGradient3D(p + Engine::Vector3(137.2f, 71.9f, 291.3f));
+	const Engine::Vector3 z = PerlinNoiseGradient3D(p + Engine::Vector3(511.7f, 353.1f, 97.4f));
+	return Engine::Vector3(z.y - y.z, x.z - z.x, y.x - x.y) * frequency;
 }

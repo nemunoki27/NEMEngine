@@ -48,6 +48,9 @@ ParticleGPUSimulationConstants Engine::MakeParticleGPUSimulationConstants(const 
 	constants.velocityMode = static_cast<uint32_t>(emitter.circle.velocityMode);
 	constants.preserveWrapDirection = emitter.circle.usePrevSegmentDirectionOnWrap ? 1u : 0u;
 	constants.moduleStateCount = step.program ? step.program->stateCount : 0;
+	constants.spawnDirectionSlot = step.program ? step.program->spawnDirectionSlot : UINT32_MAX;
+	constants.shapeStateSlot = step.program ? step.program->shapeStateSlot : UINT32_MAX;
+	constants.initialShapeOffset = step.program ? step.program->initialShapeOffset : 0;
 	const bool faces[] = {emitter.box.facePosX, emitter.box.faceNegX, emitter.box.facePosY,
 		emitter.box.faceNegY, emitter.box.facePosZ, emitter.box.faceNegZ};
 	for (uint32_t i = 0; i < 6; ++i) if (faces[i]) constants.faceMask |= 1u << i;

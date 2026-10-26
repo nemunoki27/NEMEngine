@@ -12,10 +12,17 @@ groupshared uint localMasks[128];
 groupshared uint groupVisibleCount;
 groupshared uint groupVisibleBase;
 
-bool ParticleVisible(ParticleAttributesGPU particle, float3 position) {
+bool ParticleVisible(ParticleAttributesGPU particle, float3 position, uint particleIndex) {
 	float3 scale = particle.scaleSize.xyz;
 	if (particle.hasParent != 0) scale *= gGPUParents[particle.phase].scale.xyz;
-	float radius = length(scale) * abs(particle.scaleSize.w) * geometryRadius;
+	float bounds = geometryRadius;
+	if (shapeStateSlot != 0xffffffffu && (geometryShape == 2u || geometryShape == 3u)) {
+		float4 parameters = gGPUModuleStatesRead[particleIndex * moduleStateCount + shapeStateSlot];
+		float radial = geometryShape == 2u ? max(abs(parameters.x), abs(parameters.y)) :
+			max(max(abs(parameters.x), abs(parameters.y)), abs(parameters.z));
+		bounds = geometryShape == 2u ? radial : length(float2(radial, parameters.w * 0.5f));
+	}
+	float radius = length(scale) * abs(particle.scaleSize.w) * bounds;
 	for (uint i = 0; i < 6; ++i) {
 		if (dot(frustum[i], float4(position, 1)) < -radius) return false;
 	}
@@ -41,7 +48,7 @@ void main(uint index : SV_DispatchThreadID, uint localIndex : SV_GroupIndex, uin
 			ParticleAttributesGPU particle = gGPUParticles[index];
 			if (particle.alive != 0) {
 				float3 position = ParticleWorldPosition(particle, gGPUParents[particle.phase]);
-				visible = ParticleVisible(particle, position);
+				visible = ParticleVisible(particle, position, index);
 				particlePhase = particle.phase;
 				float depth = max(dot(position - cameraPosition.xyz, cameraForward.xyz), 0.0f);
 				key = particle.phase << 24;

@@ -4,9 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleAlphaReferenceModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCurlNoiseModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorUVModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomDataModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleWorldModules.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
@@ -37,11 +40,17 @@ Engine::ParticleModuleRegistry::ParticleModuleRegistry() {
 	Register("AlphaReference", &CreateParticleModule<ParticleAlphaReferenceModule>);
 	Register("ColorOverLifetime", &CreateParticleModule<ParticleColorOverLifetimeModule>);
 	Register("ColorUV", &CreateParticleModule<ParticleColorUVModule>);
+	Register("CustomData", &CreateParticleModule<ParticleCustomDataModule>);
+	Register("ForceField", &CreateParticleModule<ParticleForceFieldModule>);
+	Register("VectorField", &CreateParticleModule<ParticleVectorFieldModule>);
+	Register("SplineMovement", &CreateParticleModule<ParticleSplineMovementModule>);
+	Register("Collision", &CreateParticleModule<ParticleCollisionModule>);
 	Register("CustomShaderParameter", &CreateParticleModule<ParticleCustomShaderParameterModule>);
 	Register("Emissive", &CreateParticleModule<ParticleEmissiveModule>);
 	Register("Flipbook", &CreateParticleModule<ParticleFlipbookModule>);
 	Register("GravityForce", &CreateParticleModule<ParticleGravityForceModule>);
 	Register("LookToVelocity", &CreateParticleModule<ParticleLookToVelocityModule>);
+	Register("CurlNoise", &CreateParticleModule<ParticleCurlNoiseModule>);
 	Register("NoiseForce", &CreateParticleModule<ParticleNoiseForceModule>);
 	Register("NoiseUV", &CreateParticleModule<ParticleNoiseUVModule>);
 	Register("PendulumMovement", &CreateParticleModule<ParticlePendulumMovementModule>);

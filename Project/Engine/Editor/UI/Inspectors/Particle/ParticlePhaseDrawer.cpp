@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUProgram.h>
+#include <Engine/Core/Rendering/Particle/ParticleSimulationValidation.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -140,6 +141,7 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		addModuleSearchFilter_.DrawInput("##ModuleSearch", {}, "検索...");
 		for (const auto& descriptor : ParticleModuleRegistry::GetInstance().GetDescriptors()) {
 			if (gpu && !IsParticleGPUModuleSupported(descriptor.id)) continue;
+			if (!gpu && IsParticleModuleGPUOnly(descriptor.id)) continue;
 			if (!addModuleSearchFilter_.Matches(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) continue;
 			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) {
 				ParticleModuleEntry entry;
@@ -171,19 +173,25 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		}
 		if (open) {
 			ImGui::Indent();
-			if (auto* module = session_.ResolveModuleCache(cache[i], entry)) {
-				MyGUI::ScopedPropertyLabelWidth labelWidth(entry.id.c_str());
+			MyGUI::ScopedPropertyLabelWidth labelWidth(entry.id.c_str());
+			changed |= MyGUI::Checkbox("モジュールを有効にする", entry.enabled);
+			ImGui::BeginDisabled(!entry.enabled);
+			if (!gpu && IsParticleModuleGPUOnly(entry.id)) {
+				ImGui::TextWrapped("このモジュールにはGPU実行が必要です");
+			} else if (auto* module = session_.ResolveModuleCache(cache[i], entry)) {
 				if (auto* drawer = dynamic_cast<ParticleCustomShaderParameterModuleDrawer*>(cache[i].drawer.get())) {
 					if (const auto material = LoadMaterialAsset(context, ResolvePhaseMaterialID(group, phase))) {
 						if (const auto* reflection = FindParticleMaterialReflection(context, *material))
 							drawer->SetReflectedParameters(CollectMaterialParameters(*reflection));
 					}
 				}
-				if (ParticleEditorDescriptorRegistry::GetInstance().DrawModule(cache[i].typeID, *module, cache[i].drawer.get())) {
+				if (ParticleEditorDescriptorRegistry::GetInstance().DrawModule(
+					cache[i].typeID, *module, cache[i].drawer.get(), context)) {
 					entry.params = module->ToJson();
 					changed = true;
 				}
 			}
+			ImGui::EndDisabled();
 			ImGui::Unindent();
 		}
 		ImGui::PopID();

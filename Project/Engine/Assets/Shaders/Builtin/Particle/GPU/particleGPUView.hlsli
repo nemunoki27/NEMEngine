@@ -20,10 +20,13 @@ cbuffer ParticleGPUViewConstants : register(b0) {
 	uint blendMode;
 	uint flipV;
 	float geometryRadius;
-	float3 viewPadding;
+	uint shapeStateSlot;
+	uint moduleStateCount;
+	uint geometryShape;
 };
 
 StructuredBuffer<ParticleAttributesGPU> gGPUParticles : register(t0);
 StructuredBuffer<ParticleParentGPU> gGPUParents : register(t1);
+StructuredBuffer<float4> gGPUModuleStatesRead : register(t15);
 
 #endif

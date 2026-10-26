@@ -17,6 +17,9 @@ namespace Engine {
 	//============================================================================
 	struct ShaderGraphArtifact {
 
+		AssetID particleGPUShaderID{};
+		ShaderAsset particleGPUShader{};
+		std::filesystem::path particleGPUPixelPath;
 		AssetID opaqueShaderID{};					// 不透明Shaderの派生ID
 		AssetID transparentShaderID{};				// 透明Shaderの派生ID
 		AssetID depthShaderID{};					// 深度Shaderの派生ID
@@ -83,5 +86,7 @@ namespace Engine {
 		static ShaderGraphArtifact DescribeReferences(const ShaderGraphAsset& graph, AssetID graphID);
 		// グラフと用途から決定的な派生IDを生成
 		static AssetID MakeDerivedID(AssetID graphID, uint64_t discriminator);
+		// GPU粒子用のPixel Shaderを同じ派生規則で参照する
+		static AssetID MakeParticleGPUShaderID(AssetID graphID);
 	};
 }

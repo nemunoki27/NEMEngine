@@ -31,6 +31,7 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 	settings.queue = group.queue;
 	settings.billboardAxes = group.billboardAxes;
 	settings.trail = group.trail;
+	settings.surface = group.surface;
 	settings.emitter = group.emitter;
 	// フェーズごとのマテリアルと形状アニメの有無を集める
 	settings.phaseMaterials.reserve(group.phases.size());
@@ -39,7 +40,10 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 
 		settings.phaseMaterials.emplace_back(phase.material);
 		settings.phaseMaterialSettings.emplace_back(phase.materialSettings);
+		settings.phaseCustomData.emplace_back();
 		for (const ParticleModuleEntry& entry : phase.modules) {
+			if (!entry.enabled) continue;
+			if (entry.id == "CustomData") from_json(entry.params, settings.phaseCustomData.back());
 			if (entry.id == "ShapeOverLifetime") {
 				settings.shapeOverLifetime = true;
 			}

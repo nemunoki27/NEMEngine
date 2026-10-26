@@ -1,0 +1,10 @@
+{
+  "name": "inclusiveScan",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d41535345547363616e00000002"
+    }
+  ]
+}

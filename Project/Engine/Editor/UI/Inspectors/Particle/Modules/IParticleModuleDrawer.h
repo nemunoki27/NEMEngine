@@ -4,6 +4,7 @@
 
 namespace Engine {
 
+	struct EditorPanelContext;
 	//============================================================================
 	//	IParticleModuleDrawer class
 	//	モジュールの編集表示と編集状態を所有する
@@ -16,5 +17,6 @@ namespace Engine {
 
 		virtual ~IParticleModuleDrawer() = default;
 		virtual bool Draw(IParticleModule& module) = 0;
+		virtual bool Draw(IParticleModule& module, [[maybe_unused]] const EditorPanelContext& context) { return Draw(module); }
 	};
 }

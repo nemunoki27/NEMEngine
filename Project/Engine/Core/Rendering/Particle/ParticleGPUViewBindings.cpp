@@ -25,6 +25,7 @@ void Engine::BindParticleGPUViewCompute(ID3D12GraphicsCommandList* commands, con
 	};
 	srv("gGPUParticles", instance.particles.GetGPUAddress());
 	srv("gGPUParents", instance.parents.GetGPUAddress());
+	srv("gGPUModuleStatesRead", instance.moduleStates.GetGPUAddress());
 	srv("gGPUViewKeysIn", keys[input].GetGPUAddress());
 	uav("gGPUViewKeysOut", keys[output]);
 	uav("gGPUHistogram", view.histogram);

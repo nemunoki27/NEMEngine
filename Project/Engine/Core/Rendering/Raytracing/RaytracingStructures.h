@@ -72,7 +72,9 @@ namespace Engine {
 
 		// ライティングやIBLをヒット地点で再現するための描画フラグ
 		uint32_t renderFlags = 0;
-		uint32_t _pad[3] = { 0, 0, 0 };
+		uint32_t entityIndex = UINT32_MAX;
+		uint32_t entityGeneration = 0;
+		uint32_t _pad = 0;
 	};
 	static_assert(sizeof(RaytracingInstanceShaderData) == 32,
 		"RaytracingInstanceShaderData must match HLSL layout");

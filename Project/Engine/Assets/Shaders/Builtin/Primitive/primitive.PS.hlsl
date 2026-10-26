@@ -4,6 +4,7 @@
 #include "primitive.hlsli"
 #include "../Mesh/Common/pbrShading.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
+#include "../Particle/GPU/particlePaintRead.hlsli"
 
 //============================================================================
 //	output
@@ -23,6 +24,7 @@ ResolvedPBRMaterial ResolvePrimitiveMaterial(VSOutput input) {
 
 	// ベースカラー = マテリアル色 × テクスチャ
 	float4 baseColor = baseColorTexture.Sample(gSampler, uv) * color * input.vertexColor;
+	ApplyParticlePaint(uint2(input.entityIndex, input.entityGeneration), input.texcoord, input.worldPos, gSampler, baseColor);
 
 	// メタリックとラフネスはglTF流でB=metallic G=roughness
 	float4 mrSample = metallicRoughnessTexture.Sample(gSampler, uv);

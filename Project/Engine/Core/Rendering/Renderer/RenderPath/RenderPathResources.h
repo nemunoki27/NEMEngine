@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/DepthPyramidTexture.h>
+#include <Engine/Core/Rendering/Particle/ParticleOpaqueDepthSnapshot.h>
 
 // c++
 #include <cstdint>
@@ -124,6 +125,9 @@ namespace Engine {
 		DepthPyramidTexture& GetDepthPyramid() { return depthPyramid_; }
 		const DepthPyramidTexture& GetDepthPyramid() const { return depthPyramid_; }
 
+		ParticleOpaqueDepthSnapshot& GetParticleOpaqueDepthSnapshot() { return particleOpaqueDepth_; }
+		const ParticleOpaqueDepthSnapshot& GetParticleOpaqueDepthSnapshot() const { return particleOpaqueDepth_; }
+
 		// GBuffer各アタッチメントの取得、ライティングパスが属性ごとに参照する
 		RenderTexture2D* GetGBufferAlbedo() { return GetGBufferColor(GBufferAttachment::Albedo); }
 		const RenderTexture2D* GetGBufferAlbedo() const { return GetGBufferColor(GBufferAttachment::Albedo); }
@@ -174,6 +178,7 @@ namespace Engine {
 		// SceneFinalと同形式の透明Surface用読み取りコピー
 		std::unique_ptr<MultiRenderTarget> sceneColorOpaque_;
 		DepthPyramidTexture depthPyramid_{};
+		ParticleOpaqueDepthSnapshot particleOpaqueDepth_;
 		// Runtime ScreenSpaceOutlineComponent用
 		ScreenSpaceOutlineViewResources runtimeOutline_{};
 		// Editor選択temporary request用

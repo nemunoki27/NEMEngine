@@ -9,6 +9,8 @@
 #include "RenderAssetReloadService.h"
 #include "RenderPipelineViewResources.h"
 #include "RenderScenePreparation.h"
+#include "ParticleMeshSourcePreparation.h"
+#include "ParticleCameraDepthPreparation.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
@@ -102,6 +104,7 @@ namespace Engine {
 		// カリングカメラに対応するHi-Zを持つViewリソース
 		RenderPathResources* cullingResources = nullptr;
 		bool occlusionDepthPyramidReady = false;
+		bool particleCameraCaptureRequired = false;
 		// ビルボードの計算基準にするビュー
 		const ResolvedRenderView* billboardView = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
@@ -297,6 +300,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		RenderScenePreparation scenePreparation_{};
+		ParticleMeshSourcePreparation particleMeshSources_;
+		ParticleCameraDepthPreparation particleCameraDepth_;
 		RenderColorPrecisionPolicy colorPrecision_;
 		RenderPreviewResources previewResources_{};
 		RenderPickingState pickingState_{};
@@ -358,6 +363,10 @@ namespace Engine {
 		ParticleRenderBackend* particleBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
+
+		// 現在深度と前回Camera出力を粒子のGPU更新へ渡す
+		ParticleGPUFrameInputs PrepareParticleFrameInputs(GraphicsCore& graphics,
+			const RenderFrameRequest& request, const SceneInstance* scene);
 
 		// 描画Cameraの資源を取得する
 		RenderPipelineViewResources& GetCameraState(const ResolvedRenderView& view);

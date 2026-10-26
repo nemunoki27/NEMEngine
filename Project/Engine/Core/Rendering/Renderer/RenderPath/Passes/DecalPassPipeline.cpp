@@ -9,7 +9,7 @@
 
 void Engine::DecalPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 
-	if (pipeline_) return;
+	if (pipeline_ && impactPipeline_) return;
 	GraphicsPipelineDesc desc;
 	desc.preRaster = {.file = "Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl", .entry = "main", .profile = "vs_6_0",
 		.shader = BuiltinAssets::Shaders::FullscreenCopy};
@@ -51,6 +51,16 @@ void Engine::DecalPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	sampler.ShaderRegister = 1;
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	desc.staticSamplers.push_back(sampler);
-	pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(),
-		graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetDXObject().GetDxShaderCompiler(), desc);
+	if (!pipeline_) {
+		pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetDXObject().GetDxShaderCompiler(), desc);
+	}
+	desc.preRaster.file = "Builtin/Decal/particleImpactDecalDraw.VS.hlsl";
+	desc.preRaster.shader = BuiltinAssets::Shaders::ParticleGPUImpactDecalDraw;
+	desc.pixel.shader = BuiltinAssets::Shaders::ParticleGPUImpactDecalDraw;
+	desc.pixel.entry = "ImpactMain";
+	if (!impactPipeline_) {
+		impactPipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetDXObject().GetDxShaderCompiler(), desc);
+	}
 }

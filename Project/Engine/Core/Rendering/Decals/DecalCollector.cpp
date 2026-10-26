@@ -66,6 +66,51 @@ namespace {
 	}
 }
 
+bool Engine::DecalCollector::ResolveMaterial(GraphicsCore& graphicsCore, RenderAssetLibrary& assets,
+	const SceneExecutionContext& context, const DecalProjectorComponent& component, float opacity, DecalDrawItem& item) {
+
+	static const MaterialAsset fallback = CreateDefaultDecalMaterialAsset("DefaultDecal");
+	static std::unordered_set<AssetID> unsupportedMaterials;
+	const MaterialAsset* material = component.material ? assets.LoadMaterial(component.material) : &fallback;
+	if (!material) return false;
+	if (material->domain != MaterialDomain::Decal || material->shaderGraph) {
+		if (unsupportedMaterials.insert(component.material).second) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[Decal] デカール用の標準Materialを設定してください");
+		}
+		return false;
+	}
+	unsupportedMaterials.erase(component.material);
+	const auto& defaults = material->parameters;
+	const auto& instance = component.materialInstance;
+	auto& data = item.gpu;
+	data.worldToDecal = item.projection.worldToDecal;
+	const auto& matrix = item.projection.decalToWorld;
+	data.tangentX = Vector4(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2], 0.0f);
+	data.tangentY = Vector4(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2], 0.0f);
+	data.direction = Vector4(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2], 0.0f);
+	data.baseColor = Read(defaults, instance, "color", Color4::White());
+	data.baseColor.r *= component.color.r; data.baseColor.g *= component.color.g;
+	data.baseColor.b *= component.color.b; data.baseColor.a *= component.color.a;
+	data.emissive = Read(defaults, instance, "emissiveColor", Color4::White());
+	const float emission = std::max(0.0f, Read(defaults, instance, "emissiveIntensity", 0.0f));
+	data.emissive.r *= emission; data.emissive.g *= emission; data.emissive.b *= emission;
+	data.surface = Vector4(std::clamp(Read(defaults, instance, "metallic", 0.0f), 0.0f, 1.0f),
+		std::clamp(Read(defaults, instance, "roughness", 0.5f), 0.0f, 1.0f),
+		std::max(0.0f, Read(defaults, instance, "normalStrength", 1.0f)),
+		std::clamp(Read(defaults, instance, "opacity", 1.0f) * opacity, 0.0f, 1.0f));
+	data.uvTransform = Vector4(component.uvScale.x, component.uvScale.y, component.uvBias.x, component.uvBias.y);
+	const float start = std::clamp(component.startAngleFade, 0.0f, 89.9f);
+	const float end = std::clamp(component.endAngleFade, start + 0.01f, 90.0f);
+	data.fade = Vector4(std::cos(start * std::numbers::pi_v<float> / 180.0f),
+		std::cos(end * std::numbers::pi_v<float> / 180.0f), component.uvRotation * std::numbers::pi_v<float> / 180.0f, 0.0f);
+	data.receiverMask = component.receiverRenderingLayerMask & kRenderingLayerMaskBits;
+	data.channels = (Read(defaults, instance, "affectColor", true) ? 1u : 0u) |
+		(Read(defaults, instance, "affectNormal", false) ? 2u : 0u) |
+		(Read(defaults, instance, "affectSurface", false) ? 4u : 0u) |
+		(Read(defaults, instance, "affectEmission", false) ? 8u : 0u);
+	return data.channels && data.receiverMask && ResolveTextures(graphicsCore, context, defaults, instance, item);
+}
+
 void Engine::DecalCollector::Collect(GraphicsCore& graphicsCore, RenderAssetLibrary& assets,
 	const SceneExecutionContext& context, std::vector<DecalDrawItem>& output) {
 
@@ -74,8 +119,6 @@ void Engine::DecalCollector::Collect(GraphicsCore& graphicsCore, RenderAssetLibr
 	const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	if (!camera || !camera->valid) return;
 	const uint32_t cameraMask = context.view->GetCullingMask(RenderCameraDomain::Perspective);
-	static const MaterialAsset fallback = CreateDefaultDecalMaterialAsset("DefaultDecal");
-	static std::unordered_set<AssetID> unsupportedMaterials;
 	context.world->ForEach<TransformComponent, DecalProjectorComponent>(
 		[&](Entity entity, const TransformComponent& transform, const DecalProjectorComponent& component) {
 
@@ -97,48 +140,9 @@ void Engine::DecalCollector::Collect(GraphicsCore& graphicsCore, RenderAssetLibr
 			const float opacity = component.fadeFactor *
 				DecalProjectionUtility::DistanceFade(distance, component.drawDistance, component.fadeScale);
 			if (opacity <= 0.0f) return;
-			const MaterialAsset* material = component.material ? assets.LoadMaterial(component.material) : &fallback;
-			if (!material) return;
-			if (material->domain != MaterialDomain::Decal || material->shaderGraph) {
-				if (unsupportedMaterials.insert(component.material).second) {
-					Logger::Output(LogType::Engine, spdlog::level::warn, "[Decal] デカール用の標準Materialを設定してください");
-				}
-				return;
-			}
-			unsupportedMaterials.erase(component.material);
-			const auto& defaults = material->parameters;
-			const auto& instance = component.materialInstance;
 			item.entity = entity;
 			item.sortOrder = component.sortOrder;
-			auto& data = item.gpu;
-			data.worldToDecal = item.projection.worldToDecal;
-			const auto& matrix = item.projection.decalToWorld;
-			data.tangentX = Vector4(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2], 0.0f);
-			data.tangentY = Vector4(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2], 0.0f);
-			data.direction = Vector4(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2], 0.0f);
-			data.baseColor = Read(defaults, instance, "color", Color4::White());
-			data.baseColor.r *= component.color.r; data.baseColor.g *= component.color.g;
-			data.baseColor.b *= component.color.b; data.baseColor.a *= component.color.a;
-			data.emissive = Read(defaults, instance, "emissiveColor", Color4::White());
-			const float emission = std::max(0.0f, Read(defaults, instance, "emissiveIntensity", 0.0f));
-			data.emissive.r *= emission; data.emissive.g *= emission; data.emissive.b *= emission;
-			data.surface = Vector4(std::clamp(Read(defaults, instance, "metallic", 0.0f), 0.0f, 1.0f),
-				std::clamp(Read(defaults, instance, "roughness", 0.5f), 0.0f, 1.0f),
-				std::max(0.0f, Read(defaults, instance, "normalStrength", 1.0f)),
-				std::clamp(Read(defaults, instance, "opacity", 1.0f) * opacity, 0.0f, 1.0f));
-			data.uvTransform = Vector4(component.uvScale.x, component.uvScale.y, component.uvBias.x, component.uvBias.y);
-			const float start = std::clamp(component.startAngleFade, 0.0f, 89.9f);
-			const float end = std::clamp(component.endAngleFade, start + 0.01f, 90.0f);
-			data.fade = Vector4(std::cos(start * std::numbers::pi_v<float> / 180.0f),
-				std::cos(end * std::numbers::pi_v<float> / 180.0f), component.uvRotation * std::numbers::pi_v<float> / 180.0f, 0.0f);
-			data.receiverMask = component.receiverRenderingLayerMask & kRenderingLayerMaskBits;
-			data.channels = (Read(defaults, instance, "affectColor", true) ? 1u : 0u) |
-				(Read(defaults, instance, "affectNormal", false) ? 2u : 0u) |
-				(Read(defaults, instance, "affectSurface", false) ? 4u : 0u) |
-				(Read(defaults, instance, "affectEmission", false) ? 8u : 0u);
-			if (data.channels && data.receiverMask && ResolveTextures(graphicsCore, context, defaults, instance, item)) {
-				output.push_back(std::move(item));
-			}
+			if (ResolveMaterial(graphicsCore, assets, context, component, opacity, item)) output.push_back(std::move(item));
 		});
 	// 同じ順序の投影もEntityの世代まで比較して安定させる
 	std::sort(output.begin(), output.end(), [](const auto& lhs, const auto& rhs) {

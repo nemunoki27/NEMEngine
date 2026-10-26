@@ -27,6 +27,28 @@ struct DecalGPUData {
 };
 
 StructuredBuffer<DecalGPUData> gDecals : register(t0, space5);
+
+struct ParticleImpactDecalGPU {
+	DecalGPUData decal;
+	float4 ageLifetimeFade;
+	uint alive;
+	float3 center;
+};
+StructuredBuffer<ParticleImpactDecalGPU> gGPUImpactDecals : register(t7, space4);
+cbuffer ParticleImpactDecalSceneConstants : register(b3, space4) {
+	uint gGPUImpactDecalCapacity;
+	uint gGPUImpactDecalWordCount;
+	uint gGPUImpactDecalSummaryCount;
+	uint gGPUImpactDecalPad;
+};
+StructuredBuffer<uint> gGPUImpactDecalBins : register(t10, space4);
+StructuredBuffer<uint> gGPUImpactDecalBinWords : register(t11, space4);
+
+// 同じ空間を同じ候補の列へ対応付ける
+uint ParticleImpactDecalBin(int3 cell) {
+	return ((asuint(cell.x) * 73856093u) ^ (asuint(cell.y) * 19349663u) ^ (asuint(cell.z) * 83492791u)) & 255u;
+}
+
 StructuredBuffer<uint2> gDecalReceiverRanges : register(t1, space5);
 StructuredBuffer<uint> gDecalReceiverIndices : register(t2, space5);
 cbuffer DecalSceneConstants : register(b0, space5) {
@@ -115,8 +137,7 @@ void ApplyRaytracingDecals(uint geometryIndex, float3 worldPosition, float world
 	SamplerState samplerState, inout float3 color, inout float3 normal, inout float metallic,
 	inout float roughness, inout float3 emissive) {
 
-	if (gDecalCount == 0 || geometryIndex >= gDecalReceiverCount) return;
-	const uint2 range = gDecalReceiverRanges[geometryIndex];
+	const uint2 range = geometryIndex < gDecalReceiverCount ? gDecalReceiverRanges[geometryIndex] : uint2(0, 0);
 	const float3 originalNormal = normal;
 	for (uint index = 0; index < range.y; ++index) {
 		const uint decalIndex = gDecalReceiverIndices[range.x + index];
@@ -132,6 +153,34 @@ void ApplyRaytracingDecals(uint geometryIndex, float3 worldPosition, float world
 			roughness = lerp(roughness, decalSample.surface.y, decalSample.alpha);
 		}
 		if (decal.channels & 8u) emissive += decalSample.emissive * decalSample.alpha;
+	}
+	// 空間候補をslot順に合成して重なりのちらつきを防ぐ
+	const uint bin = ParticleImpactDecalBin(int3(floor(worldPosition * 0.5f)));
+	for (uint group = 0; group < gGPUImpactDecalSummaryCount; ++group) {
+		uint words = gGPUImpactDecalBinWords[bin * gGPUImpactDecalSummaryCount + group] |
+			gGPUImpactDecalBinWords[256u * gGPUImpactDecalSummaryCount + group];
+		while (words != 0) {
+			const uint word = group * 32u + firstbitlow(words);
+			words &= words - 1u;
+			uint candidates = gGPUImpactDecalBins[bin * gGPUImpactDecalWordCount + word] |
+				gGPUImpactDecalBins[256u * gGPUImpactDecalWordCount + word];
+			while (candidates != 0) {
+				const uint slot = word * 32u + firstbitlow(candidates);
+				candidates &= candidates - 1u;
+				if (slot >= gGPUImpactDecalCapacity) continue;
+				ParticleImpactDecalGPU item = gGPUImpactDecals[slot];
+				if (item.alive == 0 || (item.decal.receiverMask & layerMask) == 0) continue;
+				DecalSample decalSample;
+				if (!EvaluateDecal(item.decal, worldPosition, originalNormal, worldFootprint, samplerState, decalSample)) continue;
+				if (item.decal.channels & 1u) color = lerp(color, decalSample.color, decalSample.alpha);
+				if (item.decal.channels & 2u) normal = lerp(normal, decalSample.normal, decalSample.alpha);
+				if (item.decal.channels & 4u) {
+					metallic = lerp(metallic, decalSample.surface.x, decalSample.alpha);
+					roughness = lerp(roughness, decalSample.surface.y, decalSample.alpha);
+				}
+				if (item.decal.channels & 8u) emissive += decalSample.emissive * decalSample.alpha;
+			}
+		}
 	}
 	normal = normalize(normal);
 }

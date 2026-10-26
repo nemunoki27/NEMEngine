@@ -19,6 +19,7 @@
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Rendering/Particle/ParticleEnvironmentConstants.h>
 
 // c++
 #include <memory>
@@ -171,13 +172,15 @@ namespace Engine {
 		DirectionalShadowMapRenderer directionalShadows_;
 		InlineShadowRenderer inlineShadows_;
 		ViewConstantBuffer<DirectionalShadowConstants> directionalShadowConstants_{"DirectionalShadowConstants"};
+		ViewConstantBuffer<ParticleEnvironmentConstants> particleEnvironmentConstants_{"ParticleEnvironmentConstants"};
 
 		//--------- functions ----------------------------------------------------
 
 		// 初回描画時にパイプラインを生成する
 		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat);
 		// 実行するShaderの影入力から必要なCascadeを判定する
-		bool RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const SceneExecutionContext& context);
+		bool RequiresDirectionalShadowMap(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
+			const SceneExecutionContext& context);
 		// 同じViewの影を後段の散乱計算へ公開する
 		void PublishDirectionalShadows(GraphicsCore& graphicsCore, SceneExecutionContext& context, bool available);
 		// フレーム内で再利用する定数バッファを確保する

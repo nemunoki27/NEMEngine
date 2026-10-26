@@ -4,8 +4,10 @@
 //	include
 //============================================================================
 #include "ParticleDrawPreparation.h"
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUState.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleShapeDataUtility.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -13,6 +15,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <exception>
 
 using namespace Engine;
 
@@ -39,9 +42,9 @@ namespace {
 }
 
 void ParticleRenderBackend::PrepareSimulation(GraphicsCore& graphics, ECSWorld& world,
-	RenderAssetLibrary& assets, PipelineStateCache& pipelines) {
+	RenderAssetLibrary& assets, PipelineStateCache& pipelines, const ParticleGPUFrameInputs& inputs) {
 
-	gpuService_.UpdateWorld(graphics, world, assets, pipelines);
+	gpuService_.UpdateWorld(graphics, world, assets, pipelines, inputs);
 }
 
 void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const RenderItem& item,
@@ -76,7 +79,17 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 		indexCount = mesh->indexCount;
 		radius = mesh->boundsRadius + Vector3::Length(mesh->boundsCenter);
 	} else if (drawSource) {
-		const auto shape = ParticleDrawPreparation::MakeShapeComponent(settings);
+		auto shape = ParticleDrawPreparation::MakeShapeComponent(settings);
+		if (state.program->shapeStateSlot != UINT32_MAX) {
+			// 半円の基準形状で始点と終点を区別してからGPUで展開する
+			shape.ring.outerRadius = 1.0f;
+			shape.ring.innerRadius = 0.5f;
+			shape.ring.startAngle = 0.0f;
+			shape.ring.endAngle = 180.0f;
+			shape.cylinder.topRadius = shape.cylinder.centerRadius = shape.cylinder.bottomRadius = 1.0f;
+			shape.cylinder.height = 2.0f;
+			shape.cylinder.maxAngle = 180.0f;
+		}
 		const auto* geometry = geometryManager_.GetOrCreate(graphics, shape);
 		if (!geometry || !geometry->vertexBuffer.buffer) return;
 		vertices = geometry->vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress();
@@ -96,6 +109,9 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 	constants.is2D = settings.space == PrimitiveRenderSpace::Screen2D ? 1u : 0u;
 	constants.flipV = constants.is2D && !settings.model && settings.shape == PrimitiveType::Plane ? 1u : 0u;
 	constants.geometryRadius = radius;
+	constants.shapeStateSlot = settings.model ? UINT32_MAX : state.program->shapeStateSlot;
+	constants.moduleStateCount = state.program->stateCount;
+	constants.geometryShape = settings.model ? 0u : static_cast<uint32_t>(settings.shape);
 	constants.sortEnabled = item.blendMode != BlendMode::Add ? 1u : 0u;
 	for (const auto axis : settings.billboardAxes) constants.billboardMask |= 1u << static_cast<uint32_t>(axis);
 	const auto* cullingCamera = context.cullingView ? context.cullingView->FindCamera(item.cameraDomain) : camera;
@@ -104,19 +120,33 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 		*context.pipelineCache, context.view->GetHistoryKey() + std::to_string(static_cast<uint32_t>(item.cameraDomain)), constants);
 	if (!data.arguments) return;
 	const auto pipelineID = constants.is2D ? BuiltinAssets::Pipelines::ParticleGPUDraw2D : BuiltinAssets::Pipelines::ParticleGPUDraw;
-	const auto* pipeline = context.pipelineCache->GetORCreate(graphics.GetDXObject(), *context.assetLibrary,
-		pipelineID, PipelineVariantKind::GraphicsVertex, context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures);
-	if (!pipeline) return;
+
 	if (drawSource) {
+		ParticleGPUShapeConstants shapeConstants;
+		shapeConstants.shape = MakeParticleShapeData(settings);
+		shapeConstants.uvMode = static_cast<uint32_t>(settings.cylinder.uvMode);
+		const auto shapeAllocation = constantBufferAllocator_.AllocateAndUpload(graphics.GetDXObject().GetResourceRetirement(),
+			graphics.GetDXObject().GetDevice(), shapeConstants);
 		// Phaseごとのマテリアルで可視粒子だけを間接描画する
 		for (uint32_t phase = 0; phase < constants.phaseCount; ++phase) {
 			const AssetID materialID = phase < settings.phaseMaterials.size() && settings.phaseMaterials[phase] ?
 				settings.phaseMaterials[phase] : settings.material;
 			BackendDrawCommon::ResolvedMaterialPass material;
 			if (!ParticleDrawPreparation::ResolveGPUParticlePass(context, materialID, constants.is2D != 0, material)) {
-				state.Reject("GPU粒子は標準Particle Shaderのマテリアルに対応しています");
+				state.Reject("GPU粒子は標準ParticleまたはParticle ShaderGraphのマテリアルに対応しています");
 				return;
 			}
+			const PipelineState* pipeline = nullptr;
+			if (material.material->shaderGraph) {
+				const auto shaderID = ShaderGraphArtifactCache::MakeParticleGPUShaderID(material.material->shaderGraph);
+				pipeline = context.pipelineCache->GetORCreateComposed(graphics.GetDXObject(), *context.assetLibrary,
+					material.pass->pipeline, pipelineID, shaderID, PipelineVariantKind::GraphicsVertex,
+					context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures);
+			} else {
+				pipeline = context.pipelineCache->GetORCreate(graphics.GetDXObject(), *context.assetLibrary,
+					pipelineID, PipelineVariantKind::GraphicsVertex, context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures);
+			}
+			if (!pipeline) return;
 			constants.phaseIndex = phase;
 			const auto allocation = constantBufferAllocator_.AllocateAndUpload(graphics.GetDXObject().GetResourceRetirement(),
 				graphics.GetDXObject().GetDevice(), constants);
@@ -124,17 +154,33 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 			SyncAndBindRegistry(*pipeline, context, commands);
 			RootBindingCommand::SetGraphicsCBV(commands,
 				pipeline->FindBindingByName("ParticleGPUViewConstants", ShaderBindingKind::CBV), allocation.gpuAddress);
+			RootBindingCommand::SetGraphicsCBV(commands,
+				pipeline->FindBindingByName("ParticleGPUShapeConstants", ShaderBindingKind::CBV), shapeAllocation.gpuAddress);
 			const auto srv = [&](const char* name, D3D12_GPU_VIRTUAL_ADDRESS address) {
-				RootBindingCommand::SetGraphicsSRV(commands, pipeline->FindBindingByName(name, ShaderBindingKind::SRV), address);
+				if (const auto* binding = pipeline->FindBindingByName(name, ShaderBindingKind::SRV))
+					RootBindingCommand::SetGraphicsSRV(commands, binding, address);
 			};
 			srv("gVertices", vertices);
 			srv("gGPUParticles", data.particles);
 			srv("gGPUParents", data.parents);
 			srv("gGPUViewKeys", data.indices);
 			srv("gGPUViewCounts", data.counts);
+			srv("gGPUModuleStatesRead", data.moduleStates);
 			MaterialParameterSet overrides;
 			ParticleDrawPreparation::BuildPhaseMaterialInstance(ParticleDrawPreparation::GetPhaseMaterialSettings(settings, phase), overrides);
 			BindMaterial(context, *pipeline, *material.material, overrides.empty() ? nullptr : &overrides, commands);
+			const ParticleCustomDataSettings customData = phase < settings.phaseCustomData.size() ?
+				settings.phaseCustomData[phase] : ParticleCustomDataSettings{};
+			BindGPUSurface(context, item, settings, *pipeline, customData.enabled,
+				ParticleDrawPreparation::ResolveNormalTexture(settings,
+					ParticleDrawPreparation::GetPhaseMaterialSettings(settings, phase), *material.material), commands);
+			try {
+				BindGPUMaterialCurves(context, settings, material, *pipeline, phase,
+					ParticleDrawPreparation::GetPhaseMaterialSettings(settings, phase), customData, commands);
+			} catch (const std::exception& error) {
+				state.Reject(error.what());
+				return;
+			}
 			commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commands->IASetIndexBuffer(&indices);
 			gpuService_.DrawIndexed(graphics, data, phase);

@@ -108,6 +108,9 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 		// 同じSurfaceから不透明と透明のShaderを生成する
 		output.opaquePixelHLSL = BuildPixelSource(expandedGraph, surfaceIncludeFile, context, false);
 		output.transparentPixelHLSL = BuildPixelSource(expandedGraph, surfaceIncludeFile, context, true);
+		if (expandedGraph.target == ShaderGraphTarget::Particle || expandedGraph.target == ShaderGraphTarget::Trail) {
+			output.particleGPUPixelHLSL = BuildGPUParticlePixelSource(expandedGraph, surfaceIncludeFile);
+		}
 		if (expandedGraph.target == ShaderGraphTarget::Sprite ||
 			expandedGraph.target == ShaderGraphTarget::Primitive2D) {
 

@@ -39,6 +39,11 @@ struct ParticleMaterialData {
 	float4 materialColor;
 	// カラーテクスチャのUV変換行列
 	float4x4 uvMatrix;
+	float4 velocityAge;
+	float4 lifetimeRandom;
+	float4 customData1;
+	float4 customData2;
+	float4 particleColor;
 };
 
 StructuredBuffer<ParticleGeometryData> gParticleGeometry : register(t1);
@@ -52,40 +57,17 @@ struct VSOutput {
 	nointerpolation uint particleIndex : PARTICLE_INDEX;
 };
 
-float SmoothParticleCylinderProfile(float t, float weight, bool pullEnd) {
-
-	float smoothT = t * t * (3.0f - 2.0f * t);
-	float power = 1.0f + saturate(weight) * 3.0f;
-	return pullEnd ? 1.0f - pow(1.0f - smoothT, power) : pow(smoothT, power);
-}
+#include "particleCylinderProfile.hlsli"
 
 float EvaluateParticleCylinderRadius(float heightT, ParticleGeometryData instance) {
-
-	if (heightT <= 0.5f) {
-
-		float t = SmoothParticleCylinderProfile(heightT * 2.0f, instance.shapeParams1.y, false);
-		return lerp(instance.shapeParams0.z, instance.shapeParams0.y, t);
-	}
-
-	float t = SmoothParticleCylinderProfile((heightT - 0.5f) * 2.0f, instance.shapeParams1.x, true);
-	return lerp(instance.shapeParams0.y, instance.shapeParams0.x, t);
+	return ParticleCylinderRadius(heightT, instance.shapeParams0, instance.shapeParams1);
 }
 
 float4 ResolveParticleVertexColor(float3 localPosition, ParticleGeometryData instance) {
-
-	if (instance.shapeParams1.w < 0.5f) {
-		return instance.vertexColor;
-	}
-	float height = max(abs(instance.shapeParams0.w), 0.00001f);
-	float heightT = saturate(localPosition.y / height + 0.5f);
-	if (heightT <= 0.5f) {
-
-		float t = SmoothParticleCylinderProfile(heightT * 2.0f, instance.shapeParams1.y, false);
-		return instance.vertexColor * lerp(instance.bottomColor, instance.centerColor, t);
-	}
-
-	float t = SmoothParticleCylinderProfile((heightT - 0.5f) * 2.0f, instance.shapeParams1.x, true);
-	return instance.vertexColor * lerp(instance.centerColor, instance.topColor, t);
+	if (instance.shapeParams1.w < 0.5f) return instance.vertexColor;
+	float heightT = saturate(localPosition.y / max(abs(instance.shapeParams0.w), 0.00001f) + 0.5f);
+	return instance.vertexColor * ParticleCylinderColor(heightT, instance.shapeParams1,
+		instance.topColor, instance.centerColor, instance.bottomColor);
 }
 
 ParticleMaterialData GetParticleMaterial(VSOutput input) {

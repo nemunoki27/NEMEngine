@@ -240,16 +240,6 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(), graphicsCore.GetDXObject().GetResourceRetirement());
 
-	// 粒子のGPU更新を全Viewより前に1回だけ記録する
-	if (particleBackend_) {
-		auto& profiler = GPUFrameProfiler::GetInstance();
-		auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
-		profiler.SetViewID({});
-		profiler.BeginPass(commandList, "Shared/ParticleSimulation");
-		particleBackend_->PrepareSimulation(graphicsCore, *request.world, renderAssetLibrary_, pipelineStateCache_);
-		profiler.EndPass(commandList);
-	}
-
 	// 描画アイテムの抽出
 	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, &assetReloadService_);
 
@@ -270,6 +260,20 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// 一時領域の容量を保ってMesh要求を組み立てる
 	scenePreparation_.RequestMeshes(
 		graphicsCore, request.assetDatabase, meshBackend, activeScene, request, gameCameraViews_, sceneViewState_.view);
+	if (meshBackend && request.assetDatabase) {
+		particleMeshSources_.Prepare(graphicsCore, *request.world, *request.assetDatabase,
+			*meshBackend, renderAssetLibrary_, pipelineStateCache_);
+	}
+	// 粒子のGPU更新を全Viewより前に1回だけ記録する
+	if (particleBackend_) {
+		auto& profiler = GPUFrameProfiler::GetInstance();
+		auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+		profiler.SetViewID({});
+		profiler.BeginPass(commandList, "Shared/ParticleSimulation");
+		const auto particleInputs = PrepareParticleFrameInputs(graphicsCore, request, activeScene);
+		particleBackend_->PrepareSimulation(graphicsCore, *request.world, renderAssetLibrary_, pipelineStateCache_, particleInputs);
+		profiler.EndPass(commandList);
+	}
 
 	// スクリプトのScreenPointToRay用にGameViewカメラのスナップショットを更新する
 	GameViewCameraSnapshot::Snapshot cameraSnapshot{};
@@ -294,7 +298,9 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view, bool clearDefaultSurface) {
 		const RenderViewRequest* viewRequest = request.FindView(kind);
-		if (!viewRequest || !viewRequest->ShouldRender(view)) {
+		const bool particleSource = kind == RenderViewKind::Game && view.valid &&
+			particleCameraDepth_.NeedsCapture(view.perspective.sourceCamera);
+		if (!viewRequest || (!viewRequest->ShouldRender(view) && !particleSource)) {
 			return;
 		}
 
@@ -308,9 +314,11 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		}
 		viewState.lightBuffers.Upload(viewState.lightSet);
 		SceneExecutionContext context = BuildViewExecutionContext(graphicsCore, request, activeScene, kind, view);
+		context.particleCameraCaptureRequired = particleCameraDepth_.NeedsCapture(view.perspective.sourceCamera);
 		if (!context.sceneInstance) {
 			return;
 		}
+		if (particleBackend_) particleBackend_->PublishFeedback(graphicsCore, context.bufferRegistry);
 		// 出力先を同じ描画の入力から除外
 		RuntimeTextureResolver::BeginRenderTextureWrite(view.targetTexture);
 		context.clearDefaultSurface = clearDefaultSurface;
@@ -345,6 +353,10 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			}
 		}
 
+		if (particleBackend_ && particleBackend_->GetFeedbackRevision() != 0) {
+			Algorithm::HashCombine(context.raytracing.materialGeneration, particleBackend_->GetFeedbackRevision());
+		}
+
 		// TLASバッファをリソースレジストリに登録
 		if (context.raytracing.tlasResource) {
 
@@ -366,6 +378,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 		// 固定RenderPathを実行
 		renderPath_.Execute(graphicsCore, passBuckets_, context);
+		particleCameraDepth_.Capture(graphicsCore, context);
 
 		// 終了後に全ターゲットをシェーダーリード状態へ遷移
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
@@ -385,7 +398,9 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	std::unordered_set<AssetID> clearedRenderTextures{};
 	bool clearGameSurface = true;
 	for (const ResolvedRenderView& gameView : gameCameraViews_) {
-		if (!gameView.valid) {
+		const auto* gameRequest = request.FindView(RenderViewKind::Game);
+		if (!gameView.valid || !gameRequest || (!gameRequest->ShouldRender(gameView) &&
+			!particleCameraDepth_.NeedsCapture(gameView.perspective.sourceCamera))) {
 			continue;
 		}
 		bool clearSurface = clearGameSurface;

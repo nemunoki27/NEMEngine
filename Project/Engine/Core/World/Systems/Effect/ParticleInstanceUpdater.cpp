@@ -14,6 +14,7 @@
 #include <Engine/Core/Foundation/Utility/Random/RandomGeneratorScope.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleShapeDataUtility.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmissionClock.h>
+#include <Engine/Core/Rendering/Particle/ParticleSimulationValidation.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -39,12 +40,15 @@ bool Engine::ParticleInstanceUpdater::UpdateInstance(ECSWorld& world,
 		instance.target = target;
 		instance.definition.reset();
 		instance.rejectedSettings.reset();
+		instance.rejectedReason.clear();
 		instance.emitter = ParticleEmitterRuntime{};
 	}
 
 	// 設定を完成させてから公開し、入力失敗時は現在の状態を保つ
 	if ((!instance.definition || instance.definition->settings != settings) && instance.rejectedSettings != settings) {
 		try {
+			const auto reason = ValidateParticleSimulationSettings(*settings, target);
+			if (!reason.empty()) throw std::invalid_argument(reason);
 			auto replacement = definitions_.Resolve(settings);
 			if (!instance.definition || instance.definition->structure != replacement->structure) {
 				instance.emitter = ParticleEmitterRuntime{};
@@ -55,9 +59,11 @@ bool Engine::ParticleInstanceUpdater::UpdateInstance(ECSWorld& world,
 			instance.definition = std::move(replacement);
 			instance.emitter.renderSettings = instance.definition->renderSettings;
 			instance.rejectedSettings.reset();
+			instance.rejectedReason.clear();
 			world.MarkRenderDataModified();
 		} catch (const std::exception& error) {
 			instance.rejectedSettings = std::move(settings);
+			instance.rejectedReason = error.what();
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"ParticleSystemの設定を反映できません 内容={}", error.what());
 		}

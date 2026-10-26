@@ -14,6 +14,11 @@
 Engine::DecalPass::DecalPass(const RenderPipelineDeps& deps) : deps_(deps) {
 }
 
+Engine::DecalPass::~DecalPass() {
+
+	if (impactSignature_) retirement_->Retire(std::move(impactSignature_));
+}
+
 void Engine::DecalPass::RetainViews(const std::unordered_set<std::string>& activeViews) {
 
 	// 所有Viewが消えてもResourceとDescriptorは回収窓口で保持する
@@ -42,7 +47,8 @@ void Engine::DecalPass::Execute(GraphicsCore& graphicsCore, [[maybe_unused]] con
 	if (!slot) slot = std::make_unique<State>();
 	auto& state = *slot;
 	Prepare(graphicsCore, context, state);
-	if (state.items.empty()) return;
+	const auto* impacts = context.bufferRegistry.Find("gGPUImpactDecalArguments");
+	if (state.items.empty() && (!impacts || impacts->elementCount == 0)) return;
 	EnsurePipeline(graphicsCore);
 	if (!pipeline_) return;
 	auto* surface = context.resources->GetSceneMain();
@@ -117,4 +123,5 @@ void Engine::DecalPass::Execute(GraphicsCore& graphicsCore, [[maybe_unused]] con
 	const D3D12_RECT rectangle{static_cast<LONG>(viewportX), static_cast<LONG>(viewportY),
 		static_cast<LONG>(viewportX + viewportWidth), static_cast<LONG>(viewportY + viewportHeight)};
 	commands->RSSetScissorRects(1, &rectangle);
+	DrawImpacts(graphicsCore, context, draw);
 }

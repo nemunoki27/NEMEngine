@@ -1,0 +1,11 @@
+{
+  "name": "particleGPUPaint",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345547061727400000321",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

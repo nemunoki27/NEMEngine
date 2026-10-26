@@ -274,22 +274,7 @@ void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTim
 		if (GetStateSlot() < particle.rotationSpeeds.size()) {
 			speed = particle.rotationSpeeds[GetStateSlot()];
 		}
-		if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) {
-
-			const float progress = settings_.speedLoop.LoopedT(particle.age / particle.lifetime);
-			if (settings_.valueType == ParticleRotationValueType::Euler) {
-				speed = settings_.useSpeedCurve ? settings_.speedCurve.Evaluate(progress) :
-					Vector3::Lerp(settings_.startSpeed, settings_.endSpeed, EasedValue(settings_.speedEasingType, progress));
-			} else if (settings_.useSpeedCurve) {
-				speed = settings_.speedQuaternionCurve.EvaluateAxis(progress) *
-					settings_.speedQuaternionCurve.EvaluateAngle(progress);
-			} else {
-
-				const float easedT = EasedValue(settings_.speedEasingType, progress);
-				const Vector3 axis = GetAxisDirection(Vector3::Lerp(settings_.startSpeedAxis, settings_.endSpeedAxis, easedT));
-				speed = axis * std::lerp(settings_.startQuaternionSpeed, settings_.endQuaternionSpeed, easedT);
-			}
-		}
+		if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) speed = EvaluateSpeed(particle.age / particle.lifetime);
 		AddRotation(particle, speed, deltaTime);
 		return;
 	}
@@ -311,4 +296,26 @@ void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTim
 	const Vector3 angle = settings_.useAngleCurve ? settings_.angleCurve.Evaluate(progress) :
 		Vector3::Lerp(settings_.startAngle, settings_.endAngle, EasedValue(settings_.angleEasingType, progress));
 	particle.rotation = Quaternion::FromEulerDegrees(angle);
+}
+
+Engine::Vector3 Engine::ParticleRotationModule::EvaluateSpeed(float rawT) const {
+
+	Vector3 speed = Vector3::AnyInit(0.0f);
+	if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) {
+
+		const float progress = settings_.speedLoop.LoopedT(rawT);
+		if (settings_.valueType == ParticleRotationValueType::Euler) {
+			speed = settings_.useSpeedCurve ? settings_.speedCurve.Evaluate(progress) :
+				Vector3::Lerp(settings_.startSpeed, settings_.endSpeed, EasedValue(settings_.speedEasingType, progress));
+		} else if (settings_.useSpeedCurve) {
+			speed = settings_.speedQuaternionCurve.EvaluateAxis(progress) *
+				settings_.speedQuaternionCurve.EvaluateAngle(progress);
+		} else {
+
+			const float easedT = EasedValue(settings_.speedEasingType, progress);
+			const Vector3 axis = GetAxisDirection(Vector3::Lerp(settings_.startSpeedAxis, settings_.endSpeedAxis, easedT));
+			speed = axis * std::lerp(settings_.startQuaternionSpeed, settings_.endQuaternionSpeed, easedT);
+		}
+	}
+	return speed;
 }

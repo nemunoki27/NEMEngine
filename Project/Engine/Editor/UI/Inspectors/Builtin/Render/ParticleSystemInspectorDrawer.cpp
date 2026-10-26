@@ -7,6 +7,7 @@
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Particle/ParticlePhaseDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Particle/ParticleFeedbackDrawer.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUState.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUTrailTypes.h>
 
@@ -125,6 +126,7 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	MyGUI::Text("Trail容量超過", std::to_string(GetParticleSystemDroppedTrailCount(world, entity)));
 	if (runtime && runtime->instance.emitter.gpu && !runtime->instance.emitter.gpu->diagnostic.empty())
 		ImGui::TextWrapped("%s", runtime->instance.emitter.gpu->diagnostic.c_str());
+	if (runtime && !runtime->instance.rejectedReason.empty()) ImGui::TextWrapped("%s", runtime->instance.rejectedReason.c_str());
 
 	// 設定の所有とUndoは通常のComponent編集へまとめる
 	DrawField(anyItemActive, [&]() { return MyGUI::EnumCombo("実行方式", draft.simulationTarget); });
@@ -149,8 +151,9 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	if (ImGui::BeginTabBar("##ParticleSystemSettings")) {
 		ParticleEmitterDrawer emitter(settingsEditor_, status_);
 		ParticlePhaseDrawer phases(settingsEditor_, status_, moduleSearch_);
-		changed |= emitter.Draw(context, settingsEditor_.GetDraft());
+		changed |= emitter.Draw(context, settingsEditor_.GetDraft(), draft.simulationTarget);
 		changed |= phases.Draw(context, settingsEditor_.GetDraft(), settingsEditor_.GetEditorState(), draft.simulationTarget);
+		if (gpu) changed |= ParticleFeedbackDrawer::Draw(context, world, entity, settingsEditor_.GetDraft().feedback);
 		ImGui::EndTabBar();
 	}
 	const bool active = ImGui::IsAnyItemActive();

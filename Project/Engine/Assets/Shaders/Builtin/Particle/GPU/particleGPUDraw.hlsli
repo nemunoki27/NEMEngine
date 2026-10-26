@@ -8,6 +8,12 @@ struct ParticleGPUVertexOutput {
 	nointerpolation float4 emissive : TEXCOORD1;
 	nointerpolation float alphaReference : TEXCOORD2;
 	nointerpolation uint blendMode : TEXCOORD3;
+	float3 worldPosition : TEXCOORD4;
+	float3 normal : TEXCOORD5;
+	float4 tangent : TEXCOORD6;
+	nointerpolation float4 velocityAge : TEXCOORD7;
+	nointerpolation float2 lifetimeRandom : TEXCOORD8;
+	nointerpolation float4 particleColor : TEXCOORD9;
 };
 
 float4 PrepareParticleGPUBlend(float4 color, uint mode) {

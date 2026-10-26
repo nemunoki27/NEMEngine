@@ -2,6 +2,13 @@
 #include "ParticleGPUFixture.h"
 #include "GPUParticleShapeTests.h"
 #include "ParticleGPUEmissiveTests.h"
+#include "ParticleGPUModuleParityTests.h"
+#include "GPUInclusiveScanTests.h"
+#include "ParticleSourceTests.h"
+#include "ParticleWorldTests.h"
+#include "ParticleDepthSnapshotTests.h"
+#include "ParticleFeedbackTests.h"
+#include "ParticleGPUSourceSpawnTests.h"
 #include "TestRunner.h"
 
 //============================================================================
@@ -471,6 +478,13 @@ bool NEMTests::TestParticleGPUHardware() {
 		RunTest("ParticleGPUView", [&] { return CheckView(fixture, *view, 1) && CheckView(fixture, *view, 2); }) &&
 		RunTest("ParticleGPUFlipbook", [&] { return CheckFlipbook(fixture, *simulate); }) &&
 		RunTest("ParticleGPUEmissive", [&] { return CheckParticleEmissive(fixture, *simulate); }) &&
+		RunTest("ParticleGPUModuleParity", [&] { return CheckParticleGPUModuleParity(fixture, *simulate); }) &&
+		RunTest("GPUInclusiveScan", [&] { return CheckGPUInclusiveScan(fixture); }) &&
+		RunTest("ParticleMeshSampling", [&] { return CheckParticleMeshSampling(fixture); }) &&
+		RunTest("ParticleWorldGPU", [&] { return CheckParticleWorldGPU(fixture); }) &&
+		RunTest("ParticleDepthSnapshot", [&] { return CheckParticleDepthSnapshot(fixture); }) &&
+		RunTest("ParticleFeedback", [&] { return CheckParticleFeedback(fixture); }) &&
+		RunTest("ParticleGPUSourceSpawn", [&] { return CheckParticleGPUSourceSpawn(fixture); }) &&
 		RunTest("ParticleGPUPartialGroups", [&] {
 			return CheckSimulation(fixture, *simulate, 255) && CheckSimulation(fixture, *simulate, 257);
 		}) &&

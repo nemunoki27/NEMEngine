@@ -866,6 +866,36 @@
       "name": "isUpdateInterrupted",
       "nativeType": "GetNativeBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "splineGetProperty",
+      "nativeType": "SplineGetPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "splineSetProperty",
+      "nativeType": "SplineSetPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "splineEvaluate",
+      "nativeType": "SplineEvaluateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, float, int, void*, int, int>"
+    },
+    {
+      "name": "copyParticleSystemSettings",
+      "nativeType": "CopyParticleSystemSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int*, int>"
+    },
+    {
+      "name": "setParticleSystemSettings",
+      "nativeType": "SetParticleSystemSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int>"
+    },
+    {
+      "name": "clearParticlePaint",
+      "nativeType": "ClearParticlePaintCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
     }
   ],
   "layouts": [

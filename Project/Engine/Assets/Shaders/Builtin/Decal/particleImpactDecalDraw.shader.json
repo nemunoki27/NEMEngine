@@ -1,0 +1,17 @@
+{
+  "name": "particleImpactDecalDraw",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "4e454d41535345547061727400000323",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "4e454d4153534554444543414c000002",
+      "entry": "ImpactMain",
+      "profile": "ps_6_0"
+    }
+  ]
+}

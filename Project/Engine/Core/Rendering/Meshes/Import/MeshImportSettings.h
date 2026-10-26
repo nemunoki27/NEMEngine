@@ -14,7 +14,7 @@
 
 namespace Engine {
 
-	inline constexpr uint32_t kMeshImporterVersion = 2;
+	inline constexpr uint32_t kMeshImporterVersion = 3;
 
 	enum class MeshLODTransitionMode : uint8_t {
 

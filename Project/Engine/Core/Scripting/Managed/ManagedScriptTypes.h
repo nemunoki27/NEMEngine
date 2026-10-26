@@ -14,7 +14,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 67;
+	inline constexpr uint32_t kManagedABIVersion = 68;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {
@@ -335,6 +335,14 @@ namespace Engine {
 		// Colliderの単一形状を読み書きする
 		using CollisionGetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, void*, int32_t);
 		using CollisionSetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, const void*, int32_t);
+		// 曲線の制御点と距離評価を読み書きする
+		using SplineGetPropertyCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, void*, int32_t);
+		using SplineSetPropertyCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
+		using SplineEvaluateCallback = int32_t(__cdecl*)(ManagedNativeEntity, float, int32_t, void*, int32_t);
+		// 粒子設定のSnapshotと塗装の消去を操作する
+		using CopyParticleSystemSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, char*, int32_t, int32_t*);
+		using SetParticleSystemSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, int32_t);
+		using ClearParticlePaintCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		// 指定Clipの再生時間を返す
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
 		// 指定Clipの再生を要求する

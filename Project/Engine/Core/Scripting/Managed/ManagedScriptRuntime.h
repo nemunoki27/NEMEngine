@@ -452,6 +452,22 @@ namespace Engine {
 		// Colliderの形状値を設定する
 		static int32_t __cdecl CollisionSetShapePropertyCallback(ManagedNativeEntity entity, int32_t propertyID,
 			const void* value, int32_t size);
+		// 曲線の制御点と編集設定を取得する
+		static int32_t __cdecl SplineGetPropertyCallback(ManagedNativeEntity entity, int32_t propertyID,
+			int32_t index, void* out, int32_t size);
+		// 曲線の制御点と編集設定を適用する
+		static int32_t __cdecl SplineSetPropertyCallback(ManagedNativeEntity entity, int32_t propertyID,
+			int32_t index, const void* value, int32_t size);
+		// ワールド空間の弧長で曲線を評価する
+		static int32_t __cdecl SplineEvaluateCallback(ManagedNativeEntity entity, float distance,
+			int32_t loop, void* out, int32_t size);
+		// 粒子設定の保存SnapshotをUTF8で取得する
+		static int32_t __cdecl CopyParticleSystemSettingsCallback(ManagedNativeEntity entity, char* buffer,
+			int32_t capacity, int32_t* written);
+		// 検証した粒子設定のSnapshotを適用する
+		static int32_t __cdecl SetParticleSystemSettingsCallback(ManagedNativeEntity entity, const char* buffer, int32_t size);
+		// 粒子が塗装した実行時Textureを消去する
+		static int32_t __cdecl ClearParticlePaintCallback(ManagedNativeEntity entity);
 		// 指定Clipの再生時間を返す
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// 指定Clipを先頭から再生する

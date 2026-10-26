@@ -24,7 +24,8 @@ namespace Engine {
 		//========================================================================
 
 		// モジュールの編集UIを描画する
-		bool DrawModule(ParticleModuleRegistry::TypeID typeID, IParticleModule& module, IParticleModuleDrawer* drawer) const;
+		bool DrawModule(ParticleModuleRegistry::TypeID typeID, IParticleModule& module,
+			IParticleModuleDrawer* drawer, const EditorPanelContext& context) const;
 		// モジュールごとの編集状態を作成する
 		std::unique_ptr<IParticleModuleDrawer> CreateModuleDrawer(ParticleModuleRegistry::TypeID typeID) const;
 		// 発生形状の編集UIを描画する

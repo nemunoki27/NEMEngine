@@ -213,6 +213,7 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 	std::unordered_map<BindingKey, RootBindingLocation, BindingKeyHash> merged;
 	ShaderStage usedStageMask = ShaderStage::None;
 	bool usesDirectHeapIndexing = false;
+	bool particleResources = false;
 
 	// 同じRegisterとSpaceの入力を統合する
 	for (const CompiledShader* shader : shaders) {
@@ -221,6 +222,13 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 			continue;
 		}
 		usedStageMask |= shader->stage;
+		for (const auto& resource : shader->reflection.resources) {
+			const bool particleBuffer = (resource.kind == ShaderBindingKind::SRV || resource.kind == ShaderBindingKind::UAV) &&
+				(resource.name == "gGPUParticles" || resource.name == "gGPUEventCounts");
+			const bool particleConstants = resource.kind == ShaderBindingKind::CBV &&
+				(resource.name == "ParticleSurfaceConstants" || resource.name == "ParticleGPUViewConstants");
+			particleResources |= particleBuffer || particleConstants;
+		}
 		usesDirectHeapIndexing |=
 			(shader->reflection.requiresFlags & D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING) != 0;
 		for (const ShaderResourceBinding& resource : shader->reflection.resources) {
@@ -289,7 +297,10 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 
 		auto& binding = plan.bindings[index];
 		binding.rootParameterIndex = static_cast<UINT>(index);
-		binding.parameterType = DecideRootParameterType(binding);
+		// 追加の粒子入力はTableへまとめてルート引数を抑える
+		binding.parameterType = ((particleResources && binding.space >= 2) || binding.name == "gParticlePaintReceivers") &&
+			(binding.kind == ShaderBindingKind::SRV || binding.kind == ShaderBindingKind::UAV) ?
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE : DecideRootParameterType(binding);
 		plan.visibilities.push_back(ToVisibility(pipelineType, binding.stageMask));
 		rootCost += binding.parameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE ? 1 : 2;
 		if (rootCost > D3D12_MAX_ROOT_COST) {

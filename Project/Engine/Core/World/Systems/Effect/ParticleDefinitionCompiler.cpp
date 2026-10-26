@@ -44,7 +44,13 @@ std::shared_ptr<const ParticleSystemDefinition> ParticleDefinitionCompiler::Comp
 	auto compiled = std::make_shared<ParticleSystemDefinition>();
 	compiled->settings = std::move(settings);
 	compiled->renderSettings = MakeParticleRenderSettings(compiled->settings->space, *compiled->settings);
+	compiled->renderSettings.authoringOwner = compiled->settings;
 	compiled->structure = static_cast<uint64_t>(compiled->settings->shape);
+	Algorithm::HashCombine(compiled->structure, static_cast<uint64_t>(compiled->settings->source.kind));
+	Algorithm::HashCombine(compiled->structure, compiled->settings->source.attachToSurface);
+	Algorithm::HashCombine(compiled->structure, std::hash<AssetID>{}(compiled->settings->source.mesh));
+	Algorithm::HashCombine(compiled->structure, std::hash<AssetID>{}(compiled->settings->source.renderer.sourceAsset));
+	Algorithm::HashCombine(compiled->structure, std::hash<Engine::UUID>{}(compiled->settings->source.renderer.localFileID));
 	Algorithm::HashCombine(compiled->structure, static_cast<uint64_t>(compiled->settings->space));
 	Algorithm::HashCombine(compiled->structure, compiled->settings->emitter.maxParticles);
 	const auto& trail = compiled->settings->trail;
@@ -63,6 +69,8 @@ std::shared_ptr<const ParticleSystemDefinition> ParticleDefinitionCompiler::Comp
 		Algorithm::HashCombine(compiled->structure, std::hash<Engine::UUID>{}(source.id));
 		for (const auto& entry : source.modules) {
 
+			// 無効なModuleは状態と実行計画を作らない
+			if (!entry.enabled) continue;
 			auto& registry = ParticleModuleRegistry::GetInstance();
 			auto module = registry.Create(registry.FindTypeID(entry.id));
 			if (!module) throw std::invalid_argument("未登録のParticle Moduleです: " + entry.id);

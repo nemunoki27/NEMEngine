@@ -89,6 +89,8 @@ void Engine::ParticleRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 	meshResourceManager_.BeginFrame(graphicsCore);
 	resourcePool_.BeginFrame();
 	BeginFrameCommon();
+	materialCurveCache_.BeginFrame();
+	materialCurveUpload_.BeginFrame();
 }
 
 void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context, const RenderItem* item,

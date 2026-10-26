@@ -111,6 +111,9 @@ namespace Engine {
 		void OnSpawn(Particle& particle) override;
 		void OnUpdate(Particle& particle, float deltaTime) override;
 
+		// 寿命に応じた角速度をCPUとGPU変換で共有する
+		Vector3 EvaluateSpeed(float rawT) const;
+
 		//--------- accessor -----------------------------------------------------
 
 		const Settings& GetSettings() const { return settings_; }

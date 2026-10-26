@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderBackendRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
+#include <Engine/Core/Rendering/Particle/ParticleGPUFeedbackWorld.h>
 #include "RenderScenePreparation.h"
 
 namespace Engine {
@@ -33,6 +34,7 @@ namespace Engine {
 
 		PerViewLightSet previewLightSet_{};
 		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
+		ParticleGPUFeedbackWorld previewFeedback_;
 		RenderBackendRegistry previewBackendRegistry_{};
 		bool previewBackendFrameStarted_ = false;
 		MeshRenderBackend* previewMeshBackend_ = nullptr;

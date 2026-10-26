@@ -10,6 +10,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -208,11 +209,51 @@ namespace {
 			D3D_SIT_CBUFFER, D3D12_MAX_ROOT_COST / 2, 0, 1, ShaderStage::CS));
 		return !RootSignaturePlanning::Build(PipelineType::Compute, {&shader}, {}).IsValid();
 	}
+
+	// 粒子の省略可能な入力だけTableへ移し、既存Materialの配置を保つ
+	bool CheckParticleBindingPolicy() {
+
+		using namespace Engine;
+		const auto hasType = [](const RootSignaturePlan& plan, std::string_view name, D3D12_ROOT_PARAMETER_TYPE type) {
+			const auto found = std::find_if(plan.bindings.begin(), plan.bindings.end(),
+				[&](const auto& binding) { return binding.name == name; });
+			return found != plan.bindings.end() && found->parameterType == type;
+		};
+		for (const auto* marker : {"ParticleSurfaceConstants", "ParticleGPUViewConstants"}) {
+			auto shader = MakeShader(ShaderStage::PS);
+			shader.reflection.resources.push_back(MakeBinding(marker, ShaderBindingKind::CBV,
+				D3D_SIT_CBUFFER, 5, 0, 1, ShaderStage::PS));
+			for (UINT index = 0; index < 32; ++index) {
+				shader.reflection.resources.push_back(MakeBinding("ParticleInput" + std::to_string(index),
+					ShaderBindingKind::SRV, D3D_SIT_STRUCTURED, index, 7, 1, ShaderStage::PS));
+			}
+			shader.reflection.resources.push_back(MakeBinding("ParticleParameters", ShaderBindingKind::SRV,
+				D3D_SIT_STRUCTURED, 1, 1, 1, ShaderStage::PS));
+			const auto plan = RootSignaturePlanning::Build(PipelineType::Vertex, {&shader}, {});
+			if (!plan.IsValid() || !hasType(plan, "ParticleInput0", D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) ||
+				!hasType(plan, "ParticleParameters", D3D12_ROOT_PARAMETER_TYPE_SRV)) return false;
+		}
+		auto legacy = MakeShader(ShaderStage::PS);
+		legacy.reflection.resources = {
+			MakeBinding("LegacyBuffer", ShaderBindingKind::SRV, D3D_SIT_STRUCTURED, 0, 2, 1, ShaderStage::PS),
+			MakeBinding("LegacyTexture", ShaderBindingKind::SRV, D3D_SIT_TEXTURE, 1, 2, 1, ShaderStage::PS),
+			MakeBinding("gParticlePaintReceivers", ShaderBindingKind::SRV, D3D_SIT_STRUCTURED, 9, 4, 1, ShaderStage::PS)};
+		const auto plan = RootSignaturePlanning::Build(PipelineType::Vertex, {&legacy}, {});
+		if (!plan.IsValid() || !hasType(plan, "LegacyBuffer", D3D12_ROOT_PARAMETER_TYPE_SRV) ||
+			!hasType(plan, "LegacyTexture", D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) ||
+			!hasType(plan, "gParticlePaintReceivers", D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)) return false;
+		// 同名の一般Bufferを粒子用定数と誤認しない
+		legacy.reflection.resources.push_back(MakeBinding("ParticleSurfaceConstants", ShaderBindingKind::SRV,
+			D3D_SIT_STRUCTURED, 5, 0, 1, ShaderStage::PS));
+		const auto unchanged = RootSignaturePlanning::Build(PipelineType::Vertex, {&legacy}, {});
+		return unchanged.IsValid() && hasType(unchanged, "LegacyBuffer", D3D12_ROOT_PARAMETER_TYPE_SRV);
+	}
 }
 
 bool NEMTests::TestRootSignaturePlanning() {
 
-	return CheckLayoutAndOwnership() && CheckInvalidBindings() && CheckSamplersAndRootCost() && CheckSamplerVisibility();
+	return CheckLayoutAndOwnership() && CheckInvalidBindings() && CheckSamplersAndRootCost() &&
+		CheckSamplerVisibility() && CheckParticleBindingPolicy();
 }
 
 bool NEMTests::CheckRootSignaturePlanning(ID3D12Device* device) {
@@ -268,6 +309,25 @@ bool NEMTests::CheckRootSignaturePlanning(ID3D12Device* device) {
 		desc.pRootSignature = root.rootSignature.Get();
 		desc.CS = {compiled.GetBytecodePointer(), compiled.GetBytecodeSize()};
 		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
+	}
+	// GPUデカールを含む反射の入力も64DWORD以内に収める
+	if (supportsTrace) {
+		const auto path = RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Raytracing/reflection.RT.hlsl");
+		const auto compiled = compiler.CompileShader(path.wstring(), L"lib_6_6", L"ReflectionRayGen", ShaderStage::Lib);
+		if (!compiled.IsValid()) return false;
+		auto linear = MakeStaticSampler(D3D12_SHADER_VISIBILITY_ALL);
+		linear.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		auto environment = linear;
+		environment.ShaderRegister = 1;
+		const auto plan = RootSignaturePlanning::Build(PipelineType::Raytracing, {&compiled}, {linear, environment});
+		if (!plan.IsValid()) return false;
+		for (const auto name : {"gGPUImpactDecals", "gGPUImpactDecalBins", "gGPUImpactDecalBinWords"}) {
+			if (std::none_of(plan.bindings.begin(), plan.bindings.end(), [&](const auto& binding) {
+				return binding.name == name;
+			})) return false;
+		}
+		const auto root = builder.Build(device, PipelineType::Raytracing, {&compiled}, {linear, environment});
+		if (!root.rootSignature) return false;
 	}
 	return true;
 }

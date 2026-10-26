@@ -100,6 +100,7 @@ void Engine::RenderPathResources::Swap(RenderPathResources& other) noexcept {
 	sceneFinal_.swap(other.sceneFinal_);
 	sceneColorOpaque_.swap(other.sceneColorOpaque_);
 	depthPyramid_.Swap(other.depthPyramid_);
+	particleOpaqueDepth_.Swap(other.particleOpaqueDepth_);
 	std::swap(runtimeOutline_, other.runtimeOutline_);
 	std::swap(editorSelectionOutline_, other.editorSelectionOutline_);
 	std::swap(currentWidth_, other.currentWidth_);
@@ -171,6 +172,7 @@ void Engine::RenderPathResources::Destroy() {
 		sceneColorOpaque_.reset();
 	}
 	depthPyramid_.Destroy();
+	particleOpaqueDepth_.Destroy();
 	runtimeOutline_.Destroy();
 	editorSelectionOutline_.Destroy();
 	currentWidth_ = 0;

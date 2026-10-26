@@ -9846,13 +9846,13 @@
                         "r": 1.0
                     },
                     "direction": {
-                        "x": 0.028009261935949326,
-                        "y": -0.9880990982055664,
-                        "z": 0.15124712884426117
+                        "x": -0.08892457187175751,
+                        "y": -0.9807969331741333,
+                        "z": 0.17357929050922394
                     },
                     "enabled": true,
-                    "intensity": 21.0,
-                    "shadowAngularRadius": 0.27000001072883606,
+                    "intensity": 32.0,
+                    "shadowAngularRadius": 0.03999999910593033,
                     "shadowStrength": 1.0
                 },
                 "Hierarchy": {
@@ -9889,6 +9889,750 @@
                 }
             },
             "LocalFileID": "4a3caedc8fbbe1d0"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "Name": {
+                    "name": "Particle3D_2"
+                },
+                "ParticleSystem": {
+                    "drawEmitterShape": true,
+                    "enabled": true,
+                    "layer": 0,
+                    "order": 0,
+                    "playInEditMode": true,
+                    "playOnAwake": true,
+                    "playbackSpeed": 1.649999976158142,
+                    "randomSeed": 0,
+                    "renderingLayerMask": 1,
+                    "settings": {
+                        "billboardAxes": [
+                            "X",
+                            "Y",
+                            "Z"
+                        ],
+                        "blendMode": "Add",
+                        "crossPlane": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "planeCount": 2,
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "cube": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            }
+                        },
+                        "cylinder": {
+                            "bottomColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "bottomRadius": 1.0,
+                            "bottomRadiusWeight": 0.0,
+                            "cap": "Both",
+                            "centerColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "centerRadius": 1.0,
+                            "height": 2.0,
+                            "heightDivide": 8,
+                            "maxAngleDegrees": 360.0,
+                            "radialDivide": 16,
+                            "topColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "topRadius": 1.0,
+                            "topRadiusWeight": 0.0,
+                            "uvMode": "None"
+                        },
+                        "emitter": {
+                            "boxFaceNegX": true,
+                            "boxFaceNegY": true,
+                            "boxFaceNegZ": true,
+                            "boxFacePosX": true,
+                            "boxFacePosY": true,
+                            "boxFacePosZ": true,
+                            "boxSize": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "circleAngleMax": 360.0,
+                            "circleAngleMin": 0.0,
+                            "circleClockwise": false,
+                            "circleRadius": 1.0,
+                            "circleSpawnMode": "Random",
+                            "circleStepAngle": 10.0,
+                            "circleUsePrevSegmentDirectionOnWrap": false,
+                            "circleVelocityMode": "Normal",
+                            "coneAngle": 13.0,
+                            "coneRadius": 4.0,
+                            "emitCount": {
+                                "constant": 4,
+                                "max": 72,
+                                "min": 49,
+                                "type": "Random"
+                            },
+                            "emitInterval": 0.0010000000474974513,
+                            "emitOffset": {
+                                "constant": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "max": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "min": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "type": "Constant"
+                            },
+                            "maxParticles": 400000,
+                            "pointDirection": {
+                                "x": 0.0,
+                                "y": 1.0,
+                                "z": 0.0
+                            },
+                            "rectEdgeNegX": true,
+                            "rectEdgeNegY": true,
+                            "rectEdgePosX": true,
+                            "rectEdgePosY": true,
+                            "rectSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "shape": "Hemisphere",
+                            "speed": {
+                                "constant": 1.600000023841858,
+                                "max": 17.399999618530273,
+                                "min": 4.0,
+                                "type": "Random"
+                            },
+                            "sphereRadius": 0.5,
+                            "torusRadius": 1.0,
+                            "torusThickness": 0.20000000298023224
+                        },
+                        "feedback": {
+                            "decal": {
+                                "capacity": 1024,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "fadeDuration": 1.0,
+                                "lifetime": 5.0,
+                                "material": "",
+                                "receiverRenderingLayerMask": 16777215,
+                                "size": {
+                                    "x": 0.20000000298023224,
+                                    "y": 0.20000000298023224,
+                                    "z": 0.10000000149011612
+                                }
+                            },
+                            "eventCapacity": 4096,
+                            "events": [],
+                            "paint": {
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "hardness": 0.800000011920929,
+                                "radius": 0.10000000149011612
+                            }
+                        },
+                        "hemisphere": {
+                            "bottomCap": true,
+                            "latitudeDivide": 8,
+                            "longitudeDivide": 24,
+                            "radius": 1.0
+                        },
+                        "looping": true,
+                        "material": "",
+                        "model": "",
+                        "phases": [
+                            {
+                                "id": "7183436e91b6946f",
+                                "lifeEndMode": "Kill",
+                                "lifetime": {
+                                    "constant": 1.7599999904632568,
+                                    "max": 8.0,
+                                    "min": 4.0,
+                                    "type": "Random"
+                                },
+                                "material": "",
+                                "materialSettings": {
+                                    "baseColorTexture": "4e454d4153534554a645671350d79ba0",
+                                    "textureOverrides": {}
+                                },
+                                "modules": [
+                                    {
+                                        "id": "SizeOverLifetime",
+                                        "instanceID": "a7961a489e6c8fd9",
+                                        "params": {
+                                            "curve": {
+                                                "defaultValue": 0.0,
+                                                "keys": [
+                                                    {
+                                                        "inTangent": {
+                                                            "x": 0.0,
+                                                            "y": 0.0
+                                                        },
+                                                        "interpolation": "Linear",
+                                                        "outTangent": {
+                                                            "x": 0.0,
+                                                            "y": 0.0
+                                                        },
+                                                        "time": 0.0,
+                                                        "value": 0.0
+                                                    }
+                                                ],
+                                                "name": "Value"
+                                            },
+                                            "easingType": "Linear",
+                                            "endScale": 0.0,
+                                            "loop": {
+                                                "loopCount": 1,
+                                                "type": "Repeat"
+                                            },
+                                            "startScale": 0.1599999964237213,
+                                            "useCurve": false
+                                        }
+                                    },
+                                    {
+                                        "id": "ColorOverLifetime",
+                                        "instanceID": "d8e4e68fb50c9dd7",
+                                        "params": {
+                                            "curveChannels": [
+                                                {
+                                                    "defaultValue": 1.0,
+                                                    "keys": [
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.0,
+                                                            "value": 1.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.1980000138282776,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.39000001549720764,
+                                                            "value": 1.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.597000002861023,
+                                                            "value": 0.41342592239379883
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.7950000166893005,
+                                                            "value": 1.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 1.0,
+                                                            "value": 0.22167932987213135
+                                                        }
+                                                    ],
+                                                    "name": "R"
+                                                },
+                                                {
+                                                    "defaultValue": 1.0,
+                                                    "keys": [
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.0,
+                                                            "value": 0.8935940861701965
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.1980000138282776,
+                                                            "value": 1.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.39000001549720764,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.597000002861023,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.7950000166893005,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 1.0,
+                                                            "value": 1.0
+                                                        }
+                                                    ],
+                                                    "name": "G"
+                                                },
+                                                {
+                                                    "defaultValue": 1.0,
+                                                    "keys": [
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.0,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.1980000138282776,
+                                                            "value": 0.484804630279541
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.39000001549720764,
+                                                            "value": 0.8892393112182617
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.597000002861023,
+                                                            "value": 1.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.7950000166893005,
+                                                            "value": 0.09067296981811523
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 1.0,
+                                                            "value": 0.0
+                                                        }
+                                                    ],
+                                                    "name": "B"
+                                                },
+                                                {
+                                                    "defaultValue": 1.0,
+                                                    "keys": [
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.0,
+                                                            "value": 0.0
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Spline",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.39000001549720764,
+                                                            "value": 0.2633834481239319
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Linear",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 0.9010000228881836,
+                                                            "value": 0.4731234014034271
+                                                        },
+                                                        {
+                                                            "inTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "interpolation": "Linear",
+                                                            "outTangent": {
+                                                                "x": 0.0,
+                                                                "y": 0.0
+                                                            },
+                                                            "time": 1.0,
+                                                            "value": 1.0
+                                                        }
+                                                    ],
+                                                    "name": "A"
+                                                }
+                                            ],
+                                            "easingType": "EaseOutSine",
+                                            "endColor": {
+                                                "a": 1.0,
+                                                "b": 0.5912194848060608,
+                                                "g": 0.8553191423416138,
+                                                "r": 0.14194658398628235
+                                            },
+                                            "loop": {
+                                                "loopCount": 1,
+                                                "type": "Repeat"
+                                            },
+                                            "startColor": {
+                                                "a": 1.0,
+                                                "b": 0.8553191423416138,
+                                                "g": 0.14194653928279877,
+                                                "r": 0.23908643424510956
+                                            },
+                                            "useCurve": true
+                                        }
+                                    },
+                                    {
+                                        "id": "GravityForce",
+                                        "instanceID": "9a613160762f4f5d",
+                                        "params": {
+                                            "autoGroundEmitter": false,
+                                            "gravity": {
+                                                "x": 0.0,
+                                                "y": -3.740000009536743,
+                                                "z": 0.0
+                                            },
+                                            "reflectGround": true,
+                                            "reflectGroundY": 0.3499999940395355,
+                                            "restitution": 0.39500001072883606
+                                        }
+                                    }
+                                ],
+                                "name": "Phase",
+                                "parentSettings": {
+                                    "ignoreParentRotation": false,
+                                    "ignoreParentScale": false,
+                                    "keepWorldOnDetach": true,
+                                    "useEmitter": true
+                                }
+                            }
+                        ],
+                        "plane": {
+                            "axis": "XY",
+                            "divideX": 1,
+                            "divideY": 1,
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "queue": "Transparent",
+                        "ring": {
+                            "divide": 16,
+                            "endAngle": 360.0,
+                            "innerRadius": 0.5,
+                            "outerRadius": 1.0,
+                            "startAngle": 0.0
+                        },
+                        "shape": "Plane",
+                        "source": {
+                            "attachToSurface": false,
+                            "camera": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "inheritColor": false,
+                            "inheritVelocity": 0.0,
+                            "kind": "Analytic",
+                            "maskChannel": "Alpha",
+                            "maskFromVertexColors": false,
+                            "maskMaximum": 1.0,
+                            "maskMinimum": 0.0,
+                            "maskTexture": "",
+                            "mesh": "",
+                            "renderer": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "sequential": false,
+                            "subMeshes": [],
+                            "surfaceOffset": 0.0,
+                            "texture": "",
+                            "textureSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "useMask": false
+                        },
+                        "space": "World3D",
+                        "sphere": {
+                            "latitudeDivide": 16,
+                            "longitudeDivide": 24,
+                            "radius": 1.0
+                        },
+                        "surface": {
+                            "lit": false,
+                            "metallic": 0.0,
+                            "normalScale": 1.0,
+                            "normalTexture": "",
+                            "receiveIBL": true,
+                            "receiveShadows": true,
+                            "roughness": 0.5,
+                            "softDistance": 0.20000000298023224,
+                            "softParticles": false
+                        },
+                        "trail": {
+                            "drawSource": true,
+                            "enabled": true,
+                            "endColor": {
+                                "a": 0.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "endWidth": 0.10000000149011612,
+                            "keepAfterParticleDeath": false,
+                            "material": "",
+                            "materialSettings": {
+                                "baseColorTexture": "",
+                                "textureOverrides": {}
+                            },
+                            "maxPoints": 16,
+                            "maxTrails": 100000,
+                            "memoryBudgetMB": 32,
+                            "minDistance": 0.05000000074505806,
+                            "mode": "Particle",
+                            "pointLifetime": 0.800000011920929,
+                            "startColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "startWidth": 0.10000000149011612,
+                            "textureMode": "Stretch",
+                            "tileLength": 0.20000000298023224
+                        },
+                        "version": 1
+                    },
+                    "simulationSpace": "PhaseSettings",
+                    "simulationTarget": "GPU",
+                    "stopAction": "None",
+                    "useAutoRandomSeed": true,
+                    "useUnscaledTime": false,
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "4f06c591922b1c3b",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -107.22244262695313,
+                        "y": 1.5389704704284668,
+                        "z": -24.3537654876709
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4f06c591922b1c3b"
         },
         {
             "Components": {
@@ -10041,6 +10785,40 @@
                             "sphereRadius": 0.5,
                             "torusRadius": 1.0,
                             "torusThickness": 0.20000000298023224
+                        },
+                        "feedback": {
+                            "decal": {
+                                "capacity": 1024,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "fadeDuration": 1.0,
+                                "lifetime": 5.0,
+                                "material": "",
+                                "receiverRenderingLayerMask": 16777215,
+                                "size": {
+                                    "x": 0.20000000298023224,
+                                    "y": 0.20000000298023224,
+                                    "z": 0.10000000149011612
+                                }
+                            },
+                            "eventCapacity": 4096,
+                            "events": [],
+                            "paint": {
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "hardness": 0.800000011920929,
+                                "radius": 0.10000000149011612
+                            }
                         },
                         "hemisphere": {
                             "bottomCap": true,
@@ -10515,11 +11293,53 @@
                             "startAngle": 0.0
                         },
                         "shape": "Plane",
+                        "source": {
+                            "attachToSurface": false,
+                            "camera": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "inheritColor": false,
+                            "inheritVelocity": 0.0,
+                            "kind": "Analytic",
+                            "maskChannel": "Alpha",
+                            "maskFromVertexColors": false,
+                            "maskMaximum": 1.0,
+                            "maskMinimum": 0.0,
+                            "maskTexture": "",
+                            "mesh": "",
+                            "renderer": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "sequential": false,
+                            "subMeshes": [],
+                            "surfaceOffset": 0.0,
+                            "texture": "",
+                            "textureSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "useMask": false
+                        },
                         "space": "World3D",
                         "sphere": {
                             "latitudeDivide": 16,
                             "longitudeDivide": 24,
                             "radius": 1.0
+                        },
+                        "surface": {
+                            "lit": false,
+                            "metallic": 0.0,
+                            "normalScale": 1.0,
+                            "normalTexture": "",
+                            "receiveIBL": true,
+                            "receiveShadows": true,
+                            "roughness": 0.5,
+                            "softDistance": 0.20000000298023224,
+                            "softParticles": false
                         },
                         "trail": {
                             "drawSource": true,
@@ -10741,6 +11561,40 @@
                             "sphereRadius": 0.5,
                             "torusRadius": 1.0,
                             "torusThickness": 0.20000000298023224
+                        },
+                        "feedback": {
+                            "decal": {
+                                "capacity": 1024,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "fadeDuration": 1.0,
+                                "lifetime": 5.0,
+                                "material": "",
+                                "receiverRenderingLayerMask": 16777215,
+                                "size": {
+                                    "x": 0.20000000298023224,
+                                    "y": 0.20000000298023224,
+                                    "z": 0.10000000149011612
+                                }
+                            },
+                            "eventCapacity": 4096,
+                            "events": [],
+                            "paint": {
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "hardness": 0.800000011920929,
+                                "radius": 0.10000000149011612
+                            }
                         },
                         "hemisphere": {
                             "bottomCap": true,
@@ -11150,11 +12004,53 @@
                             "startAngle": 0.0
                         },
                         "shape": "Plane",
+                        "source": {
+                            "attachToSurface": false,
+                            "camera": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "inheritColor": false,
+                            "inheritVelocity": 0.0,
+                            "kind": "Analytic",
+                            "maskChannel": "Alpha",
+                            "maskFromVertexColors": false,
+                            "maskMaximum": 1.0,
+                            "maskMinimum": 0.0,
+                            "maskTexture": "",
+                            "mesh": "",
+                            "renderer": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "sequential": false,
+                            "subMeshes": [],
+                            "surfaceOffset": 0.0,
+                            "texture": "",
+                            "textureSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "useMask": false
+                        },
                         "space": "World3D",
                         "sphere": {
                             "latitudeDivide": 16,
                             "longitudeDivide": 24,
                             "radius": 1.0
+                        },
+                        "surface": {
+                            "lit": false,
+                            "metallic": 0.0,
+                            "normalScale": 1.0,
+                            "normalTexture": "",
+                            "receiveIBL": true,
+                            "receiveShadows": true,
+                            "roughness": 0.5,
+                            "softDistance": 0.20000000298023224,
+                            "softParticles": false
                         },
                         "trail": {
                             "drawSource": true,
@@ -11428,7 +12324,7 @@
                         "r": 0.1872340440750122
                     },
                     "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
-                    "iblIntensity": 0.6700000166893005,
+                    "iblIntensity": 0.25999999046325684,
                     "physicalEnvironmentEnabled": true,
                     "renderingLayerMask": 1,
                     "visible": true

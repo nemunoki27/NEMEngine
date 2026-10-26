@@ -129,6 +129,7 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	}
 	RegisterDerivedShader(std::move(artifact.opaqueShader));
 	RegisterDerivedShader(std::move(artifact.transparentShader));
+	RegisterDerivedShader(std::move(artifact.particleGPUShader));
 	RegisterDerivedShader(std::move(artifact.depthShader));
 	RegisterDerivedShader(std::move(artifact.pickingShader));
 	RegisterDerivedShader(std::move(artifact.outlineShader));

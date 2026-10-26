@@ -47,9 +47,11 @@ namespace {
 			return;
 		}
 
+		if (artifact.particleGPUShaderID) context.panelContext->renderPipeline->ReloadShader(artifact.particleGPUShaderID);
 		Engine::RenderAssetLibrary& library = context.panelContext->renderPipeline->GetRenderAssetLibrary();
 		library.RegisterDerivedShader(std::move(artifact.opaqueShader));
 		library.RegisterDerivedShader(std::move(artifact.transparentShader));
+		library.RegisterDerivedShader(std::move(artifact.particleGPUShader));
 		library.RegisterDerivedShader(std::move(artifact.depthShader));
 		library.RegisterDerivedShader(std::move(artifact.pickingShader));
 		library.RegisterDerivedShader(std::move(artifact.outlineShader));

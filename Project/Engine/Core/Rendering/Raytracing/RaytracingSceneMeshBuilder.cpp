@@ -439,6 +439,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		instanceShaderData.indexDescriptorIndex = meshResource->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = vertexOffset;
 		instanceShaderData.geometryDataOffset = geometryDataOffset;
+		instanceShaderData.entityIndex = src.entity.index;
+		instanceShaderData.entityGeneration = src.entity.generation;
 		const MeshRenderFlags renderFlags = src.renderer ? src.renderer->renderFlags : MeshRenderFlags::Default;
 		const uint32_t renderingLayerMask = src.renderer ? src.renderer->renderingLayerMask : kRenderingLayerMaskBits;
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(renderFlags, renderingLayerMask);

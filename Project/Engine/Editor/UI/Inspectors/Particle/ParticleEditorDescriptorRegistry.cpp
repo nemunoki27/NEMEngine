@@ -6,6 +6,8 @@
 #include "Modules/ParticleSpiralMovementModuleDrawer.h"
 #include "Modules/ParticleColorUVModuleDrawer.h"
 #include "Modules/ParticleRotationModuleDrawer.h"
+#include "Modules/ParticleCustomDataModuleDrawer.h"
+#include "Modules/ParticleWorldModuleDrawer.h"
 
 //============================================================================
 //	include
@@ -16,6 +18,7 @@
 #include "Modules/ParticleFlipbookModuleDrawer.h"
 #include "Modules/ParticleGravityForceModuleDrawer.h"
 #include "Modules/ParticleNoiseForceModuleDrawer.h"
+#include "Modules/ParticleCurlNoiseModuleDrawer.h"
 #include "Modules/ParticleNoiseUVModuleDrawer.h"
 #include "Modules/ParticleScaleOverLifetimeModuleDrawer.h"
 #include "Modules/ParticleSizeOverLifetimeModuleDrawer.h"
@@ -67,6 +70,14 @@ Engine::ParticleEditorDescriptorRegistry::ParticleEditorDescriptorRegistry() {
 	registerModule("CustomShaderParameter", []() -> std::unique_ptr<IParticleModuleDrawer> {
 		return std::make_unique<ParticleCustomShaderParameterModuleDrawer>();
 	});
+	registerModule("CustomData", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleCustomDataModuleDrawer>();
+	});
+	for (const char* id : {"ForceField", "VectorField", "SplineMovement", "Collision"}) {
+		registerModule(id, []() -> std::unique_ptr<IParticleModuleDrawer> {
+			return std::make_unique<ParticleWorldModuleDrawer>();
+		});
+	}
 	registerModule("Emissive", []() -> std::unique_ptr<IParticleModuleDrawer> {
 		return std::make_unique<ParticleEmissiveModuleDrawer>();
 	});
@@ -75,6 +86,9 @@ Engine::ParticleEditorDescriptorRegistry::ParticleEditorDescriptorRegistry() {
 	});
 	registerModule("GravityForce", []() -> std::unique_ptr<IParticleModuleDrawer> {
 		return std::make_unique<ParticleGravityForceModuleDrawer>();
+	});
+	registerModule("CurlNoise", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleCurlNoiseModuleDrawer>();
 	});
 	registerModule("NoiseForce", []() -> std::unique_ptr<IParticleModuleDrawer> {
 		return std::make_unique<ParticleNoiseForceModuleDrawer>();
@@ -128,12 +142,13 @@ Engine::ParticleEditorDescriptorRegistry& Engine::ParticleEditorDescriptorRegist
 }
 
 bool Engine::ParticleEditorDescriptorRegistry::DrawModule(
-	ParticleModuleRegistry::TypeID typeID, IParticleModule& module, IParticleModuleDrawer* drawer) const {
+	ParticleModuleRegistry::TypeID typeID, IParticleModule& module,
+	IParticleModuleDrawer* drawer, const EditorPanelContext& context) const {
 
 	if (typeID >= moduleDrawerFactories_.size()) {
 		return false;
 	}
-	return drawer ? drawer->Draw(module) : false;
+	return drawer ? drawer->Draw(module, context) : false;
 }
 
 bool Engine::ParticleEditorDescriptorRegistry::DrawEmitterShape(ParticleEmitterShape shape,

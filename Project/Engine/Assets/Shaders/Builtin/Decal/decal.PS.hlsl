@@ -25,13 +25,12 @@ struct DecalOutput {
 	float4 emissive : SV_TARGET3;
 };
 
-DecalOutput main(float4 position : SV_POSITION) {
+DecalOutput ShadeDecal(float4 position, DecalGPUData decal) {
 
 	const int3 pixel = int3(uint2(position.xy), 0);
 	const uint flags = gDecalFlags.Load(pixel);
 	if ((flags & (kMaterialFlagSurface | kMaterialFlagReceiveDecal)) !=
-		(kMaterialFlagSurface | kMaterialFlagReceiveDecal) || decalIndex >= gDecalCount) discard;
-	const DecalGPUData decal = gDecals[decalIndex];
+		(kMaterialFlagSurface | kMaterialFlagReceiveDecal)) discard;
 	if (((flags >> kRenderingLayerMaskShift) & decal.receiverMask) == 0) discard;
 	const float3 worldPosition = gDecalPosition.Load(pixel).xyz;
 	const float3 originalNormal = normalize(gDecalOriginalNormal.Load(pixel).xyz * 2.0f - 1.0f);
@@ -44,4 +43,14 @@ DecalOutput main(float4 position : SV_POSITION) {
 	output.surface = float4(decalSample.surface, 0.0f, (decal.channels & 4u) ? decalSample.alpha : 0.0f);
 	output.emissive = float4((decal.channels & 8u) ? decalSample.emissive * decalSample.alpha : 0.0f.xxx, 0.0f);
 	return output;
+}
+
+DecalOutput main(float4 position : SV_POSITION) {
+	if (decalIndex >= gDecalCount) discard;
+	return ShadeDecal(position, gDecals[decalIndex]);
+}
+
+DecalOutput ImpactMain(float4 position : SV_POSITION, nointerpolation uint slot : TEXCOORD0) {
+	if (slot >= gGPUImpactDecalCapacity || gGPUImpactDecals[slot].alive == 0) discard;
+	return ShadeDecal(position, gGPUImpactDecals[slot].decal);
 }

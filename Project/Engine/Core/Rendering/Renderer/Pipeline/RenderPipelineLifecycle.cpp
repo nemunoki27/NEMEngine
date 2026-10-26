@@ -103,6 +103,7 @@ void RenderPipelineRunner::Init() {
 	}
 
 	cameraStates_.clear();
+	particleCameraDepth_.Clear();
 	cameraWorldLifetime_.reset();
 	historySceneInstance_ = {};
 
@@ -110,6 +111,7 @@ void RenderPipelineRunner::Init() {
 	gameViewState_.lightBuffers.Release();
 	sceneViewState_.lightBuffers.Release();
 	previewResources_.previewLightBufferPool_.Clear();
+	previewResources_.previewFeedback_.Clear();
 	previewResources_.previewBackendFrameStarted_ = false;
 	lastRenderedWorld_ = nullptr;
 }
@@ -118,6 +120,7 @@ void RenderPipelineRunner::Finalize() {
 
 	// Camera別のGPU資源をDevice終了前に回収する
 	cameraStates_.clear();
+	particleCameraDepth_.Clear();
 	cameraWorldLifetime_.reset();
 	historySceneInstance_ = {};
 	// GPU計測の資源をDevice終了前に解放する
@@ -149,6 +152,7 @@ void RenderPipelineRunner::Finalize() {
 	gameViewState_.lightBuffers.Release();
 	sceneViewState_.lightBuffers.Release();
 	previewResources_.previewLightBufferPool_.Clear();
+	previewResources_.previewFeedback_.Clear();
 	assetReloadService_.ClearRenderStates();
 	if (viewportRenderService_) {
 		viewportRenderService_->Finalize();

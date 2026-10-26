@@ -3,6 +3,7 @@
 //============================================================================
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
+#include "../Particle/GPU/particlePaintRead.hlsli"
 
 // RTライブラリ内で固定SRVとライトバッファが衝突しないようレジスタを差し替える
 #define NEM_LIGHT_COUNTS_REGISTER b1
@@ -81,7 +82,9 @@ struct RaytracingInstanceShaderData {
 	uint geometryDataOffset;
 
 	uint renderFlags;
-	uint3 _pad;
+	uint entityIndex;
+	uint entityGeneration;
+	uint _pad;
 };
 struct RaytracingGeometryShaderData {
 
@@ -311,6 +314,7 @@ void ResolveRaytracingHitGeometry(
 	out RaytracingInstanceShaderData instanceData,
 	out SubMeshShaderData subMesh,
 	out float2 uv,
+	out float2 paintUV,
 	out float3 worldPosition,
 	out float3x3 tangentToWorld) {
 
@@ -337,6 +341,7 @@ void ResolveRaytracingHitGeometry(
 
 	float3 bary = ComputeBarycentrics(attr.barycentrics);
 	uv = v0.uv * bary.x + v1.uv * bary.y + v2.uv * bary.z;
+	paintUV = uv;
 	uv = mul(float4(uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
 
 	float3 objectNormal = SafeNormalize(
@@ -391,9 +396,10 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 
 	SubMeshShaderData subMesh;
 	float2 uv;
+	float2 paintUV;
 	float3x3 tangentToWorld;
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh,
-		uv, worldPosition, tangentToWorld);
+		uv, paintUV, worldPosition, tangentToWorld);
 	// レイ距離に応じたMipを使い遠距離ヒットの高周波ノイズを抑える
 	float textureMip = max(log2(1.0f + RayTCurrent() * 0.02f), 0.0f);
 
@@ -402,6 +408,8 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 		subMesh.baseColorTextureIndex, uv, textureMip, 1.0f.xxxx);
 	baseColor.a *= SampleHitTexture(
 		subMesh.opacityTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+	ApplyParticlePaint(uint2(instanceData.entityIndex, instanceData.entityGeneration), paintUV,
+		worldPosition, gEnvironmentSampler, baseColor);
 
 	// glTFのmetallic-roughness規約に合わせてBとGを参照する
 	float4 metallicRoughness = SampleHitTexture(

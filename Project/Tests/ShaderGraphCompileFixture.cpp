@@ -48,6 +48,7 @@ bool NEMTests::ShaderGraphCompileFixture::WriteGeneratedGraph(
 	}
 	if ((!generated.vertexHLSL.empty() && !write(vertexPath, generated.vertexHLSL)) ||
 		(!generated.meshHLSL.empty() && !write(meshPath, generated.meshHLSL)) ||
+		(!generated.particleGPUPixelHLSL.empty() && !write(graphRoot / "particleGPU.PS.hlsl", generated.particleGPUPixelHLSL)) ||
 		(!generated.rayTracingHLSL.empty() && !write(rayTracingPath, generated.rayTracingHLSL))) {
 
 		return false;
@@ -56,6 +57,12 @@ bool NEMTests::ShaderGraphCompileFixture::WriteGeneratedGraph(
 		(!generated.pickingPixelHLSL.empty() && !write(graphRoot / "picking.PS.hlsl", generated.pickingPixelHLSL))) {
 
 		return false;
+	}
+	if (!generated.particleGPUPixelHLSL.empty()) {
+		Engine::DxShaderCompiler compiler;
+		compiler.Init();
+		if (!compiler.CompileShader((graphRoot / "particleGPU.PS.hlsl").wstring(), L"ps_6_0", L"main",
+			Engine::ShaderStage::PS).IsValid()) return false;
 	}
 	return true;
 }

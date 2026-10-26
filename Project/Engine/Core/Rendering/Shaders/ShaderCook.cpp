@@ -214,6 +214,8 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			!cookShader(std::move(artifact.opaqueShader), meta->assetPath)) {
 			return false;
 		}
+		if (artifact.particleGPUShader.guid &&
+			!cookShader(std::move(artifact.particleGPUShader), meta->assetPath)) return false;
 		if (artifact.transparentShader.guid &&
 			!cookShader(std::move(artifact.transparentShader), meta->assetPath)) {
 			return false;

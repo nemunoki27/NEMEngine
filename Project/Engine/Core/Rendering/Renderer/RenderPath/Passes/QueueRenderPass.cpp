@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderRequirements.h>
 
 //============================================================================
 //	QueueRenderPass classMethods
@@ -52,6 +53,14 @@ void Engine::QueueRenderPass::Execute(
 		if (item && (!context.renderPassesRuntime || !context.renderPassesRuntime->IsItemIsolated(*item, context.kind))) {
 			itemScratch_.emplace_back(item);
 		}
+	}
+	if (desc_.kind == RenderPathPassKind::Transparent && context.resources && deps_.renderBatch && depth &&
+		(context.particleCameraCaptureRequired || ParticleRenderRequirements::RequiresOpaqueDepth(*deps_.renderBatch, itemScratch_,
+			context.view->perspective.sourceCamera, context.gameView ? context.gameView->perspective.sourceCamera : Entity::Null()))) {
+		// 描画中の深度と別資源を参照し、透明Materialの深度書き込みを保つ
+		auto* snapshot = context.resources->GetParticleOpaqueDepthSnapshot().Copy(graphicsCore, *depth);
+		if (snapshot) context.bufferRegistry.Register({.alias = "gParticleSceneDepth", .resource = snapshot->GetResource(),
+			.srvGPUHandle = snapshot->GetSRVGPUHandle()});
 	}
 	if (itemScratch_.size() != items.items.size() || !desc_.usePhaseExecution) {
 

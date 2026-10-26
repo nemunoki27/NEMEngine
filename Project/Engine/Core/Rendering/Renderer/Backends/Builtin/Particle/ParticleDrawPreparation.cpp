@@ -135,12 +135,25 @@ namespace Engine::ParticleDrawPreparation {
 		return materialID != defaultMaterial && tryResolve(defaultMaterial);
 	}
 
+	AssetID ResolveNormalTexture(const ParticleRenderSettings& settings,
+		const ParticlePhaseMaterialSettings& phase, const MaterialAsset& material) {
+
+		AssetID texture = settings.surface.normalTexture;
+		if (!texture) {
+			const auto* parameter = material.parameters.FindByName("particleNormalTexture");
+			if (parameter) if (const auto* asset = std::get_if<AssetID>(&parameter->value)) texture = *asset;
+		}
+		const auto override = phase.textureOverrides.find("particleNormalTexture");
+		return override != phase.textureOverrides.end() ? override->second : texture;
+	}
+
 	bool ResolveGPUParticlePass(const RenderDrawContext& context, AssetID requestedMaterial,
 		bool is2D, BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
 		const AssetID expected = requestedMaterial ? requestedMaterial :
 			(is2D ? BuiltinAssets::Materials::DefaultParticle2D : BuiltinAssets::Materials::DefaultParticle);
 		if (!ResolveParticlePass(context, requestedMaterial, is2D, outResolved) || outResolved.materialID != expected) return false;
+		if (outResolved.material->shaderGraph) return true;
 		const AssetID particle2DPipeline{0x4e454d4153534554ull, 0xeff0000000000007ull};
 		return !outResolved.pass->shaderOverride && (outResolved.pass->pipeline == BuiltinAssets::Pipelines::DefaultParticle ||
 			outResolved.pass->pipeline == particle2DPipeline);
@@ -256,6 +269,16 @@ namespace Engine::ParticleDrawPreparation {
 					1.0f : (std::clamp)(particle.age / particle.lifetime, 0.0f, 1.0f);
 				instance.material.materialColor = Color4::White();
 				instance.material.uvMatrix = BuildParticleUVMatrix(particle);
+				const auto velocity = particle.hasParent ? Vector3::Transform(particle.velocity, particle.parentMatrix) -
+					Vector3::Transform(Vector3::AnyInit(0.0f), particle.parentMatrix) : particle.velocity;
+				instance.material.velocityAge = Vector4(velocity.x, velocity.y, velocity.z, particle.age);
+				instance.material.lifetimeRandom = Vector4(particle.lifetime, phaseT, ParticleStableRandom(particle.id), 0);
+				instance.material.particleColor = Vector4(particle.color.r, particle.color.g, particle.color.b, particle.color.a);
+				if (phaseIndex < settings.phaseCustomData.size() && settings.phaseCustomData[phaseIndex].enabled) {
+					const auto& customData = settings.phaseCustomData[phaseIndex];
+					instance.material.customData1 = EvaluateParticleMaterialParameter(customData.customData1, phaseT);
+					instance.material.customData2 = EvaluateParticleMaterialParameter(customData.customData2, phaseT);
+				}
 				const ParticleCustomParameterLayout& customLayout = customLayouts[phaseIndex];
 				auto custom = std::span(outCustomParameters).subspan(outCustomOffsets[phaseIndex] +
 					(instanceIndex - phaseOffsets[phaseIndex]) * customLayout.stride, customLayout.stride);

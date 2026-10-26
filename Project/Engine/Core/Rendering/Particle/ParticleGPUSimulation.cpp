@@ -1,4 +1,5 @@
 #include "ParticleGPUResources.h"
+#include "ParticleGPUEnvironment.h"
 
 //============================================================================
 //	include
@@ -45,12 +46,20 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 	const auto dispatch = [&](const ParticleGPUSimulationStep& step, uint32_t operation) {
 		auto constants = MakeParticleGPUSimulationConstants(step);
 		constants.operation = operation;
+		if (pipeline.FindBindingByName("ParticleGPUEventConstants", ShaderBindingKind::CBV)) {
+			// 子粒子を含む更新ごとに重ならない発生番号を割り当てる
+			const uint64_t birth = step.sequence << 20;
+			constants.birthLow = static_cast<uint32_t>(birth);
+			constants.birthHigh = static_cast<uint32_t>(birth >> 32);
+		}
 		const auto allocation = constants_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), constants);
 		BindParticleGPUCompute(list, pipeline, allocation.gpuAddress, instance);
+		instance.worldInputs.Bind(list, pipeline, instance.collisionDepth);
+		instance.source.Bind(graphics, pipeline);
+		if (environment_ && pipeline.FindBindingByName("ParticleGPUEventConstants", ShaderBindingKind::CBV))
+			environment_->feedback.BindSource(graphics, pipeline, state, step.deltaTime > 0 || step.spawnCount > 0);
 		list->Dispatch(operation == 3 || operation == 5 ? 1 : (instance.capacity + 255) / 256, 1, 1);
-		commands.UAVBarrier(instance.particles.GetResource());
-		commands.UAVBarrier(instance.statistics.GetResource());
-		commands.UAVBarrier(instance.moduleStates.GetResource());
+		commands.UAVBarrierAll();
 	};
 	if (instance.epoch != state.epoch) {
 		ParticleGPUSimulationStep initialization;
@@ -66,10 +75,13 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 	}
 	for (const auto& step : state.pending) {
 		const auto& program = *step.program;
+		instance.lastEmitterWorld = step.emitterWorld;
 		UploadProgram(instance, step, program);
 		dispatch(step, step.deltaTime > 0 ? 1 : 4);
 		dispatch(step, 3);
 		dispatch(step, 2);
+		if (environment_ && environment_->feedbackUpdate && (step.deltaTime > 0 || step.spawnCount > 0))
+			environment_->feedback.ConsumeChildren(state);
 		if (trailPipeline) UpdateTrails(graphics, instance, *trailPipeline, ribbonPipeline, step, false);
 		state.lastSubmittedSequence = step.sequence;
 	}
@@ -82,6 +94,7 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 	}
 	state.pending.clear();
 	instance.particles.Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	instance.moduleStates.Transition(commands, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 	if (instance.trailCapacity) {
 		instance.trails.Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		instance.trailPoints.Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

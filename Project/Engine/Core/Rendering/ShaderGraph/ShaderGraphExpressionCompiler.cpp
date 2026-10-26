@@ -275,6 +275,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNodeExpression(const Sh
 	case ShaderGraphNodeKind::ViewDirection:
 	case ShaderGraphNodeKind::ScreenPosition:
 	case ShaderGraphNodeKind::VertexColor:
+	case ShaderGraphNodeKind::ParticleData:
 	case ShaderGraphNodeKind::Time:
 		return EmitValueNode(node, outputSlot);
 	case ShaderGraphNodeKind::Add:

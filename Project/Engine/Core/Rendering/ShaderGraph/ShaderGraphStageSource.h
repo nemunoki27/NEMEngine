@@ -35,6 +35,7 @@ namespace Engine::ShaderGraphStageSource {
 	std::string BuildUnlitPixelSource(
 		ShaderGraphTarget target, std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context);
 	// 色と輪郭のShaderを生成する
+	std::string BuildGPUParticlePixelSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile);
 	std::string BuildParticlePixelSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile);
 	// 色と輪郭のShaderを生成する
 	std::string BuildUnlitOutlinePixelSource(

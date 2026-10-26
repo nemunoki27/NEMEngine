@@ -39,5 +39,11 @@ ParticleGPUVertexOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_I
 	output.emissive = (first.emissive + last.emissive) * 0.5f;
 	output.alphaReference = (first.reserved + last.reserved) * 0.5f;
 	output.blendMode = blendMode;
+	output.particleColor = (first.color + last.color) * 0.5f;
+	output.worldPosition = position;
+	output.normal = viewDirection;
+	output.tangent = float4(tangent, 1);
+	output.velocityAge = float4(0, 0, 0, (first.positionAge.w + last.positionAge.w) * 0.5f);
+	output.lifetimeRandom = float2(lifetime, 0);
 	return output;
 }

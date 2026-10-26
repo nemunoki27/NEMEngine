@@ -194,6 +194,7 @@ const char* Engine::ImGuiUtility::GetDisplayName(const char* name) {
 		{ "Flipbook", "フリップブック" },
 		{ "GravityForce", "重力" },
 		{ "NoiseForce", "ノイズによる力" },
+		{ "CurlNoise", "カールノイズ" },
 		{ "NoiseUV", "UVノイズ" },
 		{ "PendulumMovement", "振り子運動" },
 		{ "ScaleOverLifetime", "寿命によるスケール" },
@@ -465,11 +466,4 @@ const char* Engine::ImGuiUtility::GetDisplayName(const char* name) {
 	}
 	const auto found = names.find(key);
 	return found != names.end() ? found->second : name;
-}
-
-const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, const char* name) {
-
-	// ブレンドの標準値とパーティクルの法線方向を区別する
-	if (type.ends_with("BlendMode") && std::string_view(name) == "Normal") return "標準";
-	return GetDisplayName(name);
 }

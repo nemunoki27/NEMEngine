@@ -8,10 +8,15 @@
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmitterStructures.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticlePhaseStructures.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialStructures.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleSourceSettings.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleSurfaceSettings.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleCustomDataSettings.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleFeedbackSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -68,6 +73,12 @@ namespace Engine {
 
 		// エミッター設定
 		ParticleEmitterSettings emitter{};
+		// 基本形状以外を使うGPU発生元
+		ParticleSourceSettings source{};
+		// 衝突イベントと実行時の描き込み
+		ParticleFeedbackSettings feedback{};
+		// 粒子表面の照明と深度フェード
+		ParticleSurfaceSettings surface{};
 
 		// 粒子の形状
 		PrimitiveType shape = PrimitiveType::Plane;
@@ -124,6 +135,11 @@ namespace Engine {
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
 		// トレイル設定
 		ParticleTrailSettings trail{};
+		// 粒子表面の照明と深度フェード
+		ParticleSurfaceSettings surface{};
+		// 描画Curveの所有元とフェーズ別入力
+		std::shared_ptr<const ParticleSystemSettings> authoringOwner;
+		std::vector<ParticleCustomDataSettings> phaseCustomData;
 		// 形状アニメーションを行うか、ShapeOverLifetimeモジュールの有無で決まる
 		bool shapeOverLifetime = false;
 		// エミッター設定、形状のデバッグ描画で参照する

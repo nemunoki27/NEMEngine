@@ -28,6 +28,7 @@ namespace Engine {
 	// スキニング頂点データのGPUリソース
 	struct SkinnedVertexSource {
 
+		ID3D12Resource* resource = nullptr;
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
 		uint32_t srvIndex = UINT32_MAX;
 		uint32_t vertexOffset = 0;

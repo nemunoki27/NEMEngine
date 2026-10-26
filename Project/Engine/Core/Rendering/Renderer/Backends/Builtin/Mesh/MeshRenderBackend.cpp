@@ -357,6 +357,7 @@ void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, Mesh
 
 		// スキニング頂点のGPUリソース情報を登録する
 		SkinnedVertexSource source{};
+		source.resource = resources.GetSkinnedVerticesResource();
 		source.gpuAddress = resources.GetSkinnedVerticesGPUAddress();
 		source.srvIndex = resources.GetSkinnedVerticesSRVIndex();
 		source.vertexOffset = vertexOffset;

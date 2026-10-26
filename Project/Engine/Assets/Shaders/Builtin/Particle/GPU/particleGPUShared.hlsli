@@ -45,7 +45,7 @@ struct ParticleGPUInstruction {
 	float4 parameter3;
 };
 
-struct ParticleGPUCurveSample { float4 value0; float4 value1; };
+#include "particleGPUCurve.hlsli"
 struct ParticleGPUPhase {
 	uint instructionOffset;
 	uint instructionCount;
