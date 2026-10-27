@@ -233,6 +233,13 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 		// 論理パスは現在の走査結果で最新化する
 		meta.assetPath = assetPath;
+		if (meta.type == AssetType::DefaultAsset && guessedType == AssetType::Text) {
+
+			// 既存のテキストAssetも参照GUIDを保持する
+			meta.type = AssetType::Text;
+			meta.importer = AssetMetaStorage::ResolveImporterName(AssetType::Text);
+			if (!WriteMetaFile(metaFull, meta)) return {};
+		}
 		if (meta.type == AssetType::DefaultAsset && guessedType == AssetType::Mesh &&
 			Algorithm::ToLower(Algorithm::PathToUTF8(assetFull.extension())) == ".fbx" &&
 			(meta.importer.empty() || meta.importer == "DefaultImporter")) {

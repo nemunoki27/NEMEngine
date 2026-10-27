@@ -114,6 +114,14 @@ public readonly struct MaterialInstance {
     private readonly GameObject gameObject;
     private readonly RendererMaterialTarget target;
     private readonly int subMeshIndex;
+	private readonly Material? sharedMaterial;
+
+	internal MaterialInstance(Material material) {
+		sharedMaterial = material;
+		gameObject = null!;
+		target = default;
+		subMeshIndex = -1;
+	}
 
     internal MaterialInstance(
         GameObject gameObject, RendererMaterialTarget target, int subMeshIndex = -1) {
@@ -121,6 +129,7 @@ public readonly struct MaterialInstance {
         this.gameObject = gameObject;
         this.target = target;
         this.subMeshIndex = subMeshIndex;
+		sharedMaterial = null;
     }
 
     public bool SetFloat(string name, float value) =>
@@ -304,6 +313,7 @@ public readonly struct MaterialInstance {
         Clear(MaterialParameterID.FromName(name));
 
     public bool Clear(MaterialParameterID id) {
+		if (sharedMaterial != null) return NativeAssetSettingsAPI.Clear(sharedMaterial.assetID, id.value);
         return NativeRenderingAPI.ClearRendererMaterialParameterValue(
             gameObject.native, target, subMeshIndex, id.value);
     }
@@ -313,6 +323,7 @@ public readonly struct MaterialInstance {
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
+		if (sharedMaterial != null) return NativeAssetSettingsAPI.Write(sharedMaterial.assetID, id.value, name, value);
         return NativeRenderingAPI.WriteRendererMaterialParameter(
             gameObject.native, target, subMeshIndex, id.value, name, value);
     }
@@ -320,6 +331,7 @@ public readonly struct MaterialInstance {
     private bool TryGet(
         MaterialParameterID id,
         out NativeMaterialParameterValue value) {
+		if (sharedMaterial != null) return NativeAssetSettingsAPI.Read(sharedMaterial.assetID, id.value, out value);
 
         return NativeRenderingAPI.ReadRendererMaterialParameter(
             gameObject.native, target, subMeshIndex, id.value, out value);

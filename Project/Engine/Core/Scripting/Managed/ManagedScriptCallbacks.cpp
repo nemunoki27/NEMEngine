@@ -206,5 +206,18 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.getIgnoreParentScale = &ManagedScriptRuntime::GetIgnoreParentScaleCallback;
 	callbacks.setIgnoreParentScale = &ManagedScriptRuntime::SetIgnoreParentScaleCallback;
 
+	callbacks.copyRuntimeSettings = &ManagedScriptRuntime::CopyRuntimeSettingsCallback;
+	callbacks.changeRuntimeSettings = &ManagedScriptRuntime::ChangeRuntimeSettingsCallback;
+	callbacks.copyTextAssetBytes = &ManagedScriptRuntime::CopyTextAssetBytesCallback;
+	callbacks.resolveCameraRenderPass = &ManagedScriptRuntime::ResolveCameraRenderPassCallback;
+	callbacks.getCameraRenderPassParameter = &ManagedScriptRuntime::GetCameraRenderPassParameterCallback;
+	callbacks.setCameraRenderPassParameter = &ManagedScriptRuntime::SetCameraRenderPassParameterCallback;
+	callbacks.cameraRenderPassAction = &ManagedScriptRuntime::CameraRenderPassActionCallback;
+	callbacks.copyComponentSettings = &ManagedScriptRuntime::CopyComponentSettingsCallback;
+	callbacks.applyComponentSettings = &ManagedScriptRuntime::ApplyComponentSettingsCallback;
+	callbacks.getAssetRuntimeParameter = &ManagedScriptRuntime::GetAssetRuntimeParameterCallback;
+	callbacks.setAssetRuntimeParameter = &ManagedScriptRuntime::SetAssetRuntimeParameterCallback;
+	callbacks.clearAssetRuntimeParameter = &ManagedScriptRuntime::ClearAssetRuntimeParameterCallback;
+	callbacks.copyParticleModuleDefaults = &ManagedScriptRuntime::CopyParticleModuleDefaultsCallback;
 	return callbacks;
 }

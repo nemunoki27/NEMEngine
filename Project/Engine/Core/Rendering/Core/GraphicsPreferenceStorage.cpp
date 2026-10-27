@@ -93,6 +93,11 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 		return;
 	}
 
+	Read(data, preferences);
+}
+
+void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, GraphicsFeaturePreferences& preferences) {
+
 	preferences.allowMeshShader = ReadBoolSetting(data,
 		"allowMeshShader", preferences.allowMeshShader);
 	preferences.allowInlineRayTracing = ReadBoolSetting(data,
@@ -156,11 +161,14 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 	preferences.displayOutput.maxLuminanceNits = std::clamp(
 		ReadFloatSetting(data, "maxLuminanceNits", 1000.0f),
 		preferences.displayOutput.paperWhiteNits, 10000.0f);
-	// 旧3フレーム設定を現在の上限で保存し直す
-	if (savedFrameCount == 3) Save(preferences);
 }
 
 void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& preferences) {
+
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), Write(preferences));
+}
+
+nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePreferences& preferences) {
 
 	nlohmann::json data{};
 	data["allowMeshShader"] = preferences.allowMeshShader;
@@ -189,5 +197,5 @@ void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& p
 	data["paperWhiteNits"] = preferences.displayOutput.paperWhiteNits;
 	data["maxLuminanceNits"] = preferences.displayOutput.maxLuminanceNits;
 
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), data);
+	return data;
 }

@@ -37,7 +37,7 @@ internal static class NativeBindingEmitter {
         foreach (string header in components.Select(c => c.NativeHeader).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h, StringComparer.Ordinal)) {
             sb.Append($"#include <{header}>\n");
         }
-        sb.Append("\n#include <cstring>\n\n");
+        sb.Append("\n#include <cstring>\n#include <cmath>\n\n");
         sb.Append("namespace Engine::GeneratedComponentBindings {\n\n");
 
         sb.Append("\tnamespace {\n\n");
@@ -190,7 +190,7 @@ internal static class NativeBindingEmitter {
                 break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
-                sb.Append($"\t\t\t\tconst Entity target = SceneObjectUtility::FindByLocalFileID(world, c->{m});\n");
+                sb.Append($"\t\t\t\tconst Entity target = SceneObjectUtility::FindByLocalFileID(world, SceneObjectUtility::GetSceneInstanceID(world, entity), c->{m});\n");
                 sb.Append("\t\t\t\t*reinterpret_cast<ManagedNativeEntity*>(out) = world.IsAlive(target) ? MakeNativeEntity(world, target) : MakeNullNativeEntity();\n");
                 break;
             default: {
@@ -215,6 +215,14 @@ internal static class NativeBindingEmitter {
             case "Enum": {
                 EnumModel e = enumByName[prop.EnumType!];
                 sb.Append("\t\t\t\tif (size < 4) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append("\t\t\t\tconst int32_t incoming = *reinterpret_cast<const int32_t*>(value);\n");
+                if (e.ManagedType.EndsWith("Flags", StringComparison.Ordinal)) {
+                    long mask = e.Members.Aggregate(0L, (bits, member) => bits | member.Value);
+                    sb.Append($"\t\t\t\tif ((static_cast<uint32_t>(incoming) & ~{mask}u) != 0) return ManagedStatus::InvalidArgument;\n");
+                } else {
+                    string allowed = string.Join(" && ", e.Members.Select(member => $"incoming != {member.Value}"));
+                    sb.Append($"\t\t\t\tif ({allowed}) return ManagedStatus::InvalidArgument;\n");
+                }
                 sb.Append($"\t\t\t\tc->{m} = static_cast<{e.NativeType}>(*reinterpret_cast<const int32_t*>(value));\n");
                 break;
             }
@@ -227,11 +235,18 @@ internal static class NativeBindingEmitter {
                 sb.Append("\t\t\t\tconst ManagedNativeEntity targetNative = *reinterpret_cast<const ManagedNativeEntity*>(value);\n");
                 sb.Append("\t\t\t\tconst Entity target = ResolveEntity(targetNative);\n");
                 sb.Append("\t\t\t\tconst SceneObjectComponent* sceneObject = ResolveWorld(targetNative) == &world && world.IsAlive(target) ? world.TryGetComponent<SceneObjectComponent>(target) : nullptr;\n");
+                sb.Append("\t\t\t\tif (targetNative.IsValid() && (!sceneObject || sceneObject->sceneInstanceID != SceneObjectUtility::GetSceneInstanceID(world, entity))) return ManagedStatus::InvalidArgument;\n");
                 sb.Append($"\t\t\t\tc->{m} = sceneObject ? sceneObject->localFileID : UUID{{}};\n");
                 break;
             default: {
                 (_, int podSize) = PODInfo(prop.Kind);
                 sb.Append($"\t\t\t\tif (size < {podSize}) {{ return ManagedStatus::InvalidArgument; }}\n");
+                if (prop.Kind is "Float" or "Vector2" or "Vector3" or "Vector4" or "Color3" or "Color4" or "Quaternion") {
+                    string permit = prop.AllowNegativeInfinity ? " && !(std::isinf(number) && number < 0.0f)" : "";
+                    sb.Append($"\t\t\t\tfor (int index = 0; index < {podSize / 4}; ++index) {{\n");
+                    sb.Append("\t\t\t\t\tfloat number; std::memcpy(&number, static_cast<const char*>(value) + index * sizeof(float), sizeof(float));\n");
+                    sb.Append($"\t\t\t\t\tif (!std::isfinite(number){permit}) return ManagedStatus::InvalidArgument;\n\t\t\t\t}}\n");
+                }
                 sb.Append($"\t\t\t\tstd::memcpy(&(c->{m}), value, {podSize});\n");
                 break;
             }

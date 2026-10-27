@@ -4,17 +4,32 @@
 //	include
 //============================================================================
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
+#include <Engine/Core/Audio/AudioSystem.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 
 // c++
 #include <algorithm>
+#include <string_view>
 
 //============================================================================
 //	EditorToolUI classMethods
 //============================================================================
 
 namespace {
+
+	// 空IDの位置には音声設定を表示する
+	constexpr std::string_view kProjectSettingsTools[] = {
+		"engine.tag_manager", "engine.collision_manager", "engine.script_execution_order",
+		"engine.input_device", "", "engine.sceneViewCamera"
+	};
+
+	// メニューの所属だけを判定しツールの更新順序は変えない
+	bool IsProjectSettingsTool(std::string_view id) {
+
+		return std::ranges::any_of(kProjectSettingsTools, [id](std::string_view candidate) { return candidate == id; });
+	}
 
 	bool CanDrawToolUI(const Engine::EditorPanelContext& context) {
 		return context.editorContext && context.layoutState &&
@@ -85,6 +100,40 @@ namespace {
 		ImGui::EndTooltip();
 	}
 
+	// 登録と実行条件を確認してメニュー項目を表示する
+	void DrawToolMenuItem(const std::shared_ptr<Engine::IEditorTool>& tool,
+		const Engine::ToolContext& context, std::string& openToolID) {
+
+		if (!tool || !IsRegistered(tool)) return;
+		const auto& descriptor = tool->GetDescriptor();
+		const bool enabled = tool->IsEnabled(context);
+		const char* label = descriptor.name.empty() ? descriptor.id.c_str() : descriptor.name.c_str();
+		ImGui::PushID(descriptor.id.c_str());
+		if (ImGui::MenuItem(label, nullptr, false, enabled)) openToolID = descriptor.id;
+		DrawToolTooltip(descriptor, enabled);
+		ImGui::PopID();
+	}
+
+	// メニュー描画後に要求されたツールを開く
+	void OpenRequestedTool(const std::string& id, const Engine::ToolContext& context) {
+
+		if (id.empty()) return;
+		const auto tool = std::dynamic_pointer_cast<Engine::IEditorTool>(Engine::ToolRegistry::GetInstance().Acquire(id));
+		if (tool && IsRegistered(tool) && tool->IsEnabled(context)) tool->OpenEditorTool();
+	}
+
+	// 音声設定は既存の即時保存を維持する
+	void DrawAudioSettingsMenu() {
+
+		if (!ImGui::BeginMenu("音声設定")) return;
+		Engine::Audio* audio = Engine::Audio::GetInstance();
+		bool background = audio->IsPlayInBackgroundEnabled();
+		if (ImGui::Checkbox("バックグラウンド再生", &background) && !audio->SetPlayInBackground(background)) {
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn, "音声設定を保存できません");
+		}
+		ImGui::EndMenu();
+	}
+
 	//============================================================================
 	//	EditorToolFrameScope class
 	//	描画終了時に借用した編集状態を解除する
@@ -125,7 +174,8 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 
 	ImGui::SetWindowFontScale(0.8f);
 
-	const auto tools = CollectEditorTools();
+	auto tools = CollectEditorTools();
+	std::erase_if(tools, [](const auto& tool) { return IsProjectSettingsTool(tool->GetDescriptor().id); });
 	const ToolContext toolContext = MakeToolContext(context);
 	std::string openToolID;
 
@@ -147,21 +197,7 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 		if (ImGui::BeginMenu(category.empty() ? "その他" : category.c_str())) {
 			ImGui::SetWindowFontScale(0.8f);
 			for (std::size_t index = first; index < last; ++index) {
-				if (!IsRegistered(tools[index])) {
-					continue;
-				}
-				IEditorTool& tool = *tools[index];
-				const ToolDescriptor& desc = tool.GetDescriptor();
-				const bool enabled = tool.IsEnabled(toolContext);
-				const char* label = desc.name.empty() ? desc.id.c_str() : desc.name.c_str();
-
-				// 同名ツールのIDを登録IDで分ける
-				ImGui::PushID(desc.id.c_str());
-				if (ImGui::MenuItem(label, nullptr, false, enabled)) {
-					openToolID = desc.id;
-				}
-				DrawToolTooltip(desc, enabled);
-				ImGui::PopID();
+				DrawToolMenuItem(tools[index], toolContext, openToolID);
 			}
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::EndMenu();
@@ -173,13 +209,27 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndMenu();
 
-	// 一覧の走査後に登録済みのツールを開く
-	if (!openToolID.empty()) {
-		const auto tool = std::dynamic_pointer_cast<IEditorTool>(ToolRegistry::GetInstance().Acquire(openToolID));
-		if (tool && tool->IsEnabled(toolContext) && IsRegistered(tool)) {
-			tool->OpenEditorTool();
+	OpenRequestedTool(openToolID, toolContext);
+}
+
+void Engine::EditorToolUI::DrawProjectSettingsMenu(const EditorPanelContext& context) {
+
+	if (!CanDrawToolUI(context) || !ImGui::BeginMenu("プロジェクト設定")) return;
+	ImGui::SetWindowFontScale(0.8f);
+	const ToolContext toolContext = MakeToolContext(context);
+	std::string openToolID;
+	// プロジェクト設定は用途順に並べる
+	for (const std::string_view id : kProjectSettingsTools) {
+		if (id.empty()) {
+			DrawAudioSettingsMenu();
+			continue;
 		}
+		const auto tool = std::dynamic_pointer_cast<IEditorTool>(ToolRegistry::GetInstance().Acquire(id));
+		DrawToolMenuItem(tool, toolContext, openToolID);
 	}
+	ImGui::SetWindowFontScale(1.0f);
+	ImGui::EndMenu();
+	OpenRequestedTool(openToolID, toolContext);
 }
 
 void Engine::EditorToolUI::DrawWindows(const EditorPanelContext& context) {

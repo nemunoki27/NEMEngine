@@ -10,6 +10,7 @@
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
@@ -108,6 +109,7 @@ void Framework::Init() {
 
 	applicationStarted_ = true;
 	engineApplication_->Init(*graphicsCore_);
+	graphicsCore_->GetRuntimeSettings().Initialize();
 
 	// フレーム初期化
 	frameTimer_.Init();
@@ -122,6 +124,8 @@ void Framework::Tick() {
 		isRunning_ = false;
 		return;
 	}
+	// Scriptからの設定要求を描画資源の使用前に反映する
+	graphicsCore_->GetRuntimeSettings().ApplyPending();
 	// ウィンドウ変更を描画と入力更新より前に反映する
 	graphicsCore_->SyncDisplayOutput();
 	graphicsCore_->SyncWindowSize();

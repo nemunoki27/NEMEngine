@@ -68,6 +68,8 @@ void Engine::RenderAssetLibrary::Clear() {
 	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 	const auto fontIdentity = std::make_shared<const uint64_t>(*fontCacheIdentity_ + 1);
 	shaderCache_.clear();
+	runtimeMaterialBaselines_.clear();
+	runtimeRenderTextureBaselines_.clear();
 	pipelineCache_.clear();
 	materialCache_.clear();
 	fontCache_.clear();

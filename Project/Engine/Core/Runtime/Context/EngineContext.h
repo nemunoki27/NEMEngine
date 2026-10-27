@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 
 namespace Engine {
+	class RuntimeProjectSettings;
 
 	//============================================================================
 	//	EngineContext class
@@ -71,6 +72,9 @@ namespace Engine {
 		static const GraphicsSetting& GetGraphicsSetting() { return graphicsSetting_; }
 		// ウィンドウ管理クラスの取得
 		WinApp* GetWinApp() const { return winApp_.get(); }
+		// GraphicsCoreが所有する実行中設定を参照する
+		RuntimeProjectSettings* GetRuntimeSettings() const { return runtimeSettings_; }
+		void SetRuntimeSettings(RuntimeProjectSettings* settings) { runtimeSettings_ = settings; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -85,6 +89,7 @@ namespace Engine {
 
 		// ウィンドウ管理クラス
 		std::unique_ptr<WinApp> winApp_;
+		RuntimeProjectSettings* runtimeSettings_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 

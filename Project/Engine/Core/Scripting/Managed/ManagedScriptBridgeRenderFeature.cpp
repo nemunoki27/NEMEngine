@@ -47,7 +47,7 @@ namespace Engine {
 
 		const SystemContext* context = GetCurrentContext();
 		return context && context->graphicsPlatform &&
-			context->graphicsPlatform->ShouldUseDispatchRays() ? 1 : 0;
+			context->graphicsPlatform->GetFeatureController().GetRuntimeFeatures().UsesAnyRayTracing() ? 1 : 0;
 	}
 
 	int32_t ManagedScriptRuntime::ResolveRenderFeaturePassCallback(

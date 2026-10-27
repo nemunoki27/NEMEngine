@@ -6,7 +6,7 @@ namespace NEMEngine;
 internal static class ManagedABI {
 
     // NativeとManagedを同じ版で接続する
-    internal const uint Version = 68;
+    internal const uint Version = 69;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -294,4 +294,16 @@ public struct NativeCollisionEvent {
     public int otherShapeIndex;
     // Trigger接触なら1
     public int isTrigger;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeRenderPassHandle {
+
+    internal NativeEntity camera;
+    internal int cameraType;
+    internal uint reserved;
+    internal ulong instanceID;
+    internal AssetGUID profile;
+    internal ulong revision;
+    internal ulong passID;
 }

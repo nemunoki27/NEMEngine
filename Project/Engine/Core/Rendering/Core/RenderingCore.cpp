@@ -3,6 +3,7 @@
 // engine
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/FontRenderService.h>
+#include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
 
 //============================================================================
@@ -61,6 +62,8 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 	environmentSpecularMap_ = std::make_unique<EnvironmentSpecularMap>();
+	runtimeSettings_ = std::make_unique<RuntimeProjectSettings>(*this, usesEditorUI);
+	engineContext_->SetRuntimeSettings(runtimeSettings_.get());
 }
 
 void Engine::GraphicsCore::TickFrameServices() {

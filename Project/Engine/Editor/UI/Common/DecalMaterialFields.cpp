@@ -50,18 +50,21 @@ Engine::ValueEditResult Engine::DecalMaterialFields::Draw(MaterialParameterSet& 
 	// 色TextureのAlphaで全チャンネルの形状を決める
 	checkbox("affectColor", "色を適用", true);
 	color("color", "ベースカラー");
-	texture("baseColorTexture", "色とAlphaのTexture");
+	texture("baseColorTexture", "ベースカラーテクスチャ");
 	number("opacity", "不透明度", 1.0f, 1.0f);
+	ImGui::Separator();
 	checkbox("affectNormal", "法線を適用", false);
-	texture("normalTexture", "法線Texture");
+	texture("normalTexture", "法線テクスチャ");
 	number("normalStrength", "法線の強さ", 1.0f, 8.0f);
+	ImGui::Separator();
 	checkbox("affectSurface", "質感を適用", false);
 	number("metallic", "メタリック", 0.0f, 1.0f);
 	number("roughness", "ラフネス", 0.5f, 1.0f);
-	texture("metallicRoughnessTexture", "Metallic・Roughness Texture");
+	texture("metallicRoughnessTexture", "質感テクスチャ");
+	ImGui::Separator();
 	checkbox("affectEmission", "発光を適用", false);
 	color("emissiveColor", "発光色");
 	number("emissiveIntensity", "発光強度", 0.0f, 10000.0f);
-	texture("emissiveTexture", "発光Texture");
+	texture("emissiveTexture", "発光テクスチャ");
 	return result;
 }

@@ -20,6 +20,7 @@ namespace Engine {
 
 	class FontRenderService;
 	class EnvironmentSpecularMap;
+	class RuntimeProjectSettings;
 
 	//============================================================================
 	//	GraphicsCore class
@@ -48,6 +49,7 @@ namespace Engine {
 		void RequestDoubleBuffering(bool enabled);
 		void ApplyPendingDoubleBuffering();
 		bool IsDoubleBufferingEnabled() const;
+		RuntimeProjectSettings& GetRuntimeSettings() { return *runtimeSettings_; }
 
 		// フレーム開始/終了処理
 		void BeginRenderFrame();
@@ -106,6 +108,7 @@ namespace Engine {
 		std::unique_ptr<EngineContext> engineContext_;
 		// DXオブジェクトを提供
 		std::unique_ptr<GraphicsPlatform> graphicsPlatform_;
+		std::unique_ptr<RuntimeProjectSettings> runtimeSettings_;
 
 		// デスクリプタ管理クラス
 		std::unique_ptr<RTVDescriptor> rtvDescriptor_;

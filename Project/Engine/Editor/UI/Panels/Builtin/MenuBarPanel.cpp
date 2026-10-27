@@ -9,8 +9,6 @@
 #include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
-#include <Engine/Core/Audio/AudioSystem.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <EditorBuildInfo.generated.h>
 
 //============================================================================
@@ -83,6 +81,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::EndMenu();
 	}
 
+	EditorToolUI::DrawProjectSettingsMenu(context);
+
 	//============================================================================
 	//	エディタウィンドウ表示設定
 	//============================================================================
@@ -126,14 +126,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	グラフィックス機能表示/切り替え
 	//============================================================================
-	if (ImGui::BeginMenu("音声設定")) {
-		Audio* audio = Audio::GetInstance();
-		bool background = audio->IsPlayInBackgroundEnabled();
-		if (ImGui::Checkbox("バックグラウンド再生", &background) && !audio->SetPlayInBackground(background)) {
-			Logger::Output(LogType::Engine, spdlog::level::warn, "音声設定を保存できません");
-		}
-		ImGui::EndMenu();
-	}
 	EditorGraphicsMenu::Draw(context);
 
 	// グラフィックス設定の右隣にツール起動メニューを置く

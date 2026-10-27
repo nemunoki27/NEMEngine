@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -70,9 +71,10 @@ void Engine::InputDeviceTool::DrawWindow() {
 	if (ImGui::Begin(MakeWindowName("入力デバイス").c_str(), &openWindow_)) {
 
 		// 設定の保存と読込
-		if (ImGui::Button("保存")) { input->SaveConfig(); }
+		const float buttonWidth = MyGUI::CalcEqualItemWidth(2);
+		if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) { input->SaveConfig(); }
 		ImGui::SameLine();
-		if (ImGui::Button("読込")) { input->LoadConfig(); }
+		if (ImGui::Button("再読み込み", ImVec2(buttonWidth, 0.0f))) { input->LoadConfig(); }
 
 		ImGui::SeparatorText("入力タイプ");
 		ImGui::Text("現在の入力タイプ: %s",

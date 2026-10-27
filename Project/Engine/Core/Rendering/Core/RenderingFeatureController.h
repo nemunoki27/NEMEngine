@@ -26,6 +26,9 @@ namespace Engine {
 
 		// ユーザー設定変更
 		void SetAllowMeshShader(bool enabled);
+		// 実行中の変更は設定ファイルへ保存しない
+		void ApplyRuntimePreferences(const GraphicsFeaturePreferences& preferences);
+		void SetRuntimeOverrideActive(bool active) { runtimeOverrideActive_ = active; }
 		void SetAllowInlineRayTracing(bool enabled);
 		void SetAllowDispatchRays(bool enabled);
 		void SetAllowRaytracingDownsampling(bool enabled);
@@ -79,6 +82,7 @@ namespace Engine {
 
 		// 初期化済みか
 		bool initialized_ = false;
+		bool runtimeOverrideActive_ = false;
 
 		//--------- functions ----------------------------------------------------
 

@@ -64,6 +64,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// システムコンテキストの更新
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
+	systemContext_.renderAssetLibrary = &renderPipeline_->GetRenderAssetLibrary();
 	systemContext_.deltaTime = deltaTime;
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;

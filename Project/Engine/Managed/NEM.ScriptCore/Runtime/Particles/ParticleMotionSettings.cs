@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 
 namespace NEMEngine;
 
-public sealed class ParticlePhaseSettings : ParticleSettingsObject {
+public sealed partial class ParticlePhaseSettings : ParticleSettingsObject {
 
 	internal ParticlePhaseSettings(JsonObject values) : base(values) { }
 	public string name { get => Read("name", "Phase"); set => Write("name", value); }
@@ -18,6 +18,7 @@ public sealed class ParticlePhaseSettings : ParticleSettingsObject {
 	public ParticleScaleSettings AddScaleOverLifetime() => new(AddModule("ScaleOverLifetime"));
 	public ParticleColorSettings AddColorOverLifetime() => new(AddModule("ColorOverLifetime"));
 	public ParticleCustomDataSettings AddCustomData() => new(AddModule("CustomData"));
+	public ParticleCustomDataSettings? GetCustomData(int occurrence = 0) => FindModule("CustomData", occurrence) is JsonObject value ? new(value) : null;
 	public AssetGUID baseColorTexture {
 		get => AssetGUID.Parse((values["materialSettings"] as JsonObject)?["baseColorTexture"]?.GetValue<string>());
 		set => Child("materialSettings")["baseColorTexture"] = value.isValid ? value.ToString() : "";
@@ -34,8 +35,8 @@ public sealed class ParticlePhaseSettings : ParticleSettingsObject {
 
 	private JsonObject AddModule(string id) {
 		if (values["modules"] is not JsonArray modules) values["modules"] = modules = new JsonArray();
-		var parameters = new JsonObject();
-		modules.Add(new JsonObject { ["id"] = id, ["instanceID"] = Guid.NewGuid().ToString("N")[..16], ["params"] = parameters });
+		var parameters = ParticleModuleDefaults.Read(id);
+		modules.Add(new JsonObject { ["id"] = id, ["enabled"] = true, ["instanceID"] = Guid.NewGuid().ToString("N")[..16], ["params"] = parameters });
 		return parameters;
 	}
 
@@ -50,7 +51,7 @@ public sealed class ParticlePhaseSettings : ParticleSettingsObject {
 	}
 }
 
-public sealed class ParticleForceFieldSettings : ParticleSettingsObject {
+public sealed partial class ParticleForceFieldSettings : ParticleModuleSettings {
 
 	internal ParticleForceFieldSettings(JsonObject values) : base(values) { }
 	public ParticleForceFieldType type { get => (ParticleForceFieldType)Read("type", 0u); set => Write("type", (uint)value); }
@@ -63,7 +64,7 @@ public sealed class ParticleForceFieldSettings : ParticleSettingsObject {
 	public bool useSceneFields { get => Read("useSceneFields", true); set => Write("useSceneFields", value); }
 }
 
-public sealed class ParticleVectorFieldSettings : ParticleSettingsObject {
+public sealed partial class ParticleVectorFieldSettings : ParticleModuleSettings {
 
 	internal ParticleVectorFieldSettings(JsonObject values) : base(values) { }
 	public float intensity { get => Read("intensity", 1f); set => Write("intensity", value); }
@@ -71,7 +72,7 @@ public sealed class ParticleVectorFieldSettings : ParticleSettingsObject {
 	public uint layerMask { get => Read("layerMask", uint.MaxValue); set => Write("layerMask", value); }
 }
 
-public sealed class ParticleSplineMovementSettings : ParticleSettingsObject {
+public sealed partial class ParticleSplineMovementSettings : ParticleModuleSettings {
 
 	internal ParticleSplineMovementSettings(JsonObject values) : base(values) { }
 	public ParticleEntityReference spline { get => ParticleEntityReference.Read(values["spline"]); set => values["spline"] = value.ToJson(); }
@@ -83,7 +84,7 @@ public sealed class ParticleSplineMovementSettings : ParticleSettingsObject {
 	public bool orientToTangent { get => Read("orientToTangent", true); set => Write("orientToTangent", value); }
 }
 
-public sealed class ParticleCollisionSettings : ParticleSettingsObject {
+public sealed partial class ParticleCollisionSettings : ParticleModuleSettings {
 
 	internal ParticleCollisionSettings(JsonObject values) : base(values) { }
 	public bool enabled { get => Read("enabled", false); set => Write("enabled", value); }

@@ -7,12 +7,36 @@
 
 // c++
 #include <array>
+#include <cmath>
 #include <cstring>
 
 //============================================================================
 //	ManagedMaterialConversion functions
 //============================================================================
 namespace Engine::ManagedMaterialConversion {
+
+	MaterialParameterID ResolveParameterID(const MaterialParameterSet& parameters, MaterialParameterID id) {
+
+		if (parameters.Find(id)) return id;
+		for (const auto& record : parameters.GetRecords()) {
+			if (MaterialParameterID::FromName(record.namedValue.first) == id) return record.id;
+		}
+		return id;
+	}
+
+	const MaterialParameterValue* FindParameter(const MaterialParameterSet& parameters, MaterialParameterID id) {
+
+		return parameters.Find(ResolveParameterID(parameters, id));
+	}
+
+	bool IsParameterTypeCompatible(const MaterialParameterValue* current, const MaterialParameterValue& replacement) {
+
+		if (!current || current->value.index() == replacement.value.index()) return true;
+		const auto isColor = [](const auto& value) {
+			return std::holds_alternative<Vector4>(value) || std::holds_alternative<Color4>(value);
+		};
+		return isColor(current->value) && isColor(replacement.value);
+	}
 
 	bool DecodeMaterialParameterValue(
 		const Engine::ManagedMaterialParameterValue& source,
@@ -21,6 +45,11 @@ namespace Engine::ManagedMaterialConversion {
 		// ABIの格納領域を型に応じて読み出す
 		std::array<float, 4> floatValues{};
 		std::memcpy(floatValues.data(), &source.data0, sizeof(floatValues));
+		// GPUへ渡せない非有限値を公開前に拒否する
+		if (source.type >= 0 && source.type <= 4) {
+			const int count = source.type < 3 ? source.type + 1 : 4;
+			for (int index = 0; index < count; ++index) if (!std::isfinite(floatValues[index])) return false;
+		}
 		switch (static_cast<Engine::ManagedMaterialParameterValueType>(source.type)) {
 		case Engine::ManagedMaterialParameterValueType::Float:
 			outValue.value = floatValues[0];

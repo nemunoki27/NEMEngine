@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Editor/Settings/ProjectSettingsOperations.h>
@@ -38,15 +39,15 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::Separator();
 
 	// 保存は明示操作で行い、編集済み状態はdirtyで知らせる
-	if (ImGui::Button("保存")) {
+	const float buttonWidth = MyGUI::CalcEqualItemWidth(2);
+	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
 		context.panelContext->tagSettings->Save();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("再読込")) {
+	if (ImGui::Button("再読み込み", ImVec2(buttonWidth, 0.0f))) {
 		context.panelContext->tagSettings->Reload();
 	}
 	if (context.panelContext->tagSettings->IsDirty()) {
-		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f), "未保存の変更があります");
 	}
 
@@ -149,15 +150,15 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
 	ImGui::Separator();
 	if (ImGui::CollapsingHeader("描画レイヤー")) {
-		if (ImGui::Button("レイヤー設定を保存")) {
+		const float layerButtonWidth = MyGUI::CalcEqualItemWidth(2);
+		if (ImGui::Button("保存##RenderingLayer", ImVec2(layerButtonWidth, 0.0f))) {
 			context.panelContext->renderingLayerSettings->Save();
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("レイヤー設定を再読み込み")) {
+		if (ImGui::Button("再読み込み##RenderingLayer", ImVec2(layerButtonWidth, 0.0f))) {
 			context.panelContext->renderingLayerSettings->Reload();
 		}
 		if (context.panelContext->renderingLayerSettings->IsDirty()) {
-			ImGui::SameLine();
 			ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f),
 				"未保存の変更があります");
 		}

@@ -31,6 +31,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 設定値の取得、未設定なら空IDを返す
+		AssetID GetDecal() const { return configuration_.decal; }
 		AssetID GetMesh() const { return configuration_.mesh; }
 		AssetID GetSprite() const { return configuration_.sprite; }
 		AssetID GetText() const { return configuration_.text; }
@@ -40,6 +41,7 @@ namespace Engine {
 		AssetID GetRaytracingReflection() const { return configuration_.raytracingReflection; }
 
 		// 設定値の更新
+		void SetDecal(AssetID id) { configuration_.decal = id; }
 		void SetMesh(AssetID id) { configuration_.mesh = id; }
 		void SetSprite(AssetID id) { configuration_.sprite = id; }
 		void SetText(AssetID id) { configuration_.text = id; }
@@ -49,6 +51,7 @@ namespace Engine {
 		void SetRaytracingReflection(AssetID id) { configuration_.raytracingReflection = id; }
 
 		// 未設定ならbuiltinデフォルトへフォールバックした実効値を返す
+		AssetID GetDecalOrBuiltin() const;
 		AssetID GetMeshOrBuiltin() const;
 		AssetID GetSpriteOrBuiltin() const;
 		AssetID GetTextOrBuiltin() const;

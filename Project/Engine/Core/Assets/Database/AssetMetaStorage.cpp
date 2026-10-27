@@ -34,6 +34,7 @@ namespace Engine::AssetMetaStorage {
 		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
 		case Engine::AssetType::RenderTexture:      return "RenderTextureImporter";
 		case Engine::AssetType::RenderPasses:    return "RenderPassesImporter";
+		case Engine::AssetType::Text:            return "TextImporter";
 		default:                                  return "DefaultImporter";
 		}
 	}

@@ -8,6 +8,7 @@
 
 // c++
 #include <memory>
+#include <functional>
 
 namespace Engine {
 
@@ -28,6 +29,8 @@ namespace Engine {
 
 		// 未適用の追加を取得対象から外す
 		void Cancel();
+		// 予約値が借用されなくなった時に外部データを解放する
+		void SetExternalCleanup(std::function<void(void*)> cleanup);
 		// 処理中の値を取消後も保持する
 		std::shared_ptr<const void> AcquireValueLease() const { return value_; }
 
@@ -54,6 +57,7 @@ namespace Engine {
 
 			const ComponentTypeInfo& info;
 			AlignedBuffer data;
+			std::function<void(void*)> cleanup;
 		};
 
 		//--------- variables ----------------------------------------------------

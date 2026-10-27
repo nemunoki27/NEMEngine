@@ -462,6 +462,21 @@ namespace Engine {
 		static int32_t __cdecl SplineEvaluateCallback(ManagedNativeEntity entity, float distance,
 			int32_t loop, void* out, int32_t size);
 		// 粒子設定の保存SnapshotをUTF8で取得する
+		static int32_t __cdecl ResolveCameraRenderPassCallback(ManagedNativeEntity entity, int32_t type, const char* name, ManagedRenderPassHandle* output);
+		static int32_t __cdecl GetCameraRenderPassParameterCallback(const ManagedRenderPassHandle* handle, uint64_t parameterID, ManagedMaterialParameterValue* output);
+		static int32_t __cdecl SetCameraRenderPassParameterCallback(const ManagedRenderPassHandle* handle, uint64_t parameterID, const char* name, const ManagedMaterialParameterValue* value);
+		static int32_t __cdecl CameraRenderPassActionCallback(const ManagedRenderPassHandle* handle, int32_t action, const char* name, uint64_t argument);
+		static int32_t __cdecl CopyComponentSettingsCallback(ManagedNativeEntity entity, int32_t type, char* buffer, int32_t capacity);
+		static int32_t __cdecl ApplyComponentSettingsCallback(ManagedNativeEntity entity, int32_t type, const char* buffer, int32_t size);
+		static int32_t __cdecl GetAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID, ManagedMaterialParameterValue* output);
+		static int32_t __cdecl SetAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID, const char* name, const ManagedMaterialParameterValue* value);
+		static int32_t __cdecl ClearAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID);
+		// Moduleの初期設定をNativeと揃える
+		static int32_t __cdecl CopyParticleModuleDefaultsCallback(const char* id, char* buffer, int32_t capacity);
+		// プロジェクト設定とテキストAssetを読み書きする
+		static int32_t __cdecl CopyRuntimeSettingsCallback(int32_t effective, char* buffer, int32_t capacity);
+		static int32_t __cdecl ChangeRuntimeSettingsCallback(int32_t action, const char* buffer, int32_t size);
+		static int32_t __cdecl CopyTextAssetBytesCallback(ManagedAssetGUID assetID, uint8_t* buffer, int32_t capacity);
 		static int32_t __cdecl CopyParticleSystemSettingsCallback(ManagedNativeEntity entity, char* buffer,
 			int32_t capacity, int32_t* written);
 		// 検証した粒子設定のSnapshotを適用する

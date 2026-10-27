@@ -2,6 +2,19 @@ using System.Runtime.InteropServices;
 
 namespace NEMEngine;
 
+// Flipbookの行ごとの列数
+[StructLayout(LayoutKind.Sequential)]
+public struct FlipbookTileColumn : IBufferElementData<FlipbookTileColumn> {
+
+    public static int componentTypeID => 46;
+    public int value;
+    public FlipbookTileColumn(int value) { this.value = value; }
+}
+
+public sealed partial class FlipbookAnimation {
+    public DynamicBuffer<FlipbookTileColumn> tileColumns => gameObject.GetBuffer<FlipbookTileColumn>();
+}
+
 // LineRendererの点列要素、即時描画用LinePointとはindexの有無が異なる
 [StructLayout(LayoutKind.Sequential)]
 public struct LineRendererPoint :

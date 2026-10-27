@@ -12,6 +12,7 @@ internal sealed class EnumModel {
 
     public string ManagedType = ""; // Managed型名
     public string NativeType = ""; // Native型名
+	public bool EmitManaged = true; // 手書きの列挙型は再生成しない
     public List<EnumMember> Members = new(); // 列挙値の一覧
 }
 
@@ -27,6 +28,7 @@ internal sealed class PropertyModel {
     public string Access = "ReadWrite"; // 読取と書込の許可
     // 形状別のアクセサから呼ぶプロパティは内部公開にする
     public string Visibility = "Public"; // 公開範囲
+    public bool AllowNegativeInfinity; // 再生時刻の未指定値を許可する
 
     //--------- accessor -----------------------------------------------------
 

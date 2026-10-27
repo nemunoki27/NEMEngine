@@ -6,23 +6,21 @@ namespace NEMEngine;
 //============================================================================
 public readonly struct RenderPassesPass {
 
-    private readonly ulong passID;
-    private readonly ulong generation;
+    internal readonly NativeRenderPassHandle handle;
 
-    internal RenderPassesPass(ulong passID, ulong generation) {
-        this.passID = passID;
-        this.generation = generation;
-    }
+    internal RenderPassesPass(NativeRenderPassHandle handle) { this.handle = handle; }
+
+    public bool enabled { get => NativeCameraPassAPI.ReadEnabled(handle); set => SetEnabled(value); }
 
     // Profile切替後の古いハンドルを含めて現在操作可能な場合にtrueを返す
-    public bool isValid => NativeRenderingAPI.ValidateRenderFeaturePassValue(
-        passID, generation);
+    public bool isValid => NativeCameraPassAPI.ValidateRenderFeaturePassValue(
+        handle);
 
     public bool SetEnabled(bool enabled) =>
-        NativeRenderingAPI.WriteRenderFeaturePassEnabled(
-            passID, generation, enabled);
+        NativeCameraPassAPI.WriteRenderFeaturePassEnabled(
+            handle, enabled);
 
-    // 同じ実行位置のSceneColor出力をこのパスへ切り替える
+    // 値をCamera専用の実行設定へ適用する
 
     public bool SetFloat(string name, float value) =>
         SetFloat(MaterialParameterID.FromName(name), name, value);
@@ -205,26 +203,26 @@ public readonly struct RenderPassesPass {
         ClearParameter(MaterialParameterID.FromName(name));
 
     public bool ClearParameter(MaterialParameterID id) =>
-        NativeRenderingAPI.ClearRenderFeaturePassParameterValue(
-            passID, generation, id.value);
+        NativeCameraPassAPI.ClearRenderFeaturePassParameterValue(
+            handle, id.value);
 
     public bool Reset() =>
-        NativeRenderingAPI.ResetRenderFeaturePassValue(passID, generation);
+        NativeCameraPassAPI.ResetRenderFeaturePassValue(handle);
 
     private bool Set(
         MaterialParameterID id, string name,
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return NativeRenderingAPI.WriteRenderFeaturePassParameter(
-            passID, generation, id.value, name, value);
+        return NativeCameraPassAPI.WriteRenderFeaturePassParameter(
+            handle, id.value, name, value);
     }
 
     private bool TryGet(
         MaterialParameterID id,
         out NativeMaterialParameterValue value) =>
-        NativeRenderingAPI.ReadRenderFeaturePassParameter(
-            passID, generation, id.value, out value);
+        NativeCameraPassAPI.ReadRenderFeaturePassParameter(
+            handle, id.value, out value);
 }
 
 //============================================================================
@@ -244,10 +242,7 @@ public static class RenderPasses {
     // Profile内の表示名からPassハンドルを取得する
     public static RenderPassesPass FindPass(string passName) {
         ArgumentException.ThrowIfNullOrEmpty(passName);
-        return NativeRenderingAPI.ResolveRenderFeaturePassValue(
-            passName, out ulong passID, out ulong generation)
-            ? new RenderPassesPass(passID, generation)
-            : default;
+        return new CameraRenderPasses(null, -1).FindPass(passName);
     }
 
 
@@ -256,7 +251,7 @@ public static class RenderPasses {
 
     // Profile内の表示名と一致するグループの有効状態を変更する
     public static bool SetGroupEnabled(string groupName, bool enabled) =>
-        NativeRenderingAPI.WriteRenderFeatureGroupEnabled(groupName, enabled);
+        new CameraRenderPasses(null, -1).SetGroupEnabled(groupName, enabled);
 
     public static bool SetFloat(string passName, string name, float value) =>
         FindPass(passName).SetFloat(name, value);
@@ -332,5 +327,5 @@ public static class RenderPasses {
 
     // 全Passの実行時変更をProfileの保存値へ戻す
     public static void ResetAll() =>
-        NativeRenderingAPI.ResetAllRenderFeatureOverrides();
+        new CameraRenderPasses(null, -1).ResetAll();
 }

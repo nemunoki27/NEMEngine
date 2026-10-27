@@ -10,8 +10,10 @@
 
 // c++
 #include <cstdint>
+#include <memory>
 
 namespace Engine {
+	struct RenderPassesAsset;
 
 	//============================================================================
 	//	CameraProjectionMode enum
@@ -63,6 +65,9 @@ namespace Engine {
 		ColorPipelineSettings colorPipeline{};
 		// Camera固有の描画拡張
 		AssetID renderPasses{};
+		// C#の変更はCamera専用の実行用設定へ保持する
+		std::shared_ptr<const RenderPassesAsset> runtimeRenderPasses;
+		uint64_t runtimeRenderPassesSourceRevision = 0;
 
 		// エディターに表示するフラスタムのサイズ
 		float editorFrustumScale = 0.002f;

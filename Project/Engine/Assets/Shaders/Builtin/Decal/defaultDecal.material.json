@@ -1,0 +1,108 @@
+{
+  "name": "DefaultDecal",
+  "domain": "Decal",
+  "usage": "Decal",
+  "passes": [],
+  "parameters": [
+    {
+      "id": "126d8ffaa904879d",
+      "name": "metallicRoughnessTexture",
+      "semantic": "MetallicRoughnessTexture",
+      "value": ""
+    },
+    {
+      "id": "21e3e33ff9022f7b",
+      "name": "affectNormal",
+      "semantic": "None",
+      "value": false
+    },
+    {
+      "id": "31d4f90ec37c453f",
+      "name": "emissiveIntensity",
+      "semantic": "EmissiveIntensity",
+      "value": 0.0
+    },
+    {
+      "id": "43c33856c97e4ca6",
+      "name": "opacity",
+      "semantic": "Opacity",
+      "value": 1.0
+    },
+    {
+      "id": "4f50ecfc0176b5d3",
+      "name": "affectSurface",
+      "semantic": "None",
+      "value": false
+    },
+    {
+      "id": "5213515155a85711",
+      "name": "emissiveTexture",
+      "semantic": "EmissiveTexture",
+      "value": ""
+    },
+    {
+      "id": "6cce61cdfda392e5",
+      "name": "normalTexture",
+      "semantic": "NormalTexture",
+      "value": ""
+    },
+    {
+      "id": "77f5c18e246c6638",
+      "name": "color",
+      "semantic": "BaseColor",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "93c33e46dc8a4e8e",
+      "name": "baseColorTexture",
+      "semantic": "BaseColorTexture",
+      "value": ""
+    },
+    {
+      "id": "a62da48e7896ccf3",
+      "name": "normalStrength",
+      "semantic": "None",
+      "value": 1.0
+    },
+    {
+      "id": "c4617cc0ecd319d1",
+      "name": "emissiveColor",
+      "semantic": "EmissiveColor",
+      "value": {
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1
+      }
+    },
+    {
+      "id": "c553e3e98ed0c7cf",
+      "name": "affectColor",
+      "semantic": "None",
+      "value": true
+    },
+    {
+      "id": "c65b493a4e9d7f55",
+      "name": "roughness",
+      "semantic": "Roughness",
+      "value": 0.5
+    },
+    {
+      "id": "df9e0c473a8555c8",
+      "name": "metallic",
+      "semantic": "Metallic",
+      "value": 0.0
+    },
+    {
+      "id": "fec74db0d5a2a367",
+      "name": "affectEmission",
+      "semantic": "None",
+      "value": false
+    }
+  ]
+}

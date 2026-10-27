@@ -19,6 +19,9 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
+#include <Engine/Core/Runtime/Context/EngineContext.h>
+#include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 
@@ -98,6 +101,7 @@ void Engine::EditorPlaySession::HandlePlayToggle() {
 void Engine::EditorPlaySession::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	systemContext_.engineContext->GetRuntimeSettings()->EndPlay();
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
@@ -105,6 +109,7 @@ void Engine::EditorPlaySession::StopPlayWorld() {
 			ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
 	}
 	worldManager_.DestroyPlayWorld();
+	if (systemContext_.renderAssetLibrary) systemContext_.renderAssetLibrary->ResetRuntimeAssets();
 	playScenes_ = SceneInstanceManager{};
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
@@ -209,6 +214,7 @@ void Engine::EditorPlaySession::StartPlayWorld() {
 	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDatabase_);
 	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
+	systemContext_.engineContext->GetRuntimeSettings()->BeginPlay();
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	systemContext_.time = 0.0f;
 	systemContext_.unscaledTime = 0.0f;

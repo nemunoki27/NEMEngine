@@ -17,6 +17,20 @@ public static class Application {
     // 実行中プロジェクトの絶対パスを返す、製品ビルドでは製品フォルダーを指す
     public static string ProjectRoot => NativeApplicationAPI.ReadProjectRoot();
 
+	// ユーザーの保存先はProject GUIDごとに分離する
+	public static string persistentDataPath => NativeApplicationAPI.ReadUserSettingsRoot();
+	public static int targetFrameRate {
+		get { int fps = GraphicsSettings.Read(false)["targetFrameRate"]!.GetValue<int>(); return fps == 0 ? -1 : fps; }
+		set {
+			if (value == 0 || value < -1 || value > 1000) throw new ArgumentOutOfRangeException(nameof(value));
+			GraphicsSettings.Change(0, new System.Text.Json.Nodes.JsonObject { ["targetFrameRate"] = value == -1 ? 0 : value });
+		}
+	}
+	public static bool runInBackground {
+		get => GraphicsSettings.Read(false)["runInBackground"]!.GetValue<bool>();
+		set => GraphicsSettings.Change(0, new System.Text.Json.Nodes.JsonObject { ["runInBackground"] = value });
+	}
+
     public static event Action<bool>? FocusChanged;
     public static event Action<bool>? PauseChanged;
     public static event Action? Quitting;

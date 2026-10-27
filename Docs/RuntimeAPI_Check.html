@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>C# 実行時API・Editor確認手順</title>
+<style>body{font:16px/1.8 system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;color:#222;background:#fafafa}h1,h2{line-height:1.4}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;text-align:left;padding:10px}pre{background:#eee;padding:18px;overflow:auto}code{font-family:Consolas,monospace}li{margin:8px 0}.note{border-left:4px solid #3975a7;padding:10px 18px;background:#edf4fa}</style>
+<h1>C# 実行時API・Editor確認手順</h1>
+<p>Sandboxの <code>GameAssets/RuntimeAPI/RuntimeAPIDemo.cs</code> で確認できます。既存Sceneの配置や照明は変更していません。</p>
+<h2>1. 確認用Entityを用意</h2>
+<ol><li>Sponza.scene.jsonを開き、空のEntityを1個作ります。</li>
+<li>RuntimeAPIDemoを追加します。Inspectorの「確認するCamera」にGameViewを描くCamera、「確認するMeshRenderer」に色が分かりやすいMeshを指定します。</li>
+<li>必要に応じてParticleSystemと、Cameraの出力に使うRenderTextureを指定します。Particleには最低1個のPhaseを用意してください。</li>
+<li>「CSVファイル」「JSONファイル」に同じRuntimeAPIフォルダーのRuntimeAPIDemo.csv／RuntimeAPIDemo.jsonを指定します。</li>
+<li>「Pass名」をCameraのRenderPassesに存在する名前へ合わせます。既定値はBloomです。</li>
+<li>Playし、GameViewをクリックしてキー入力を有効にします。他のScriptが同じキーを使う場合は一時的に無効にしてください。</li></ol>
+<h2>2. キーごとの確認</h2>
+<table><tr><th>キー</th><th>確認内容</th><th>期待する結果</th></tr>
+<tr><td>F6</td><td>製品FPS上限</td><td>30→60→120→未制限。Consoleに希望値とEditor出力上限が出ます。Editor自身のFPS制限は別なので、製品上限と同じFPSになるとは限りません。</td></tr>
+<tr><td>F7</td><td>RT影</td><td>希望値が切り替わります。GPU非対応時はRTを有効にせず既存の代替経路を使います。</td></tr>
+<tr><td>F8</td><td>Camera・Material・Particle</td><td>Cameraの色補正、指定MeshのBaseColor、Particleの色と発光が変化します。Cameraのポストプロセスを有効にしてください。</td></tr>
+<tr><td>F9</td><td>Camera固有のPass</td><td>指定Passの有効・無効が切り替わります。同じRenderPasses Assetを使う別Cameraには波及しません。BloomはHDRの明るい物体で確認します。</td></tr>
+<tr><td>F10</td><td>RenderTexture</td><td>256×256と512×512を切り替えます。同じAssetを参照するCamera出力とMaterialで確認します。</td></tr>
+<tr><td>F11</td><td>CSV／JSON</td><td>CSVの行数・日本語、JSON往復の値と保存先がConsoleへ出ます。ユーザー保存先にRuntimeAPIDemo.jsonが作られます。</td></tr>
+<tr><td>F12</td><td>明示保存</td><td>現在のゲーム用設定をユーザー設定へ保存します。次のPlay／製品起動で再利用されます。</td></tr></table>
+<h2>3. Stopと再起動</h2>
+<ol><li>F12を押さずに各設定を変更し、Stopします。編集用WorldのComponent値とPlay前のProject設定に戻ることを確認します。</li>
+<li>Material AssetやRenderTextureの実行用上書きも戻ることを確認します。Scene／元Assetのファイルは実行時APIから自動保存しません。</li>
+<li>明示保存を試す場合はF12を押してからStop→Playします。保存済みのゲーム設定が再適用されることを確認します。</li>
+<li>保存済み設定をリセットする場合は、Scriptから <code>GraphicsSettings.ResetToProjectDefaults()</code> の後に <code>SaveUserSettings()</code> を呼びます。EditorではPlay開始前の設定が復元基準です。</li></ol>
+<h2>4. APIの使い方</h2>
+<pre>var settings = GraphicsSettings.GetSettings();
+settings.rayTracingShadows = true;
+settings.doubleBuffering = true;
+GraphicsSettings.ApplySettings(settings);
+Application.targetFrameRate = 60; // -1: 未制限
+
+var effective = GraphicsSettings.GetEffectiveSettings();
+Debug.Log(effective.rayTracingShadowsEnabled);
+
+var pass = camera.renderPasses.FindPass("Bloom");
+pass.SetFloat("intensity", 2.0f);
+
+var rendering = camera.GetRenderingSettings();
+rendering.renderPasses.FindPass("Bloom").outputs[0].widthScale = 0.5f;
+camera.SetRenderingSettings(rendering);
+
+var particle = particles.GetSettings();
+particle.phases[0].GetEmissive().startIntensity = 4.0f;
+particles.SetSettings(particle);
+
+var rows = CsvUtility.Parse(csvAsset.text, true);
+var save = JsonUtility.FromJson&lt;SaveData&gt;(jsonAsset.text);
+File.WriteAllText(Path.Combine(Application.persistentDataPath, "save.json"),
+    JsonUtility.ToJson(save, true));</pre>
+<p class="note">取得した複合設定はSnapshotです。編集後にSetSettings／SetRenderingSettingsを呼びます。CameraのAssetを差し替えた場合や再読込後は、Snapshot・Pass参照を取得し直してください。RenderTextureを含む共有Assetの変更は、同じAssetを参照する全対象へ反映されます。</p>
+<h2>5. 公開範囲</h2>
+<table><tr><th>分野</th><th>C#の入口</th></tr>
+<tr><td>描画・FPS・出力サイズ</td><td>GraphicsSettings、Application.targetFrameRate、Screen.SetResolution。希望設定と実際の対応状況を分離しています。</td></tr>
+<tr><td>入力・Audio・衝突</td><td>InputSettings、AudioSettings、Physics.IgnoreLayerCollision／GetIgnoreLayerCollision。衝突の番号はNEMEngineのCollisionタイプです。背景入力設定はゲーム更新自体を停止する設定ではありません。</td></tr>
+<tr><td>Componentの単純値</td><td>生成Binding。位置、色、数値、列挙、Asset／Entity参照など。存在しないComponentや異なるSceneへの保存参照を拒否します。</td></tr>
+<tr><td>Camera</td><td>色補正・露出などのプロパティ、renderPasses、GetRenderingSettings／SetRenderingSettings。</td></tr>
+<tr><td>Renderer</td><td>MaterialInstance、Material.parameters、MeshRendererのSubMesh設定、RenderTexture.Resize。</td></tr>
+<tr><td>Animation・Particle・Curve</td><td>AnimatorのGroup設定、ParticleSystem.GetSettings／SetSettings、各Phase／Module／Curve設定。</td></tr>
+<tr><td>Buffer・複合形状</td><td>既存のCollision形状・Canvas配置・Spline API、FlipbookAnimation.tileColumns。</td></tr>
+<tr><td>ファイル</td><td>TextAsset、CsvUtility、JsonUtility。外部保存はSystem.IOとApplication.persistentDataPathを使います。</td></tr></table>
+<p>Meshインポート、ShaderGraphのノード編集、照明の事前計算、EditorのLayout・Gizmo・編集時プレビューはゲーム用APIの対象外です。実行内部のcacheや計算済み行列を直接書き換えるAPIも追加しません。</p>
+<h2>6. 製品での確認</h2>
+<ol><li>確認用ScriptのCSV／JSON参照をSceneへ保存します。</li><li>そのSceneをBuild対象へ含めて製品Buildします。</li><li>製品でF11を押し、CSV／JSONが読み込めることと、ユーザー保存が成功することを確認します。</li><li>F6・F7・F12で設定を変えて保存し、終了→再起動して保存値を確認します。</li></ol>
+<p>TextAssetは参照されたファイルを配布対象に含めます。スクリプト内にファイル名を文字列で書くだけではAsset依存になりません。一般の.jsonとEngine専用の.scene.json／renderpasses.json等は別のAsset種別です。</p>
+<h2>7. 実施した検証</h2><ul><li>Develop: NEMEditor・Sandbox・NEMTestsのビルド。</li><li>C#テスト: CSVの引用符・日本語・改行、JSONの部分上書きと失敗時の保持、ParticleとCameraのSnapshot。</li><li>Native: 41 Component・534プロパティの転送、Particle追加取消時の解放、共有Materialの復元、TextAsset種別判定。</li><li>既存Particleテストと1／2フレームのGPU・ImGui検証。</li><li>SponzaのEditor起動・描画・自動終了。</li><li>独立したDevelopゲーム: 保存設定の起動時読込、FPS・入力・RT影、Native経由のCSV読込、RenderTextureサイズ変更、Camera Pass間の独立性、古いPass参照／Snapshotの拒否、追加直後のCamera・Particle設定。終了コード0。</li></ul><p>534項目の検証は値の転送を確認するもので、全機能・全描画条件の目視確認ではありません。Releaseの配布パッケージ確認は未実施です。既存のManaged Lifecycle統合テストは、SandboxScripts.RuntimeLifecycleProbeが現在のSandboxにないため実行条件を満たしませんでした。</p></html>

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "guid": "394a4458e3f5458a8009a227cb398863",
+  "type": "Script",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "settings": {},
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.RuntimeAPIDemo",
+      "scriptTypeId": "f6379ed6-3893-4af0-b52c-d3fbcf7fa8d1",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "10088a5c-bbd3-450d-ae3d-44b873ec7766",
+          "name": "json",
+          "type": "NEMEngine.TextAsset?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "20311aac-c51e-46dd-813d-9f6ea85a8624",
+          "name": "targetTexture",
+          "type": "NEMEngine.RenderTexture?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "6f664281-2365-45e8-b2d8-f00b719d4c77",
+          "name": "targetRenderer",
+          "type": "NEMEngine.MeshRenderer?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "7073e4b5-6600-4095-995c-b374e49e3595",
+          "name": "csv",
+          "type": "NEMEngine.TextAsset?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "84329e63-77f8-41fe-a84b-44345ed75682",
+          "name": "targetParticles",
+          "type": "NEMEngine.ParticleSystem?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "8d07ee51-71d5-423b-96b0-26603376b73f",
+          "name": "targetCamera",
+          "type": "NEMEngine.PerspectiveCamera?",
+          "formerNames": []
+        },
+        {
+          "fieldId": "a67eb80c-ad4c-4a12-91b5-74c6b7582f0c",
+          "name": "passName",
+          "type": "string",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

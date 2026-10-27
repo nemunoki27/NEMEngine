@@ -1344,7 +1344,7 @@
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderSpace": "World3D",
-                    "renderingLayerMask": 2,
+                    "renderingLayerMask": 0,
                     "ring": {
                         "divide": 16,
                         "endAngle": 360.0,

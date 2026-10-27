@@ -12,8 +12,11 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 
 	auto& draft = GetDraft();
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
+	const AssetID defaultMaterial = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Decal);
+	AssetEditSetting materialSetting{};
+	materialSetting.defaultAssetID = defaultMaterial;
 	DrawField(anyItemActive, [&]() { return MyGUI::AssetReferenceField("マテリアル", draft.material,
-		context.editorContext->assetDatabase, {AssetType::Material}); });
+		context.editorContext->assetDatabase, {AssetType::Material}, materialSetting); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawLayerMaskField(context, "表示レイヤー", draft.renderingLayerMask); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawLayerMaskField(context, "受け取り先レイヤー", draft.receiverRenderingLayerMask); });
 	// 寸法とPivotは親Transformのローカル空間で指定する
@@ -32,9 +35,9 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 	// 個別設定の見出しと項目を一段下げる
 	ImGui::Indent();
 	if (MyGUI::CollapsingHeader("個別マテリアル設定")) {
-		static const MaterialAsset fallback = CreateDefaultDecalMaterialAsset("DefaultDecal");
-		const auto* material = draft.material && context.renderPipeline ?
-			context.renderPipeline->GetRenderAssetLibrary().LoadMaterial(draft.material) : &fallback;
+		const AssetID materialID = draft.material ? draft.material : defaultMaterial;
+		const auto* material = context.renderPipeline ?
+			context.renderPipeline->GetRenderAssetLibrary().LoadMaterial(materialID) : nullptr;
 		if (material && material->domain == MaterialDomain::Decal) {
 			DrawField(anyItemActive, [&]() { return DecalMaterialFields::Draw(draft.materialInstance, material->parameters,
 				context.editorContext->assetDatabase); });

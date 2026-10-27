@@ -315,7 +315,7 @@ void GameBuildAssetCollector::AddDefaultMaterialAssets() {
 	const Engine::DefaultMaterialSettings& defaults = Engine::DefaultMaterialSettings::GetInstance();
 	for (const auto assetID : { defaults.GetMeshOrBuiltin(), defaults.GetSpriteOrBuiltin(),
 		defaults.GetTextOrBuiltin(), defaults.GetLineOrBuiltin(), defaults.GetPrimitiveOrBuiltin(),
-		defaults.GetPrimitive2DOrBuiltin(), defaults.GetRaytracingReflectionOrBuiltin() }) {
+		defaults.GetPrimitive2DOrBuiltin(), defaults.GetDecalOrBuiltin(), defaults.GetRaytracingReflectionOrBuiltin() }) {
 		AddAsset(assetID, true);
 	}
 }

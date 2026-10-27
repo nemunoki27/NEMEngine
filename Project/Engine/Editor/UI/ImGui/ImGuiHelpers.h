@@ -244,6 +244,8 @@ namespace Engine {
 		// 汎用プロパティ行
 		static bool BeginPropertyRow(const char* label, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static void EndPropertyRow();
+		// 項目間の余白を除いて有効幅を等分する
+		static float CalcEqualItemWidth(uint32_t itemCount);
 
 		//============================================================================
 		//	数学関連

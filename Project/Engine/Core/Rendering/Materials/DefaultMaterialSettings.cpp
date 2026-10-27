@@ -45,6 +45,11 @@ bool Engine::DefaultMaterialSettings::Save() const {
 	return true;
 }
 
+Engine::AssetID Engine::DefaultMaterialSettings::GetDecalOrBuiltin() const {
+
+	return configuration_.decal ? configuration_.decal : BuiltinAssets::Materials::DefaultDecal;
+}
+
 Engine::AssetID Engine::DefaultMaterialSettings::GetMeshOrBuiltin() const {
 
 	return configuration_.mesh ? configuration_.mesh : BuiltinAssets::Materials::DefaultMesh;

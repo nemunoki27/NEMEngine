@@ -37,6 +37,7 @@ internal static class ManagedBindingEmitter {
 
         // 列挙型を生成する
         foreach (EnumModel e in enums) {
+			if (!e.EmitManaged) continue;
             sb.Append($"public enum {e.ManagedType} {{\n");
             foreach (EnumMember m in e.Members) {
                 sb.Append($"    {m.Name} = {m.Value},\n");

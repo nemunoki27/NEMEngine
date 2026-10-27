@@ -896,6 +896,71 @@
       "name": "clearParticlePaint",
       "nativeType": "ClearParticlePaintCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "copyRuntimeSettings",
+      "nativeType": "CopyRuntimeSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, byte*, int, int>"
+    },
+    {
+      "name": "changeRuntimeSettings",
+      "nativeType": "ChangeRuntimeSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, byte*, int, int>"
+    },
+    {
+      "name": "copyTextAssetBytes",
+      "nativeType": "CopyTextAssetBytesCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int>"
+    },
+    {
+      "name": "resolveCameraRenderPass",
+      "nativeType": "ResolveCameraRenderPassCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, NativeRenderPassHandle*, int>"
+    },
+    {
+      "name": "getCameraRenderPassParameter",
+      "nativeType": "GetCameraRenderPassParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, ulong, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "setCameraRenderPassParameter",
+      "nativeType": "SetCameraRenderPassParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, ulong, byte*, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "cameraRenderPassAction",
+      "nativeType": "CameraRenderPassActionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, int, byte*, ulong, int>"
+    },
+    {
+      "name": "copyComponentSettings",
+      "nativeType": "CopyComponentSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int>"
+    },
+    {
+      "name": "applyComponentSettings",
+      "nativeType": "ApplyComponentSettingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int>"
+    },
+    {
+      "name": "getAssetRuntimeParameter",
+      "nativeType": "GetAssetRuntimeParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "setAssetRuntimeParameter",
+      "nativeType": "SetAssetRuntimeParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, byte*, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "clearAssetRuntimeParameter",
+      "nativeType": "ClearAssetRuntimeParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, int>"
+    },
+    {
+      "name": "copyParticleModuleDefaults",
+      "nativeType": "CopyParticleModuleDefaultsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, byte*, int, int>"
     }
   ],
   "layouts": [
@@ -1155,6 +1220,20 @@
         "sourcePath": 424,
         "hasExplicitID": 684,
         "defaultExecutionOrder": 688
+      }
+    },
+    {
+      "nativeType": "ManagedRenderPassHandle",
+      "managedType": "NativeRenderPassHandle",
+      "size": 64,
+      "members": {
+        "camera": 0,
+        "cameraType": 16,
+        "reserved": 20,
+        "instanceID": 24,
+        "profile": 32,
+        "revision": 48,
+        "passID": 56
       }
     }
   ]

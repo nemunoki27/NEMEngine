@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderingFeatureTypes.h"
+#include <json.hpp>
 
 namespace Engine::GraphicsPreferenceStorage {
 
@@ -11,4 +12,7 @@ namespace Engine::GraphicsPreferenceStorage {
 	void Load(GraphicsFeaturePreferences& preferences);
 	// 現在の設定を保存する
 	void Save(const GraphicsFeaturePreferences& preferences);
+	// 設定文書と実行用の値を相互変換する
+	void Read(const nlohmann::json& data, GraphicsFeaturePreferences& preferences);
+	nlohmann::json Write(const GraphicsFeaturePreferences& preferences);
 }

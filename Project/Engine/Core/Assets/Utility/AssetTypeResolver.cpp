@@ -96,6 +96,9 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (extension == ".animclip") {
 		return AssetType::AnimationClip;
 	}
+	if (extension == ".csv" || extension == ".json" || extension == ".txt") {
+		return AssetType::Text;
+	}
 	return AssetType::DefaultAsset;
 }
 

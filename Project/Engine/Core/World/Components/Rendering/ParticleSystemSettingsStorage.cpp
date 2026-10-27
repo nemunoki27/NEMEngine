@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/ECS/World/PendingComponent.h>
 
 // c++
 #include <stdexcept>
@@ -80,18 +81,33 @@ void ParticleSystemComponent::SerializeECS(const ECSWorld& world, [[maybe_unused
 
 std::shared_ptr<const ParticleSystemSettings> Engine::GetParticleSystemSettings(const ECSWorld& world, const Entity& entity) {
 
-	const auto* component = world.TryGetComponent<ParticleSystemComponent>(entity);
+	const auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity);
 	const auto* storage = world.GetStorage().TryGet<ParticleSystemSettingsStorage>();
 	const auto* record = component && storage ? storage->TryGet(component->settings) : nullptr;
-	return record ? record->value : nullptr;
+	return record ? record->value : component ? std::make_shared<const ParticleSystemSettings>(MakeDefaultParticleSystemSettings()) : nullptr;
 }
 
 void Engine::SetParticleSystemSettings(ECSWorld& world, const Entity& entity, const ParticleSystemSettings& settings) {
 
 	ParticleSystemSettings checked;
 	if (!FromJson(ToJson(settings), checked)) throw std::invalid_argument("ParticleSystemの設定が不正です");
-	auto& component = world.GetComponent<ParticleSystemComponent>(entity);
-	auto& record = EnsureSettings(world, entity, component);
+	auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity);
+	if (!component) throw std::invalid_argument("ParticleSystemがありません");
+	auto& record = EnsureSettings(world, entity, *component);
+	if (!world.HasComponent<ParticleSystemComponent>(entity)) {
+		const auto type = ComponentTypeRegistry::GetInstance().GetID<ParticleSystemComponent>();
+		auto* pending = world.GetCommandBuffer().FindPendingComponent(entity, type);
+		const auto lifetime = world.GetLifetime();
+		// 追加取消時は設定を解放し、追加済みならComponentへ所有を残す
+		pending->SetExternalCleanup([&world, entity, lifetime](void* data) {
+			if (!lifetime->IsAlive()) return;
+			auto& value = *static_cast<ParticleSystemComponent*>(data);
+			const auto* published = world.TryGetComponent<ParticleSystemComponent>(entity);
+			if (!published || published->settings != value.settings) {
+				world.GetStorage().Get<ParticleSystemSettingsStorage>().Release(value.settings);
+			}
+		});
+	}
 	if (ToJson(*record.value) == ToJson(checked)) return;
 	record.value = std::make_shared<const ParticleSystemSettings>(std::move(checked));
 	++record.revision;

@@ -14,7 +14,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 68;
+	inline constexpr uint32_t kManagedABIVersion = 69;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {
@@ -93,6 +93,19 @@ namespace Engine {
 		// Entityの初回世代0は有効として扱う
 		constexpr bool IsValid() const noexcept { return world.IsValid() && index != 0xFFFFFFFFu; }
 	};
+
+	// CameraとPassの個体を識別する
+	struct ManagedRenderPassHandle {
+
+		ManagedNativeEntity camera{};
+		int32_t cameraType = -1;
+		uint32_t reserved = 0;
+		uint64_t instanceID = 0;
+		ManagedAssetGUID profile{};
+		uint64_t revision = 0;
+		uint64_t passID = 0;
+	};
+	static_assert(sizeof(ManagedRenderPassHandle) == 64);
 
 	// C#と共有するVector3
 	struct ManagedVector3 {
@@ -462,6 +475,19 @@ namespace Engine {
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 
+		using ResolveCameraRenderPassCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, const char*, ManagedRenderPassHandle*);
+		using GetCameraRenderPassParameterCallback = int32_t(__cdecl*)(const ManagedRenderPassHandle*, uint64_t, ManagedMaterialParameterValue*);
+		using SetCameraRenderPassParameterCallback = int32_t(__cdecl*)(const ManagedRenderPassHandle*, uint64_t, const char*, const ManagedMaterialParameterValue*);
+		using CameraRenderPassActionCallback = int32_t(__cdecl*)(const ManagedRenderPassHandle*, int32_t, const char*, uint64_t);
+		using CopyComponentSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, char*, int32_t);
+		using ApplyComponentSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, const char*, int32_t);
+		using GetAssetRuntimeParameterCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint64_t, ManagedMaterialParameterValue*);
+		using SetAssetRuntimeParameterCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint64_t, const char*, const ManagedMaterialParameterValue*);
+		using ClearAssetRuntimeParameterCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint64_t);
+		using CopyParticleModuleDefaultsCallback = int32_t(__cdecl*)(const char*, char*, int32_t);
+		using CopyRuntimeSettingsCallback = int32_t(__cdecl*)(int32_t, char*, int32_t);
+		using ChangeRuntimeSettingsCallback = int32_t(__cdecl*)(int32_t, const char*, int32_t);
+		using CopyTextAssetBytesCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint8_t*, int32_t);
 		//--------- variables ----------------------------------------------------
 
 		// ABI情報は最初のfieldとして保持する

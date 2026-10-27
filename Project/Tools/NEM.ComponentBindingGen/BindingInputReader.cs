@@ -34,6 +34,7 @@ internal sealed class BindingInputReader {
                 var model = new EnumModel {
                     ManagedType = Str(e, "managedType"),
                     NativeType = Str(e, "nativeType"),
+					EmitManaged = !e.TryGetProperty("emitManaged", out JsonElement emitManaged) || emitManaged.GetBoolean(),
                 };
                 if (e.TryGetProperty("members", out JsonElement mem) && mem.ValueKind == JsonValueKind.Array) {
                     foreach (JsonElement m in mem.EnumerateArray()) {
@@ -86,6 +87,7 @@ internal sealed class BindingInputReader {
                             EnumType = p.TryGetProperty("enumType", out JsonElement et) ? et.GetString() : null,
                             Access = p.TryGetProperty("access", out JsonElement ac) ? (ac.GetString() ?? "ReadWrite") : "ReadWrite",
                             Visibility = p.TryGetProperty("visibility", out JsonElement vis) ? (vis.GetString() ?? "Public") : "Public",
+                            AllowNegativeInfinity = p.TryGetProperty("allowNegativeInfinity", out JsonElement infinity) && infinity.GetBoolean(),
                         };
                         if (p.TryGetProperty("id", out _) && pm.ID < 0)
                             Error($"{model.ManagedType}.{pm.ManagedName}: property id must be non-negative.");

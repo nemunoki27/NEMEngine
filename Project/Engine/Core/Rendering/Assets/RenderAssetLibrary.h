@@ -55,6 +55,11 @@ namespace Engine {
 		void RegisterDerivedPipeline(RenderPipelineAsset pipeline);
 		// プレビュー用の派生Materialを実行時キャッシュへ登録
 		void RegisterDerivedMaterial(MaterialAsset material);
+		// Scriptの共有Asset変更は元ファイルへ保存しない
+		void SetRuntimeMaterial(MaterialAsset material);
+		void SetRuntimeRenderTexture(RenderTextureAsset texture);
+		const MaterialAsset* GetRuntimeMaterialBaseline(AssetID assetID) const;
+		void ResetRuntimeAssets();
 		// Render Passesの未保存プレビューを登録する
 		void RegisterPreviewRenderPasses(RenderPassesAsset extension);
 		// 編集用プレビューを解除してファイル内容へ戻す
@@ -107,6 +112,8 @@ namespace Engine {
 		std::unordered_map<AssetID, RenderTextureAsset> renderTextureCache_;
 		std::unordered_map<AssetID, RenderPassesAsset> renderPassesCache_;
 		std::unordered_map<AssetID, RenderPassesAsset> renderPassesPreviews_;
+		std::unordered_map<AssetID, MaterialAsset> runtimeMaterialBaselines_;
+		std::unordered_map<AssetID, RenderTextureAsset> runtimeRenderTextureBaselines_;
 
 		//--------- functions ----------------------------------------------------
 

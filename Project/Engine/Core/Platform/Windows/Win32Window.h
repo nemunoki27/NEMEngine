@@ -60,6 +60,8 @@ namespace Engine {
 		static HWND GetHwnd() { return hwnd_; }
 		// 現在のクライアント領域サイズを返す
 		static Vector2I GetClientSize();
+		// ゲームの表示領域を変更する
+		static bool ResizeClient(const Vector2I& size);
 		// 製品画像と同じクライアントサイズへ一時変更する
 		static bool BeginProductSizePreview(const Vector2I& size);
 		// 一時変更前のEditorウィンドウへ戻す

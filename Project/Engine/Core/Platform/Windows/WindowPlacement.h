@@ -29,6 +29,8 @@ namespace Engine {
 		RECT Prepare(uint32_t width, uint32_t height, DWORD style);
 		// 製品と同じクライアントサイズへ一時変更する
 		bool BeginClientPreview(HWND hwnd, uint32_t width, uint32_t height);
+		// 復元状態を変更せずクライアントサイズを更新する
+		bool ResizeClient(HWND hwnd, uint32_t width, uint32_t height);
 		// 一時変更前の位置・サイズ・最大化状態へ戻す
 		void EndClientPreview(HWND hwnd);
 		// 対象モニターへ収まる最大クライアントサイズを返す

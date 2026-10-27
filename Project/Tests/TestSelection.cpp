@@ -1,4 +1,5 @@
 #include "TestSelection.h"
+#include "RuntimeAPITests.h"
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
 #include "FrameBufferingTests.h"
@@ -35,6 +36,10 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--runtime-api") {
+		return RunTest("TestRuntimeAPIContracts", TestRuntimeAPIContracts) ? 0 : 74;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--display-output") {
 		return RunTest("TestDisplayOutputSettings", TestDisplayOutputSettings) &&

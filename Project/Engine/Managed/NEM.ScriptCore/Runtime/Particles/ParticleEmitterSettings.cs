@@ -4,7 +4,7 @@ namespace NEMEngine;
 
 public enum ParticleEmitterShape { Sphere, Hemisphere, Box, Torus, Circle, Cone, Point, Rect, Cone2D }
 
-public sealed class ParticleEmitterSettings : ParticleSettingsObject {
+public sealed partial class ParticleEmitterSettings : ParticleSettingsObject {
 
 	internal ParticleEmitterSettings(JsonObject values) : base(values) { }
 	public ParticleEmitterShape shape { get => ReadEnum("shape", ParticleEmitterShape.Sphere); set => WriteEnum("shape", value); }

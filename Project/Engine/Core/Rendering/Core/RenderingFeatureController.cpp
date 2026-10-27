@@ -319,6 +319,14 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 }
 
 void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
+	if (runtimeOverrideActive_) return;
 
 	GraphicsPreferenceStorage::Save(preferences_);
+}
+
+void Engine::GraphicsFeatureController::ApplyRuntimePreferences(const GraphicsFeaturePreferences& preferences) {
+
+	// 実行中の希望値だけを変更する
+	preferences_ = preferences;
+	RebuildRuntimeFeatures();
 }

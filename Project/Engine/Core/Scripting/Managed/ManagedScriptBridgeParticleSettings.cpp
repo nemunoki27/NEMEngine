@@ -10,6 +10,8 @@
 #include <Engine/Core/Rendering/Particle/ParticleSimulationValidation.h>
 
 // c++
+#include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
+
 #include <cstring>
 #include <limits>
 
@@ -40,7 +42,7 @@ int32_t ManagedScriptRuntime::SetParticleSystemSettingsCallback(ManagedNativeEnt
 	auto* world = ResolveWorld(entity);
 	if (!world) return static_cast<int32_t>(ManagedStatus::InvalidWorldHandle);
 	const auto target = ResolveEntity(entity);
-	const auto* component = world->TryGetComponent<ParticleSystemComponent>(target);
+	const auto* component = world->TryGetComponentForBinding<ParticleSystemComponent>(target);
 	if (!component) return static_cast<int32_t>(ManagedStatus::InvalidEntityHandle);
 	try {
 		const auto json = nlohmann::json::parse(buffer, buffer + size);
@@ -59,4 +61,15 @@ int32_t ManagedScriptRuntime::ClearParticlePaintCallback(ManagedNativeEntity ent
 	if (!world || !world->HasComponent<ParticlePaintReceiverComponent>(target)) return 0;
 	ClearParticlePaint(*world, target);
 	return 1;
+}
+
+int32_t ManagedScriptRuntime::CopyParticleModuleDefaultsCallback(const char* id, char* buffer, int32_t capacity) {
+
+	if (!id || capacity < 0) return -1;
+	try {
+		const auto module = ParticleModuleRegistry::GetInstance().Create(id);
+		if (!module) return -1;
+		const auto settings = module->ToJson();
+		return CopyStringToBuffer((settings.is_object() ? settings : nlohmann::json::object()).dump(), buffer, capacity);
+	} catch (...) { return -1; }
 }

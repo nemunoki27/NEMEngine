@@ -73,7 +73,7 @@ namespace {
 		if (!JsonFile::Save(path, { { "frameContextCount", 3u }, { "allowMeshShader", false } })) return false;
 		GraphicsPreferenceStorage::Load(preferences);
 		return valid && preferences.frameContextCount == 2 && !preferences.allowMeshShader &&
-			JsonFile::Load(path, false).value("frameContextCount", 0u) == 2;
+			JsonFile::Load(path, false).value("frameContextCount", 0u) == 3;
 	}
 
 	// GPU資源の移動後も解放通知を受け取れるか調べる

@@ -109,6 +109,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
+	systemContext_.renderAssetLibrary = &renderPipeline_->GetRenderAssetLibrary();
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
@@ -202,6 +203,7 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
+	systemContext_.renderAssetLibrary = &renderPipeline_->GetRenderAssetLibrary();
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;

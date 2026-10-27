@@ -64,6 +64,12 @@ bool Audio::SetPlayInBackground(bool enabled) {
 	return true;
 }
 
+void Audio::SetRuntimePlayInBackground(bool enabled) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	settings_.playInBackground = enabled;
+}
+
 bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
 
 	return EnsureLoaded(Algorithm::PathFromUTF8(filename), type);

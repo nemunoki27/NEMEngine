@@ -67,6 +67,8 @@ namespace Engine {
 		// Project設定を保存できた場合だけ背景再生の希望値を更新する
 		bool SetPlayInBackground(bool enabled);
 		bool IsPlayInBackgroundEnabled() const { return settings_.playInBackground; }
+		// 保存せずゲーム実行中の背景再生を切り替える
+		void SetRuntimePlayInBackground(bool enabled);
 
 		// 音量のセット
 		void SetVolume(const std::string& name, float volume);

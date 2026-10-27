@@ -276,6 +276,11 @@ void WinApp::SetCursorVisible(bool visible) {
 	cursor_.SetCursorVisible(visible);
 }
 
+bool WinApp::ResizeClient(const Vector2I& size) {
+
+	return placement_.ResizeClient(hwnd_, static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y));
+}
+
 void WinApp::SetCursorClipEnabled(bool enabled) {
 
 	cursor_.SetCursorClipEnabled(enabled);

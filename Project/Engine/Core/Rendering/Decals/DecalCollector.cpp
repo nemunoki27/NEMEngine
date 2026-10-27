@@ -5,6 +5,7 @@
 //============================================================================
 #include "DecalProjection.h"
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -69,17 +70,19 @@ namespace {
 bool Engine::DecalCollector::ResolveMaterial(GraphicsCore& graphicsCore, RenderAssetLibrary& assets,
 	const SceneExecutionContext& context, const DecalProjectorComponent& component, float opacity, DecalDrawItem& item) {
 
-	static const MaterialAsset fallback = CreateDefaultDecalMaterialAsset("DefaultDecal");
 	static std::unordered_set<AssetID> unsupportedMaterials;
-	const MaterialAsset* material = component.material ? assets.LoadMaterial(component.material) : &fallback;
+	// 個別指定がなければプロジェクトの既定を使う
+	const AssetID materialID = context.assetDatabase ?
+		MaterialResolver{}.ResolveORDefault(*context.assetDatabase, component.material, DefaultMaterialSlot::Decal) : component.material;
+	const MaterialAsset* material = assets.LoadMaterial(materialID);
 	if (!material) return false;
 	if (material->domain != MaterialDomain::Decal || material->shaderGraph) {
-		if (unsupportedMaterials.insert(component.material).second) {
+		if (unsupportedMaterials.insert(materialID).second) {
 			Logger::Output(LogType::Engine, spdlog::level::warn, "[Decal] デカール用の標準Materialを設定してください");
 		}
 		return false;
 	}
-	unsupportedMaterials.erase(component.material);
+	unsupportedMaterials.erase(materialID);
 	const auto& defaults = material->parameters;
 	const auto& instance = component.materialInstance;
 	auto& data = item.gpu;

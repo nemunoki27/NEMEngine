@@ -16,7 +16,13 @@ Engine::PendingComponent::ValueState::ValueState(const ComponentTypeInfo& info) 
 
 Engine::PendingComponent::ValueState::~ValueState() {
 
+	if (cleanup) cleanup(data.GetData());
 	info.destroy(data.GetData());
+}
+
+void Engine::PendingComponent::SetExternalCleanup(std::function<void(void*)> cleanup) {
+
+	if (value_) value_->cleanup = std::move(cleanup);
 }
 
 Engine::PendingComponent::~PendingComponent() {

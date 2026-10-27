@@ -105,29 +105,7 @@ bool WindowPlacement::BeginClientPreview(HWND hwnd, uint32_t width, uint32_t hei
 	previewStyle_ = static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_STYLE));
 	previewExStyle_ = static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_EXSTYLE));
 
-	const Vector2I maximum = GetMaximumClientSize(hwnd);
-	const LONG clientWidth = (std::clamp)(
-		static_cast<LONG>(width), 1L, static_cast<LONG>(maximum.x));
-	const LONG clientHeight = (std::clamp)(
-		static_cast<LONG>(height), 1L, static_cast<LONG>(maximum.y));
-	RECT windowRect{ 0, 0, clientWidth, clientHeight };
-	AdjustWindowRectExForDpi(&windowRect, WS_OVERLAPPEDWINDOW, FALSE, 0, GetDpiForWindow(hwnd));
-
-	MONITORINFO monitorInfo{};
-	monitorInfo.cbSize = sizeof(monitorInfo);
-	GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitorInfo);
-	const LONG windowWidth = windowRect.right - windowRect.left;
-	const LONG windowHeight = windowRect.bottom - windowRect.top;
-	const LONG x = monitorInfo.rcWork.left +
-		(monitorInfo.rcWork.right - monitorInfo.rcWork.left - windowWidth) / 2;
-	const LONG y = monitorInfo.rcWork.top +
-		(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top - windowHeight) / 2;
-
-	// 最大化を解除して製品画像と同じクライアントサイズへ変更する
-	ShowWindow(hwnd, SW_RESTORE);
-	SetWindowLongPtr(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
-	SetWindowPos(hwnd, nullptr, x, y, windowWidth, windowHeight,
-		SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+	if (!ResizeClient(hwnd, width, height)) return false;
 	clientPreview_ = true;
 	return true;
 }
@@ -152,4 +130,34 @@ void WindowPlacement::EndClientPreview(HWND hwnd) {
 	SetWindowPlacement(hwnd, &placement);
 	ShowWindow(hwnd, maximized ? SW_MAXIMIZE : SW_SHOWNORMAL);
 	clientPreview_ = false;
+}
+
+// 製品画像のクライアントサイズへ変更する
+bool WindowPlacement::ResizeClient(HWND hwnd, uint32_t width, uint32_t height) {
+
+	if (!hwnd || fullscreen_) return false;
+	const Vector2I maximum = GetMaximumClientSize(hwnd);
+	const LONG clientWidth = (std::clamp)(
+		static_cast<LONG>(width), 1L, static_cast<LONG>(maximum.x));
+	const LONG clientHeight = (std::clamp)(
+		static_cast<LONG>(height), 1L, static_cast<LONG>(maximum.y));
+	RECT windowRect{ 0, 0, clientWidth, clientHeight };
+	AdjustWindowRectExForDpi(&windowRect, WS_OVERLAPPEDWINDOW, FALSE, 0, GetDpiForWindow(hwnd));
+
+	MONITORINFO monitorInfo{};
+	monitorInfo.cbSize = sizeof(monitorInfo);
+	GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitorInfo);
+	const LONG windowWidth = windowRect.right - windowRect.left;
+	const LONG windowHeight = windowRect.bottom - windowRect.top;
+	const LONG x = monitorInfo.rcWork.left +
+		(monitorInfo.rcWork.right - monitorInfo.rcWork.left - windowWidth) / 2;
+	const LONG y = monitorInfo.rcWork.top +
+		(monitorInfo.rcWork.bottom - monitorInfo.rcWork.top - windowHeight) / 2;
+
+	// 最大化を解除して製品画像と同じクライアントサイズへ変更する
+	ShowWindow(hwnd, SW_RESTORE);
+	SetWindowLongPtr(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+	SetWindowPos(hwnd, nullptr, x, y, windowWidth, windowHeight,
+		SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+	return true;
 }

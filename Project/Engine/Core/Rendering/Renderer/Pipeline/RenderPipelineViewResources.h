@@ -41,6 +41,7 @@ namespace Engine {
 		AssetID renderPassesAsset{};
 		uint64_t renderPassesGeneration = 1;
 		uint64_t renderPassesAssetRevision = UINT64_MAX;
+		std::shared_ptr<const RenderPassesAsset> renderPassesOverride;
 		PerViewLightSet lightSet{};
 		ViewLightBufferSet lightBuffers{};
 

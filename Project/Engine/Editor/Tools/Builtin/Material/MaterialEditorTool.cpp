@@ -100,6 +100,8 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 
 	drawSlot("Mesh", settings.GetMesh(), settings.GetMeshOrBuiltin(),
 		[&](AssetID id) { settings.SetMesh(id); });
+	drawSlot("Decal", settings.GetDecal(), settings.GetDecalOrBuiltin(),
+		[&](AssetID id) { settings.SetDecal(id); });
 	drawSlot("Sprite", settings.GetSprite(), settings.GetSpriteOrBuiltin(),
 		[&](AssetID id) { settings.SetSprite(id); });
 	drawSlot("Text", settings.GetText(), settings.GetTextOrBuiltin(),

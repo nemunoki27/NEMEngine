@@ -332,12 +332,17 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	const ResolvedCameraView* extensionCamera = extensionView.FindOutputCamera();
 	const AssetID extensionID = extensionCamera ? extensionCamera->renderPasses : AssetID{};
 	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderPassesRevision(extensionID);
-	if (cameraState.renderPassesAsset != extensionID ||
+	const auto overrideAsset = extensionCamera && extensionCamera->surfaceSettings.runtimeRenderPasses &&
+		extensionCamera->surfaceSettings.runtimeRenderPasses->guid == extensionID &&
+		extensionCamera->surfaceSettings.runtimeRenderPassesSourceRevision == extensionRevision ?
+		extensionCamera->surfaceSettings.runtimeRenderPasses : nullptr;
+	if (cameraState.renderPassesOverride != overrideAsset || cameraState.renderPassesAsset != extensionID ||
 		cameraState.renderPassesAssetRevision != extensionRevision) {
-		const RenderPassesAsset* extension = extensionID ?
+		const RenderPassesAsset* extension = overrideAsset ? overrideAsset.get() : extensionID ?
 			renderAssetLibrary_.LoadRenderPasses(extensionID) : nullptr;
 		cameraState.renderPassesRuntime.Rebuild(extension ?
 			ToRuntimeProfile(*extension) : RenderFeatureProfileAsset{});
+		cameraState.renderPassesOverride = overrideAsset;
 		cameraState.renderPassesAsset = extensionID;
 		cameraState.renderPassesAssetRevision = extensionRevision;
 		++cameraState.renderPassesGeneration;

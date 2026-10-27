@@ -6,6 +6,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Decals/DecalCollector.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Decals/DecalProjection.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -98,8 +99,18 @@ namespace {
 		SceneExecutionContext context;
 		context.world = &world;
 		context.view = &view;
+		AssetDatabase database;
+		database.Init();
+		const auto defaultPath = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Decal/defaultDecal.material.json";
+		const AssetID defaultMaterial = database.ImportOrGet(RuntimePaths::ToAssetPath(defaultPath), AssetType::Material);
+		if (defaultMaterial != BuiltinAssets::Materials::DefaultDecal) return false;
+		context.assetDatabase = &database;
 		GraphicsCore graphics;
 		RenderAssetLibrary assets;
+		assets.Init(&database);
+		// アセット化しても従来の初期パラメータを維持する
+		const auto* defaults = assets.LoadMaterial(defaultMaterial);
+		if (!defaults || ToJson(*defaults) != ToJson(CreateDefaultDecalMaterialAsset("DefaultDecal"))) return false;
 		const auto revision = assets.GetMaterialRevision();
 		auto material = CreateDefaultDecalMaterialAsset("Preview");
 		material.guid = AssetID{1, 1};

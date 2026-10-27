@@ -25,6 +25,7 @@ bool Engine::DefaultMaterialConfigurationIO::Read(
 		}
 		try {
 			// 未解決の参照もGUIDのまま読み込む
+			loaded.decal = ParseAssetID(data, "decal");
 			loaded.mesh = ParseAssetID(data, "mesh");
 			loaded.sprite = ParseAssetID(data, "sprite");
 			loaded.text = ParseAssetID(data, "text");
@@ -57,6 +58,7 @@ bool Engine::DefaultMaterialConfigurationIO::Write(
 		}
 	}
 	nlohmann::json data = nlohmann::json::object();
+	data["decal"] = ToAssetReferenceJson(configuration.decal);
 	data["mesh"] = ToAssetReferenceJson(configuration.mesh);
 	data["sprite"] = ToAssetReferenceJson(configuration.sprite);
 	data["text"] = ToAssetReferenceJson(configuration.text);

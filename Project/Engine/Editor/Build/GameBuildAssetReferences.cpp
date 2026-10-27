@@ -35,7 +35,7 @@ namespace Engine {
 	void GameBuildAssetCollector::InspectFile(const Engine::AssetMeta& meta, const std::filesystem::path& source) {
 
 		const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(source.extension()));
-		if (extension == ".json" || AssetTypeResolver::IsJsonAssetFile(meta.type, source)) {
+		if (meta.type != AssetType::Text && (extension == ".json" || AssetTypeResolver::IsJsonAssetFile(meta.type, source))) {
 
 			const nlohmann::json data = LoadJson(source);
 			if (!data.is_discarded() && !data.is_null()) {

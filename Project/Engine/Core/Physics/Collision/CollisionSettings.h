@@ -65,6 +65,7 @@ namespace Engine {
 		const std::vector<CollisionTypeDefinition>& GetTypes() const { return types_; }
 		// Collisionタイプ数を取得する
 		uint32_t GetTypeCount() const { return static_cast<uint32_t>(types_.size()); }
+		const std::array<uint32_t, kMaxCollisionTypes>& GetMatrixRows() const { return matrixRows_; }
 		// 現在使用している設定ファイルパスを取得する
 		const std::filesystem::path& GetSettingsPath() const { return settingsPath_; }
 

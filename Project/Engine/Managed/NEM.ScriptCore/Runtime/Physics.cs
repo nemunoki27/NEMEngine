@@ -65,7 +65,7 @@ public enum QueryTriggerInteraction : uint {
 
 // 物理クエリ。コライダーの3D形状に対してレイを飛ばす。
 // 判定はコライダー基準(見た目のメッシュではない)で、Transformは前フレームのLateUpdate確定値を参照する。
-public static class Physics {
+public static partial class Physics {
 
     // 全レイヤーを対象にするマスク
     public const uint AllLayers = 0xFFFFFFFFu;

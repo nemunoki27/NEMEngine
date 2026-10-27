@@ -11,6 +11,7 @@ namespace Engine {
 	// front
 	class EngineContext;
 	class GraphicsPlatform;
+	class RenderAssetLibrary;
 	class AssetDatabase;
 	class SkinnedMeshAnimationManager;
 	class AnimationClipManager;
@@ -38,6 +39,7 @@ namespace Engine {
 		// Applicationが所有する共通機能を参照する
 		EngineContext* engineContext = nullptr;
 		GraphicsPlatform* graphicsPlatform = nullptr;
+		RenderAssetLibrary* renderAssetLibrary = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
 		SkinnedMeshAnimationManager* skinnedAnimationManager = nullptr;
 		AnimationClipManager* animationClipManager = nullptr;

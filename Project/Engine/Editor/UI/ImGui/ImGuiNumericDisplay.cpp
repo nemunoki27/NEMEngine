@@ -42,11 +42,14 @@ namespace {
 
 		ImGui::BeginGroup();
 
-		// 軸ラベル
-		DrawAxisLabel(axis);
-		ImGui::SameLine(0.0f, 6.0f);
+		// 軸がない表示では余白も確保しない
+		const bool hasAxis = Engine::GetAxisDisplayInfo(axis).name[0] != '\0';
+		if (hasAxis) {
+			DrawAxisLabel(axis);
+			ImGui::SameLine(0.0f, 6.0f);
+		}
 
-		const ImVec2 buttonSize(width - kAxisLabelWidth - 6.0f, ImGui::GetFrameHeight());
+		const ImVec2 buttonSize((std::max)(1.0f, width - (hasAxis ? kAxisLabelWidth + 6.0f : 0.0f)), ImGui::GetFrameHeight());
 		if (ImGui::Button(valueText.c_str(), buttonSize)) {
 			ImGui::SetClipboardText(valueText.c_str());
 		}

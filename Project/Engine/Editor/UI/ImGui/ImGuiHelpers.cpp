@@ -218,6 +218,13 @@ void Engine::MyGUI::EndPropertyRow() {
 	ImGui::EndTable();
 }
 
+float Engine::MyGUI::CalcEqualItemWidth(uint32_t itemCount) {
+
+	const uint32_t count = (std::max)(1u, itemCount);
+	const float spacing = ImGui::GetStyle().ItemSpacing.x * static_cast<float>(count - 1);
+	return (std::max)(1.0f, (ImGui::GetContentRegionAvail().x - spacing) / static_cast<float>(count));
+}
+
 Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value, const IntEditSetting& setting) {
 
 	ValueEditResult result{};
@@ -227,6 +234,7 @@ Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value
 	}
 
 	int32_t v = value;
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 	result.valueChanged = ImGui::DragInt("##Value", &v, setting.dragSpeed, setting.minValue, setting.maxValue);
 	result.anyItemActive = ImGui::IsItemActive();
 	result.editFinished = ImGui::IsItemDeactivatedAfterEdit();

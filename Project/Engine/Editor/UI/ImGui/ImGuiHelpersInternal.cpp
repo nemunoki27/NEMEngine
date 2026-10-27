@@ -118,7 +118,7 @@ namespace Engine {
 		case 'W':
 			return {"W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f)};
 		default:
-			return {"-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f)};
+			return {"", ImVec4(0.70f, 0.70f, 0.70f, 1.0f)};
 		}
 	}
 
@@ -172,6 +172,8 @@ namespace Engine {
 		if (acceptedTypes.size() == 0) {
 			return true;
 		} // 空リストなら全許可
+		if (type == AssetType::RenderTexture && std::find(acceptedTypes.begin(), acceptedTypes.end(), AssetType::Texture) != acceptedTypes.end())
+			return true;
 		return std::find(acceptedTypes.begin(), acceptedTypes.end(), type) != acceptedTypes.end();
 	}
 
@@ -209,10 +211,14 @@ namespace Engine {
 				ImGui::SameLine(0, spacing);
 			}
 			ImGui::BeginGroup();
-			AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
-			ImGui::TextColored(axis.color, "%s", axis.name);
-			ImGui::SameLine(0, spacing);
-			ImGui::SetNextItemWidth(itemWidth - kAxisLabelWidth - spacing);
+			const AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
+			const bool hasAxis = axis.name[0] != '\0';
+			if (hasAxis) {
+				ImGui::TextColored(axis.color, "%s", axis.name);
+				ImGui::SameLine(0, spacing);
+			}
+			// 軸がない項目は入力領域を全幅で使う
+			ImGui::SetNextItemWidth((std::max)(1.0f, itemWidth - (hasAxis ? kAxisLabelWidth + spacing : 0.0f)));
 			ImGui::TextUnformatted(FormatFloat(values[i], precision).c_str());
 			ImGui::EndGroup();
 		}
@@ -279,10 +285,14 @@ namespace Engine {
 			ImGui::PushID(i);
 			ImGui::BeginGroup();
 			// 軸ラベルのX/Y/Z等を色付きで表示
-			AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
-			ImGui::TextColored(axis.color, "%s", axis.name);
-			ImGui::SameLine(0, spacing);
-			ImGui::SetNextItemWidth(itemWidth - kAxisLabelWidth - spacing);
+			const AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
+			const bool hasAxis = axis.name[0] != '\0';
+			if (hasAxis) {
+				ImGui::TextColored(axis.color, "%s", axis.name);
+				ImGui::SameLine(0, spacing);
+			}
+			// 軸がない項目は入力領域を全幅で使う
+			ImGui::SetNextItemWidth((std::max)(1.0f, itemWidth - (hasAxis ? kAxisLabelWidth + spacing : 0.0f)));
 
 			// ドラッグ操作による数値入力
 			if (ImGui::DragFloat(

@@ -1,4 +1,5 @@
 #include "TestSuite.h"
+#include "RuntimeAPITests.h"
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
 #include "RectLightTests.h"
@@ -27,6 +28,8 @@ using namespace NEMTests;
 
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
+
+	if (!RunTest("TestRuntimeAPIContracts", TestRuntimeAPIContracts)) return 74;
 
 	if (!RunTest("TestDecals", TestDecals)) { return 68; }
 

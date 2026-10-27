@@ -40,6 +40,7 @@ namespace Engine {
 		RenderTexture,
 		RenderPasses = 16,
 		DefaultAsset,
+		Text,
 	};
 
 	// アセット参照の診断種別

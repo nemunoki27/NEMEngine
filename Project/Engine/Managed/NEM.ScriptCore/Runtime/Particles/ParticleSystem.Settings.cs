@@ -3,7 +3,7 @@ using System.Text;
 
 namespace NEMEngine;
 
-public sealed class ParticleSystemSettings : ParticleSettingsObject {
+public sealed partial class ParticleSystemSettings : ParticleSettingsObject {
 
 	internal ParticleSystemSettings(JsonObject values) : base(values) { }
 	public bool looping { get => Read("looping", true); set => Write("looping", value); }

@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Utility/CollisionDebugDraw.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
-#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Settings/ProjectSettingsOperations.h>
 
 // c++
@@ -55,14 +55,15 @@ void Engine::CollisionManagerTool::DrawWindow([[maybe_unused]] const EditorToolC
 	ImGui::TextDisabled("衝突設定ファイル: %s%s", settingsPath.c_str(), dirty_ ? " *" : "");
 
 	// Save/Reloadボタン
-	if (ImGui::Button("保存")) {
+	const float buttonWidth = MyGUI::CalcEqualItemWidth(2);
+	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
 		// 保存失敗時は未保存表示を維持する
 		if (settings.Save()) {
 			dirty_ = false;
 		}
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("読み込み##RELOAD")) {
+	if (ImGui::Button("再読み込み", ImVec2(buttonWidth, 0.0f))) {
 		// 読込失敗時は編集中の設定を残す
 		if (settings.Load()) {
 			dirty_ = false;

@@ -21,6 +21,7 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(
 	// 登録済みの設定MaterialをBuiltinより優先する
 	AssetID configured{};
 	switch (slot) {
+	case DefaultMaterialSlot::Decal: configured = DefaultMaterialSettings::GetInstance().GetDecal(); break;
 	case DefaultMaterialSlot::Mesh:   configured = DefaultMaterialSettings::GetInstance().GetMesh();   break;
 	case DefaultMaterialSlot::Sprite: configured = DefaultMaterialSettings::GetInstance().GetSprite(); break;
 	case DefaultMaterialSlot::Text:   configured = DefaultMaterialSettings::GetInstance().GetText();   break;
@@ -46,6 +47,8 @@ Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot 
 
 	// スロットに応じたデフォルトマテリアルのGUIDを返す
 	switch (slot) {
+	case DefaultMaterialSlot::Decal:
+		return BuiltinAssets::Materials::DefaultDecal;
 	case DefaultMaterialSlot::Sprite:
 		return BuiltinAssets::Materials::DefaultSprite;
 	case DefaultMaterialSlot::Text:

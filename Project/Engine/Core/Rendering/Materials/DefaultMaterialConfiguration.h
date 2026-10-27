@@ -13,6 +13,7 @@ namespace Engine {
 	// 描画種別ごとに保存する既定MaterialのGUID
 	struct DefaultMaterialConfiguration {
 
+		AssetID decal{}; // デカールの既定ID
 		AssetID mesh{}; // Meshの既定ID
 		AssetID sprite{}; // Spriteの既定ID
 		AssetID text{}; // Textの既定ID

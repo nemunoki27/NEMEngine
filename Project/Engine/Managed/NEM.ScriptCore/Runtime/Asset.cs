@@ -43,19 +43,19 @@ public abstract class Asset : Object {
 
     // 同型かつ同一UUIDなら同じassetとして扱う
     private protected override bool EqualsObject(Object other) =>
-        other is Asset asset && asset.GetType() == GetType() && asset.id == id;
+        other is Asset asset && (asset.GetType() == GetType() || this is Texture && asset is Texture) && asset.id == id;
 
-    public override int GetHashCode() => HashCode.Combine(GetType(), id);
+    public override int GetHashCode() => HashCode.Combine(this is Texture ? typeof(Texture) : GetType(), id);
 }
 
 // 組み込みアセット型。型宣言だけでserialized fieldのアセット参照として扱える
 [NativeAssetType("Texture")]
-public sealed class Texture : Asset {
+public class Texture : Asset {
     internal Texture(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("RenderTexture")]
-public sealed class RenderTexture : Asset {
+public sealed partial class RenderTexture : Texture {
     internal RenderTexture(AssetGUID id) : base(id) { }
 }
 
@@ -66,7 +66,7 @@ public sealed class RenderPassesAsset : Asset {
 }
 
 [NativeAssetType("Material")]
-public sealed class Material : Asset {
+public sealed partial class Material : Asset {
     internal Material(AssetGUID id) : base(id) { }
 }
 

@@ -376,6 +376,20 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> DontDestroyOnLoad;
 
     // 検証済みのNative接続を保持する
+    internal static delegate* unmanaged[Cdecl]<int, byte*, int, int> CopyRuntimeSettings;
+    internal static delegate* unmanaged[Cdecl]<int, byte*, int, int> ChangeRuntimeSettings;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int> CopyTextAssetBytes;
+
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, NativeRenderPassHandle*, int> ResolveCameraRenderPass;
+    internal static delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, ulong, NativeMaterialParameterValue*, int> GetCameraRenderPassParameter;
+    internal static delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, ulong, byte*, NativeMaterialParameterValue*, int> SetCameraRenderPassParameter;
+    internal static delegate* unmanaged[Cdecl]<NativeRenderPassHandle*, int, byte*, ulong, int> CameraRenderPassAction;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> CopyComponentSettings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> ApplyComponentSettings;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeMaterialParameterValue*, int> GetAssetRuntimeParameter;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, byte*, NativeMaterialParameterValue*, int> SetAssetRuntimeParameter;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, int> ClearAssetRuntimeParameter;
+    internal static delegate* unmanaged[Cdecl]<byte*, byte*, int, int> CopyParticleModuleDefaults;
     internal static void SetCallbacks(NativeAPITable* callbacks) {
         BeginScriptSample = callbacks->beginScriptSample;
         EndScriptSample = callbacks->endScriptSample;
@@ -558,6 +572,19 @@ internal static unsafe class NativeAPI {
         CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
         AudioPlayOneShot = callbacks->audioPlayOneShot;
         AudioUnPause = callbacks->audioUnPause;
+        CopyRuntimeSettings = callbacks->copyRuntimeSettings;
+        ChangeRuntimeSettings = callbacks->changeRuntimeSettings;
+        CopyComponentSettings = callbacks->copyComponentSettings;
+        ApplyComponentSettings = callbacks->applyComponentSettings;
+        GetAssetRuntimeParameter = callbacks->getAssetRuntimeParameter;
+        SetAssetRuntimeParameter = callbacks->setAssetRuntimeParameter;
+        ClearAssetRuntimeParameter = callbacks->clearAssetRuntimeParameter;
+        CopyParticleModuleDefaults = callbacks->copyParticleModuleDefaults;
+        CopyTextAssetBytes = callbacks->copyTextAssetBytes;
+        ResolveCameraRenderPass = callbacks->resolveCameraRenderPass;
+        GetCameraRenderPassParameter = callbacks->getCameraRenderPassParameter;
+        SetCameraRenderPassParameter = callbacks->setCameraRenderPassParameter;
+        CameraRenderPassAction = callbacks->cameraRenderPassAction;
     }
 
 }

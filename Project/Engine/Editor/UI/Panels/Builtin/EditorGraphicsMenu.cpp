@@ -59,6 +59,26 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 		ImGui::SetWindowFontScale(0.8f);
 
+		// GPUの対応状況と希望設定を取得
+		auto& featureController = context.graphicsPlatform->GetFeatureController();
+		const auto& adapterInfo = featureController.GetAdapterInfo();
+		const auto& support = featureController.GetSupport();
+		const auto& preferences = featureController.GetPreferences();
+		const auto& runtime = featureController.GetRuntimeFeatures();
+		const double vramGB = static_cast<double>(adapterInfo.dedicatedVideoMemoryBytes) / (1024.0 * 1024.0 * 1024.0);
+
+		// 使用中のGPUと対応機能を表示
+		if (ImGui::BeginMenu("GPU情報")) {
+			ImGui::TextWrapped("Adapter: %s", adapterInfo.adapterName.empty() ? "Unknown" : adapterInfo.adapterName.c_str());
+			ImGui::Text("Feature Level : %s", GraphicsFeatureText::ToString(adapterInfo.featureLevel));
+			ImGui::Text("Shader Model  : %s", GraphicsFeatureText::ToString(support.highestShaderModel));
+			ImGui::Text("Dedicated VRAM: %.2f GB", vramGB);
+			ImGui::Separator();
+			ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
+			ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
+			ImGui::EndMenu();
+		}
+
 		// エディターと製品の上限を個別に設定して保存する
 		if (ImGui::BeginMenu("FPS上限")) {
 			auto& frameRate = FrameRateSettings::GetInstance();
@@ -82,26 +102,6 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			if (ImGui::Checkbox("ダブルバッファリング", &doubleBuffering)) {
 				context.graphicsCore->RequestDoubleBuffering(doubleBuffering);
 			}
-			ImGui::EndMenu();
-		}
-
-		// GPUの対応状況と希望設定を取得
-		auto& featureController = context.graphicsPlatform->GetFeatureController();
-		const auto& adapterInfo = featureController.GetAdapterInfo();
-		const auto& support = featureController.GetSupport();
-		const auto& preferences = featureController.GetPreferences();
-		const auto& runtime = featureController.GetRuntimeFeatures();
-		const double vramGB = static_cast<double>(adapterInfo.dedicatedVideoMemoryBytes) / (1024.0 * 1024.0 * 1024.0);
-
-		// 使用中のGPUと対応機能を表示
-		if (ImGui::BeginMenu("GPU情報")) {
-			ImGui::TextWrapped("Adapter: %s", adapterInfo.adapterName.empty() ? "Unknown" : adapterInfo.adapterName.c_str());
-			ImGui::Text("Feature Level : %s", GraphicsFeatureText::ToString(adapterInfo.featureLevel));
-			ImGui::Text("Shader Model  : %s", GraphicsFeatureText::ToString(support.highestShaderModel));
-			ImGui::Text("Dedicated VRAM: %.2f GB", vramGB);
-			ImGui::Separator();
-			ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
-			ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
 			ImGui::EndMenu();
 		}
 

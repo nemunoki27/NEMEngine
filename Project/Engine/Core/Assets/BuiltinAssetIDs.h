@@ -18,6 +18,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID BloomUpsample{ 0x4e454d4153534554ull, 0x424c4f4f4d040003ull };
 		inline constexpr AssetID BloomComposite{ 0x4e454d4153534554ull, 0x424c4f4f4d040004ull };
 
+		inline constexpr AssetID DefaultDecal{ 0x4e454d4153534554ull, 0xdec0000000000001ull };
 		inline constexpr AssetID DefaultSprite{ 0x4e454d4153534554ull, 0xef1a0db1d6ef57acull };
 		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0x39346ff93864d791ull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x317efcbf7aca8e61ull };
@@ -152,7 +153,7 @@ namespace Engine::BuiltinAssets {
 
 		inline constexpr AssetID Assets[] = {
 			Shaders::Decal, Shaders::ParticleGPUImpactDecalDraw,
-			Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
+			Materials::DefaultDecal, Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
 			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,
 			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,
 			Materials::BloomPrefilter, Materials::BloomDownsample, Materials::BloomUpsample, Materials::BloomComposite,
