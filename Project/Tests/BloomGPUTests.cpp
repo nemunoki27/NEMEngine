@@ -80,7 +80,7 @@ namespace {
 		compiler.Init();
 		const std::array names{"Prefilter", "Downsample", "Upsample", "Composite"};
 		for (size_t i = 0; i < names.size(); ++i) {
-			const auto path = RuntimePaths::GetEngineAssetPath("Shaders/Builtin/PostProcess/Bloom/bloom" + std::string(names[i]) + ".CS.hlsl");
+			const auto path = RuntimePaths::GetEngineAssetPath("Rendering/Builtin/PostProcess/Bloom/bloom" + std::string(names[i]) + ".CS.hlsl");
 			const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_0", L"main", ShaderStage::CS);
 			if (!shader.IsValid()) return false;
 			D3D12_COMPUTE_PIPELINE_STATE_DESC pipeline{};

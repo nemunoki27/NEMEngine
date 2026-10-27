@@ -3,9 +3,11 @@ param([ValidateSet('Raster', 'DXR', 'Vertex')][string]$Mode = 'Raster', [switch]
 $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
+. (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
 $outputRoot = Join-Path $engineRoot "Generated/Refactoring/Decals/$Mode"
 if ($Showcase) { $outputRoot += 'Showcase' }
-$fixtureRoot = Join-Path $engineRoot 'Project/Sandbox/GameAssets/__DecalValidation'
+$gameRoot = New-HarnessFixtureProject -Destination (Join-Path $outputRoot 'FixtureProject') -Fixture Decals
+$fixtureRoot = Join-Path $gameRoot 'GameAssets/__DecalValidation'
 if (Test-Path -LiteralPath $fixtureRoot) { throw "検証先が既に存在します: $fixtureRoot" }
 $null = New-Item -ItemType Directory -Path $fixtureRoot
 $null = New-Item -ItemType Directory -Path $outputRoot -Force
@@ -14,9 +16,10 @@ $projectGUID = 'd0d59331ff0a4eb589ea7801cb52f208'
 $settingsRoot = Join-Path $outputRoot "UserSettings/$projectGUID"
 $null = New-Item -ItemType Directory -Path (Join-Path $settingsRoot 'Runtime') -Force
 $null = New-Item -ItemType Directory -Path (Join-Path $settingsRoot 'Editor') -Force
+$previousEngineRoot = $env:NEMENGINE_ROOT
 try {
     # 既存Sceneを保存し直さず個数別の検証Sceneを用意する
-    $scenePath = Join-Path $engineRoot 'Project/Sandbox/GameAssets/Scenes/DecalValidation.scene.json'
+    $scenePath = Join-Path $gameRoot 'GameAssets/Scenes/DecalValidation.scene.json'
     $paths = @()
     foreach ($count in @(0, 32, 128)) {
         $scene = Get-Content -LiteralPath $scenePath -Raw | ConvertFrom-Json -AsHashtable
@@ -53,6 +56,7 @@ try {
     $layout.visibility.sceneView = $false
     @{ schemaVersion = 1; activeLayoutID = $layout.layoutID; layout = $layout } |
         ConvertTo-Json -Depth 40 | Set-Content -LiteralPath (Join-Path $settingsRoot 'Editor/LayoutSession.json') -Encoding utf8
+    $env:NEMENGINE_ROOT = $engineRoot
     $env:NEMENGINE_USER_SETTINGS_ROOT = Join-Path $outputRoot 'UserSettings'
     $env:NEM_RENDER_BENCHMARK = Join-Path $outputRoot 'Report.json'
     $env:NEM_RENDER_BENCHMARK_SCENES = Join-Path $outputRoot 'Scenes.json'
@@ -63,15 +67,16 @@ try {
     $env:NEM_RENDER_BENCHMARK_HEIGHT = '720'
     $env:NEM_RENDER_BENCHMARK_PHASE_COUNT = [string]$paths.Count
     $result = Invoke-HarnessProcess -FilePath (Join-Path $engineRoot 'Generated/Output/Develop/NEMEditor/NEMEditor.exe') `
-        -WorkingDirectory (Join-Path $engineRoot 'Project/Sandbox') -TimeoutSeconds 240
+        -WorkingDirectory $gameRoot -TimeoutSeconds 240
     $result.output | Set-Content -LiteralPath (Join-Path $outputRoot 'Editor.log') -Encoding utf8
     if ($result.exitCode -ne 0 -or $result.timedOut) { throw "描画検証に失敗しました: $($result.exitCode)" }
     if (!(Test-Path -LiteralPath $env:NEM_RENDER_BENCHMARK)) { throw '描画検証の結果がありません' }
     Write-Output "描画検証完了: $env:NEM_RENDER_BENCHMARK"
 } finally {
+    $env:NEMENGINE_ROOT = $previousEngineRoot
     # この検証が作ったフォルダーだけを削除する
     $resolved = [IO.Path]::GetFullPath($fixtureRoot)
-    $expected = [IO.Path]::GetFullPath((Join-Path $engineRoot 'Project/Sandbox/GameAssets/__DecalValidation'))
+    $expected = [IO.Path]::GetFullPath((Join-Path $gameRoot 'GameAssets/__DecalValidation'))
     if ($resolved -ne $expected -or !$resolved.StartsWith($engineRoot + [IO.Path]::DirectorySeparatorChar)) { throw '検証先の確認に失敗しました' }
     Remove-Item -LiteralPath $resolved -Recurse -Force
     $sidecar = $resolved + '.meta'

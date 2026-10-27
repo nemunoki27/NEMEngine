@@ -29,7 +29,7 @@ namespace Engine {
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 		// Cylinderの上面、中心、下面半径と高さ
 		Vector4 shapeParams0 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
-		// Cylinderの上面Weight、下面Weight、未使用値、形状フラグ
+		// Cylinderの上面Weightと下面Weight、Ring判定、Cylinderは1で両面板は2
 		Vector4 shapeParams1 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 		Color4 topColor = Color4::White();
 		Color4 centerColor = Color4::White();

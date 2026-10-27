@@ -1,7 +1,7 @@
 #ifndef NEM_DESCRIPTOR_TABLE_COMPAT
 #define NEM_DESCRIPTOR_TABLE_COMPAT 1
 #endif
-#include "../../Engine/Assets/Shaders/Builtin/Mesh/Common/pbrShading.hlsli"
+#include "../../Engine/Assets/Rendering/Builtin/Mesh/Common/pbrShading.hlsli"
 
 RWStructuredBuffer<float4> gOutput : register(u0);
 

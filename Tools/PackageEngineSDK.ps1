@@ -90,14 +90,14 @@ $engineAssetsSrc = Join-Path $engineRoot "Project\Engine\Assets"
 if (Test-Path -LiteralPath $engineAssetsSrc) {
     $sdkAssets = Join-Path $OutDir "Engine\Assets"
     New-Item -ItemType Directory -Force -Path $sdkAssets | Out-Null
-    $editorShaderAssets = Join-Path $engineAssetsSrc "Shaders\Builtin\Editor"
+    $editorShaderAssets = Join-Path $engineAssetsSrc "Rendering\Editor"
     $editorTextureAssets = Join-Path $engineAssetsSrc "Textures\Editor"
     robocopy $engineAssetsSrc $sdkAssets /MIR /XD $editorShaderAssets $editorTextureAssets /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "エンジンAssetの配置に失敗しました: code=$LASTEXITCODE" }
 
     # SDKのVisual Studio起動ではNEMEditorも使用するためEditor専用Assetも同梱する
     if (Test-Path -LiteralPath $editorShaderAssets) {
-        Sync-DirectoryContents $editorShaderAssets (Join-Path $sdkAssets "Shaders\Builtin\Editor")
+        Sync-DirectoryContents $editorShaderAssets (Join-Path $sdkAssets "Rendering\Editor")
     }
     if (Test-Path -LiteralPath $editorTextureAssets) {
         Sync-DirectoryContents $editorTextureAssets (Join-Path $sdkAssets "Textures\Editor")

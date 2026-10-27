@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 	}
 	std::filesystem::current_path(Engine::Algorithm::PathFromUTF8(argv[1]));
 	Engine::RuntimePaths::Refresh();
-	Engine::DefaultMaterialSettings::GetInstance().Load("GameAssets/Materials/Config/defaultMaterials.materialSettings.json");
+	Engine::DefaultMaterialSettings::GetInstance().LoadProject();
 	Engine::AssetDatabase database{};
 	if (!database.Init() || !database.RebuildMeta()) {
 		std::cerr << "アセットデータベースの初期化に失敗しました\n";

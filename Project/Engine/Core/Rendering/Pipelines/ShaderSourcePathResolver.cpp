@@ -54,7 +54,7 @@ namespace Engine::ShaderSourcePath {
 
 		static const Index index = []() {
 			Index result{};
-			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Shaders");
+			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Rendering");
 
 			std::error_code ec;
 			if (!std::filesystem::exists(shaderRoot, ec) || ec || !std::filesystem::is_directory(shaderRoot, ec)) {
@@ -76,7 +76,7 @@ namespace Engine::ShaderSourcePath {
 
 		static const Index index = []() {
 			Index result{};
-			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Shaders");
+			const std::filesystem::path shaderRoot = RuntimePaths::GetEngineAssetPath("Rendering");
 
 			std::error_code ec;
 			if (!std::filesystem::exists(shaderRoot, ec) || ec || !std::filesystem::is_directory(shaderRoot, ec)) {
@@ -130,8 +130,8 @@ namespace Engine::ShaderSourcePath {
 			return resolved;
 		}
 
-		// Assets/Shaders/からの相対パスを優先
-		const std::filesystem::path shaderBasePath = RuntimePaths::GetEngineAssetPath("Shaders");
+		// Assets/Rendering/からの相対パスを優先
+		const std::filesystem::path shaderBasePath = RuntimePaths::GetEngineAssetPath("Rendering");
 		std::filesystem::path direct = shaderBasePath / Algorithm::PathFromUTF8(fileOrGuid);
 		if (std::filesystem::exists(direct)) {
 			return direct;

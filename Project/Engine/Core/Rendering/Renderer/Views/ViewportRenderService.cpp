@@ -26,6 +26,8 @@ Engine::MultiRenderTargetCreateDesc Engine::ViewportRenderService::BuildDefaultD
 	color.name = GetPrimaryColorName(kind);
 	color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	color.clearColor = Engine::Color4::FromHex(0x303030ff);
+	// 色変更時も描画先を再生成せずクリアする
+	color.useOptimizedClearValue = false;
 	color.createUAV = false;
 	desc.colors.emplace_back(color);
 

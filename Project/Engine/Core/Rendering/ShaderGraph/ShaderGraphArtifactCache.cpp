@@ -237,10 +237,10 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 
 		const std::filesystem::path vertexPath =
 			hasVertexGraph ? artifact.vertexPath
-						   : RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Mesh/Common/meshGeometry.VS.hlsl");
+						   : RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Mesh/Common/meshGeometry.VS.hlsl");
 		const std::filesystem::path meshPath =
 			hasVertexGraph ? artifact.meshPath
-						   : RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Mesh/Common/meshGeometry.MS.hlsl");
+						   : RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Mesh/Common/meshGeometry.MS.hlsl");
 		const auto appendGeometryStages = [&](ShaderAsset& shader) {
 			shader.stages.emplace_back(ShaderStageEntry{
 				.stage = ShaderStage::VS,

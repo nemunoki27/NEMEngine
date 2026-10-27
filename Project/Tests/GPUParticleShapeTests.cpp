@@ -16,7 +16,7 @@ bool NEMTests::CheckParticleShapePipelines(ID3D12Device* device, Engine::Graphic
 	if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &support, sizeof(support)))) return false;
 	DxShaderCompiler compiler;
 	compiler.Init();
-	const auto root = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Particle";
+	const auto root = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Particle";
 	for (const char* shape : { "Ring", "Cylinder" }) {
 
 		const std::string stem = "particle" + std::string(shape);

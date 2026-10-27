@@ -446,7 +446,7 @@ namespace {
 
 	bool CheckDrawPipelines(ParticleGPUFixture& fixture) {
 
-		const auto root = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Particle/GPU";
+		const auto root = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Particle/GPU";
 		for (const char* vertex : {"particleGPUDraw.VS.hlsl", "particleGPUTrailDraw.VS.hlsl"}) {
 			GraphicsPipelineDesc descriptor;
 			descriptor.type = PipelineType::Vertex;

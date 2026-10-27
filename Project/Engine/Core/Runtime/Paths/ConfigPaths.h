@@ -18,6 +18,10 @@ namespace Engine {
 		inline constexpr const char* kActiveScene = "Editor/ActiveScene.json";
 		// フレームレート設定
 		inline constexpr const char* kFrameRate = "Runtime/FrameRate.json";
+		// チームで共有する描画設定
+		inline constexpr const char* kRendering = "Rendering/Graphics.json";
+		// ゲーム独自の既定Material上書き
+		inline constexpr const char* kDefaultMaterials = "Rendering/DefaultMaterials.json";
 		// 背景再生の希望設定
 		inline constexpr const char* kAudio = "Runtime/Audio.json";
 		// C#スクリプト型ごとの実行順上書き
@@ -27,7 +31,7 @@ namespace Engine {
 		// 製品へ引き継ぐプロジェクト設定
 		inline constexpr const char* ProductSettings[] = {
 			"InputActions.json", "TagSettings.json", "RenderingLayers.json",
-			kScriptExecutionOrder, kCollisionSettings, kFrameRate, kAudio,
+			kScriptExecutionOrder, kCollisionSettings, kFrameRate, kAudio, kDefaultMaterials, kRendering,
 		};
 		// ビューポートパネルの表示状態
 		inline constexpr const char* kViewportPanel = "Editor/ViewportPanel.json";

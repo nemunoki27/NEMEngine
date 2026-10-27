@@ -44,6 +44,8 @@ namespace Engine {
 		Color4 clearColor = Color4::Black();
 		// UAVを作成するかどうか
 		bool createUAV = false;
+		// 動的なクリアカラーでは無効にする
+		bool useOptimizedClearValue = true;
 	};
 	// マルチレンダリングターゲットの生成に必要な情報
 	struct MultiRenderTargetCreateDesc {

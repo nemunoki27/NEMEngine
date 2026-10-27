@@ -3,18 +3,10 @@ param([switch]$PrepareOnly)
 $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
+. (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
 $validationRoot = Join-Path $engineRoot 'Generated/Refactoring/ParticleSystemRefactor/ProductValidation'
-$gameRoot = Join-Path $validationRoot 'Sandbox'
-$sceneDirectory = Join-Path $gameRoot 'GameAssets/Scenes/Validation'
-$materialDirectory = Join-Path $gameRoot 'GameAssets/Materials/Config'
-$null = New-Item -ItemType Directory -Force -Path $sceneDirectory, $materialDirectory
+$gameRoot = New-HarnessFixtureProject -Destination (Join-Path $validationRoot 'Sandbox') -Fixture Particles
 Copy-Item -LiteralPath (Join-Path $engineRoot 'Project/Sandbox/Sandbox.vcxproj') -Destination $gameRoot -Force
-Get-ChildItem -LiteralPath (Join-Path $engineRoot 'Project/Sandbox/GameAssets/Scenes/Validation') -File |
-    Copy-Item -Destination $sceneDirectory -Force
-foreach ($suffix in @('', '.meta')) {
-    Copy-Item -LiteralPath (Join-Path $engineRoot ("Project/Sandbox/GameAssets/Materials/Config/defaultMaterials.materialSettings.json" + $suffix)) `
-        -Destination $materialDirectory -Force
-}
 @{ schemaVersion = 1; projectGuid = '4e454d41535345547061727470726f64'; name = 'Sandbox'
     assetsDirectory = 'GameAssets'; packagesDirectory = 'Packages'; projectSettingsDirectory = 'ProjectSettings' } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $gameRoot 'Sandbox.nemproject') -Encoding utf8
@@ -51,7 +43,7 @@ try {
     $cook = Get-Content -LiteralPath (Join-Path $productRoot 'Cooked/Shaders/ShaderCookManifest.json') -Raw | ConvertFrom-Json
     foreach ($name in @('particleGPUSimulate', 'particleGPUView', 'particleGPURibbonSelect',
         'particleGPUTrailUpdate', 'particleGPUTrailPrepare', 'particleGPUTrailDraw', 'particleGPUDraw')) {
-        $sourcePath = Join-Path $engineRoot ("Project/Engine/Assets/Shaders/Builtin/Particle/GPU/$name.shader.json")
+        $sourcePath = Join-Path $engineRoot ("Project/Engine/Assets/Rendering/Builtin/Particle/GPU/$name.shader.json")
         $source = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
         $meta = Get-Content -LiteralPath ($sourcePath + '.meta') -Raw | ConvertFrom-Json
         $shader = @($cook.shaders | Where-Object { $_.asset.guid -eq $meta.guid })

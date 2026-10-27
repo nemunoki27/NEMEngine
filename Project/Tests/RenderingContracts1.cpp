@@ -81,8 +81,8 @@ namespace NEMTests {
 		Engine::DxShaderCompiler compiler;
 		compiler.Init();
 		const std::pair<const char*, const wchar_t*> shaders[] = {
-			{"Shaders/Builtin/Raytracing/AmbientOcclusion/ambientOcclusion.CS.hlsl", L"cs_6_6"},
-			{"Shaders/Builtin/Raytracing/AmbientOcclusion/ambientOcclusionFilter.CS.hlsl", L"cs_6_0"},
+			{"Rendering/Builtin/Raytracing/AmbientOcclusion/ambientOcclusion.CS.hlsl", L"cs_6_6"},
+			{"Rendering/Builtin/Raytracing/AmbientOcclusion/ambientOcclusionFilter.CS.hlsl", L"cs_6_0"},
 		};
 		for (const auto& [source, profile] : shaders) {
 			const auto shader = compiler.CompileShader(Engine::RuntimePaths::GetEngineAssetPath(source).wstring(),
@@ -118,7 +118,7 @@ namespace NEMTests {
 
 		Engine::DxShaderCompiler compiler;
 		compiler.Init();
-		const auto root = Engine::RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh";
+		const auto root = Engine::RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Mesh";
 		struct ShaderCase {
 			const wchar_t* path;
 			const wchar_t* profile;
@@ -167,7 +167,7 @@ namespace NEMTests {
 		// Primitive2Dも3Dと同じView定数配置を使う
 		const auto primitive2D = compiler.CompileShader(
 			(Engine::RuntimePaths::GetEngineAssetsRoot() /
-				"Shaders/Builtin/Primitive/primitive2D.VS.hlsl").wstring(),
+				"Rendering/Builtin/Primitive/primitive2D.VS.hlsl").wstring(),
 			L"vs_6_0", L"main", Engine::ShaderStage::VS);
 		const auto* primitiveView = Engine::FindConstantBuffer(
 			primitive2D.reflection, "ViewConstants");
@@ -229,7 +229,7 @@ namespace NEMTests {
 		};
 		for (const LightingShaderCase& test : lightingCases) {
 			const auto shader = compiler.CompileShader(
-				(Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin") / test.path).wstring(),
+				(Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin") / test.path).wstring(),
 				test.profile, test.entry, test.stage);
 			if (!shader.IsValid()) {
 				std::cerr << "Lighting shader compile failed: " <<

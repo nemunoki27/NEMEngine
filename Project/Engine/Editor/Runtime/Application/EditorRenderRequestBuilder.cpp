@@ -102,6 +102,13 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	// 出力変更時は副Viewもそのフレームで更新する
 	if (gameOutput != previousGameOutput_) renderGameView = showGameView;
 	if (sceneOutput != previousSceneOutput_) renderSceneView = showSceneView;
+	// 背景色の変更は副Viewにも即時反映する
+	const Color4 clearColor = EngineContext::GetGraphicsSetting().sceneClearColor;
+	if (clearColor != previousClearColor_) {
+		renderGameView = showGameView;
+		renderSceneView = showSceneView;
+	}
+	previousClearColor_ = clearColor;
 	previousGameOutput_ = gameOutput;
 	previousSceneOutput_ = sceneOutput;
 

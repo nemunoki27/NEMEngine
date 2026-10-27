@@ -12,13 +12,14 @@ param(
     [switch]$Performance,
     [switch]$FixedFrameCount,
     [switch]$CameraMotion,
-    [string]$ScenePath = 'GameAssets/Scenes/View/Sponza.scene.json',
+    [string]$ScenePath = 'GameAssets/Scenes/DecalValidation.scene.json',
     [switch]$Animate
 )
 
 $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
+. (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
 $validationRoot = Join-Path $engineRoot 'Generated/Refactoring/DoubleBuffering'
 $null = New-Item -ItemType Directory -Path $validationRoot -Force
 if ($Mode -eq 'Build') {
@@ -101,7 +102,7 @@ if ($Mode -eq 'Telemetry') {
 $pruneScript = Join-Path $engineRoot 'Tools/PruneGeneratedArtifacts.ps1'
 & $pruneScript -ValidationImages -ResetCaptureDirectory $outputRoot
 if ($Performance -and !$PSBoundParameters.ContainsKey('CaptureMode')) { $CaptureMode = 'None' }
-$projectRoot = Join-Path $engineRoot 'Project/Sandbox'
+$projectRoot = New-HarnessFixtureProject -Destination (Join-Path $outputRoot 'FixtureProject') -Fixture Decals
 $descriptor = Get-Content -LiteralPath (Join-Path $projectRoot 'Sandbox.nemproject') -Raw | ConvertFrom-Json
 $settingsRoot = Join-Path $outputRoot "UserSettings/$($descriptor.projectGuid)"
 $null = New-Item -ItemType Directory -Path (Join-Path $settingsRoot 'Runtime') -Force
@@ -109,12 +110,13 @@ $null = New-Item -ItemType Directory -Path (Join-Path $settingsRoot 'Editor') -F
 $environmentBackup = @{}
 $telemetry = $null
 foreach ($entry in [Environment]::GetEnvironmentVariables().GetEnumerator()) {
-    if ($entry.Key -like 'NEM_RENDER_BENCHMARK*' -or $entry.Key -eq 'NEMENGINE_USER_SETTINGS_ROOT') {
+    if ($entry.Key -like 'NEM_RENDER_BENCHMARK*' -or $entry.Key -in @('NEMENGINE_USER_SETTINGS_ROOT', 'NEMENGINE_ROOT')) {
         $environmentBackup[$entry.Key] = $entry.Value
     }
 }
 try {
     foreach ($name in $environmentBackup.Keys) { [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
+    $env:NEMENGINE_ROOT = $engineRoot
     # 実際のユーザー設定とSceneを変更せず同じ描画条件で比較する
     $original = Join-Path $env:LOCALAPPDATA "NEMEngine/Projects/$($descriptor.projectGuid)/Runtime/GraphicsFeatures.json"
     $preferences = if (Test-Path -LiteralPath $original) {
@@ -165,8 +167,8 @@ try {
     $env:NEM_RENDER_BENCHMARK_CAPTURE = $CaptureMode
     if ($CameraMotion) { $env:NEM_RENDER_BENCHMARK_CAMERA_MOTION = '1' }
     if ($Scenario -eq 'SceneReload') {
-        @('GameAssets/Scenes/View/Sponza.scene.json', 'GameAssets/Scenes/View/Sponza.scene.json',
-            'GameAssets/Scenes/View/Sponza.scene.json') | ConvertTo-Json |
+        @('GameAssets/Scenes/DecalValidation.scene.json', 'GameAssets/Scenes/DecalValidation.scene.json',
+            'GameAssets/Scenes/DecalValidation.scene.json') | ConvertTo-Json |
             Set-Content -LiteralPath (Join-Path $outputRoot 'Scenes.json') -Encoding utf8
         $env:NEM_RENDER_BENCHMARK_SCENES = Join-Path $outputRoot 'Scenes.json'
     }
@@ -233,7 +235,7 @@ try {
     }
     $current = [Environment]::GetEnvironmentVariables()
     foreach ($name in $current.Keys) {
-        if ($name -like 'NEM_RENDER_BENCHMARK*' -or $name -eq 'NEMENGINE_USER_SETTINGS_ROOT') {
+        if ($name -like 'NEM_RENDER_BENCHMARK*' -or $name -in @('NEMENGINE_USER_SETTINGS_ROOT', 'NEMENGINE_ROOT')) {
             [Environment]::SetEnvironmentVariable($name, $null, 'Process')
         }
     }

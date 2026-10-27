@@ -55,6 +55,7 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 		createDesc.format = color.format;
 		createDesc.clearColor = color.clearColor;
 		createDesc.createUAV = color.createUAV;
+		createDesc.useOptimizedClearValue = color.useOptimizedClearValue;
 		createDesc.debugName = std::wstring(color.name.begin(), color.name.end());
 		texture->Create(device, rtvDescriptor, srvDescriptor, createDesc);
 

@@ -116,7 +116,7 @@ namespace Engine::GameBuildUtility {
 	bool IsEditorOnlyAsset(const std::string& assetPath) {
 
 		return StartsWith(assetPath, "Engine/Assets/Textures/Editor/") ||
-			StartsWith(assetPath, "Engine/Assets/Shaders/Builtin/Editor/") ||
+			StartsWith(assetPath, "Engine/Assets/Rendering/Editor/") ||
 			(StartsWith(assetPath, "Engine/Assets/Config/") &&
 				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json" &&
 				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json.meta");

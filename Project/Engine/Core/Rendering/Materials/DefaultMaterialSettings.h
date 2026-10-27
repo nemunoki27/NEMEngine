@@ -25,6 +25,8 @@ namespace Engine {
 
 		// 保存先を記憶し、未作成なら空の設定を読み込む
 		bool Load(const std::string& configPath);
+		// 現在のProjectの既定Material上書きを読む
+		bool LoadProject();
 		// 現在の設定を保存し、成功したか返す
 		bool Save() const;
 

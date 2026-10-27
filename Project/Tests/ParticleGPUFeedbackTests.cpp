@@ -311,10 +311,10 @@ bool NEMTests::CheckParticleFeedback(ParticleGPUFixture& fixture) {
 	TestDirectory directory("ParticleGPUEventShader");
 	const auto path = directory.GetPath() / "eventTest.CS.hlsl";
 	std::ofstream stream(path);
-	stream << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Particle/GPU/particleGPUShared.hlsli")) << "\"\n";
+	stream << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Particle/GPU/particleGPUShared.hlsli")) << "\"\n";
 	stream << "#define NEM_PARTICLE_GPU_MODULES\nStructuredBuffer<ParticleGPUPhase> gGPUPhases : register(t2);\n";
 	stream << "StructuredBuffer<ParticleGPUInstruction> gGPUInstructions : register(t0);\n";
-	stream << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Particle/GPU/particleGPUEvents.hlsli")) << "\"\n";
+	stream << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Particle/GPU/particleGPUEvents.hlsli")) << "\"\n";
 	stream << R"(
 [numthreads(8,1,1)]
 void main(uint index : SV_DispatchThreadID) {

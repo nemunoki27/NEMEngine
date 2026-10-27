@@ -101,7 +101,7 @@ namespace {
 		context.view = &view;
 		AssetDatabase database;
 		database.Init();
-		const auto defaultPath = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Decal/defaultDecal.material.json";
+		const auto defaultPath = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Decal/defaultDecal.material.json";
 		const AssetID defaultMaterial = database.ImportOrGet(RuntimePaths::ToAssetPath(defaultPath), AssetType::Material);
 		if (defaultMaterial != BuiltinAssets::Materials::DefaultDecal) return false;
 		context.assetDatabase = &database;

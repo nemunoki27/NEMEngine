@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -29,6 +31,11 @@ bool Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 		return false;
 	}
 	return true;
+}
+
+bool Engine::DefaultMaterialSettings::LoadProject() {
+
+	return Load(Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kDefaultMaterials)));
 }
 
 bool Engine::DefaultMaterialSettings::Save() const {

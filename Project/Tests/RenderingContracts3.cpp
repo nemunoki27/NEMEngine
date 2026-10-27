@@ -94,7 +94,7 @@ namespace NEMTests {
 		// DXCでShaderと定数配置を確認する
 		Engine::DxShaderCompiler compiler{};
 		compiler.Init();
-		const auto root = Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Line/AnalyticGrid");
+		const auto root = Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Line/AnalyticGrid");
 		const auto vertex =
 			compiler.CompileShader((root / "analyticGrid.VS.hlsl").wstring(), L"vs_6_0", L"main", Engine::ShaderStage::VS);
 		const auto pixel =

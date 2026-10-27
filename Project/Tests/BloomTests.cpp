@@ -22,7 +22,7 @@ bool NEMTests::TestBloomSettings() {
 	for (const auto* stage : {"Prefilter", "Downsample", "Upsample", "Composite"}) {
 		for (const auto* kind : {"shader", "material", "pipeline"}) {
 			AssetMeta meta;
-			const auto path = RuntimePaths::GetEngineAssetPath("Shaders/Builtin/PostProcess/Bloom/bloom" + std::string(stage) + "." + kind + ".json.meta");
+			const auto path = RuntimePaths::GetEngineAssetPath("Rendering/Builtin/PostProcess/Bloom/bloom" + std::string(stage) + "." + kind + ".json.meta");
 			if (!AssetMetaStorage::ReadMetaFile(path, meta)) return false;
 		}
 	}

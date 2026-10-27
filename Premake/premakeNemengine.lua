@@ -125,6 +125,9 @@ project "NEMBuildTool"
 
 -- Coreの高速な単体・契約テスト
 project "NEMTests"
+    prebuildcommands {
+        'dotnet build "' .. path.translate(path.join(NEM_PROJECT_ROOT, "Tests/Managed/RuntimeFixtures.csproj"), "\\") .. '" -c "%{cfg.buildcfg}" -m:1 -nodeReuse:false -v:minimal',
+    }
     location (path.join(NEM_PROJECT_ROOT, "Tests"))
     kind "ConsoleApp"
 

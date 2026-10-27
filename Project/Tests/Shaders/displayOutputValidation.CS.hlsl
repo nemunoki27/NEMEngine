@@ -1,6 +1,6 @@
 // 本番の色変換を計算Shaderから検証する
 #define main DisplayOutputPixelMain
-#include "../../Engine/Assets/Shaders/Builtin/ToneMapToView/outputTransform.PS.hlsl"
+#include "../../Engine/Assets/Rendering/Builtin/ToneMapToView/outputTransform.PS.hlsl"
 #undef main
 
 RWTexture2D<float4> gResult : register(u0);

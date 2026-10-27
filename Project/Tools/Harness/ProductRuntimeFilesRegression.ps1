@@ -82,7 +82,7 @@ foreach ($suffix in @("screenSpaceOutlineDilate.material.json", "screenSpaceOutl
     "defaultLine.material.json", "Stage.csv")) {
     if (-not @($files | Where-Object { $_.destination.EndsWith($suffix) }).Count) { throw "常時同梱ファイルがありません: $suffix" }
 }
-if (@($files | Where-Object { $_.destination -match '^Engine/Assets/(Textures/Editor|Shaders/Builtin/Editor)/' }).Count) {
+if (@($files | Where-Object { $_.destination -match '^Engine/Assets/(Textures/Editor|Rendering/Editor)/' }).Count) {
     throw "Editor専用アセットが混入しています"
 }
 $productSettings = Join-Path $testRoot "ProductCollisionSettings.json"
@@ -106,7 +106,7 @@ $settingsLock = [System.IO.File]::Open($collisionPath, [System.IO.FileMode]::Ope
 try { Invoke-Collect "UnreadableSettings" "CollisionSettings.json" }
 finally { $settingsLock.Dispose() }
 
-$outlinePath = Join-Path $gameRoot "Engine\Assets\Shaders\Builtin\ScreenSpaceOutline\DilateHorizontal\screenSpaceOutlineDilate.material.json"
+$outlinePath = Join-Path $gameRoot "Engine\Assets\Rendering\Builtin\ScreenSpaceOutline\DilateHorizontal\screenSpaceOutlineDilate.material.json"
 $heldOutline = Join-Path $testRoot "HeldOutline.json"
 Move-Item -LiteralPath $outlinePath -Destination $heldOutline
 Move-Item -LiteralPath ($outlinePath + ".meta") -Destination ($heldOutline + ".meta")

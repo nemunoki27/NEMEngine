@@ -7,12 +7,15 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <cmath>
+#include <filesystem>
+#include <system_error>
 
 namespace {
 
@@ -82,6 +85,7 @@ namespace {
 //============================================================================
 Engine::EngineContext::WindowSetting Engine::EngineContext::windowSetting_ = {};
 Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ = {};
+Engine::Color4 Engine::EngineContext::projectSceneClearColor_ = Color4::FromHex(0x303030ff);
 
 void Engine::EngineContext::InitCoreSettings(bool usesEditorUI) {
 
@@ -138,6 +142,7 @@ void Engine::EngineContext::Init(bool usesEditorUI) {
 
 	// 各コア設定の初期化
 	InitCoreSettings(usesEditorUI);
+	LoadRenderingSettings();
 
 	// 表示ウィンドウ作成
 	winApp_ = std::make_unique<WinApp>();
@@ -160,4 +165,50 @@ void Engine::EngineContext::SetGameSize(const Vector2I& size) {
 	windowSetting_.gameSize.x = (std::max)(size.x, 1);
 	windowSetting_.gameSize.y = (std::max)(size.y, 1);
 	windowSetting_.gameSizeFloat = windowSetting_.gameSize.GetFloat();
+}
+
+bool Engine::EngineContext::IsSceneClearColorValid(const Color4& color) {
+
+	return std::isfinite(color.r) && std::isfinite(color.g) && std::isfinite(color.b) &&
+		color.r >= 0.0f && color.r <= 1.0f && color.g >= 0.0f && color.g <= 1.0f && color.b >= 0.0f && color.b <= 1.0f;
+}
+
+bool Engine::EngineContext::SetRuntimeSceneClearColor(const Color4& color) {
+
+	if (!IsSceneClearColorValid(color)) return false;
+	graphicsSetting_.sceneClearColor = Color4(color.r, color.g, color.b, 1.0f);
+	return true;
+}
+
+bool Engine::EngineContext::SetSceneClearColor(const Color4& color) {
+
+	if (!IsSceneClearColorValid(color)) return false;
+	const auto path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kRendering);
+	nlohmann::json data = nlohmann::json::object();
+	std::error_code error;
+	const bool exists = std::filesystem::exists(path, error);
+	if (error || (exists && (!JsonFile::TryLoad(path, data) || !data.is_object()))) return false;
+	const Color4 value(color.r, color.g, color.b, 1.0f);
+	data["clearColor"] = value.ToJson();
+	// 保存に成功した色を共有値と実行値へ渡す
+	if (!JsonFile::Save(path, data)) return false;
+	projectSceneClearColor_ = value;
+	return SetRuntimeSceneClearColor(value);
+}
+
+void Engine::EngineContext::LoadRenderingSettings() {
+
+	projectSceneClearColor_ = Color4::FromHex(0x303030ff);
+	const auto path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kRendering);
+	nlohmann::json data;
+	if (JsonFile::TryLoad(path, data) && data.is_object() && data.contains("clearColor")) {
+		const auto& value = data["clearColor"];
+		const bool valid = value.is_object() && value.contains("r") && value["r"].is_number() &&
+			value.contains("g") && value["g"].is_number() && value.contains("b") && value["b"].is_number();
+		if (valid) {
+			const Color4 color(value["r"].get<float>(), value["g"].get<float>(), value["b"].get<float>(), 1.0f);
+			if (IsSceneClearColorValid(color)) projectSceneClearColor_ = color;
+		}
+	}
+	SetRuntimeSceneClearColor(projectSceneClearColor_);
 }

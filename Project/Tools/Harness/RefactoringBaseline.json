@@ -21,8 +21,8 @@
       {
         "count": 2,
         "files": [
-          "Project/Engine/Assets/Shaders/Builtin/Mesh/DefaultMesh/defaultMesh.MS.hlsl",
-          "Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/meshPBRTransparent.MS.hlsl"
+          "Project/Engine/Assets/Rendering/Builtin/Mesh/DefaultMesh/defaultMesh.MS.hlsl",
+          "Project/Engine/Assets/Rendering/Builtin/Mesh/MeshPBR/meshPBRTransparent.MS.hlsl"
         ]
       }
     ],

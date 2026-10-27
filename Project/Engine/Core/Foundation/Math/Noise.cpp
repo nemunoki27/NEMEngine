@@ -21,7 +21,7 @@ namespace {
 
 	// 256要素の置換表を周期的に参照
 	constexpr uint8_t kPermutation[256] = {
-#include <Engine/Assets/Shaders/Common/Noise/noisePermutation.hlsli>
+#include <Engine/Assets/Rendering/Common/Noise/noisePermutation.hlsli>
 	};
 
 	// 格子番号を置換表の範囲へ戻す

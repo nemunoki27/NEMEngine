@@ -34,6 +34,13 @@ public sealed class GraphicsSettingsData {
 	public bool doubleBuffering { get => Read<uint>("frameContextCount") == 2; set => Write("frameContextCount", value ? 2u : 1u); }
 	public DisplayOutputMode displayOutput { get => Enum.Parse<DisplayOutputMode>(Read<string>("displayOutputMode")); set => Write("displayOutputMode", value.ToString()); }
 	public float paperWhiteNits { get => Read<float>("paperWhiteNits"); set => Write("paperWhiteNits", value); }
+	public Color4 clearColor {
+		get {
+			var color = values["sceneClearColor"]!.AsObject();
+			return new(color["r"]!.GetValue<float>(), color["g"]!.GetValue<float>(), color["b"]!.GetValue<float>(), 1.0f);
+		}
+		set => values["sceneClearColor"] = new JsonObject { ["r"] = value.r, ["g"] = value.g, ["b"] = value.b, ["a"] = 1.0f };
+	}
 	public float maximumLuminanceNits { get => Read<float>("maxLuminanceNits"); set => Write("maxLuminanceNits", value); }
 	internal T Read<T>(string key) => values[key]!.GetValue<T>();
 	internal void Write<T>(string key, T value) => values[key] = JsonValue.Create(value);

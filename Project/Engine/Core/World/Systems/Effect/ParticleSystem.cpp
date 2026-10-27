@@ -81,9 +81,11 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				break;
 			}
 
+			// 無効なEntityとComponentの補助線は表示しない
+			const bool drawEmitterShape = active && component.enabled && component.drawEmitterShape;
 			if (instanceUpdater_.UpdateInstance(world, runtime->instance,
 				GetParticleSystemSettings(world, entity), emitterWorld, parentSettings, useAssetParentSettings,
-				deltaTime, updateSimulation, emissionEnabled, component.drawEmitterShape, component.simulationTarget)) {
+				deltaTime, updateSimulation, emissionEnabled, drawEmitterShape, component.simulationTarget)) {
 
 				runtime->playing = false;
 				runtime->paused = false;

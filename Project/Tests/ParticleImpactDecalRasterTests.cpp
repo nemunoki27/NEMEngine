@@ -32,7 +32,7 @@ bool NEMTests::CheckParticleImpactDecalRaster(ParticleGPUFixture& fixture, ID3D1
 	pixel.close();
 	GraphicsPipelineDesc descriptor;
 	descriptor.type = PipelineType::Vertex;
-	descriptor.preRaster = {.file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Decal/particleImpactDecalDraw.VS.hlsl")),
+	descriptor.preRaster = {.file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Decal/particleImpactDecalDraw.VS.hlsl")),
 		.profile = "vs_6_0"};
 	descriptor.pixel = {.file = Algorithm::PathToUTF8(std::filesystem::absolute(pixelPath)), .profile = "ps_6_0"};
 	descriptor.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);

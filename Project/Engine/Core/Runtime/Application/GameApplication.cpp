@@ -38,7 +38,6 @@
 namespace {
 
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
-	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 
 	bool RequestGameApplicationClose() {
 
@@ -86,8 +85,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 
 	FrameRateSettings::GetInstance().Load(Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
 	FrameRateSettings::GetInstance().SetUseEditorTargetFps(false);
-	DefaultMaterialSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
+	DefaultMaterialSettings::GetInstance().LoadProject();
 	RegisterBuiltinAnimationProperties();
 
 	skinnedAnimationManager_.Init();

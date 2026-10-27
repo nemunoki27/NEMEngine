@@ -21,7 +21,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	constexpr uint32_t resultBytes = argsBytes + instanceBytes;
 	DxShaderCompiler compiler;
 	compiler.Init();
-	const auto path = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh/Culling/buildIndexedIndirectArgs.CS.hlsl";
+	const auto path = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Mesh/Culling/buildIndexedIndirectArgs.CS.hlsl";
 	const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_0", L"main", ShaderStage::CS);
 	if (!shader.IsValid()) return false;
 

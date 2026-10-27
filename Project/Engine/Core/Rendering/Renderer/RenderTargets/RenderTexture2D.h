@@ -35,6 +35,8 @@ namespace Engine {
 		bool createUAV = false;
 		// デバッグ用の名前
 		std::wstring debugName;
+		// 固定色でクリアする描画先を最適化する
+		bool useOptimizedClearValue = true;
 	};
 
 	//============================================================================

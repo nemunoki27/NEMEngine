@@ -1,4 +1,4 @@
-#include "../../Engine/Assets/Shaders/Builtin/Particle/GPU/particleGPUCollision.hlsli"
+#include "../../Engine/Assets/Rendering/Builtin/Particle/GPU/particleGPUCollision.hlsli"
 
 RWStructuredBuffer<float4> gWorldResults : register(u0);
 

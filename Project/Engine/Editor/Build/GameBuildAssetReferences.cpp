@@ -139,7 +139,7 @@ namespace Engine {
 			const std::filesystem::path includeName = Engine::Algorithm::PathFromUTF8(match[1].str());
 			const std::array<std::filesystem::path, 3> candidates = {
 				shaderPath.parent_path() / includeName,
-				Engine::RuntimePaths::GetEngineAssetPath("Shaders") / includeName,
+				Engine::RuntimePaths::GetEngineAssetPath("Rendering") / includeName,
 				Engine::RuntimePaths::GetGameRoot() / "GameAssets/Shaders" / includeName,
 			};
 			for (const std::filesystem::path& candidate : candidates) {

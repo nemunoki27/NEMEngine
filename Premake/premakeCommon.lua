@@ -359,7 +359,7 @@ function NEM_AddEditorProjectFiles()
     }
 
     local editorAssets = {
-        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Shaders/Builtin/Editor/**.*"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Assets/Rendering/Editor/**.*"),
         path.join(NEM_PROJECT_ROOT, "Engine/Assets/Textures/Editor/**.*"),
     }
     files(editorAssets)

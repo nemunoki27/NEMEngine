@@ -355,7 +355,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	std::vector<std::wstring> includePaths{};
 	includePaths.reserve(3);
 	includePaths.emplace_back(std::filesystem::path(filePath).parent_path().wstring());
-	includePaths.emplace_back(RuntimePaths::GetEngineAssetPath("Shaders").wstring());
+	includePaths.emplace_back(RuntimePaths::GetEngineAssetPath("Rendering").wstring());
 	includePaths.emplace_back((RuntimePaths::GetGameRoot() / "GameAssets/Shaders").wstring());
 
 	std::vector<LPCWSTR> args{

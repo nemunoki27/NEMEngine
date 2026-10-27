@@ -261,7 +261,7 @@ void Engine::LightingPass::Execute(
 	// 背景復元用の逆ビュー射影と視点を集める、2Dビューでは背景を出さない
 	LightingConstants constants{};
 	constants.ambientIntensity = 0.03f;
-	constants.skyboxColor = skybox.found ? skybox.color : Color4::FromHex(0x303030ff);
+	constants.skyboxColor = skybox.found ? skybox.color : graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;
 	constants.hasSkybox = skybox.found ? 1u : 0u;
 	constants.irradianceCubemapIndex = irradianceCubemapIndex;
@@ -304,6 +304,7 @@ void Engine::LightingPass::Execute(
 
 		// 透視カメラが無い場合はskyboxを出さずambientと発光だけにする
 		constants.hasSkybox = 0;
+		constants.skyboxColor = graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 	}
 
 	DxConstBuffer<LightingConstants>& buffer = AllocateConstantBuffer(graphicsCore);

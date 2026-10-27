@@ -335,7 +335,7 @@ bool NEMTests::TestFrameBufferingContracts() {
 	if (Engine::MaterialRenderPolicy::IsStandardSurface(material)) return false;
 	// 配布している既定AssetのPass構成も判定対象に含める
 	if (!Engine::FromJson(Engine::JsonFile::Load(Engine::RuntimePaths::GetEngineAssetPath(
-		"Shaders/Builtin/Mesh/MeshPBR/meshPBR.material.json"), false), material) ||
+		"Rendering/Builtin/Mesh/MeshPBR/meshPBR.material.json"), false), material) ||
 		!Engine::MaterialRenderPolicy::IsStandardSurface(material)) return false;
 	const auto compact = Engine::RenderPathResources::BuildSceneMainDesc(17, 13, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	if (compact.colors[0].format != DXGI_FORMAT_R16G16B16A16_FLOAT ||

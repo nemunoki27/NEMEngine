@@ -72,10 +72,10 @@ bool NEMTests::RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsComma
 				file << "#include \"" << source << "\"\n";
 			};
 			file << "#define NEM_LIGHT_COUNTS_REGISTER b1\n";
-			include("Shaders/Builtin/Lighting/lightTypes.hlsli");
+			include("Rendering/Builtin/Lighting/lightTypes.hlsli");
 			file << "static const float shadowNormalBias=0.05,shadowMaxDistance=100;\n"
 				"static const uint softShadowSampleCount=4;\n";
-			include("Shaders/Builtin/Lighting/inlineShadowCommon.hlsli");
+			include("Rendering/Builtin/Lighting/inlineShadowCommon.hlsli");
 			// 非Opaque形状でも通常の影Shaderから遮蔽を取得する
 			file << R"(
 RWStructuredBuffer<uint> results : register(u0);

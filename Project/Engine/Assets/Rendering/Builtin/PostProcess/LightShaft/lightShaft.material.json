@@ -1,0 +1,26 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "lightShaftMaterial",
+    "parameters": {
+        "anisotropy": 0.3499999940395355,
+        "density": 0.0020000000949949026,
+        "intensity": 1.0,
+        "maxDistance": 600.0,
+        "sampleCount": 64,
+        "tint": [
+            1.0,
+            1.0,
+            1.0
+        ]
+    },
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "cc64f32fb4db8d813040ca1a8a19e604",
+            "preferredVariant": "Compute"
+        }
+    ],
+    "sourceShader": "Engine/Assets/Rendering/Builtin/PostProcess/LightShaft/lightShaft.CS.hlsl"
+}

@@ -94,7 +94,7 @@ bool NEMTests::CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* qu
 		// 製品と同じhelperを実GPUで実行する
 		std::ofstream source(sourcePath, std::ios::binary);
 		source << "#include \"" << Algorithm::PathToUTF8(
-			RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Common/CullingHelpers.hlsli") << "\"\n"
+			RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Common/CullingHelpers.hlsli") << "\"\n"
 			"struct Input { float4 rectangle; uint2 size; uint mipCount; uint padding; row_major float4x4 transform;\n"
 			" float4 cone; float4 cameraRadius; };\n"
 			"StructuredBuffer<Input> gInput : register(t0);\n"

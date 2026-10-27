@@ -25,7 +25,7 @@ bool NEMTests::TestDecalGPU() {
 	const auto path = directory.GetPath() / "decalTest.CS.hlsl";
 	// 通常描画とDXRが共有する評価処理を実際のGPUで実行する
 	std::ofstream source(path);
-	source << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Decal/decalCommon.hlsli")) << "\"\n";
+	source << "#include \"" << Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Decal/decalCommon.hlsli")) << "\"\n";
 	source << R"(
 RWStructuredBuffer<float4> output : register(u0);
 SamplerState testSampler : register(s1);

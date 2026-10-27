@@ -1,0 +1,13 @@
+{
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "FXAAPipeline",
+    "sourceShader": "Engine/Assets/Rendering/Builtin/PostProcess/FXAA/FXAA.CS.hlsl",
+    "variants": [
+        {
+            "kind": "Compute",
+            "pipelineType": "Compute",
+            "shader": "658d9b592d45081eccc5453c4b024a15"
+        }
+    ]
+}

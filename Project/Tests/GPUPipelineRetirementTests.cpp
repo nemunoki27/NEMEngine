@@ -89,7 +89,7 @@ bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::Graph
 	if (shaderModel66 && support.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED) {
 		desc.type = PipelineType::Mesh;
 		desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "mesh.MS.hlsl"), .entry = "main", .profile = "ms_6_6" };
-		desc.amplification = { .file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh/Common/meshGeometry.AS.hlsl"),
+		desc.amplification = { .file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Mesh/Common/meshGeometry.AS.hlsl"),
 			.entry = "main", .profile = "as_6_6" };
 		if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
 	}

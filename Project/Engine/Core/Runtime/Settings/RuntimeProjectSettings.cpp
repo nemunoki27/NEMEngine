@@ -33,6 +33,7 @@ void Engine::RuntimeProjectSettings::Initialize() {
 nlohmann::json Engine::RuntimeProjectSettings::Capture() const {
 
 	auto data = GraphicsPreferenceStorage::Write(graphics_.GetDXObject().GetFeatureController().GetPreferences());
+	data["sceneClearColor"] = EngineContext::GetGraphicsSetting().sceneClearColor.ToJson();
 	data["targetFrameRate"] = FrameRateSettings::GetInstance().GetTargetFps();
 	data["runInBackground"] = Input::GetInstance()->IsBackgroundInputEnabled();
 	const auto size = graphics_.GetContext().GetWindowSetting().gameSize;
@@ -85,6 +86,14 @@ bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 			(old.is_number() && (!it->is_number() || !std::isfinite(it->get<double>())))) return false;
 		candidate[it.key()] = it.value();
 	}
+	const auto& clearColor = candidate["sceneClearColor"];
+	if (!clearColor.is_object()) return false;
+	for (const auto* channel : {"r", "g", "b"}) {
+		if (!clearColor.contains(channel) || !clearColor[channel].is_number()) return false;
+	}
+	const Color4 color(clearColor["r"].get<float>(), clearColor["g"].get<float>(), clearColor["b"].get<float>(), 1.0f);
+	if (!EngineContext::IsSceneClearColorValid(color)) return false;
+	candidate["sceneClearColor"] = color.ToJson();
 	if (candidate["targetFrameRate"].get<int64_t>() < 0 || candidate["targetFrameRate"].get<int64_t>() > 1000) return false;
 	if (candidate["frameContextCount"] != 1 && candidate["frameContextCount"] != 2) return false;
 	if (!candidate["inputDeadZone"].is_number() || candidate["inputDeadZone"].get<float>() < 0 ||
@@ -128,6 +137,7 @@ void Engine::RuntimeProjectSettings::ApplyPending() {
 	auto& controller = graphics_.GetDXObject().GetFeatureController();
 	auto preferences = controller.GetPreferences();
 	GraphicsPreferenceStorage::Read(settings, preferences);
+	EngineContext::SetRuntimeSceneClearColor(Color4::FromJson(settings["sceneClearColor"]));
 	controller.SetRuntimeOverrideActive(true);
 	controller.ApplyRuntimePreferences(preferences);
 	graphics_.RequestDoubleBuffering(preferences.frameContextCount == 2);
@@ -167,6 +177,8 @@ void Engine::RuntimeProjectSettings::EndPlay() {
 	if (!playing_) return;
 	// Scriptの終了処理を終えてから編集用の設定へ戻す
 	pending_ = original_;
+	// Play中に変更した共有色はStop後も維持する
+	pending_["sceneClearColor"] = EngineContext::GetProjectSceneClearColor().ToJson();
 	hasPending_ = true;
 	ApplyPending();
 	FrameRateSettings::GetInstance().SetRuntimeTargetFps(std::nullopt);
@@ -176,16 +188,22 @@ void Engine::RuntimeProjectSettings::EndPlay() {
 
 bool Engine::RuntimeProjectSettings::SaveUserSettings() const {
 
-	return StorageFileUtility::WriteBytes(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), Read().dump(2));
+	auto settings = Read();
+	// 共通の背景色をユーザー別設定で上書きしない
+	settings.erase("sceneClearColor");
+	return StorageFileUtility::WriteBytes(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), settings.dump(2));
 }
 
 bool Engine::RuntimeProjectSettings::LoadUserSettings() {
 
-	const auto settings = JsonFile::Load(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), false);
+	auto settings = JsonFile::Load(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), false);
+	if (settings.is_object()) settings.erase("sceneClearColor");
 	return settings.is_object() && Request(settings);
 }
 
 void Engine::RuntimeProjectSettings::ResetToProjectDefaults() {
 
-	Request(defaults_);
+	auto settings = defaults_;
+	settings["sceneClearColor"] = EngineContext::GetProjectSceneClearColor().ToJson();
+	Request(settings);
 }

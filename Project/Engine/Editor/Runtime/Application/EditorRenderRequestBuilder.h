@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderFrameTypes.h>
+#include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <functional>
@@ -45,6 +46,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 背景色変更時に副Viewも更新する
+		Color4 previousClearColor_{};
 		DisplayOutputSettings previousGameOutput_{};
 		DisplayOutputSettings previousSceneOutput_{};
 

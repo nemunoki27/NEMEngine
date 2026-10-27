@@ -30,8 +30,6 @@ using namespace Engine;
 namespace {
 
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
-	// デフォルトマテリアル設定はチームで共有したいのでgit管理されるGameAssets配下へ置く
-	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 
 	Engine::EngineApplication* g_activeEngineApplication = nullptr;
 
@@ -104,9 +102,8 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	FrameRateSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
 	FrameRateSettings::GetInstance().SetUseEditorTargetFps(true);
-	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
-	DefaultMaterialSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
+	// Projectの上書きを読み、未設定はEngineの既定を使う
+	DefaultMaterialSettings::GetInstance().LoadProject();
 	// AnimationClipの評価に必要なPropertyをEditorの有無に関係なく登録する
 	RegisterBuiltinAnimationProperties();
 

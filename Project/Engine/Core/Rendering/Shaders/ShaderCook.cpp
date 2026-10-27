@@ -127,7 +127,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		const AssetID assetID = requiredAssets[index];
 		if (!checkedRequiredAssets.insert(assetID).second) continue;
 		const AssetMeta* meta = database.Find(assetID);
-		if (meta && meta->assetPath.starts_with("Engine/Assets/Shaders/Builtin/Editor/")) continue;
+		if (meta && meta->assetPath.starts_with("Engine/Assets/Rendering/Editor/")) continue;
 		const std::filesystem::path path = database.ResolveFullPath(assetID);
 		std::filesystem::path metaPath = path;
 		metaPath += L".meta";
@@ -280,7 +280,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		}
 		for (const auto& variant : pipeline.variants) {
 			const AssetMeta* shaderMeta = database.Find(variant.shader);
-			if (shaderMeta && shaderMeta->assetPath.starts_with("Engine/Assets/Shaders/Builtin/Editor/")) {
+			if (shaderMeta && shaderMeta->assetPath.starts_with("Engine/Assets/Rendering/Editor/")) {
 				continue;
 			}
 			if (!cookedShaders.contains(variant.shader)) {

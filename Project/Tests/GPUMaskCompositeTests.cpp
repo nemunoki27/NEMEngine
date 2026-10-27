@@ -20,7 +20,7 @@ bool NEMTests::CheckMaskCompositeResampling(ID3D12Device* device, ID3D12CommandQ
 	Engine::DxShaderCompiler compiler;
 	compiler.Init();
 	const auto path =
-		Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin/PostProcess/MaskComposite/postProcessMaskComposite.CS.hlsl");
+		Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin/PostProcess/MaskComposite/postProcessMaskComposite.CS.hlsl");
 	const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_0", L"main", Engine::ShaderStage::CS);
 	if (!shader.IsValid()) {
 		return false;

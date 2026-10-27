@@ -163,7 +163,7 @@ bool NEMTests::CheckParticleGPUSourceSpawn(ParticleGPUFixture& fixture) {
 	TestDirectory directory("ParticleGPUSourceShader");
 	const auto path = directory.GetPath() / "sourceTest.CS.hlsl";
 	std::ofstream stream(path);
-	const auto root = RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Particle/GPU");
+	const auto root = RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Particle/GPU");
 	stream << "#include \"" << Algorithm::PathToUTF8(root / "particleGPUShared.hlsli") << "\"\n";
 	stream << R"(
 StructuredBuffer<ParticleGPUPhase> gGPUPhases : register(t2);

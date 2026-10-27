@@ -38,6 +38,7 @@ void Engine::ClearRenderTargetsPass::Execute(GraphicsCore& graphicsCore,
 		// サーフェイス設定
 		MultiRenderTargetClearDesc surfaceClearDesc{};
 		surfaceClearDesc.clearColor = true;
+		surfaceClearDesc.clearColorValue = graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 		surfaceClearDesc.clearDepth = (context.defaultSurface->GetDepthTexture() != nullptr);
 		surfaceClearDesc.clearDepthValue = 1.0f;
 		surfaceClearDesc.clearStencil = false;

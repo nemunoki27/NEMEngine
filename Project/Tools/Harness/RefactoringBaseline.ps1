@@ -31,7 +31,7 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $engineRoot = Join-Path $repoRoot "Project\Engine"
-$shaderRoot = Join-Path $engineRoot "Assets\Shaders"
+$shaderRoot = Join-Path $engineRoot "Assets\Rendering"
 $generatedRoot = Join-Path $repoRoot "Generated\Refactoring"
 
 if ([string]::IsNullOrWhiteSpace($BaselinePath)) {

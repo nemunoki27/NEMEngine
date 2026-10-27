@@ -27,6 +27,7 @@
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
 #include <Engine/Core/Scripting/Managed/ManagedSchemaCache.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
 #include <algorithm>
@@ -119,10 +120,12 @@ namespace NEMTests {
 
 		using namespace Engine;
 		auto& runtime = ManagedScriptRuntime::GetInstance();
-		if (!runtime.Init() || !runtime.ReloadGameAssembly(false)) {
+		// SandboxのゲームAssemblyへ検証用Scriptを混ぜない
+		const auto fixtureAssembly = Algorithm::GetExecutablePath().parent_path() / "ManagedFixtures/GameScripts.dll";
+		if (!runtime.Init() || !runtime.LoadGameAssemblyFromPath(fixtureAssembly, false)) {
 			return false;
 		}
-		const auto* type = BehaviorTypeRegistry::GetInstance().FindByName("SandboxScripts.RuntimeLifecycleProbe");
+		const auto* type = BehaviorTypeRegistry::GetInstance().FindByName("NEMTests.Scripts.RuntimeLifecycleProbe");
 		if (!type) {
 			runtime.Finalize();
 			return false;
@@ -221,7 +224,7 @@ namespace NEMTests {
 		const char* updatesID = "f1880865-e87f-4b96-985a-6639a1158053";
 		const auto interruptedOwner = world.CreateEntity();
 		world.AddComponent<ScriptComponent>(interruptedOwner);
-		ScriptEntry interruptedEntry = MakeScriptEntry(typeID, "SandboxScripts.RuntimeLifecycleProbe");
+		ScriptEntry interruptedEntry = MakeScriptEntry(typeID, "NEMTests.Scripts.RuntimeLifecycleProbe");
 		interruptedEntry.serializedFields = {{"fields", {{awakeFailureID, {{"value", true}}}}}};
 		SetScriptEntries(world, interruptedOwner, std::array{interruptedEntry});
 		world.MarkComponentModified<ScriptComponent>(interruptedOwner);
@@ -239,7 +242,7 @@ namespace NEMTests {
 		valid &= interruptedState.value(maskID, -1) == 7 && interruptedState.value(updatesID, -1) == 1;
 
 		// 同じEntityの後続Scriptへ失敗したframeのUpdateを渡さない
-		ScriptEntry followerEntry = MakeScriptEntry(typeID, "SandboxScripts.RuntimeLifecycleProbe");
+		ScriptEntry followerEntry = MakeScriptEntry(typeID, "NEMTests.Scripts.RuntimeLifecycleProbe");
 		SetScriptEntries(world, interruptedOwner, std::array{interruptedEntry, followerEntry});
 		world.MarkComponentModified<ScriptComponent>(interruptedOwner);
 		behaviors.Update(world, context);

@@ -32,6 +32,11 @@ void Engine::PrimitiveBatchResources::UploadInstances(const std::vector<Primitiv
 
 void Engine::ApplyPrimitiveShapeToInstance(const PrimitiveRendererComponent& renderer, PrimitiveInstanceData& instance) {
 
+	// 厚みのない3D形状は裏面も視点側の法線で照らす
+	if (!IsPrimitiveScreen2D(renderer) && (renderer.type == PrimitiveType::Plane ||
+		renderer.type == PrimitiveType::CrossPlane || renderer.type == PrimitiveType::Ring)) {
+		instance.shapeParams1.w = 2.0f;
+	}
 	if (renderer.type == PrimitiveType::Ring) {
 
 		const PrimitiveRingParams& ring = renderer.ring;

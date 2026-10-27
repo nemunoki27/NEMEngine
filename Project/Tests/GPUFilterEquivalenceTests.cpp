@@ -80,7 +80,7 @@ namespace {
 		double beforeMs = 0.0, afterMs = 0.0;
 		const auto expected = RunFilterShader(device, queue, reference / relative, width, height, inputs, formats, constants,
 			performance ? &beforeMs : nullptr);
-		const auto actual = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin") / relative,
+		const auto actual = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin") / relative,
 			width, height, inputs, formats, constants, performance ? &afterMs : nullptr);
 		if (performance) std::cout << "AO Filter " << width << 'x' << height << " reference=" << beforeMs <<
 			"ms optimized=" << afterMs << "ms\n";
@@ -152,7 +152,7 @@ namespace {
 		}
 		formats[0] = DXGI_FORMAT_R32_UINT;
 		const auto actual = RunFilterShader(device, queue,
-			Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Lighting/inlineShadowFilter.CS.hlsl"),
+			Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Lighting/inlineShadowFilter.CS.hlsl"),
 			width, height, inputs, formats, constants, nullptr, &layout);
 		for (size_t index = 0; index < actual[0].pixels.size(); ++index) {
 			const uint32_t packed = std::bit_cast<uint32_t>(actual[0].pixels[index]);
@@ -191,7 +191,7 @@ namespace {
 			antiFirefly ? 1.0f : 0.0f, 2.0f, 1.0f, 0.0f };
 		const auto relative = "Raytracing/ReflectionFilter/reflectionSpatial.CS.hlsl";
 		const auto expected = RunFilterShader(device, queue, reference / relative, width, height, inputs, formats, constants);
-		const auto actual = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Shaders/Builtin") / relative,
+		const auto actual = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin") / relative,
 			width, height, inputs, formats, constants);
 		for (size_t index = 0; index < expected[0].pixels.size(); ++index) {
 			if (!std::isfinite(actual[0].pixels[index]) || std::abs(actual[0].pixels[index] - expected[0].pixels[index]) >

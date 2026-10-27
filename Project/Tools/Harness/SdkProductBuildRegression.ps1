@@ -250,7 +250,7 @@ try {
     }
     $originalFiles = $manifest.files
     $manifest.files = @($originalFiles | Where-Object {
-        $_.destination -ne "Engine/Assets/Shaders/Builtin/Lighting/deferredLighting.shader.json"
+        $_.destination -ne "Engine/Assets/Rendering/Builtin/Lighting/deferredLighting.shader.json"
     })
     Assert-BuildFailure "MissingFixedShader" "製品描画に必須のシェーダーが含まれていません"
     $manifest.files = $originalFiles

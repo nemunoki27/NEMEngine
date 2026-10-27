@@ -1,0 +1,646 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Ring"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            }
+                        }
+                    ],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Ring",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "6a1c2296e2fc0520",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 2.1517748832702637,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "6a1c2296e2fc0520"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "Plane"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "31d4f90ec37c453f",
+                            "name": "emissiveIntensity",
+                            "semantic": "EmissiveIntensity",
+                            "value": 0.0
+                        },
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": ""
+                        }
+                    ],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Plane",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "6dfc8dc87f34ef17",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -1.6893973350524902,
+                        "y": 1.74159574508667,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "6dfc8dc87f34ef17"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "c65b493a4e9d7f55",
+                            "name": "roughness",
+                            "semantic": "Roughness",
+                            "value": 0.41999998688697815
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 1.0
+                        }
+                    ],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "724558ff54ea2387",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.5,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 6.0,
+                        "y": 1.0,
+                        "z": 6.0
+                    }
+                }
+            },
+            "LocalFileID": "724558ff54ea2387"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -0.8712971806526184,
+                        "z": 0.49075576663017273
+                    },
+                    "enabled": true,
+                    "intensity": 10.0,
+                    "shadowAngularRadius": 0.27000001072883606,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "833e102c414245bd",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "833e102c414245bd"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "ambientOcclusionEnabled": true,
+                    "ambientOcclusionIntensity": 1.0,
+                    "ambientOcclusionQuality": 1,
+                    "ambientOcclusionRadius": 1.0,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "saturation": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "temperature": 6500.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 0.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "orthographicSize": 5.0,
+                    "postProcessEnabled": true,
+                    "priority": 0,
+                    "projectionMode": "Perspective",
+                    "reflectionEnabled": true,
+                    "reflectionIntensity": 1.0,
+                    "reflectionMaxDistance": 600.0,
+                    "reflectionParameters": {},
+                    "reflectionQuality": 1,
+                    "renderPasses": "4e454d4153534554525450524f46494c",
+                    "targetTexture": "",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d793890d0e35c9ee",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 2.0,
+                        "z": -10.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "d793890d0e35c9ee"
+        }
+    ],
+    "Header": {
+        "name": "Main",
+        "subScenes": []
+    },
+    "PrefabInstances": [],
+    "SchemaVersion": 3
+}

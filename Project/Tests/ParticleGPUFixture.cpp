@@ -48,7 +48,7 @@ ParticleGPUFixture::~ParticleGPUFixture() {
 std::unique_ptr<PipelineState> ParticleGPUFixture::MakePipeline(const char* filename) {
 
 	ComputePipelineDesc descriptor;
-	descriptor.compute.file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Particle/GPU" / filename);
+	descriptor.compute.file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Particle/GPU" / filename);
 	descriptor.compute.profile = "cs_6_0";
 	return PipelineStateBuilder::CreateCompute(retirement, device.Get(), &compiler, descriptor);
 }

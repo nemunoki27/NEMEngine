@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
@@ -122,6 +123,12 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 		// 表示出力の形式と輝度を設定
 		if (ImGui::BeginMenu("表示出力")) {
+			Color4 clearColor = EngineContext::GetProjectSceneClearColor();
+			if (MyGUI::ColorEdit("クリアカラー", clearColor, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoAlpha).valueChanged &&
+				!EngineContext::SetSceneClearColor(clearColor)) {
+				Logger::Output(LogType::Engine, spdlog::level::warn, "クリアカラーをProject設定へ保存できません");
+			}
+			ImGui::Separator();
 			const char* outputModeLabels[] = {"SDR", "HDR10", "scRGB"};
 			int outputMode = static_cast<int>(preferences.displayOutput.mode);
 			if (ImGui::Combo("出力モード", &outputMode, outputModeLabels, 3)) {

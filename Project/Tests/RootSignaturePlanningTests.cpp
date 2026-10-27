@@ -299,7 +299,7 @@ bool NEMTests::CheckRootSignaturePlanning(ID3D12Device* device) {
 		{"ambientOcclusion.CS.hlsl", L"cs_6_6"}, {"ambientOcclusionFilter.CS.hlsl", L"cs_6_0"}};
 	for (const auto& [name, profile] : shaders) {
 		if (std::wstring_view(profile) == L"cs_6_6" && !supportsTrace) continue;
-		const auto path = RuntimePaths::GetEngineAssetPath(std::string("Shaders/Builtin/Raytracing/AmbientOcclusion/") + name);
+		const auto path = RuntimePaths::GetEngineAssetPath(std::string("Rendering/Builtin/Raytracing/AmbientOcclusion/") + name);
 		const auto compiled = compiler.CompileShader(path.wstring(), profile, L"main", ShaderStage::CS);
 		if (!compiled.IsValid()) return false;
 		auto root = builder.Build(device, PipelineType::Compute, {&compiled}, {MakeStaticSampler(D3D12_SHADER_VISIBILITY_ALL)});
@@ -312,7 +312,7 @@ bool NEMTests::CheckRootSignaturePlanning(ID3D12Device* device) {
 	}
 	// GPUデカールを含む反射の入力も64DWORD以内に収める
 	if (supportsTrace) {
-		const auto path = RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Raytracing/reflection.RT.hlsl");
+		const auto path = RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Raytracing/reflection.RT.hlsl");
 		const auto compiled = compiler.CompileShader(path.wstring(), L"lib_6_6", L"ReflectionRayGen", ShaderStage::Lib);
 		if (!compiled.IsValid()) return false;
 		auto linear = MakeStaticSampler(D3D12_SHADER_VISIBILITY_ALL);

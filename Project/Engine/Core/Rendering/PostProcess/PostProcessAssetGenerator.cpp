@@ -44,7 +44,7 @@ namespace {
 	std::vector<PostProcessAssetSource> GatherSources() {
 
 		std::vector<PostProcessAssetSource> sources;
-		const auto shaderRoot = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/PostProcess";
+		const auto shaderRoot = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/PostProcess";
 		if (!std::filesystem::exists(shaderRoot)) {
 			return sources;
 		}
@@ -70,14 +70,14 @@ namespace {
 			source.name = name;
 			source.builtin = true;
 			source.sourceShader =
-				"Engine/Assets/Shaders/Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
+				"Engine/Assets/Rendering/Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
 			// 製品の入力索引でも解決できるAssetパスを保存する
 			source.shaderFile = source.sourceShader;
-			source.shaderPath = "Engine/Assets/Shaders/Builtin/PostProcess/" +
+			source.shaderPath = "Engine/Assets/Rendering/Builtin/PostProcess/" +
 								Algorithm::ConvertString((folder / (name + ".shader.json")).generic_wstring());
-			source.pipelinePath = "Engine/Assets/Pipelines/Builtin/PostProcess/" +
+			source.pipelinePath = "Engine/Assets/Rendering/Builtin/PostProcess/" +
 								  Algorithm::ConvertString((folder / (name + ".pipeline.json")).generic_wstring());
-			source.materialPath = "Engine/Assets/Materials/Builtin/PostProcess/" +
+			source.materialPath = "Engine/Assets/Rendering/Builtin/PostProcess/" +
 								  Algorithm::ConvertString((folder / (name + ".material.json")).generic_wstring());
 			sources.push_back(std::move(source));
 		}

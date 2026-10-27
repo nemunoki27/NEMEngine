@@ -16,6 +16,8 @@
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleBoxEmitterShape.h>
+#include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleRectEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmissionClock.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleShapeDataUtility.h>
@@ -283,6 +285,54 @@ namespace {
 		return runtime->playing && !runtime->paused && runtime->instance.emitter.particles[0].age > paused.age;
 	}
 
+	// 非アクティブ中はCPUとGPUの補助線を発行しない
+	bool TestEmitterVisibility() {
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+
+		static uint32_t draws = 0;
+		auto& registry = ParticleEmitterShapeRegistry::GetInstance();
+		registry.SetDebugDrawFunction([](const ParticleEmitterSettings&, const Matrix4x4&, bool) { ++draws; });
+		bool valid = true;
+		for (const auto target : {ParticleSimulationTarget::CPU, ParticleSimulationTarget::GPU}) {
+			for (const auto space : {PrimitiveRenderSpace::Screen2D, PrimitiveRenderSpace::World3D}) {
+				ECSWorld world(ECSWorldKind::Runtime);
+				const auto entity = world.CreateEntity();
+				world.AddComponent<TransformComponent>(entity);
+				world.AddComponent<SceneObjectComponent>(entity);
+				world.AddComponent<ParticleSystemComponent>(entity);
+				auto& component = world.GetComponent<ParticleSystemComponent>(entity);
+				component.simulationTarget = target;
+				component.drawEmitterShape = true;
+				auto settings = MakeSettings();
+				settings.space = space;
+				settings.emitter.shape = ParticleEmitterShape::Point;
+				SetParticleSystemSettings(world, entity, settings);
+				ParticleSystem system;
+				SystemContext context;
+				context.mode = WorldMode::Play;
+				context.deltaTime = context.unscaledDeltaTime = 0.01f;
+				draws = 0;
+				system.Update(world, context);
+				valid &= draws == 1;
+				// 親の非アクティブ化も階層上の有効状態で判定する
+				world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy = false;
+				system.Update(world, context);
+				valid &= draws == 1;
+				world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy = true;
+				system.Update(world, context);
+				valid &= draws == 2;
+				world.GetComponent<ParticleSystemComponent>(entity).enabled = false;
+				system.Update(world, context);
+				valid &= draws == 2;
+			}
+		}
+		registry.SetDebugDrawFunction(nullptr);
+		return valid;
+#else
+		return true;
+#endif
+	}
+
 	bool TestGPURejectionAndRetry() {
 
 		ECSWorld world(ECSWorldKind::Runtime);
@@ -361,6 +411,7 @@ bool NEMTests::TestParticleSystemRuntime() {
 		RunTest("TestEmissiveCurrentColor", TestEmissiveCurrentColor) &&
 		RunTest("TestInstanceShapeAndSeed", TestInstanceShapeAndSeed) &&
 		RunTest("TestPauseAndParent", TestPauseAndParent) &&
+		RunTest("TestEmitterVisibility", TestEmitterVisibility) &&
 		RunTest("TestGPURejectionAndRetry", TestGPURejectionAndRetry) &&
 		RunTest("TestSettingsOwnership", TestSettingsOwnership) &&
 		RunTest("TestParticleSystemTrails", TestParticleSystemTrails) &&

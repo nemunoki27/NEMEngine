@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>GameScripts</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>../../../Generated/Output/$(Configuration)/NEMTests/ManagedFixtures/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj" />
+    <ProjectReference Include="../../Engine/Managed/NEM.ScriptCodeGen/NEM.ScriptCodeGen.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>
