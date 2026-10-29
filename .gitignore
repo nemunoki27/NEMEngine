@@ -51,3 +51,6 @@ premake5.exe
 /Project/Sandbox/GameAssets/Models/Bistro/
 /Project/Sandbox/GameAssets/Models/Bistro.meta
 # NEMEngine Project exclusions end
+
+# ローカルのドキュメント
+/Docs/

@@ -27,7 +27,7 @@ namespace NEM.ScriptCodeGen
                 .Where(static t => t.Path.EndsWith(".cs.meta", StringComparison.OrdinalIgnoreCase))
                 .Select(static (t, ct) => t.GetText(ct)?.ToString() ?? string.Empty);
 
-            // EditorSync / ValidateOnly（CI）モード。診断の severity を分ける
+            // 検証時だけ保存IDの不足をエラーにする
             IncrementalValueProvider<bool> validateOnly = context.AnalyzerConfigOptionsProvider
                 .Select(static (p, _) => IsValidateOnly(p));
 

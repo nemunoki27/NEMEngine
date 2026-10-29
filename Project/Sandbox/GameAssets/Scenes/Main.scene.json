@@ -4,6 +4,116 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Check"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "35dc3d160be8cc2a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.Check",
+                        "scriptAsset": "399db5276eb07d9ff5cf57c0b57438cb",
+                        "scriptSlotId": "22d6099b875a2439",
+                        "scriptTypeId": "fe884cd4-b7f0-46cd-993a-5b540032779d",
+                        "serializedFields": {
+                            "fields": {
+                                "0465c924-99ca-489c-95ea-547326c8d0b5": {
+                                    "name": "emitParticle",
+                                    "type": "bool",
+                                    "value": false
+                                },
+                                "3f3296f0-ef91-46d7-beb0-2ba01f836ec6": {
+                                    "name": "testFloat",
+                                    "type": "float",
+                                    "value": 0
+                                },
+                                "49eaafa2-fc7a-4d94-b7fa-78b224216a6d": {
+                                    "name": "gameObject",
+                                    "type": "EntityRef",
+                                    "value": {
+                                        "kind": "Null",
+                                        "localFileId": "",
+                                        "sourceAsset": ""
+                                    }
+                                },
+                                "60ede456-b947-4d4c-9a43-37420bdf240f": {
+                                    "name": "particle",
+                                    "type": "AssetRef",
+                                    "value": {
+                                        "assetId": "664654ca968c1d7a7357bfa4e22b592c"
+                                    }
+                                },
+                                "8b94ea61-abb6-4c8b-b669-506d3cff0c67": {
+                                    "name": "objects",
+                                    "type": "list",
+                                    "value": [
+                                        {
+                                            "kind": "Scene",
+                                            "localFileId": "724558ff54ea2387",
+                                            "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                                        },
+                                        {
+                                            "kind": "Scene",
+                                            "localFileId": "6dfc8dc87f34ef17",
+                                            "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                                        },
+                                        {
+                                            "kind": "Scene",
+                                            "localFileId": "6a1c2296e2fc0520",
+                                            "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                                        }
+                                    ]
+                                },
+                                "ffe823b1-f776-47f3-bb48-291fb55a33c8": {
+                                    "name": "testParticleSystem",
+                                    "type": "ComponentRef",
+                                    "value": {
+                                        "entity": {
+                                            "kind": "Null",
+                                            "localFileId": "",
+                                            "sourceAsset": ""
+                                        }
+                                    }
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "35dc3d160be8cc2a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 3
                 },
                 "Name": {

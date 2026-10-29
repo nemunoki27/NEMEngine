@@ -92,6 +92,7 @@ public sealed class StageManager : MonoBehaviour {
 			ObjectContractTests.Run();
             FieldIdentityTests.Run();
             ScriptCallbackTests.Run();
+            ScriptImplicitUsageTests.Run();
             SerializationFieldTests.Run();
             HostBridgeSnapshotTests.Run();
             TestNestedReferenceSchema();
@@ -548,7 +549,7 @@ public partial class PartialFixture : MonoBehaviour {
 		return driver.GetRunResult().Diagnostics.AddRange(output.GetDiagnostics());
 	}
 
-	private static CSharpCompilation CreateCompilation(string source) {
+	internal static CSharpCompilation CreateCompilation(string source) {
 
 		SyntaxTree tree = CSharpSyntaxTree.ParseText(source);
 		var references = new List<MetadataReference>();

@@ -11,8 +11,6 @@
     <!-- portable pdb を出力してC#ゲームスクリプトにブレークポイントを置けるようにする -->
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
-    <!-- [SerializeField] はengineのdeserializationが代入するためCS0649/CS0414のfalse positiveを抑制する -->
-    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
   </PropertyGroup>
 
   <!--
@@ -55,7 +53,7 @@
       <Private>false</Private>
     </Reference>
 
-    <!-- Stable ID 生成と MonoBehaviour 診断の Roslyn analyzer（出力には含めない） -->
+    <!-- 安定IDの生成と初期化処理の診断とエンジンが使用するコードの診断抑制 -->
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptCodeGen.dll" />
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptAnalyzers.dll" />
   </ItemGroup>

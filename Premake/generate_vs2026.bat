@@ -90,6 +90,12 @@ if errorlevel 1 (
     popd
     exit /b 1
 )
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%ENGINE_ROOT%\Project\Engine\Editor\NEMEditor.vcxproj.user" -WorkingDirectory "..\..\Sandbox"
+if errorlevel 1 (
+    echo [ERROR] Failed to patch NEMEditor debugger settings.
+    popd
+    exit /b 1
+)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_managed_config.ps1" -ProjectPath "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj" -ScriptCoreProjectPath "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -ScriptCoreManagedOutputPath "%ENGINE_ROOT%\Generated\Managed\NEM.ScriptCore"
 if errorlevel 1 (
     echo [ERROR] Failed to patch Sandbox managed build/copy settings.

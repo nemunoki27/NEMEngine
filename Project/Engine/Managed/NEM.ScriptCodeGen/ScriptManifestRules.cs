@@ -16,12 +16,6 @@ namespace NEM.ScriptCodeGen
         internal const string MonoBehaviourFullName = "NEMEngine.MonoBehaviour";
         internal const string ScriptTypeIDAttributeName = "NEMEngine.ScriptTypeIDAttribute";
 
-        internal static readonly DiagnosticDescriptor MissingIDRule = new DiagnosticDescriptor(
-            "NEMSG001",
-            "Script type has no stable id",
-            "Script type '{0}' has no stable Script Type GUID (no [ScriptTypeID] and no .cs.meta entry); a temporary fallback GUID was generated. Run Editor metadata sync.",
-            "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
-
         internal static readonly DiagnosticDescriptor MissingIDValidateRule = new DiagnosticDescriptor(
             "NEMSG004",
             "Script type metadata is missing",

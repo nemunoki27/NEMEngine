@@ -53,10 +53,11 @@ namespace NEM.ScriptCodeGen
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(InvalidIDRule, model.Location, model.FullTypeName, model.RawID));
                 }
-                else if (!model.HasStableID)
+                // 編集中のID不足は自動同期へ任せ、検証時だけエラーにする
+                else if (!model.HasStableID && validateOnly)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
-                        validateOnly ? MissingIDValidateRule : MissingIDRule, model.Location, model.FullTypeName));
+                        MissingIDValidateRule, model.Location, model.FullTypeName));
                 }
             }
 

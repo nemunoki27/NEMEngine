@@ -1,0 +1,47 @@
+{
+  "guid": "399db5276eb07d9ff5cf57c0b57438cb",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.Check",
+      "scriptTypeId": "fe884cd4-b7f0-46cd-993a-5b540032779d",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "0465c924-99ca-489c-95ea-547326c8d0b5",
+          "name": "emitParticle",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
+          "fieldId": "49a651fa-1d10-4e9c-9f4e-d113b2b64a8c",
+          "name": "stopTime",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "60ede456-b947-4d4c-9a43-37420bdf240f",
+          "name": "particle",
+          "type": "NEMEngine.Prefab",
+          "formerNames": []
+        },
+        {
+          "fieldId": "735201e8-0692-44a5-aa8a-002aa46e40bc",
+          "name": "newGameObjectRenderer",
+          "type": "NEMEngine.MeshRenderer",
+          "formerNames": []
+        },
+        {
+          "fieldId": "ad5d46cb-ff0f-4bd6-a91f-d44a0311e241",
+          "name": "newGameObject",
+          "type": "NEMEngine.GameObject",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

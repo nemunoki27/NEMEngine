@@ -1,7 +1,10 @@
 using System.Text.Json.Nodes;
 using NEM.ScriptMetaSync;
+using NEM.ScriptCodeGen;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace NEM.ScriptAnalyzers.Tests;
 
@@ -12,6 +15,7 @@ internal static class FieldIdentityTests {
     internal static void Run() {
 
         CheckInvalidMetadata();
+        CheckGeneratorDiagnostics();
 
         var diagnostics = new ScriptMetaDiagnostics();
         var planner = new ScriptMetaPlanner(diagnostics);
@@ -112,6 +116,83 @@ internal static class FieldIdentityTests {
         Check(ambiguous);
     }
 
+    // 自動同期待ちの警告を出さず、検証エラーを維持する
+    private static void CheckGeneratorDiagnostics() {
+
+        const string source = """
+using System;
+using System.Collections.Generic;
+using NEMEngine;
+[Serializable] public sealed class Settings { public float value; }
+public sealed class MetadataFixture : MonoBehaviour {
+    [SerializeField] private GameObject target;
+    [SerializeField] private MeshRenderer renderer;
+    [SerializeField] private Prefab prefab;
+    [SerializeField] private GameObject[] targets;
+    [SerializeField] private List<MeshRenderer> renderers;
+    [SerializeReference] private Settings settings;
+    public float speed;
+}
+""";
+        GeneratorDriverRunResult editing = Generate(source, false);
+        Check(editing.Diagnostics.Length == 0 && editing.GeneratedTrees.Length == 2);
+        GeneratorDriverRunResult validation = Generate(source, true);
+        Check(validation.Diagnostics.Count(diagnostic => diagnostic.Id == "NEMSG004") == 1);
+        Check(validation.Diagnostics.Count(diagnostic => diagnostic.Id == "NEMSG014") == 7);
+        Check(validation.Diagnostics.All(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+
+        // 明示IDの破損と重複は編集時もエラーにする
+        const string invalid = """
+using NEMEngine;
+[ScriptTypeID("invalid")] public sealed class InvalidScript : MonoBehaviour {
+    [SerializeField, SerializedFieldID("invalid")] private GameObject target;
+}
+""";
+        GeneratorDriverRunResult malformed = Generate(invalid, false);
+        Check(malformed.Diagnostics.Any(diagnostic => diagnostic.Id == "NEMSG002" && diagnostic.Severity == DiagnosticSeverity.Error));
+        Check(malformed.Diagnostics.Any(diagnostic => diagnostic.Id == "NEMSG011" && diagnostic.Severity == DiagnosticSeverity.Error));
+        const string duplicate = """
+using NEMEngine;
+[ScriptTypeID("14501b26-1c63-4f93-8ba9-87bbaf74ec02")] public sealed class FirstScript : MonoBehaviour {
+    [SerializeField, SerializedFieldID("f2023fa9-f7f6-4f68-af38-461fc521a01a")] private GameObject first;
+    [SerializeField, SerializedFieldID("f2023fa9-f7f6-4f68-af38-461fc521a01a")] private GameObject second;
+}
+[ScriptTypeID("14501b26-1c63-4f93-8ba9-87bbaf74ec02")] public sealed class SecondScript : MonoBehaviour { }
+""";
+        GeneratorDriverRunResult duplicated = Generate(duplicate, false);
+        Check(duplicated.Diagnostics.Any(diagnostic => diagnostic.Id == "NEMSG003" && diagnostic.Severity == DiagnosticSeverity.Error));
+        Check(duplicated.Diagnostics.Any(diagnostic => diagnostic.Id == "NEMSG012" && diagnostic.Severity == DiagnosticSeverity.Error));
+        Console.WriteLine("[PASS] automatic metadata diagnostics: no editing warnings, strict validation and invalid/duplicate ID errors.");
+    }
+
+    // 実際の生成器へ編集用か検証用のモードを渡す
+    private static GeneratorDriverRunResult Generate(string source, bool validateOnly) {
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            new[] { new ScriptManifestGenerator().AsSourceGenerator(), new ScriptSchemaGenerator().AsSourceGenerator() },
+            optionsProvider: new MetadataOptionsProvider(validateOnly));
+        return driver.RunGenerators(Program.CreateCompilation(source)).GetRunResult();
+    }
+
+    // ビルドと同じグローバル設定でモードを切り替える
+    private sealed class MetadataOptionsProvider(bool validateOnly) : AnalyzerConfigOptionsProvider {
+
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new MetadataOptions(validateOnly);
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText text) => GlobalOptions;
+    }
+
+    // 保存IDの検証モードだけを生成器へ公開する
+    private sealed class MetadataOptions(bool validateOnly) : AnalyzerConfigOptions {
+
+        public override bool TryGetValue(string key, out string value) {
+
+            value = validateOnly ? "ValidateOnly" : "EditorSync";
+            return key == "build_property.NEMScriptMetadataMode";
+        }
+    }
+
+    // 保存IDの契約を検証する
     private static void Check(bool result) {
 
         if (!result) {

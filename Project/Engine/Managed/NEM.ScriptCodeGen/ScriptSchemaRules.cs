@@ -46,12 +46,6 @@ namespace NEM.ScriptCodeGen
         // [Serializable]型のメンバ展開の深さ上限。自己参照型はここで打ち切る(Unityの入れ子上限と同等)
         internal const int MaxObjectDepth = 7;
 
-        internal static readonly DiagnosticDescriptor MissingFieldIDRule = new DiagnosticDescriptor(
-            "NEMSG010",
-            "Serialized field has no stable id",
-            "Serialized field '{0}.{1}' has no stable Field GUID (no [SerializedFieldID] and no .cs.meta entry); a deterministic fallback GUID was generated. Run Editor metadata sync.",
-            "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
-
         internal static readonly DiagnosticDescriptor MissingFieldIDValidateRule = new DiagnosticDescriptor(
             "NEMSG014",
             "Serialized field metadata is missing",

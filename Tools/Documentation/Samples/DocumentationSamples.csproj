@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputPath>../../../Generated/Documentation/Samples/bin/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>$(NoWarn);CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Project/Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj" />
+    <Compile Include="../../../Generated/Documentation/Samples/ManualSnippets.cs" Condition="Exists('../../../Generated/Documentation/Samples/ManualSnippets.cs')" />
+  </ItemGroup>
+</Project>

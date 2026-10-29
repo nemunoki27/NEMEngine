@@ -114,20 +114,7 @@ namespace NEM.ScriptCodeGen
 
         internal static bool IsSerializableObjectType(INamedTypeSymbol type)
         {
-            if (type.IsAbstract || type.IsGenericType || type.SpecialType != SpecialType.None)
-            {
-                return false;
-            }
-            if (type.TypeKind != TypeKind.Class && type.TypeKind != TypeKind.Struct)
-            {
-                return false;
-            }
-            // エンジンの参照型階層はメンバ展開の対象にしない
-            if (DerivesFrom(type, "NEMEngine.Object"))
-            {
-                return false;
-            }
-            return type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == SerializableAttributeName);
+            return NEM.ScriptAnalysis.ScriptSymbolRules.IsSerializableObjectType(type);
         }
 
         internal static KindInfo ResolveObjectKind(INamedTypeSymbol type, int depth, Compilation? compilation = null, HashSet<string>? referencePath = null)
@@ -290,44 +277,12 @@ namespace NEM.ScriptCodeGen
 
         internal static string? ResolveScalarKind(string fullName, SpecialType special)
         {
-            switch (special)
-            {
-                case SpecialType.System_Boolean: return "Bool";
-                case SpecialType.System_Byte: return "Byte";
-                case SpecialType.System_SByte: return "SByte";
-                case SpecialType.System_Int16: return "Short";
-                case SpecialType.System_UInt16: return "UShort";
-                case SpecialType.System_Int32: return "Int";
-                case SpecialType.System_UInt32: return "UInt";
-                case SpecialType.System_Int64: return "Long";
-                case SpecialType.System_UInt64: return "ULong";
-                case SpecialType.System_Single: return "Float";
-                case SpecialType.System_Double: return "Double";
-                case SpecialType.System_String: return "String";
-            }
-            switch (fullName)
-            {
-                case "NEMEngine.Vector2": return "Vector2";
-                case "NEMEngine.Vector3": return "Vector3";
-                case "NEMEngine.Vector4": return "Vector4";
-                case "NEMEngine.Quaternion": return "Quaternion";
-                case "NEMEngine.Color3": return "Color3";
-                case "NEMEngine.Color4": return "Color4";
-                case "NEMEngine.GameObject": return "EntityRef";
-            }
-            return null;
+            return NEM.ScriptAnalysis.ScriptSymbolRules.ResolveScalarKind(fullName, special);
         }
 
         internal static bool DerivesFrom(INamedTypeSymbol symbol, string baseFullName)
         {
-            for (INamedTypeSymbol? current = symbol.BaseType; current != null; current = current.BaseType)
-            {
-                if (current.ToDisplayString() == baseFullName)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return NEM.ScriptAnalysis.ScriptSymbolRules.DerivesFrom(symbol, baseFullName);
         }
 
         internal static string ResolveAssetType(ITypeSymbol assetMarker)

@@ -57,10 +57,11 @@ namespace NEM.ScriptCodeGen
                     {
                         spc.ReportDiagnostic(Diagnostic.Create(InvalidFieldIDRule, field.Location, type.FullTypeName, field.Name, field.RawID));
                     }
-                    else if (!explicitField && !fromMeta)
+                    // 編集中のID不足は自動同期へ任せ、検証時だけエラーにする
+                    else if (!explicitField && !fromMeta && validateOnly)
                     {
                         spc.ReportDiagnostic(Diagnostic.Create(
-                            validateOnly ? MissingFieldIDValidateRule : MissingFieldIDRule, field.Location, type.FullTypeName, field.Name));
+                            MissingFieldIDValidateRule, field.Location, type.FullTypeName, field.Name));
                     }
                     if (field.Kind.Kind == "Unsupported")
                     {

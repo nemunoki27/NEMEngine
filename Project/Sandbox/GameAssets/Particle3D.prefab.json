@@ -1,0 +1,386 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "Particle3D"
+                },
+                "ParticleSystem": {
+                    "drawEmitterShape": false,
+                    "enabled": true,
+                    "layer": 0,
+                    "order": 0,
+                    "playInEditMode": true,
+                    "playOnAwake": false,
+                    "playbackSpeed": 1.0,
+                    "randomSeed": 0,
+                    "renderingLayerMask": 1,
+                    "settings": {
+                        "billboardAxes": [
+                            "X",
+                            "Y",
+                            "Z"
+                        ],
+                        "blendMode": "Add",
+                        "crossPlane": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "planeCount": 2,
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "cube": {
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            }
+                        },
+                        "cylinder": {
+                            "bottomColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "bottomRadius": 1.0,
+                            "bottomRadiusWeight": 0.0,
+                            "cap": "Both",
+                            "centerColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "centerRadius": 1.0,
+                            "height": 2.0,
+                            "heightDivide": 8,
+                            "maxAngleDegrees": 360.0,
+                            "radialDivide": 16,
+                            "topColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "topRadius": 1.0,
+                            "topRadiusWeight": 0.0,
+                            "uvMode": "None"
+                        },
+                        "emitter": {
+                            "boxFaceNegX": true,
+                            "boxFaceNegY": true,
+                            "boxFaceNegZ": true,
+                            "boxFacePosX": true,
+                            "boxFacePosY": true,
+                            "boxFacePosZ": true,
+                            "boxSize": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "circleAngleMax": 360.0,
+                            "circleAngleMin": 0.0,
+                            "circleClockwise": false,
+                            "circleRadius": 1.0,
+                            "circleSpawnMode": "Random",
+                            "circleStepAngle": 10.0,
+                            "circleUsePrevSegmentDirectionOnWrap": false,
+                            "circleVelocityMode": "Normal",
+                            "coneAngle": 25.0,
+                            "coneRadius": 0.5,
+                            "emitCount": {
+                                "constant": 4,
+                                "max": 4,
+                                "min": 4,
+                                "type": "Constant"
+                            },
+                            "emitInterval": 0.10000000149011612,
+                            "emitOffset": {
+                                "constant": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "max": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "min": {
+                                    "x": 0.0,
+                                    "y": 0.0,
+                                    "z": 0.0
+                                },
+                                "type": "Constant"
+                            },
+                            "maxParticles": 1024,
+                            "pointDirection": {
+                                "x": 0.0,
+                                "y": 1.0,
+                                "z": 0.0
+                            },
+                            "rectEdgeNegX": true,
+                            "rectEdgeNegY": true,
+                            "rectEdgePosX": true,
+                            "rectEdgePosY": true,
+                            "rectSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "shape": "Sphere",
+                            "speed": {
+                                "constant": 1.600000023841858,
+                                "max": 1.600000023841858,
+                                "min": 1.600000023841858,
+                                "type": "Constant"
+                            },
+                            "sphereRadius": 0.5,
+                            "torusRadius": 1.0,
+                            "torusThickness": 0.20000000298023224
+                        },
+                        "feedback": {
+                            "decal": {
+                                "capacity": 1024,
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "fadeDuration": 1.0,
+                                "lifetime": 5.0,
+                                "material": "",
+                                "receiverRenderingLayerMask": 16777215,
+                                "size": {
+                                    "x": 0.20000000298023224,
+                                    "y": 0.20000000298023224,
+                                    "z": 0.10000000149011612
+                                }
+                            },
+                            "eventCapacity": 4096,
+                            "events": [],
+                            "paint": {
+                                "color": {
+                                    "a": 1.0,
+                                    "b": 1.0,
+                                    "g": 1.0,
+                                    "r": 1.0
+                                },
+                                "enabled": false,
+                                "hardness": 0.800000011920929,
+                                "radius": 0.10000000149011612
+                            }
+                        },
+                        "hemisphere": {
+                            "bottomCap": true,
+                            "latitudeDivide": 8,
+                            "longitudeDivide": 24,
+                            "radius": 1.0
+                        },
+                        "looping": true,
+                        "material": "",
+                        "model": "",
+                        "phases": [
+                            {
+                                "id": "d1d182a71927579c",
+                                "lifeEndMode": "Kill",
+                                "lifetime": {
+                                    "constant": 1.0,
+                                    "max": 1.0,
+                                    "min": 1.0,
+                                    "type": "Constant"
+                                },
+                                "material": "",
+                                "materialSettings": {
+                                    "baseColorTexture": "",
+                                    "textureOverrides": {}
+                                },
+                                "modules": [
+                                    {
+                                        "enabled": true,
+                                        "id": "SizeOverLifetime",
+                                        "instanceID": "d72489030e9feb60",
+                                        "params": {
+                                            "endScale": 0.0,
+                                            "startScale": 1.0
+                                        }
+                                    },
+                                    {
+                                        "enabled": true,
+                                        "id": "ColorOverLifetime",
+                                        "instanceID": "7f15654892080fe3",
+                                        "params": {}
+                                    }
+                                ],
+                                "name": "Phase",
+                                "parentSettings": {
+                                    "ignoreParentRotation": false,
+                                    "ignoreParentScale": true,
+                                    "keepWorldOnDetach": true,
+                                    "useEmitter": false
+                                }
+                            }
+                        ],
+                        "plane": {
+                            "axis": "XY",
+                            "divideX": 1,
+                            "divideY": 1,
+                            "pivot": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "size": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        },
+                        "queue": "Transparent",
+                        "ring": {
+                            "divide": 16,
+                            "endAngle": 360.0,
+                            "innerRadius": 0.5,
+                            "outerRadius": 1.0,
+                            "startAngle": 0.0
+                        },
+                        "shape": "Plane",
+                        "source": {
+                            "attachToSurface": false,
+                            "camera": {
+                                "kind": "Null",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "inheritColor": false,
+                            "inheritVelocity": 0.0,
+                            "kind": "Analytic",
+                            "maskChannel": "Alpha",
+                            "maskFromVertexColors": false,
+                            "maskMaximum": 1.0,
+                            "maskMinimum": 0.0,
+                            "maskTexture": "",
+                            "mesh": "",
+                            "renderer": {
+                                "kind": "Null",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "sequential": false,
+                            "subMeshes": [],
+                            "surfaceOffset": 0.0,
+                            "texture": "",
+                            "textureSize": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "useMask": false
+                        },
+                        "space": "World3D",
+                        "sphere": {
+                            "latitudeDivide": 16,
+                            "longitudeDivide": 24,
+                            "radius": 1.0
+                        },
+                        "surface": {
+                            "lit": false,
+                            "metallic": 0.0,
+                            "normalScale": 1.0,
+                            "normalTexture": "",
+                            "receiveIBL": true,
+                            "receiveShadows": true,
+                            "roughness": 0.5,
+                            "softDistance": 0.20000000298023224,
+                            "softParticles": false
+                        },
+                        "trail": {
+                            "drawSource": true,
+                            "enabled": false,
+                            "endColor": {
+                                "a": 0.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "endWidth": 0.10000000149011612,
+                            "keepAfterParticleDeath": false,
+                            "material": "",
+                            "materialSettings": {
+                                "baseColorTexture": "",
+                                "textureOverrides": {}
+                            },
+                            "maxPoints": 16,
+                            "maxTrails": 1024,
+                            "memoryBudgetMB": 32,
+                            "minDistance": 0.05000000074505806,
+                            "mode": "Particle",
+                            "pointLifetime": 0.800000011920929,
+                            "startColor": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "startWidth": 0.10000000149011612,
+                            "textureMode": "Stretch",
+                            "tileLength": 0.20000000298023224
+                        },
+                        "version": 1
+                    },
+                    "simulationSpace": "PhaseSettings",
+                    "simulationTarget": "CPU",
+                    "stopAction": "Destroy",
+                    "useAutoRandomSeed": true,
+                    "useUnscaledTime": false,
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "75bb7965669feb0d",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "75bb7965669feb0d"
+        }
+    ],
+    "Header": {
+        "name": "Particle3D",
+        "rootLocalFileID": "75bb7965669feb0d",
+        "version": 2
+    },
+    "NestedPrefabInstances": [],
+    "SchemaVersion": 2
+}
