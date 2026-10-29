@@ -8,6 +8,7 @@
 
 #include <string>
 #include <string_view>
+#include <span>
 #include <imgui.h>
 
 namespace Engine::ImGuiUtility {
@@ -16,10 +17,16 @@ namespace Engine::ImGuiUtility {
 	const char* GetDisplayName(const char* name);
 	// 同名の列挙値は型ごとに表示を使い分ける
 	const char* GetEnumDisplayName(std::string_view type, const char* name);
+	// 選択不可の候補に理由を添える
+	struct EnumOptionState {
+
+		bool enabled = true;
+		const char* disabledReason = nullptr;
+	};
 
 	// 列挙値を選択する
 	template <typename T>
-	bool EnumCombo(const char* label, T* current) noexcept {
+	bool EnumCombo(const char* label, T* current, std::span<const EnumOptionState> options = {}) noexcept {
 
 		int idx = static_cast<int>(EnumAdapter<T>::GetIndex(*current));
 		// 表示名だけを変え、保存する列挙値は維持する
@@ -28,6 +35,25 @@ namespace Engine::ImGuiUtility {
 			for (auto& name : values) name = GetEnumDisplayName(magic_enum::enum_type_name<T>(), name);
 			return values;
 		}();
+		if (!options.empty()) {
+			bool changed = false;
+			if (ImGui::BeginCombo(label, names[idx])) {
+				for (size_t index = 0; index < names.size(); ++index) {
+					const EnumOptionState option = index < options.size() ? options[index] : EnumOptionState{};
+					std::string text = names[index];
+					if (!option.enabled && option.disabledReason) { text += std::string("（") + option.disabledReason + "）"; }
+					ImGui::BeginDisabled(!option.enabled);
+					if (ImGui::Selectable(text.c_str(), static_cast<int>(index) == idx)) {
+						*current = EnumAdapter<T>::GetValue(static_cast<uint32_t>(index));
+						changed = true;
+					}
+					if (static_cast<int>(index) == idx) { ImGui::SetItemDefaultFocus(); }
+					ImGui::EndDisabled();
+				}
+				ImGui::EndCombo();
+			}
+			return changed;
+		}
 		bool changed = ImGui::Combo(label, &idx, names.data(),
 			static_cast<int>(EnumAdapter<T>::GetEnumCount()));
 		if (changed) {

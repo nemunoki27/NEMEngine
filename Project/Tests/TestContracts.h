@@ -85,6 +85,7 @@ namespace NEMTests {
 	bool TestAssetDocumentRecovery();
 	bool TestShaderGraphPublication();
 	bool TestSceneViewCameraSettings();
+	bool TestSceneViewCameraNavigation();
 	bool TestRenderFeatureProfile();
 	bool TestRenderPassesSelectionRequests();
 	bool TestPerformanceGridCaptureRetry();

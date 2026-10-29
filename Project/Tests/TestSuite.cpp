@@ -240,6 +240,7 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestAssetDocumentRecovery", TestAssetDocumentRecovery) ||
 		!RunTest("TestShaderGraphPublication", TestShaderGraphPublication) ||
 		!RunTest("TestSceneViewCameraSettings", TestSceneViewCameraSettings) ||
+		!RunTest("TestSceneViewCameraNavigation", TestSceneViewCameraNavigation) ||
 		!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
 		!RunTest("TestRenderPassesSelectionRequests", TestRenderPassesSelectionRequests) ||
 		!RunTest("TestPerformanceGridCaptureRetry", TestPerformanceGridCaptureRetry) ||

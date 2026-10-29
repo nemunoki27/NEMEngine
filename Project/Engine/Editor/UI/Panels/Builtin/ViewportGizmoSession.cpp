@@ -37,7 +37,7 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 	}
 
 	// Camera移動中は操作を終了する
-	if (context.editorState->cameraFocusing || ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
+	if (context.editorState->cameraFocusing || context.editorState->sceneCameraNavigating || ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
 		ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
 		FinalizeEntityGizmoSession(context, world);
 		FinalizeMultiEntityGizmoSession(context, world);

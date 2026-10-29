@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <optional>
+#include <string_view>
 
 //============================================================================
 //	EditorManager layout methods
@@ -300,12 +301,18 @@ Engine::IEditorPanel* Engine::EditorManager::FindPanelByInstanceID(const std::st
 
 void Engine::EditorManager::UpdateSceneViewManualCamera() {
 
+	editorState_.sceneCameraNavigating = false;
+	auto stopNavigation = [&] { sceneViewCameraController_->CancelNavigation(); };
+
 	// ビューが非表示なら更新しない
 	// カメラモードがマニュアルでないなら更新しない
 	// 左ドラッグによるギズモ操作中だけカメラを止める
 	if (!layoutState_.showSceneView || !editorState_.sceneViewportVisible ||
 		editorState_.sceneViewCamera.mode != SceneViewCameraMode::DebugManual ||
-		(editorState_.useSceneGizmo && ImGui::IsMouseDown(ImGuiMouseButton_Left))) {
+		(editorState_.useSceneGizmo && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::GetIO().KeyAlt) ||
+		ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() ||
+		ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+		stopNavigation();
 		return;
 	}
 
@@ -313,8 +320,9 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	// HoveredWindowが前フレームのマウス下ウィンドウを示すため、SceneView以外はスキップする
 	ImGuiContext* ctx = ImGui::GetCurrentContext();
 	if (ctx && ctx->HoveredWindow) {
-		const char* name = ctx->HoveredWindow->Name;
-		if (name && std::strstr(name, "SceneView") == nullptr) {
+		const char* name = ctx->HoveredWindow->RootWindow->Name;
+		if (!std::string_view(name).starts_with("SceneView")) {
+			stopNavigation();
 			return;
 		}
 	}
@@ -322,6 +330,14 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	// カメラの状態を更新する
 	sceneViewCameraController_->Update(
 		ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension), InputViewArea::Scene);
+	editorState_.sceneCameraNavigating = sceneViewCameraController_->IsNavigating();
+	if (editorState_.sceneCameraNavigating && !editorState_.scenePickPressGameView) {
+		// 周回の左ドラッグをクリック選択へ持ち越さない
+		editorState_.scenePickPressActive = false;
+		editorState_.scenePickClickPending = false;
+		editorState_.scenePickDragEntity = Entity::Null();
+		editorState_.scenePickCandidateRequestID = 0;
+	}
 }
 
 void Engine::EditorManager::LoadViewportPanelState() {

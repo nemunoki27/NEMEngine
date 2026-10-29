@@ -33,6 +33,10 @@ bool NEMTests::TestSceneViewCameraSettings() {
 	settings.rotateSpeed = 0.02f;
 	settings.zoomRate = 0.8f;
 	settings.panSpeed = 0.04f;
+	settings.moveSpeed = 15.0f;
+	settings.controlStyle = SceneViewCameraControlStyle::Original;
+	settings.customControls = {SceneViewCameraControlSource::UE, SceneViewCameraControlSource::Maya,
+		SceneViewCameraControlSource::Unity, SceneViewCameraControlSource::Blender, SceneViewCameraControlSource::Unity};
 	if (!SceneViewCameraSettingsUtility::Save(path.string(), settings)) {
 		return false;
 	}
@@ -46,9 +50,23 @@ bool NEMTests::TestSceneViewCameraSettings() {
 		loaded.cameraState.perspectiveFovY != 70.0f || loaded.cameraState.perspectiveNearClip != 0.5f ||
 		loaded.cameraState.perspectiveFarClip != 100.0f || loaded.cameraState.perspectiveCullingMask != 4 ||
 		loaded.zoomRate2D != 0.3f || loaded.panSpeed2D != 2.0f || loaded.rotateSpeed != 0.02f || loaded.zoomRate != 0.8f ||
-		loaded.panSpeed != 0.04f) {
+		loaded.panSpeed != 0.04f || loaded.moveSpeed != 15.0f || loaded.controlStyle != settings.controlStyle ||
+		loaded.customControls != settings.customControls) {
 		return false;
 	}
+	// 初期化は対象の次元だけに反映する
+	SceneViewCameraSettings reset = settings;
+	reset.Reset2D();
+	if (reset.cameraState.transform3D.pos != settings.cameraState.transform3D.pos || reset.controlStyle != settings.controlStyle ||
+		reset.customControls != settings.customControls || reset.moveSpeed != 15.0f ||
+		reset.cameraState.orthographicZoom != SceneViewCameraDefaults::kDefault2DZoom ||
+		reset.panSpeed2D != SceneViewCameraDefaults::kDefault2DPanSpeed) { return false; }
+	reset = settings;
+	reset.Reset3D();
+	if (reset.cameraState.transform2D.pos != settings.cameraState.transform2D.pos || reset.zoomRate2D != settings.zoomRate2D ||
+		reset.cameraState.transform3D.pos != SceneViewCameraDefaults::kDefaultPosition ||
+		reset.cameraState.perspectiveFarClip != SceneViewCameraDefaults::kDefaultFarClip ||
+		reset.controlStyle != SceneViewCameraControlStyle::Unity || reset.moveSpeed != SceneViewCameraDefaults::kDefaultMoveSpeed) { return false; }
 
 	// 保存できないときは既存ファイルと入力を保つ
 	nlohmann::json original;
@@ -78,6 +96,14 @@ bool NEMTests::TestSceneViewCameraSettings() {
 		loaded.rotateSpeed != 0.0f || loaded.cameraState.orthographicZoom != SceneViewCameraDefaults::kMax2DZoom) {
 		return false;
 	}
+	if (loaded.controlStyle != SceneViewCameraControlStyle::Unity || loaded.moveSpeed != 15.0f) { return false; }
+	// 不正な方式と重複する割当は既定へ戻す
+	nlohmann::json controls = {{"controlStyle", "Original"}, {"customControls", {{"Pan", "UE"}, {"Orbit", "Blender"}}}};
+	if (!JsonFile::Save(path, controls) || !SceneViewCameraSettingsUtility::Load(path.string(), loaded) ||
+		loaded.controlStyle != SceneViewCameraControlStyle::Unity) { return false; }
+	controls["customControls"]["Pan"] = "invalid";
+	if (!JsonFile::Save(path, controls) || !SceneViewCameraSettingsUtility::Load(path.string(), loaded) ||
+		loaded.customControls != SceneViewCameraSettings{}.customControls) { return false; }
 
 	// 非有限値は保存用の値だけを補正する
 	settings.cameraState.perspectiveFovY = std::numeric_limits<float>::quiet_NaN();

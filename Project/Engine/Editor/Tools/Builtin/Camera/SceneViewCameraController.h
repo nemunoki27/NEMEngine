@@ -31,6 +31,8 @@ namespace Engine {
 
 		// カメラの状態を更新する
 		void Update(Dimension dimension, InputViewArea viewArea);
+		// 入力対象を失ったときに操作を終了する
+		void CancelNavigation();
 
 		// 指定座標へ滑らかに寄る
 		void FocusOn(const Vector3& worldPosition);
@@ -38,6 +40,7 @@ namespace Engine {
 		void UpdateFocus();
 		// フォーカスで寄っている最中か
 		bool IsFocusing() const { return focusActive_; }
+		bool IsNavigating() const { return navigationActive_; }
 
 		// ToolPanelの一覧からツールを開く
 		void OpenEditorTool() override;
@@ -81,6 +84,9 @@ namespace Engine {
 
 		// カメラの状態
 		SceneViewCameraSettings settings_;
+		SceneViewCameraNavigationSession navigationSession_;
+		SceneViewCameraNavigationState navigationState_;
+		bool navigationActive_ = false;
 
 		// フォーカス中か
 		bool focusActive_ = false;
@@ -93,8 +99,12 @@ namespace Engine {
 		bool CanUpdate(InputViewArea viewArea);
 
 		// 3Dカメラの位置と回転を更新する
-		void Update3D();
+		void Update3D(InputViewArea viewArea);
 		// 2Dカメラの位置とズームを更新する
 		void Update2D(InputViewArea viewArea);
+		// 入力機器の状態をカメラ操作用にまとめる
+		SceneViewCameraInput ReadNavigationInput();
+		// オリジナルの割当と競合理由を表示する
+		void DrawNavigationControls();
 	};
 } // Engine

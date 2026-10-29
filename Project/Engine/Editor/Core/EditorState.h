@@ -145,6 +145,8 @@ namespace Engine {
 		Entity cameraFocusRequest = Entity::Null();
 		// シーンカメラがフォーカスで寄っている最中か、フォーカス中はギズモ操作を無効にする
 		bool cameraFocusing = false;
+		// カメラが入力を使用している間は選択と編集へ渡さない
+		bool sceneCameraNavigating = false;
 		// 現在選択しているアセット
 		AssetID selectedAsset{};
 		// アセット選択操作が行われるたびに進むカウンタ

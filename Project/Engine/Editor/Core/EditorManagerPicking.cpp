@@ -241,7 +241,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 	// 押下を開始した同じViewでドラッグせず離した場合だけ選択を確定する
 	if (input->ReleaseMouse(MouseButton::Left) &&
-		editorState_.scenePickPressActive) {
+		editorState_.scenePickPressActive && (editorState_.scenePickPressGameView || !editorState_.sceneCameraNavigating)) {
 
 		const bool overPressedViewport =
 			editorState_.scenePickPressGameView ?
@@ -358,7 +358,8 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 		};
 
 	// SceneViewは従来通り、ギズモ操作中はピックしない
-	if (layoutState_.showSceneView && editorState_.sceneViewportVisible && !editorState_.useSceneGizmo) {
+	if (layoutState_.showSceneView && editorState_.sceneViewportVisible && !editorState_.useSceneGizmo &&
+		!editorState_.sceneCameraNavigating) {
 		if (executePick(InputViewArea::Scene, RenderViewKind::Scene)) {
 			return;
 		}

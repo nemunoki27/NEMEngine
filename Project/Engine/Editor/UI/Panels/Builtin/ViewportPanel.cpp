@@ -28,7 +28,7 @@ namespace {
 	// 選択Entityを他のPanelへ渡す
 	void DrawViewportEntityDragDropSource(const Engine::EditorPanelContext& context, bool blockByGizmo) {
 
-		if (blockByGizmo || !context.editorState || !context.editorState->enableScenePick) {
+		if (blockByGizmo || !context.editorState || !context.editorState->enableScenePick || context.editorState->sceneCameraNavigating) {
 			return;
 		}
 
@@ -229,7 +229,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			}
 
 			// ダブルクリックで選択EntityへCameraを寄せる
-			if (imageHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			if (imageHovered && !context.editorState->sceneCameraNavigating && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 
 				Engine::ECSWorld* world = context.GetWorld();
 				if (world && world->IsAlive(context.editorState->selectedEntity)) {

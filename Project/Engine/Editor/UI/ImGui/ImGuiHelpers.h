@@ -316,7 +316,7 @@ namespace Engine {
 		// enumのコンボボックス
 		template <typename T>
 		static ValueEditResult EnumCombo(const char* label, T& currentValue,
-			const ComboEditSetting& setting = ComboEditSetting{});
+			const ComboEditSetting& setting = ComboEditSetting{}, std::span<const ImGuiUtility::EnumOptionState> options = {});
 
 		//============================================================================
 		//	アセット参照
@@ -334,7 +334,7 @@ namespace Engine {
 	//============================================================================
 	template <typename T>
 	inline ValueEditResult MyGUI::EnumCombo(const char* label, T& currentValue,
-		const ComboEditSetting& setting) {
+		const ComboEditSetting& setting, std::span<const ImGuiUtility::EnumOptionState> options) {
 
 		ValueEditResult result{};
 
@@ -344,7 +344,7 @@ namespace Engine {
 
 		const float width = ImGui::GetContentRegionAvail().x - setting.reserveRightWidth;
 		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
-		result.valueChanged = Engine::ImGuiUtility::EnumCombo<T>("##Value", &currentValue);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<T>("##Value", &currentValue, options);
 		result.anyItemActive = ImGui::IsItemActive();
 		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
 

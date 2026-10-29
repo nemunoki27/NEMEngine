@@ -42,7 +42,7 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 	const auto* transform = world->TryGetComponent<TransformComponent>(entity);
 	const auto* camera = context.sceneRenderView->FindCamera(RenderCameraDomain::Perspective);
 	if (!data || !transform || !camera || !camera->valid || !context.CanEditScene()) { EndPreview(); return false; }
-	if (ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
+	if (context.editorState->sceneCameraNavigating || ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
 		ImGui::IsKeyPressed(ImGuiKey_Escape)) { EndPreview(); return false; }
 	Matrix4x4 inverseWorld;
 	Matrix4x4 inverseView;

@@ -37,6 +37,11 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--scene-camera") {
+		return RunTest("TestSceneViewCameraSettings", TestSceneViewCameraSettings) &&
+			RunTest("TestSceneViewCameraNavigation", TestSceneViewCameraNavigation) ? 0 : 75;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--runtime-api") {
 		return RunTest("TestRuntimeAPIContracts", TestRuntimeAPIContracts) ? 0 : 74;
 	}

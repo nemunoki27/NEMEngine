@@ -42,12 +42,19 @@ namespace {
 
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
 
-	if (editorCommandPanelKind_ != EditorCommandPanelKind::Scene) {
+	if (editorCommandPanelKind_ != EditorCommandPanelKind::Scene || editorState_.sceneCameraNavigating) {
 		return;
 	}
 
 	ImGuiIO& io = ImGui::GetIO();
 	if (io.WantTextInput || ImGui::IsAnyItemActive()) {
+		return;
+	}
+	// シーンビュー上のFで選択対象へ寄る
+	if (editorState_.sceneViewportHovered && !io.KeyCtrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_F) &&
+		editorState_.sceneViewCamera.mode == SceneViewCameraMode::DebugManual &&
+		ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension) == Dimension::Type3D) {
+		editorState_.cameraFocusRequest = editorState_.selectedEntity;
 		return;
 	}
 
@@ -168,11 +175,15 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 		// Panelを隠して製品サイズへ切り替える
 		layoutState_.hidePanels = true;
+		sceneViewCameraController_->CancelNavigation();
+		editorState_.sceneCameraNavigating = false;
 		EndPanelPreviews();
 		WinApp::BeginProductSizePreview(EngineContext::GetWindowSetting().gameSize);
 		return;
 	}
 	if (layoutState_.hidePanels) {
+		sceneViewCameraController_->CancelNavigation();
+		editorState_.sceneCameraNavigating = false;
 		EndPanelPreviews();
 
 		// Panel非表示中は復帰入力だけを処理する

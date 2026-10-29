@@ -5,6 +5,9 @@
 //============================================================================
 const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, const char* name) {
 
+	if (type.ends_with("SceneViewCameraControlStyle") && std::string_view(name) == "Original") return "オリジナル";
+	if (type.ends_with("SceneViewCameraControlSource") && std::string_view(name) == "Disabled") return "使用しない";
+
 	// ブレンドの標準値とパーティクルの法線方向を区別する
 	if (type.ends_with("BlendMode") && std::string_view(name) == "Normal") return "標準";
 	if (type.ends_with("ParticleForceFieldType")) {

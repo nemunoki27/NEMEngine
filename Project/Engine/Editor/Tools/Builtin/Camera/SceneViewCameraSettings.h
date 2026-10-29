@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include "SceneViewCameraNavigation.h"
 
 // c++
 #include <string>
@@ -30,6 +31,10 @@ namespace Engine {
 		constexpr float kDefaultRotateSpeed = 0.005f;
 		constexpr float kDefaultZoomRate = 0.4f;
 		constexpr float kDefaultPanSpeed = 0.02f;
+		constexpr float kDefaultMoveSpeed = 10.0f;
+		constexpr float kMinMoveSpeed = 0.01f;
+		constexpr float kMaxMoveSpeed = 10000.0f;
+		constexpr float kDefaultOrbitDistance = 20.0f;
 	}
 
 	//============================================================================
@@ -43,6 +48,9 @@ namespace Engine {
 		//========================================================================
 
 		SceneViewCameraSettings();
+		// 他方の次元を保って設定を初期化する
+		void Reset2D();
+		void Reset3D();
 
 		//--------- variables ----------------------------------------------------
 
@@ -55,12 +63,22 @@ namespace Engine {
 		float rotateSpeed = SceneViewCameraDefaults::kDefaultRotateSpeed;
 		float zoomRate = SceneViewCameraDefaults::kDefaultZoomRate;
 		float panSpeed = SceneViewCameraDefaults::kDefaultPanSpeed;
+		float moveSpeed = SceneViewCameraDefaults::kDefaultMoveSpeed;
+		// 3Dの操作方式とオリジナルの割当
+		SceneViewCameraControlStyle controlStyle = SceneViewCameraControlStyle::Unity;
+		SceneViewCameraControls customControls{
+			SceneViewCameraControlSource::Unity, SceneViewCameraControlSource::Unity, SceneViewCameraControlSource::Unity,
+			SceneViewCameraControlSource::Unity, SceneViewCameraControlSource::Unity};
 	};
 
 	namespace SceneViewCameraSettingsUtility {
 
 		// カメラ計算に使える有限値か判定する
 		bool IsFinite(const Vector3& value);
+		// 不正な方式と競合した割当を既定値へ戻す
+		void ValidateControls(SceneViewCameraSettings& settings);
+		// カメラ計算に使えない値を補正する
+		void Sanitize(SceneViewCameraSettings& settings);
 		// 設定ファイルから位置と操作速度を取り込む
 		bool Load(const std::string& filePath, SceneViewCameraSettings& settings);
 		// 無効値を補正して設定を保存する

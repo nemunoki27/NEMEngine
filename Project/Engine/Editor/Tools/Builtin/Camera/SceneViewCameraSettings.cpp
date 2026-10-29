@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <algorithm>
@@ -76,6 +77,51 @@ Engine::SceneViewCameraSettings::SceneViewCameraSettings() {
 	cameraState.perspectiveCullingMask = -1;
 }
 
+void Engine::SceneViewCameraSettings::Reset2D() {
+
+	const SceneViewCameraSettings defaults;
+	cameraState.transform2D = defaults.cameraState.transform2D;
+	cameraState.enableOrthographic = defaults.cameraState.enableOrthographic;
+	cameraState.orthographicZoom = defaults.cameraState.orthographicZoom;
+	cameraState.orthoNearClip = defaults.cameraState.orthoNearClip;
+	cameraState.orthoFarClip = defaults.cameraState.orthoFarClip;
+	cameraState.orthographicCullingMask = defaults.cameraState.orthographicCullingMask;
+	zoomRate2D = defaults.zoomRate2D;
+	panSpeed2D = defaults.panSpeed2D;
+}
+
+void Engine::SceneViewCameraSettings::Reset3D() {
+
+	const SceneViewCameraSettings defaults;
+	cameraState.transform3D = defaults.cameraState.transform3D;
+	cameraState.enablePerspective = defaults.cameraState.enablePerspective;
+	cameraState.perspectiveFovY = defaults.cameraState.perspectiveFovY;
+	cameraState.perspectiveNearClip = defaults.cameraState.perspectiveNearClip;
+	cameraState.perspectiveFarClip = defaults.cameraState.perspectiveFarClip;
+	cameraState.perspectiveCullingMask = defaults.cameraState.perspectiveCullingMask;
+	rotateSpeed = defaults.rotateSpeed;
+	zoomRate = defaults.zoomRate;
+	panSpeed = defaults.panSpeed;
+	moveSpeed = defaults.moveSpeed;
+	controlStyle = defaults.controlStyle;
+	customControls = defaults.customControls;
+}
+
+void Engine::SceneViewCameraSettingsUtility::ValidateControls(SceneViewCameraSettings& settings) {
+
+	bool valid = !EnumAdapter<SceneViewCameraControlStyle>::ToStringView(settings.controlStyle).empty();
+	for (size_t index = 0; index < settings.customControls.size(); ++index) {
+		const auto source = settings.customControls[index];
+		valid &= !EnumAdapter<SceneViewCameraControlSource>::ToStringView(source).empty() &&
+			SceneViewCameraNavigationUtility::SupportsAction(static_cast<SceneViewCameraAction>(index), source);
+	}
+	valid &= !SceneViewCameraNavigationUtility::FindConflict(settings.customControls).has_value();
+	if (!valid) {
+		settings.controlStyle = SceneViewCameraControlStyle::Unity;
+		settings.customControls = SceneViewCameraSettings{}.customControls;
+	}
+}
+
 bool Engine::SceneViewCameraSettingsUtility::Load(const std::string& filePath, SceneViewCameraSettings& settings) {
 
 	// 設定ファイルがなければ現在値を保つ
@@ -126,13 +172,32 @@ bool Engine::SceneViewCameraSettingsUtility::Load(const std::string& filePath, S
 		settings.rotateSpeed = std::max(0.0f, ReadFiniteFloat(data, "rotateSpeed", settings.rotateSpeed));
 		settings.zoomRate = std::max(0.0f, ReadFiniteFloat(data, "zoomRate", settings.zoomRate));
 		settings.panSpeed = std::max(0.0f, ReadFiniteFloat(data, "panSpeed", settings.panSpeed));
+		settings.moveSpeed = std::clamp(ReadFiniteFloat(data, "moveSpeed", settings.moveSpeed), kMinMoveSpeed, kMaxMoveSpeed);
 	}
+	// 古い設定には操作方式だけを補い、位置と速度を維持する
+	settings.controlStyle = SceneViewCameraControlStyle::Unity;
+	if (const auto style = data.find("controlStyle"); style != data.end() && style->is_string()) {
+		settings.controlStyle = EnumAdapter<SceneViewCameraControlStyle>::FromString(style->get<std::string>())
+			.value_or(SceneViewCameraControlStyle::Unity);
+	}
+	settings.customControls = SceneViewCameraSettings{}.customControls;
+	if (const auto controls = data.find("customControls"); controls != data.end() && controls->is_object()) {
+		for (size_t index = 0; index < settings.customControls.size(); ++index) {
+			const char* key = EnumAdapter<SceneViewCameraAction>::ToString(static_cast<SceneViewCameraAction>(index));
+			const auto source = controls->find(key);
+			if (source != controls->end()) {
+				settings.customControls[index] = source->is_string() ?
+					EnumAdapter<SceneViewCameraControlSource>::FromString(source->get<std::string>())
+						.value_or(static_cast<SceneViewCameraControlSource>(-1)) : static_cast<SceneViewCameraControlSource>(-1);
+			}
+		}
+	}
+	Sanitize(settings);
 	return true;
 }
 
-bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, const SceneViewCameraSettings& source) {
+void Engine::SceneViewCameraSettingsUtility::Sanitize(SceneViewCameraSettings& settings) {
 
-	SceneViewCameraSettings settings = source;
 	// 非有限値と無効な投影値を補正する
 	if (!IsFinite(settings.cameraState.transform2D.pos)) {
 		settings.cameraState.transform2D.pos = kDefault2DPosition;
@@ -145,7 +210,12 @@ bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, c
 	}
 	if (!std::isfinite(settings.cameraState.orthoFarClip) ||
 		settings.cameraState.orthoFarClip <= settings.cameraState.orthoNearClip) {
-		settings.cameraState.orthoFarClip = kDefault2DFarClip;
+		settings.cameraState.orthoFarClip = (std::max)(kDefault2DFarClip,
+			settings.cameraState.orthoNearClip + (std::max)(std::abs(settings.cameraState.orthoNearClip) * 0.01f, 1.0f));
+		if (!std::isfinite(settings.cameraState.orthoFarClip)) {
+			settings.cameraState.orthoNearClip = kDefault2DNearClip;
+			settings.cameraState.orthoFarClip = kDefault2DFarClip;
+		}
 	}
 	if (!IsFinite(settings.cameraState.transform3D.pos)) {
 		settings.cameraState.transform3D.pos = kDefaultPosition;
@@ -161,7 +231,12 @@ bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, c
 	}
 	if (!std::isfinite(settings.cameraState.perspectiveFarClip) ||
 		settings.cameraState.perspectiveFarClip <= settings.cameraState.perspectiveNearClip) {
-		settings.cameraState.perspectiveFarClip = kDefaultFarClip;
+		settings.cameraState.perspectiveFarClip = (std::max)(kDefaultFarClip,
+			settings.cameraState.perspectiveNearClip + (std::max)(settings.cameraState.perspectiveNearClip * 0.01f, 1.0f));
+		if (!std::isfinite(settings.cameraState.perspectiveFarClip)) {
+			settings.cameraState.perspectiveNearClip = kDefaultNearClip;
+			settings.cameraState.perspectiveFarClip = kDefaultFarClip;
+		}
 	}
 	settings.rotateSpeed =
 		std::isfinite(settings.rotateSpeed) && settings.rotateSpeed >= 0.0f ? settings.rotateSpeed : kDefaultRotateSpeed;
@@ -171,6 +246,15 @@ bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, c
 		std::isfinite(settings.zoomRate2D) && settings.zoomRate2D >= 0.0f ? settings.zoomRate2D : kDefault2DZoomRate;
 	settings.panSpeed2D =
 		std::isfinite(settings.panSpeed2D) && settings.panSpeed2D >= 0.0f ? settings.panSpeed2D : kDefault2DPanSpeed;
+	settings.moveSpeed = std::clamp(std::isfinite(settings.moveSpeed) ? settings.moveSpeed : kDefaultMoveSpeed,
+		kMinMoveSpeed, kMaxMoveSpeed);
+	ValidateControls(settings);
+}
+
+bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, const SceneViewCameraSettings& source) {
+
+	SceneViewCameraSettings settings = source;
+	Sanitize(settings);
 
 	// 位置と操作速度を保存用JSONへ変換する
 	nlohmann::json data{};
@@ -199,6 +283,12 @@ bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, c
 		data["rotateSpeed"] = settings.rotateSpeed;
 		data["zoomRate"] = settings.zoomRate;
 		data["panSpeed"] = settings.panSpeed;
+		data["moveSpeed"] = settings.moveSpeed;
+		data["controlStyle"] = EnumAdapter<SceneViewCameraControlStyle>::ToString(settings.controlStyle);
+		for (size_t index = 0; index < settings.customControls.size(); ++index) {
+			const char* key = EnumAdapter<SceneViewCameraAction>::ToString(static_cast<SceneViewCameraAction>(index));
+			data["customControls"][key] = EnumAdapter<SceneViewCameraControlSource>::ToString(settings.customControls[index]);
+		}
 	}
 
 	return JsonAdapter::SaveCanonical(filePath, data);
