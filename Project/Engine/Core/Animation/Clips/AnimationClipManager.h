@@ -33,6 +33,7 @@ namespace Engine {
 		// キャッシュを破棄する
 		void Clear();
 		uint64_t GetRevision() const { return revision_; }
+		uint64_t GetRevision(AssetID clipID) const;
 	private:
 		//============================================================================
 		//	private variables
@@ -42,6 +43,7 @@ namespace Engine {
 
 			AnimationClipAsset clip;
 			std::filesystem::path path;
+			uint64_t revision = 0;
 			uint64_t contentRevision = UINT64_MAX;
 			uint64_t structureRevision = UINT64_MAX;
 			bool attempted = false;

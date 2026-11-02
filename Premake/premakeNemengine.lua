@@ -58,6 +58,24 @@ project "NEMRuntime"
         buildaction "None"
     filter {}
 
+-- 配布版ゲームは共通の起動EXEを使用する
+project "NEMPlayer"
+    location (path.join(NEM_PROJECT_ROOT, "Tools/NEM.Player"))
+    kind "WindowedApp"
+    NEM_ApplyDefaultCppSettings()
+    files { path.join(NEM_PROJECT_ROOT, "Tools/NEM.Player/**.cpp") }
+    includedirs { path.join(NEM_PROJECT_ROOT, "Engine/Public") }
+    NEM_ApplyDefaultConfigFilters()
+    links { "NEMRuntime" }
+    dependson { "NEMRuntime" }
+    local playerDirectory = path.translate(path.join(NEM_OUTPUT_ROOT, "Output/%{cfg.buildcfg}/NEMPlayer"), "\\")
+    local runtimeLibrary = path.translate(path.join(NEM_OUTPUT_ROOT, "Bin/%{cfg.buildcfg}/NEMRuntime/NEMRuntime.dll"), "\\")
+    postbuildcommands {
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "' .. path.translate(path.join(NEMENGINE_ROOT, "Tools/DeployRuntimeDependencies.ps1"), "\\") ..
+        '" -TargetDirectory "' .. playerDirectory .. '" -Configuration "$(Configuration)"' ..
+        ' -WindowsSdkBinaryDirectory "$(WindowsSdkDir)bin\\$(TargetPlatformVersion)\\x64" -RuntimeDllPath "' .. runtimeLibrary .. '"',
+    }
+
 -- Editorは独立した実行ファイルとしてCoreへリンクする
 project "NEMEditor"
     location (path.join(NEM_PROJECT_ROOT, "Engine/Editor"))
@@ -180,11 +198,22 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveKeyUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveSelection.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorShortcutState.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Panels/Builtin/EditorGPUPassTooltip.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneDirtyState.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorRequestSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersPopup.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpers.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Common/InspectorPresentation.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Common/InspectorCommonBindings.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Core/ComponentEditorRegistry.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Components/RemoveComponentCommand.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Components/SetSerializedComponentCommand.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Common/SceneEntityReferenceFields.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersReference.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersInternal.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiEnum.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiTypedEnum.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneEditScope.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorState.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/CompositeEditorCommand.cpp"),

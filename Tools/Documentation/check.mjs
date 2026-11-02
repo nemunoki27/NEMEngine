@@ -6,6 +6,7 @@ import { componentDetails, componentExamples } from './component-details.mjs';
 import { inventory } from './inventory.mjs';
 
 const failures = [];
+execFileSync('node', [path.join(root, 'Tools/Documentation/inspector-audit.mjs')], { cwd:root, stdio:'inherit', windowsHide:true });
 const check = (condition, message) => { if (!condition) failures.push(message); };
 const load = file => JSON.parse(fs.readFileSync(path.join(output, file), 'utf8'));
 const data = inventory();
@@ -65,6 +66,7 @@ else {
 const markdown = walk(website).filter(file => file.endsWith('.md') && !file.endsWith('README.md'));
 let links = 0, snippets = 0;
 const snippetSources = [];
+const completeSources = [];
 for (const file of markdown) {
 	const source = fs.readFileSync(file, 'utf8');
 	check(formatDocumentation(source) === source, `説明文にEntity表記が残っています: ${path.relative(website, file)}`);
@@ -90,7 +92,8 @@ for (const file of markdown) {
 		for (const match of source.matchAll(/```csharp\s*\n([\s\S]*?)```/g)) {
 			const body = match[1];
 			check(/\/\/[^\n]*[ぁ-んァ-ヶ一-龠]/.test(body), `コード例に日本語の処理コメントがありません: ${file}`);
-			if (body.includes('[SerializeField]')) snippetSources.push(body);
+			if (/\b(?:class|struct|enum|interface|record)\s+\w+/.test(body)) completeSources.push(body);
+			else if (body.includes('[SerializeField]')) snippetSources.push(body);
 			else snippetSources.push(`void Check${snippetSources.length}() {\n${body}\n}`);
 		}
 	}
@@ -99,6 +102,11 @@ for (const file of markdown) {
 // 埋め込んだ例と本文内の短い例をコンパイルする
 if (!process.argv.includes('--no-samples')) {
 	const snippetDirectory = path.join(output, 'Samples');
+	// 完全なScriptは型の中へ埋め込まず独立して検証する
+	for (const file of fs.readdirSync(snippetDirectory)) {
+		if (/^ManualSnippet\.\d+\.cs$/.test(file)) fs.unlinkSync(path.join(snippetDirectory, file));
+	}
+	completeSources.forEach((body, index) => write(path.join(snippetDirectory, `ManualSnippet.${index}.cs`), body));
 	write(path.join(snippetDirectory, 'ManualSnippets.cs'), `using NEMEngine;\npublic sealed class ManualSnippets : MonoBehaviour {\n${snippetSources.join('\n')}\n}\n`);
 	try {
 		execFileSync('dotnet', ['build', path.join(root, 'Tools/Documentation/Samples/DocumentationSamples.csproj'), '-c', 'Develop', '--nologo', '-v:minimal'],

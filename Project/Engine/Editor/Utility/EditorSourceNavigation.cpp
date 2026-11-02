@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "VisualStudioLauncher.h"
+#include <Engine/Editor/Scripting/ManagedIDELauncher.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
@@ -101,7 +102,7 @@ bool Engine::EditorSourceNavigation::OpenScript(const ScriptEntry& entry, const 
 			"[EditorSourceNavigation] スクリプトの定義元が見つかりません: {}", entry.lastKnownTypeName);
 		return false;
 	}
-	return VisualStudioLauncher::OpenFile(source);
+	return ManagedIDELauncher::OpenFile(source);
 }
 
 bool Engine::EditorSourceNavigation::OpenComponentEditor(const std::string& sourceFile) {

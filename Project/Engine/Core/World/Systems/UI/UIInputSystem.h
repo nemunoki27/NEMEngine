@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include "UIVisualSession.h"
+#include "UIInputTypes.h"
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -45,6 +45,5 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		UIVisualSession visuals_;
 	};
 } // Engine

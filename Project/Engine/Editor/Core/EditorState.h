@@ -190,6 +190,9 @@ namespace Engine {
 		bool gameViewportHovered = false;
 		// SceneViewのデフォルトグリッド表示
 		bool drawSceneViewDefaultGrid = false;
+		// SceneView画像内の計測表示、ユーザー設定として保存
+		bool showSceneViewFPS = false;
+		bool showSceneViewDeltaTime = false;
 		// シーンビューのマニピュレーター選択状態
 		SceneViewManipulatorMode sceneViewManipulatorMode = SceneViewManipulatorMode::Translate;
 		// ギズモを使用中か

@@ -41,11 +41,11 @@ void Engine::Rigidbody2DInspectorDrawer::DrawFields([[maybe_unused]] const Edito
 				{ .dragSpeed = 0.01f, .minValue = 0.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("はね返り", draft.restitution,
+			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::Restitution), draft.restitution,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("摩擦", draft.friction,
+			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::Friction), draft.friction,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
@@ -72,7 +72,7 @@ void Engine::Rigidbody2DInspectorDrawer::DrawFields([[maybe_unused]] const Edito
 			return InspectorDrawerCommon::DrawCheckboxField("回転を固定", draft.freezeRotation);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("支えが外れたら倒れる", draft.allowTopple);
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::AllowTopple), draft.allowTopple);
 			});
 	}
 }

@@ -126,6 +126,19 @@ namespace {
 		}
 	}
 
+	// 骨に取り付けた通常メッシュも同じ階層で評価する
+	void CollectRigidMeshNodes(const aiScene* scene, const aiNode* node, NodeSet& requiredNodes) {
+
+		for (uint32_t index = 0; index < node->mNumMeshes; ++index) {
+			const auto* mesh = scene->mMeshes[node->mMeshes[index]];
+			if (!Engine::MeshImportUtility::HasTriangleGeometry(mesh) || mesh->HasBones()) continue;
+			for (const aiNode* parent = node; parent; parent = parent->mParent) requiredNodes.insert(parent);
+		}
+		for (uint32_t index = 0; index < node->mNumChildren; ++index) {
+			CollectRigidMeshNodes(scene, node->mChildren[index], requiredNodes);
+		}
+	}
+
 	// 対象ノードだけを元の階層順でジョイントに変換する
 	int32_t CreateJointRecursive(const aiNode* node, const NodeSet& skinBones,
 		const NodeSet& requiredNodes, const std::optional<int32_t> parent,
@@ -223,6 +236,7 @@ Engine::Skeleton Engine::BuildSkinSkeleton(const aiScene* scene, std::string_vie
 	if (skinBones.empty() || requiredNodes.empty()) {
 		return skeleton;
 	}
+	CollectRigidMeshNodes(scene, scene->mRootNode, requiredNodes);
 
 	LogDuplicateNodeNames(scene, skinBones, sourcePath);
 
@@ -256,12 +270,14 @@ int32_t Engine::FindSkeletonJointIndex(const Skeleton& skeleton, const aiBone* b
 		return -1;
 	}
 	if (bone->mNode) {
-
-		const std::string nodePath = BuildNodePath(bone->mNode);
-		auto pathIt = skeleton.jointPathMap.find(nodePath);
-		if (pathIt != skeleton.jointPathMap.end()) {
-			return pathIt->second;
-		}
+		const int32_t index = FindSkeletonJointIndex(skeleton, bone->mNode);
+		if (index >= 0) return index;
 	}
 	return FindSkeletonJointIndex(skeleton, bone->mName.C_Str());
+}
+
+int32_t Engine::FindSkeletonJointIndex(const Skeleton& skeleton, const aiNode* node) {
+
+	const auto found = skeleton.jointPathMap.find(BuildNodePath(node));
+	return found == skeleton.jointPathMap.end() ? -1 : found->second;
 }

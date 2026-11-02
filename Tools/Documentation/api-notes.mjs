@@ -205,8 +205,6 @@ export const names = {
 	loopCount: '繰り返す回数です。無限と有限の扱いはLoopTypeまたはWrapModeと合わせて指定します。',
 	pingPongCount: '往復再生の繰り返し回数です。', relativeTransform: '開始時のTransformを基準にAnimationの値を適用します。',
 	startDelay: '再生を始めるまでの待ち秒数です。', weight: 'Animation合成時の寄与率です。', wrapMode: '末尾到達時の停止・ループ・往復などの扱いです。',
-	CrossFadeInFixedTime: 'フェード秒数を指定してAnimation Groupを切り替えます。', GetCurrentAnimatorStateInfo: '現在のAnimation再生時刻やGroup名を取得します。',
-	GetGroups: 'GroupとStateの設定Snapshotを取得します。', SetGroups: '編集したGroup一覧をAnimatorへ反映します。',
 	IsPlaying: '指定名のAnimationなどが再生中かを調べます。', IsName: 'この再生状態の名前が指定文字列と一致するかを調べます。', normalizedTime: 'Clip内の時刻を0〜1の比率で表します。',
 	FocusChanged: 'アプリのフォーカスが変わったときに通知します。', PauseChanged: 'Playの一時停止状態が変わったときに通知します。', Quitting: '終了処理に入るときに通知します。',
 	runInBackground: 'フォーカスがない場合のゲーム動作を許可します。入力・音声の背景設定も別に確認してください。',
@@ -308,6 +306,29 @@ export const names = {
 const moduleNames = { AlphaReference: 'AlphaClip閾値', ColorOverLifetime: '寿命による色', ColorUV: '色UV', CurlNoise: 'Curl Noise', CustomData: 'Shader用データ', CustomShaderParameter: 'Shader Parameter', Emissive: '発光', Flipbook: 'Flipbook', Gravity: '重力', GravityForce: '重力', LookToVelocity: '移動方向への向き合わせ', NoiseForce: 'ノイズ力', NoiseUV: 'UVノイズ', PendulumMovement: '振り子運動', Rotation: '回転', ScaleOverLifetime: '拡縮', ShapeOverLifetime: '形状変化', SizeOverLifetime: '大きさ', SpiralMovement: 'らせん運動', ForceField: '力場', VectorField: 'Vector Field', SplineMovement: 'Spline移動', Collision: '衝突' };
 
 export function memberDescription(type, member, binding) {
+	if (type.name === 'AnimationClipPlayer') {
+		const description = { Play: '指定済み、または引数のClipを先頭から再生します。', Pause: '現在値と時刻を保って一時停止します。', Resume: '一時停止した再生を再開します。終了済みの場合はPlayを使用します。', Stop: '現在値を保持して停止します。', Reset: '再生前の値に戻して停止します。', Seek: 'Clip内の時刻を秒で指定します。イベントは発火しません。' }[member.name];
+		if (description) return description;
+	}
+	if (type.name.startsWith('SimpleAnimation') || (type.name === 'UISelectable' && /Animation|CurrentColor|CurrentScale/.test(member.name))) {
+		const description = {
+			RotationMode: 'Quaternionの軸＋角度補間とオイラー角補間を選択します。', StartEuler: '開始回転を度数のXYZで指定します。', EndEuler: '終了回転を度数のXYZで指定します。720などの回転数を保持します。', CenterEuler: 'Sin/Cosの中心回転を度数のXYZで指定します。',
+			GetSettings: '型Tを指定して設定のコピーを取得します。変更後はSetSettingsへ渡します。', SetSettings: '設定を反映します。型や方式が変わった場合は再生を先頭から再初期化します。',
+			SetTarget: '自動適用先のGameObject・Component名・項目パスを設定します。nullは自分です。例はTransformとlocalPosです。AutoApplyも有効にしてください。',
+			Play: '先頭から再生する要求を送ります。', Pause: '現在時刻で一時停止します。', Resume: '一時停止した再生を再開します。終了済みならPlayを使います。', Stop: '現在値を保持して停止します。', Reset: '適用前の値へ戻して停止します。', Seek: '速度適用後の再生時刻を秒で指定します。次の更新で評価します。',
+			GetValue: 'T型の最新値を取得します。型が違う場合や未評価の場合は例外です。', TryGetValue: 'T型の最新値をoutで取得します。未評価・型違いはfalseです。',
+			Mode: 'A→B補間、Sin、Cosの計算方式です。', Repeat: '1回、ループ、往復の再生方法です。', CycleCount: 'Loop/PingPongの繰り返し数です。0は無制限、往復は行き帰りで1回です。',
+			Start: 'A値です。StartFromCurrentがtrueなら適用先の開始時点の値を使用します。', End: 'B値です。', Center: 'Sin/Cosの中心値です。', Amplitude: 'Sin/Cosの中心からの振幅です。QuaternionはAngularAmplitudeを使います。',
+			AngularAmplitude: 'Quaternionの波形アニメーションのEuler角振幅です。単位は度です。', Easing: '進行率の変化曲線です。Enum名は英語です。',
+			Duration: 'AからBまでの片道秒数です。0は即時です。', Period: 'Sin/Cosの1周期の秒数です。0より大きくします。', PhaseDegrees: 'Sin/Cosの開始位相です。単位は度です。', Delay: '開始を待つ秒数です。', Speed: '時間の進む倍率です。0は時刻を進めません。', UnscaledTime: 'trueならTimeScaleに影響されない時間を使います。',
+			StartFromCurrent: 'A→B補間を現在の表示値から開始します。自動適用先がなければA値を使います。', BlendDuration: 'Sin/Cos開始時の現在値から波形への補間秒数です。A→Bでは使用しません。',
+			Interpolate: 'A値からB値への補間です。Quaternionは最短経路の球面補間です。', Sin: '中心＋振幅×Sinの周期変化です。', Cos: '中心＋振幅×Cosの周期変化です。', Once: '1回で終了します。', Loop: '同じ方向へ繰り返します。', PingPong: '往路・復路を繰り返します。',
+			GetColorAnimation: '状態別の色アニメーション設定を取得します。', SetColorAnimation: '状態別の色アニメーション設定を反映します。元の色に掛ける倍率です。',
+			GetScaleAnimation: '状態別のスケールアニメーション設定を取得します。', SetScaleAnimation: '状態別のスケールアニメーション設定を反映します。元のScaleに掛ける倍率です。',
+			CurrentColor: '現在表示している色です。', CurrentScale: '現在表示しているXYスケールです。',
+		}[member.name];
+		if (description) return description;
+	}
 
 	if (type.name === 'Object' && member.name === 'Instantiate') return 'Prefabまたは指定したGameObject・Componentを複製して参照を返します。生成できない場合は例外です。nullを返す前提で処理しないでください。';
 	if (type.name === 'ParticleSystem') {

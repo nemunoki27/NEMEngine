@@ -1,4 +1,5 @@
 #include "GameplayRefactoringTests.h"
+#include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include "AnimationPlaybackTests.h"
 #include "InputConfigurationTests.h"
 #include "AnimationSnapshotTests.h"
@@ -31,7 +32,7 @@
 #include <iostream>
 #include <type_traits>
 
-static_assert(std::is_nothrow_move_constructible_v<Engine::AnimationPlayerComponent>);
+static_assert(std::is_nothrow_move_constructible_v<Engine::AnimationClipPlayerComponent>);
 
 namespace {
 
@@ -178,36 +179,6 @@ namespace {
 		track.channels[0].AddKey(0.0f, 1.0f);
 		track.channels[0].AddKey(1.0f, 5.0f);
 		AnimationPropertyValue value;
-		// XとYを別Clipで動かしても互いの成分を消さない
-		const AnimationPropertyBinding binding{"Transform", "localPos", AnimationValueType::Vector3};
-		std::array<AnimationPreviewBaseValue, 1> base{{{binding, Vector3(10.0f, 20.0f, 30.0f)}}};
-		std::array<AnimationContribution, 2> contributions{{
-			{{binding, Vector3(50.0f, 20.0f, 30.0f), 1}, 1.0f, 0, false},
-			{{binding, Vector3(10.0f, 60.0f, 30.0f), 2}, 1.0f, 0, false},
-		}};
-		std::vector<AnimationEvaluatedValue> composed;
-		AnimationClipEvaluator::ComposeValues(contributions, base, composed);
-		if (composed.size() != 1 || composed[0].channelMask != 3 ||
-			std::get<Vector3>(composed[0].value) != Vector3(50.0f, 60.0f, 30.0f)) {
-			return false;
-		}
-		// 同優先度は平均し、高優先度とAdditiveを区別する
-		contributions[1].evaluated = {binding, Vector3(70.0f, 20.0f, 30.0f), 1};
-		AnimationClipEvaluator::ComposeValues(contributions, base, composed);
-		if (std::get<Vector3>(composed[0].value).x != 60.0f) {
-			return false;
-		}
-		contributions[1].priority = 1;
-		contributions[1].weight = 0.5f;
-		AnimationClipEvaluator::ComposeValues(contributions, base, composed);
-		if (std::get<Vector3>(composed[0].value).x != 40.0f) {
-			return false;
-		}
-		contributions[1].additive = true;
-		AnimationClipEvaluator::ComposeValues(contributions, base, composed);
-		if (std::get<Vector3>(composed[0].value).x != 80.0f) {
-			return false;
-		}
 		if (!AnimationTrackSampling::EvaluateTrackWithFallback(track, 0.5f, Vector3(7.0f, 8.0f, 9.0f), value) ||
 			std::get<Vector3>(value) != Vector3(3.0f, 8.0f, 9.0f)) {
 			return false;
@@ -234,14 +205,14 @@ namespace {
 		runtime.phase = AnimationClipPhase::Play;
 		std::vector<AnimationEvent> events;
 		std::vector<AnimationPlaybackTime::Interval> intervals;
-		AnimationState looping;
+		AnimationPlaybackSettings looping;
 		AnimationPlaybackTime::AdvanceLoop(runtime, looping, 1.0f, 0.5f, &intervals);
 		AnimationEventCollection::CollectClipEvents(clip, intervals, events);
 		if (events.size() != 2 || events[0].name != "end" || events[1].name != "start") {
 			return false;
 		}
 
-		AnimationState state;
+		AnimationPlaybackSettings state;
 		state.loopCount = 2;
 		runtime = {};
 		runtime.playing = true;

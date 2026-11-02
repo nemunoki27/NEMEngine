@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "EditorMeasurementDisplay.h"
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -258,6 +259,9 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
 		DrawViewportEntityDragDropSource(context, blockDragByGizmo);
+		if (kind_ == ViewportPanelKind::Scene && context.editorState) {
+			EditorMeasurementDisplay::DrawOverlay(*context.editorState, imagePos, viewSize_);
+		}
 	}
 	ImGui::EndChild();
 }

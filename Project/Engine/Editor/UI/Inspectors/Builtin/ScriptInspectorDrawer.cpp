@@ -126,7 +126,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		if (headerOpen) {
 
 			DrawField(anyItemActive, [&]() {
-				return InspectorDrawerCommon::DrawCheckboxField("有効", entry.enabled);
+				return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Enabled), entry.enabled);
 				});
 
 			// 解決済みかはレジストリで判定しフィールド数では判定しない
@@ -139,6 +139,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				EnsureAuthoringSchema(entry, schema);
 
 				DrawContext ctx{};
+				ctx.owner = entity;
 				ctx.panel = &context;
 				ctx.world = &world;
 

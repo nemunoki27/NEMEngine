@@ -1,4 +1,5 @@
 #include "ParticleSourceDrawer.h"
+#include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
 //	include
@@ -23,29 +24,12 @@ namespace {
 	bool DrawReference(const EditorPanelContext& context, const char* label, SceneEntityReference& reference) {
 
 		auto* world = context.GetWorld();
-		if (!world || !MyGUI::BeginPropertyRow(label)) return false;
+		if (!world) return false;
 		const auto owner = context.editorState ? context.editorState->selectedEntity : Entity::Null();
-		const auto current = reference.Resolve(*world, owner);
-		const auto* name = world->TryGetComponent<NameComponent>(current);
-		const std::string display = name ? name->name : reference.localFileID ? "参照先なし : " + ToString(reference.localFileID) : "なし";
-		bool changed = false;
-		if (ImGui::BeginCombo("##Value", display.c_str())) {
-			if (ImGui::Selectable("なし", !reference.localFileID && !reference.sourceAsset)) { reference = {}; changed = true; }
-			world->ForEach<Component, SceneObjectComponent>([&](Entity entity, [[maybe_unused]] Component& component,
-				[[maybe_unused]] SceneObjectComponent& scene) {
-				const auto* entityName = world->TryGetComponent<NameComponent>(entity);
-				const std::string labelText = entityName ? entityName->name : ToString(world->GetUUID(entity));
-				ImGui::PushID(static_cast<int32_t>(entity.index));
-				if (ImGui::Selectable(labelText.c_str(), entity == current)) {
-					reference = SceneEntityReference::FromEntity(*world, entity);
-					changed = true;
-				}
-				ImGui::PopID();
-			});
-			ImGui::EndCombo();
-		}
-		MyGUI::EndPropertyRow();
-		return changed;
+		EntityEditSetting setting;
+		setting.acceptEntity = [](ECSWorld& source, Entity target) { return source.HasComponent<Component>(target); };
+		setting.rejectReason = "必要なコンポーネントがありません";
+		return SceneEntityReferenceFields::Draw(label, *world, owner, reference, setting).valueChanged;
 	}
 
 	// 空の配列は全SubMeshを意味する

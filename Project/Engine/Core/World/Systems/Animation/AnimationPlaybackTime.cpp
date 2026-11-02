@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Animation/AnimationPlayerComponent.h>
+#include <Engine/Core/Animation/Playback/AnimationPlaybackTypes.h>
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -64,7 +64,7 @@ namespace Engine::AnimationPlaybackTime {
 		rt.eventStartPending = false;
 	}
 
-	bool CompleteLoopIteration(AnimationClipRuntime& rt, const AnimationState& state, float dur) {
+	bool CompleteLoopIteration(AnimationClipRuntime& rt, const AnimationPlaybackSettings& state, float dur) {
 
 		if (rt.repeatCount < (std::numeric_limits<int32_t>::max)()) ++rt.repeatCount;
 		rt.phase = AnimationClipPhase::Play;
@@ -81,7 +81,7 @@ namespace Engine::AnimationPlaybackTime {
 		return true;
 	}
 
-	void AdvanceLoop(AnimationClipRuntime& rt, const AnimationState& state, float dur, float delta,
+	void AdvanceLoop(AnimationClipRuntime& rt, const AnimationPlaybackSettings& state, float dur, float delta,
 		std::vector<Interval>* intervals) {
 
 		if (!std::isfinite(delta) || !std::isfinite(dur) || dur <= 0.0f || delta == 0.0f) return;
@@ -152,7 +152,7 @@ namespace Engine::AnimationPlaybackTime {
 		}
 	}
 
-	void AdvancePingPong(AnimationClipRuntime& rt, const AnimationState& state, float dur, float delta,
+	void AdvancePingPong(AnimationClipRuntime& rt, const AnimationPlaybackSettings& state, float dur, float delta,
 		std::vector<Interval>* intervals) {
 
 		if (!std::isfinite(delta) || !std::isfinite(dur) || dur <= 0.0f || delta == 0.0f) return;

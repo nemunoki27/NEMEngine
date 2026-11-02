@@ -7,6 +7,7 @@
 #include "RenderPassesAsset.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <type_traits>
@@ -36,6 +37,7 @@ bool Engine::RenderFeatureProfileDocument::Read(const std::filesystem::path& pat
 
 bool Engine::RenderFeatureProfileDocument::Save() const {
 
+	if (!RuntimePaths::CanWritePath(profilePath_)) { return false; }
 	if (profilePath_.empty()) {
 		return false;
 	}

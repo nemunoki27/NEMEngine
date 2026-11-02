@@ -2,16 +2,15 @@ using NEMEngine;
 
 public sealed class ActionAnimation : MonoBehaviour {
 
-    [SerializeField] private string stateName = "Attack";
-    private Animator? animator;
+    private AnimationClipPlayer? player;
 
     void Start() {
-        // AnimationPlayerのC#操作型を取得
-        animator = GetComponent<Animator>();
+        // 同じGameObjectのクリップ再生コンポーネントを取得
+        player = GetComponent<AnimationClipPlayer>();
     }
 
     void Update() {
-        // 入力に応じて、Editorで設定したStateを再生
-        if (animator != null && Input.GetKeyDown(KeyCode.E)) animator.Play(stateName);
+        // Eキーを押すとInspectorで設定したクリップを先頭から再生
+        if (player != null && Input.GetKeyDown(KeyCode.E)) player.Play();
     }
 }

@@ -22,7 +22,6 @@ namespace Engine::UISelectableStyle {
 
 	std::array<const UITransitionStyle*, 4> GetStyles( const UISelectableComponent& selectable);
 
-	bool HasStateTransitionRuntime(const UISelectableComponent& selectable);
 
 	void ApplySelectableBaseVisual(ECSWorld& world, Entity entity, UISelectableRuntimeComponent& runtime);
 
@@ -35,5 +34,5 @@ namespace Engine::UISelectableStyle {
 	void InitializeSelectableRuntime(ECSWorld& world, Entity entity, const UISelectableComponent& selectable,
 		UISelectableRuntimeComponent& runtime);
 
-	void UpdateSelectableVisual(ECSWorld& world, const UISelectableEntry& entry, float deltaTime);
+	void UpdateSelectableVisual(ECSWorld& world, const UISelectableEntry& entry, float deltaTime, float unscaledDeltaTime);
 }

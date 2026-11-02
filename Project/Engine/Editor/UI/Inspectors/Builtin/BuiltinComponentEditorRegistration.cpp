@@ -28,7 +28,8 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/LightInspectorDrawers.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/SimpleAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioListenerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
@@ -165,11 +166,13 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	}
 	// アニメーション系
 	{
+		registry.Register(MakeComponentEditorDescriptor<SimpleAnimationInspectorDrawer>(
+			"SimpleAnimation", "SimpleAnimation", "Animation", "UI/Inspectors/Builtin/Animation/SimpleAnimationInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<SkinnedAnimationInspectorDrawer>(
 			"Skinned Animation", "SkinnedAnimation", "Animation",
 			"UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.cpp"));
-		registry.Register(MakeComponentEditorDescriptor<AnimationPlayerInspectorDrawer>(
-			"Animation Player", "AnimationPlayer", "Animation", "UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<AnimationClipPlayerInspectorDrawer>(
+			"AnimationClipPlayer", "AnimationClipPlayer", "Animation", "UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.cpp"));
 	}
 	// ライト系
 	{

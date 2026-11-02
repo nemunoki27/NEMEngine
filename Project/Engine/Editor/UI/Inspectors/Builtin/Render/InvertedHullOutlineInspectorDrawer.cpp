@@ -19,9 +19,6 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-			});
-		DrawField(anyItemActive, [&]() {
 			return MyGUI::ColorEdit("色", draft.color);
 			});
 
@@ -43,7 +40,7 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 		DrawField(anyItemActive, [&]() {
 			FloatEditSetting setting{};
 			setting.dragSpeed = 0.001f;
-			return MyGUI::DragFloat("Camera Z Offset", draft.cameraZOffset, setting);
+			return MyGUI::DragFloat("カメラZオフセット", draft.cameraZOffset, setting);
 			});
 	}
 	//============================================================================
@@ -51,12 +48,12 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Baked Normalを使う", draft.useBakedNormal);
+			return InspectorDrawerCommon::DrawCheckboxField("ベイク法線を使用", draft.useBakedNormal);
 			});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
-			return MyGUI::AssetReferenceField("Baked Normal Texture", draft.bakedNormalTexture,
+			return MyGUI::AssetReferenceField("ベイク法線テクスチャ", draft.bakedNormalTexture,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
 		DrawField(anyItemActive, [&]() {
@@ -65,16 +62,16 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
-			return MyGUI::AssetReferenceField("Outline Sampler", draft.outlineSamplerTexture,
+			return MyGUI::AssetReferenceField("部位別幅テクスチャ", draft.outlineSamplerTexture,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField(
-				"Materialの透明度を反映", draft.respectMaterialSurface);
+				"マテリアルの透明度を反映", draft.respectMaterialSurface);
 			});
 		if (draft.respectMaterialSurface) {
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::DragFloat("Alpha閾値", draft.alphaThreshold,
+				return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::AlphaThreshold), draft.alphaThreshold,
 					{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
 				});
 		}

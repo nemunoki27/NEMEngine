@@ -78,6 +78,7 @@ namespace Engine::GameBuildUtility {
 	// ゲームの生成物を持つワークスペースルートを取得
 	std::filesystem::path ResolveGameBuildRoot(const std::filesystem::path& gameRoot) {
 
+		if (Engine::RuntimePaths::IsInstalledEngine()) { return gameRoot; }
 		std::error_code ec;
 		for (std::filesystem::path current = gameRoot; !current.empty(); current = current.parent_path()) {
 

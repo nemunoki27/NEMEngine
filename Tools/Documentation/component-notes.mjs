@@ -1,5 +1,6 @@
 // Inspectorの用途と組み合わせを利用者向けにまとめる
 export const components = {
+	SimpleAnimation: ['1つの値をAからBへ補間、またはSin・Cosで周期的に変化させます。', '値の型と再生方法を選び、自動適用を使う場合は適用先と項目を指定します。', '1 Componentで1値を扱います。C#のLateUpdateで当frameの結果を取得できます。', 'animation'],
 
 	Transform: ['位置・回転・拡縮と親子関係を保持します。すべての通常Entityに付いています。', 'HierarchyでEntityを選び、Inspectorの移動・回転・拡縮を変更します。', '位置のワールド値とローカル値を区別します。親のScaleは子にも影響します。', 'scene'],
 	Spline: ['制御点を結んだ曲線です。Particleの経路や位置・接線のサンプリングに使います。', '制御点を追加し、位置・接線と閉じる設定を編集します。', 'ParticleのSplineMovementでこのEntityを参照します。Transformを動かすと経路の配置も変わります。', 'particles'],
@@ -37,8 +38,8 @@ export const components = {
 	UIImageButton: ['画像を使ったUIボタンの操作とActionを扱います。', 'Canvas配下へ配置し、UISelectableとSpriteRendererで見た目を設定します。', 'Action名は入力Actionとの衝突を避け、決定時の処理をC#側で接続します。', 'ui'],
 	UITextButton: ['文字を使ったUIボタンの操作とActionを扱います。', 'Canvas配下へ配置し、TextRendererとUISelectableを組み合わせます。', 'Fontの収録文字とボタン状態ごとの色を確認します。', 'ui'],
 	UIProgress: ['体力や進行度などの値をバーとして表示します。', '範囲と値、塗り方向、即時・補間・遅延表示を設定します。', '遅延先のEntity参照が正しいか確認します。値の範囲と画像UVを合わせます。', 'ui'],
-	SkinnedAnimation: ['モデルに含まれる骨格Animationを再生します。', 'スキン付きMeshRendererに追加し、Clip名と速度・ループを設定します。', 'AnimationPlayerのプロパティAnimationとは別です。モデルに対象Clipと骨格が必要です。', 'animation'],
-	AnimationPlayer: ['AnimationClipをGroupとStateへ登録し、プロパティAnimationを再生します。', 'Clipを作成してGroupに登録し、初期Groupと再生開始を設定します。', 'C#側の型名はAnimatorです。同じ値を同時に書くClipの競合に注意します。', 'animation'],
+	SkinnedAnimation: ['モデルに含まれる骨格Animationを再生します。', 'スキン付きMeshRendererに追加し、Clip名と速度・ループを設定します。', 'AnimationClipPlayerのプロパティAnimationとは別です。モデルに対象Clipと骨格が必要です。', 'animation'],
+	AnimationClipPlayer: ['1つのAnimationClipでComponentの値を再生します。', 'Clipを設定して開始時再生・繰り返し・速度を選びます。', 'C#もAnimationClipPlayerを使用します。同じ項目を別のアニメーションから同時に操作しないでください。', 'animation'],
 	DirectionalLight: ['距離によらない平行光を設定します。太陽光のような照明に使います。', '色・Intensity・Directionと影の強さを設定します。', 'Directionは光が進む向きです。照らされる面への入射方向とは逆になります。', 'rendering'],
 	PointLight: ['位置から全方向へ広がる照明を設定します。', '位置・色・強さ・半径と減衰を設定します。', '届く範囲を必要以上に大きくすると描画負荷が増えます。', 'rendering'],
 	RectLight: ['長方形の発光面を持つ照明を設定します。', '幅・高さ・向き・届く範囲を設定し、受け取り面へ向けます。', 'SourceWidth/Heightは光源の面積です。照明を見せる発光Meshとは別に設定します。', 'rendering'],
@@ -47,6 +48,15 @@ export const components = {
 };
 
 export const propertyNotes = {
+	runtimeDuration: 'Clip本体の長さです。単位は秒、読み取り専用です。',
+	unscaledTime: 'TimeScaleの影響を受けず実時間で再生します。', speed: '再生速度の倍率です。0は進行停止、1は等速です。',
+	startDelay: '再生を始めるまでの待ち時間です。単位は秒です。', interval: '繰り返しの間に待つ秒数です。',
+	wrapMode: 'UseClipはClipの設定を使い、Once・Loop・PingPongは再生方法を上書きします。', repeatCount: '繰り返しの回数です。0は無制限です。', duration: 'Clip本体の長さです。単位は秒、読み取り専用です。',
+	playInEditMode: 'Play前のEditorでも再生します。プレビュー終了時に適用前の値へ戻します。',
+	autoApply: '計算結果を指定したGameObjectの項目へ適用します。OFFでも値の計算は続きます。',
+	runtimeRequest: '再生制御要求です。直接代入せずPlay/Pause/Resume/Stop/Reset/Seekを使ってください。', runtimeSeekTime: 'Seek要求の再生時刻です。Seek(seconds)を使ってください。',
+	runtimeValue: '結果の浮動小数点成分です。通常はGetValue<T>で取得します。', runtimeInteger: 'int型の結果です。通常はGetValue<int>で取得します。',
+	runtimeType: '結果の型番号です。通常はTryGetValue<T>で確認します。', runtimeTime: '速度適用後の再生時刻秒です。', runtimeCycles: '完了した周期数です。', runtimeValid: '計算結果が利用可能かを示します。', runtimePaused: '一時停止しているかを示します。', runtimeDiagnostic: '自動適用先の不一致や競合の診断です。',
 
 	enabled: 'このComponentの処理を有効にします。Entity全体のアクティブ状態とは別です。', enable: '機能の有効・無効です。',
 	visible: '通常描画に表示するかを指定します。', globalSpeed: '全GroupのAnimation時刻に掛ける再生倍率です。',
@@ -85,7 +95,7 @@ export const propertyNotes = {
 	playbackSpeed: '再生時間に掛ける倍率です。', useUnscaledTime: 'TimeScaleの影響を受けない時間で進めます。', useAutoRandomSeed: '再生のたびにSeedを変えます。無効なら指定Seedで再現します。',
 	randomSeed: '固定再生に使う乱数Seedです。', layer: '描画するLayer番号です。', stopAction: '粒子がなくなった後のEntity無効化・破棄などを指定します。',
 	simulationSpace: '発生済み粒子をEmitterへ追従させるLocalか、Worldへ残すかを指定します。',
-	renderingLayerMask: 'このRendererを表示するCameraのCullingMaskと照合するbit集合です。', simulationTarget: 'CPUまたはGPUを選びます。使用できるModuleと追加機能が変わります。',
+	renderingLayerMask: '表示レイヤーです。Cameraの描画対象レイヤーと照合する24bit集合です。', simulationTarget: 'CPUまたはGPUを選びます。使用できるModuleと追加機能が変わります。',
 	loopInterval: '繰り返すまでの待ち時間です。単位は秒です。', endAnimUnDisplay: '最後まで再生したら描画を隠します。', tilesY: 'Textureを縦方向に分割するタイル数です。',
 	width: '線または輪郭の幅です。幅の空間設定も確認します。', expansionMode: '輪郭の膨らませ方を選びます。', widthMode: '幅を測る空間を選びます。',
 	cameraZOffset: '輪郭をCameraの奥行き方向へずらす量です。', useBakedNormal: '輪郭用に保存した法線を利用します。', bakedNormalTexture: '輪郭生成用の法線Textureです。',
@@ -99,7 +109,7 @@ export const propertyNotes = {
 	mesh: '描画するMesh Assetです。', enableZPrepass: '深度の先行描画を使います。', renderFlags: '照明・影・IBL・反射などを受けるかのbit設定です。',
 	receiveDecals: 'Decalの投影を受け付けます。', nearClip: 'Cameraが描く最も近い距離です。0より大きくし、極端に小さくしないでください。',
 	farClip: 'Cameraが描く最も遠い距離です。NearClipより大きく指定します。', priority: '適用・合成・選択の優先順位です。',
-	cullingMask: '表示するRendererのRenderingLayerMaskと照合するbit集合です。', isMain: 'メインCameraとして選ぶ候補にします。',
+	cullingMask: '描画対象レイヤーです。Rendererの表示レイヤーと照合する24bit集合です。', isMain: 'メインCameraとして選ぶ候補にします。',
 	viewportX: '画面内の出力領域の左端です。0〜1で指定します。', viewportY: '画面内の出力領域の縦位置です。0〜1で指定します。',
 	viewportWidth: '画面全体に対する出力領域の幅です。0〜1で指定します。', viewportHeight: '画面全体に対する出力領域の高さです。0〜1で指定します。',
 	targetTexture: '描画先のRenderTexture Assetです。未指定なら通常の画面へ出力します。', postProcessEnabled: 'Cameraに設定されたポストプロセスを有効にします。',

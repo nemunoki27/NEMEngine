@@ -29,7 +29,7 @@ void Engine::ProjectPanel::DrawDirectoryContextMenu(
 		return;
 	}
 
-	if (ImGui::BeginMenu("作成")) {
+	if (ImGui::BeginMenu("作成", RuntimePaths::CanWritePath(RuntimePaths::ResolveAssetPath(node.virtualPath)))) {
 
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
@@ -49,24 +49,25 @@ void Engine::ProjectPanel::DrawFolderContextMenu(
 
 		EditorShell::OpenDirectory(RuntimePaths::ResolveAssetPath(node.virtualPath));
 	}
-	DrawGitContextMenu(RuntimePaths::ResolveAssetPath(node.virtualPath), true);
-	if (ImGui::MenuItem("名前変更")) {
+	const bool writable = RuntimePaths::CanWritePath(RuntimePaths::ResolveAssetPath(node.virtualPath));
+	if (writable) { DrawGitContextMenu(RuntimePaths::ResolveAssetPath(node.virtualPath), true); }
+	if (ImGui::MenuItem("名前変更", nullptr, false, writable)) {
 
 		BeginRenameDirectory(node);
 	}
 	DrawPasteAssetMenuItem(context, database, node.virtualPath);
-	if (ImGui::BeginMenu("作成")) {
+	if (ImGui::BeginMenu("作成", writable)) {
 
 		DrawCreateMenuItems(node.virtualPath);
 		ImGui::EndMenu();
 	}
-	if (ImGui::MenuItem("複製")) {
+	if (ImGui::MenuItem("複製", nullptr, false, writable)) {
 
 		ProjectAssetFileResult result =
 			ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath, context.editorContext->sceneStorage);
 		RefreshAfterFileOperation(database, result);
 	}
-	if (ImGui::MenuItem("削除")) {
+	if (ImGui::MenuItem("削除", nullptr, false, writable)) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(
 			assetSource_, node.virtualPath, database, context.editorContext->sceneStorage);
@@ -86,9 +87,10 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 	}
 
 	selectedAsset_ = asset.assetID;
-	DrawGitContextMenu(RuntimePaths::ResolveAssetPath(asset.assetPath), false);
+	const bool writable = RuntimePaths::CanWritePath(RuntimePaths::ResolveAssetPath(asset.assetPath));
+	if (writable) { DrawGitContextMenu(RuntimePaths::ResolveAssetPath(asset.assetPath), false); }
 
-	if (ImGui::MenuItem("名前変更")) {
+	if (ImGui::MenuItem("名前変更", nullptr, false, writable)) {
 
 		BeginRenameAsset(asset);
 	}
@@ -109,12 +111,17 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 		copiedAssetID_ = asset.assetID;
 	}
 	DrawPasteAssetMenuItem(context, database, Algorithm::PathToUTF8(Algorithm::PathFromUTF8(asset.assetPath).parent_path()));
-	if (ImGui::MenuItem("複製")) {
+	if (!writable && ImGui::MenuItem("GameAssetsへコピー")) {
+
+		const auto result = ProjectAssetFileUtility::CopyAsset(asset, ProjectAssetSource::Game, "GameAssets", context.editorContext->sceneStorage);
+		RefreshAfterFileOperation(database, result);
+	}
+	if (ImGui::MenuItem("複製", nullptr, false, writable)) {
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset, context.editorContext->sceneStorage);
 		RefreshAfterFileOperation(database, result);
 	}
-	if (ImGui::MenuItem("削除")) {
+	if (ImGui::MenuItem("削除", nullptr, false, writable)) {
 
 		// 削除前に参照元を集めて確認ポップアップを開く
 		pendingDeleteAsset_ = asset;
@@ -134,7 +141,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 		}
 	}
 	// 文字集合の変更後にFontを再生成する
-	if (MSDFFontGenerator::IsFontSourceExtension(asset.assetPath)) {
+	if (writable && MSDFFontGenerator::IsFontSourceExtension(asset.assetPath)) {
 
 		ImGui::Separator();
 		if (ImGui::MenuItem("フォントデータ再生成")) {
@@ -167,7 +174,7 @@ void Engine::ProjectPanel::DrawPasteAssetMenuItem(
 	const EditorPanelContext& context, AssetDatabase& database, const std::string& directoryVirtualPath) {
 
 	const AssetMeta* meta = copiedAssetID_ ? database.Find(copiedAssetID_) : nullptr;
-	if (!ImGui::MenuItem("貼り付け", nullptr, false, meta != nullptr)) {
+	if (!ImGui::MenuItem("貼り付け", nullptr, false, meta != nullptr && RuntimePaths::CanWritePath(RuntimePaths::ResolveAssetPath(directoryVirtualPath)))) {
 		return;
 	}
 

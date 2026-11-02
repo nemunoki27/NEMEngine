@@ -34,7 +34,7 @@ const Engine::AnimationClipAsset* Engine::AnimationClipManager::GetOrLoad(AssetD
 			clip.guid = clipID;
 			entry.clip = std::move(clip);
 			entry.valid = true;
-			++revision_;
+			entry.revision = ++revision_;
 		}
 	}
 	return entry.valid ? &entry.clip : nullptr;
@@ -49,4 +49,10 @@ void Engine::AnimationClipManager::Invalidate(AssetID clipID) {
 void Engine::AnimationClipManager::Clear() {
 
 	loaded_.clear();
+}
+
+uint64_t Engine::AnimationClipManager::GetRevision(AssetID clipID) const {
+
+	const auto found = loaded_.find(clipID);
+	return found == loaded_.end() ? 0 : found->second.revision;
 }

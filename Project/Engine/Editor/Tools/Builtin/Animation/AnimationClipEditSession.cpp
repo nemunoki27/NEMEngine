@@ -1,5 +1,6 @@
 #include "AnimationClipEditSession.h"
 #include "AnimationClipEditorUtility.h"
+#include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 
 //============================================================================
 //	include
@@ -32,6 +33,11 @@ void AnimationClipEditSession::AddPropertyTrack(
 		return;
 	}
 
+	const AnimationPropertyBinding binding{desc.componentName, desc.propertyPath, desc.valueType};
+	if (std::any_of(clip_.curveTracks.begin(), clip_.curveTracks.end(), [&](const auto& track) {
+		return AnimationValueOperations::SameBinding(track.binding, binding);
+	})) return;
+
 	AnimationPropertyValue currentValue{};
 	if (!desc.getValue(world, entity, currentValue)) {
 		return;
@@ -44,7 +50,7 @@ void AnimationClipEditSession::AddPropertyTrack(
 	track.applyMode = AnimationApplyMode::Override;
 	track.visible = true;
 
-	// 追加直後のTrackは現在値をdefaultValueへ写すだけで、キーは空のままにする
+	// 現在値を初期値へ写し、任意軸の回転は軸キーも保持する
 	SetupTrackInitialValue(track, currentValue);
 	NormalizeAnimationTrackChannels(track);
 	selectedTrackIndex_ = static_cast<int>(clip_.curveTracks.size());
@@ -52,7 +58,7 @@ void AnimationClipEditSession::AddPropertyTrack(
 	// 追加したPropertyの開始値を保持する
 	CachePreviewBaseValues(world, entity);
 	LoadSelectedTrackEditorView();
-	clipDirty_ = true;
+	MarkClipDirty();
 	curveState_.ClearSelection();
 	curveState_.frameSelectionRequest = true;
 }
@@ -163,6 +169,39 @@ void AnimationClipEditSession::UpdateAutoDurationAndPreview(const EditorToolCont
 	UpdateAnimationClipAutoDuration(clip_);
 	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
 	curveState_.currentTime = previewTime_;
-	clipDirty_ = true;
+	MarkClipDirty();
 	ApplyPreviewAtCurrentTime(context, true);
+}
+
+void AnimationClipEditSession::CommitHistory() {
+
+	if (!hasClip_ || (!historyPending_ && !historyState_.empty())) return;
+	historyPending_ = false;
+	const std::string state = nlohmann::json(clip_).dump();
+	if (state == historyState_) return;
+	if (!historyState_.empty()) {
+		undo_.emplace_back(std::move(historyCurrent_));
+		if (undo_.size() > 128) undo_.pop_front();
+	}
+	historyCurrent_ = clip_;
+	historyState_ = state;
+	redo_.clear();
+}
+
+bool AnimationClipEditSession::RestoreHistory(bool redo) {
+
+	auto& source = redo ? redo_ : undo_;
+	auto& destination = redo ? undo_ : redo_;
+	if (source.empty()) return false;
+	EndPreviewAndRestore();
+	destination.emplace_back(std::move(historyCurrent_));
+	historyCurrent_ = std::move(source.back());
+	source.pop_back();
+	clip_ = historyCurrent_;
+	historyState_ = nlohmann::json(clip_).dump();
+	MarkClipDirty();
+	NormalizeSelectedTrackIndex();
+	curveState_.ClearSelection();
+	editorViewTrackIndex_ = -1;
+	return true;
 }

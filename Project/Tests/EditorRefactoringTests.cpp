@@ -395,7 +395,7 @@ namespace {
 
 bool TestEditorContracts() {
 
-	if (!NEMTests::TestConsoleGPUPassContracts() || !NEMTests::TestEditorViewportVisibility() ||
+	if (!NEMTests::TestEditorGPUPassContracts() || !NEMTests::TestEditorViewportVisibility() ||
 		!TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||

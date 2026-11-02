@@ -10,6 +10,7 @@
 
 // front
 struct aiBone;
+struct aiNode;
 struct aiScene;
 
 namespace Engine {
@@ -23,4 +24,6 @@ namespace Engine {
 	int32_t FindSkeletonJointIndex(const Skeleton& skeleton, std::string_view jointReference);
 	// Assimpのボーン実体からジョイントを検索する
 	int32_t FindSkeletonJointIndex(const Skeleton& skeleton, const aiBone* bone);
+	// ノード実体から同名の別ノードと区別して検索する
+	int32_t FindSkeletonJointIndex(const Skeleton& skeleton, const aiNode* node);
 } // Engine

@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/Animation/Evaluation/AnimationPropertySnapshot.h>
 #include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
+#include <Engine/Core/Animation/Properties/MaterialAnimationPropertyCatalog.h>
 
 // c++
 #include <algorithm>
@@ -96,6 +97,7 @@ void AnimationClipEditSession::BeginPreview(const EditorToolContext& context) {
 	}
 
 	// Target Entityへ直接値を書き込むため、開始時の値を先に退避しておく
+	SetAnimationMaterialContext(*world, context.toolContext.assetDatabase, nullptr);
 	previewBaseValues_.clear();
 	CachePreviewBaseValues(*world, entity);
 	previewWorld_ = world;

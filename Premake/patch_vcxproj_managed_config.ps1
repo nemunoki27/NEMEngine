@@ -9,7 +9,7 @@
     [string]$ScriptCoreManagedOutputPath,
 
     # ProjectDirからリポジトリルートまでの相対プレフィックス(末尾の\は不要、区切りはこのスクリプトが付与する)。
-    # Sandbox(Project/Sandbox)は "..\.."、取り込みゲーム(Project/GameProjects/<name>/<name>)は "..\..\..\.."。
+    # Sandbox(Project/Sandbox)では "..\.." を指定する。
     # 末尾に\を付けてバッチから "..\..\..\..\" のように渡すと、cmd→powershellの引数解析で末尾 \" が
     # エスケープ扱いされ値が壊れる(末尾に引用符が混入する)ため、呼び出し側は末尾\を付けないこと。
     [string]$RepoRootFromProject = "..\.."
@@ -110,7 +110,6 @@ $preBuildCommand = @(
 ) -join "`r`n"
 
 # Generated/ と Project/Externals/ はリポジトリルート基準で参照する。プロジェクトの階層深さ
-# (Sandbox=Project/Sandbox, ゲーム=Project/GameProjects/<name>)で $(ProjectDir) からの距離が変わるため、
 # $RepoRootFromProject でリポジトリルートまで遡ってから絶対的な配置に解決する。
 # 末尾の\有無に依存しないよう正規化し、区切りはここで明示的に付与する
 $repoRoot = '$(ProjectDir)' + $RepoRootFromProject.TrimEnd('\')

@@ -1,4 +1,5 @@
 #include "RenderFeatureProfileSerializer.h"
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
 //	include
@@ -276,6 +277,7 @@ bool Engine::RenderFeatureProfileSerializer::Load(const std::filesystem::path& p
 
 bool Engine::RenderFeatureProfileSerializer::Save(const std::filesystem::path& path, const RenderFeatureProfileAsset& profile) {
 
+	if (!RuntimePaths::CanWritePath(path)) { return false; }
 	if (!path.filename().u8string().ends_with(u8".renderpasses.json")) {
 		return false;
 	}

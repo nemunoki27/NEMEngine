@@ -21,6 +21,7 @@ namespace Engine::AnimationClipEditorUtility {
 		}
 		constexpr float kEpsilon = 1.0e-4f;
 		const auto nearly = [](float a, float b) { return std::fabs(a - b) <= kEpsilon; };
+		if (const auto* v = std::get_if<int32_t>(&lhs)) return *v == std::get<int32_t>(rhs);
 
 		if (const float* v = std::get_if<float>(&lhs)) {
 			return nearly(*v, std::get<float>(rhs));
@@ -63,7 +64,7 @@ namespace Engine::AnimationClipEditorUtility {
 			return channelIndex < track.channels.size() && !track.channels[channelIndex].keys.empty();
 		};
 
-		if (std::get_if<float>(&current)) {
+		if (std::get_if<float>(&current) || std::get_if<int32_t>(&current)) {
 			return keyed(0) ? base : current;
 		}
 		if (const Vector2* c = std::get_if<Vector2>(&current)) {
@@ -128,6 +129,10 @@ namespace Engine::AnimationClipEditorUtility {
 			}
 			break;
 		case AnimationValueType::Quaternion:
+			if (IsQuaternionEulerTrack(track)) {
+				options = {{"X", {0u}}, {"Y", {1u}}, {"Z", {2u}}};
+				break;
+			}
 			// Quaternionは角度だけを生成対象にする
 			if (channelCount >= 2) {
 				options = {{"角度", {1u}}};
@@ -219,6 +224,7 @@ namespace Engine::AnimationClipEditorUtility {
 	void SetupTrackInitialValue(AnimationCurveTrack& track, const AnimationPropertyValue& value) {
 
 		track.channels = MakeDefaultAnimationChannels(track.binding.valueType);
+		if (const auto* integer = std::get_if<int32_t>(&value)) FillChannel(track.channels[0], static_cast<float>(*integer));
 
 		// キーを作らず現在値を既定値へ取り込む
 		if (const float* valueFloat = std::get_if<float>(&value)) {
@@ -246,10 +252,11 @@ namespace Engine::AnimationClipEditorUtility {
 			FillChannel(track.channels[3], valueColor4->a);
 		} else if (const Quaternion* valueQuat = std::get_if<Quaternion>(&value)) {
 			float angleDegrees = 0.0f;
-			MakeAxisKeyFromQuaternion(*valueQuat, angleDegrees);
+			const auto axis = MakeAxisKeyFromQuaternion(*valueQuat, angleDegrees);
 			FillChannel(track.channels[0], 0.0f);
 			FillChannel(track.channels[1], angleDegrees);
-			track.quaternionAxisKeys.clear();
+			track.channels[0].AddKey(0.0f, 0.0f, CurveInterpolationMode::Linear);
+			track.quaternionAxisKeys = {axis};
 		}
 	}
 

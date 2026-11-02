@@ -15,7 +15,7 @@ namespace NEMTests {
 
 		// 全Caseの終了まで一時出力先を保持する
 		TestDirectory directory("ShaderGraph");
-		const ShaderGraphCompileFixture fixture(directory.GetPath(), Engine::RuntimePaths::GetEngineAssetsRoot() / "Shaders");
+		const ShaderGraphCompileFixture fixture(directory.GetPath(), Engine::RuntimePaths::GetEngineAssetsRoot() / "Rendering");
 		std::error_code ec;
 		std::filesystem::create_directories(fixture.GetGeneratedRoot(), ec);
 		if (ec || !RunTest("ShaderGraphSettingsImport", [&] { return TestShaderGraphSettingsImport(fixture); })) {

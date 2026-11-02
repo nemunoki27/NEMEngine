@@ -97,13 +97,31 @@ void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& 
 		break;
 	}
 	case AnimationValueType::Quaternion: {
+		bool euler = IsQuaternionEulerTrack(track);
+		if (MyGUI::BeginPropertyRow("回転編集")) {
+			if (ImGui::BeginCombo("##RotationMode", euler ? "オイラー角" : "軸＋角度")) {
+				for (bool nextEuler : {false, true}) {
+					if (ImGui::Selectable(nextEuler ? "オイラー角" : "軸＋角度", euler == nextEuler) && euler != nextEuler) {
+						if (nextEuler) ConvertQuaternionTrackToEuler(track);
+						else StoreQuaternionEditorCurve(BuildQuaternionEditorCurve(track), track);
+						euler = nextEuler;
+						session.GetCurveState().ClearSelection();
+						session.MarkClipDirty();
+					}
+				}
+				ImGui::EndCombo();
+			}
+			MyGUI::EndPropertyRow();
+		}
+		if (euler) {
+			result = DrawTrackCurve<CurveVector3>(track, session.GetCurveState(), curveSetting);
+			break;
+		}
 		// 回転軸と角度を別々のキーで編集する
-		const bool wasAxisAngleTrack = IsQuaternionAxisAngleTrack(track);
 		CurveQuaternion curve = BuildQuaternionEditorCurve(track);
 		result = MyGUI::CurveEditor("AnimationClipCurveEditor", curve, session.GetCurveState(), curveSetting);
-		if (!wasAxisAngleTrack || result.valueChanged || result.editFinished) {
+		if (result.valueChanged || result.editFinished) {
 			StoreQuaternionEditorCurve(curve, track);
-			result.valueChanged |= !wasAxisAngleTrack;
 		}
 		break;
 	}
@@ -315,7 +333,7 @@ void Engine::AnimationClipEditorUI::DrawGeneratorUI(AnimationClipEditSession& se
 		return;
 	}
 
-	if (!MyGUI::CollapsingHeader("カーブ生成")) {
+	if (!MyGUI::CollapsingHeader("カーブ生成", false)) {
 		return;
 	}
 

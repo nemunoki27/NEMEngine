@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "EditorMeasurementDisplay.h"
+#include <Engine/Editor/Core/ViewportPanelSettings.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -56,6 +58,7 @@ namespace {
 
 void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
+	bool measurementVisible = false;
 	if (ImGui::BeginMenu("グラフィックス設定")) {
 
 		ImGui::SetWindowFontScale(0.8f);
@@ -77,6 +80,19 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			ImGui::Separator();
 			ImGui::Text("Mesh Shader Tier: %s", GraphicsFeatureText::ToString(support.meshShaderTier));
 			ImGui::Text("RayTracing Tier : %s", GraphicsFeatureText::ToString(support.raytracingTier));
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("計測データ")) {
+			measurementVisible = true;
+			auto& state = *context.editorState;
+			bool changed = MyGUI::Checkbox("View上にFPSを表示", state.showSceneViewFPS);
+			changed |= MyGUI::Checkbox("View上にDeltaTimeを表示", state.showSceneViewDeltaTime);
+			if (changed) {
+				ViewportPanelSettings::Save(state);
+			}
+			ImGui::Separator();
+			EditorMeasurementDisplay::DrawData();
 			ImGui::EndMenu();
 		}
 
@@ -314,4 +330,8 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 		ImGui::EndMenu();
 	}
+	if (!measurementVisible) {
+		EditorMeasurementDisplay::UpdateHiddenData();
+	}
+
 }

@@ -82,6 +82,7 @@ namespace {
 		}
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
 			renderer->size = typed;
+			world.MarkComponentModified<Engine::SpriteRendererComponent>(entity);
 			return true;
 		}
 		return false;
@@ -106,6 +107,7 @@ namespace {
 		}
 		if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
 			renderer->pivot = typed;
+			world.MarkComponentModified<Engine::SpriteRendererComponent>(entity);
 			return true;
 		}
 		return false;
@@ -161,6 +163,7 @@ namespace {
 		const std::span<Engine::SubMeshMaterial> subMeshes = Engine::GetMeshSubMeshes(world, entity);
 		if (SubMeshIndex < subMeshes.size()) {
 			subMeshes[SubMeshIndex].*Member = typed;
+			world.MarkComponentModified<Engine::MeshRendererComponent>(entity);
 			return true;
 		}
 		return false;

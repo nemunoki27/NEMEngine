@@ -10,6 +10,8 @@ Engine::AnimationPropertyValue Engine::ZeroAnimationValue(Engine::AnimationValue
 
 	// Trackの型に合わせて初期値を作る
 	switch (type) {
+	case Engine::AnimationValueType::Int:
+		return int32_t(0);
 	case Engine::AnimationValueType::Vector2:
 		return Engine::Vector2{};
 	case Engine::AnimationValueType::Vector3:
@@ -30,6 +32,9 @@ bool Engine::MaterialValueToAnimation(
 
 	// Trackの型に合う保存値を取得する
 	switch (type) {
+	case Engine::AnimationValueType::Int:
+		if (const auto* v = std::get_if<int32_t>(&value.value)) { out = *v; return true; }
+		break;
 	case Engine::AnimationValueType::Float:
 		if (const float* v = std::get_if<float>(&value.value)) {
 			out = *v;
@@ -84,6 +89,7 @@ Engine::MaterialParameterValue Engine::AnimationValueToMaterial(const Engine::An
 
 	// Materialで保存する型へ揃える
 	Engine::MaterialParameterValue result{};
+	if (const auto* v = std::get_if<int32_t>(&value)) { result.value = *v; return result; }
 	if (const float* v = std::get_if<float>(&value)) {
 		result.value = *v;
 		return result;

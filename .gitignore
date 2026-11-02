@@ -9,6 +9,7 @@ Generated/
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
+*.csproj.user
 *.VC.db
 *.VC.opendb
 
@@ -54,3 +55,9 @@ premake5.exe
 
 # ローカルのドキュメント
 /Docs/
+
+# ランチャー配布用のローカル生成物と認証
+/Tools/Distribution/node_modules/
+/Tools/Distribution/.wrangler/
+/Tools/Distribution/.dev.vars
+/Tools/Distribution/.env*

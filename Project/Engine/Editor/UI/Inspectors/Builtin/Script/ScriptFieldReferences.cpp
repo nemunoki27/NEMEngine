@@ -1,12 +1,11 @@
 #include "ScriptFieldInspector.h"
+#include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 // c++
 
@@ -27,99 +26,23 @@ namespace Engine::ScriptFieldInspector {
 		return r;
 	}
 
-	std::string ResolveEntityRefName(Engine::ECSWorld* world, const std::string& localFileID) {
-
-		if (!world || localFileID.empty()) { return {}; }
-		std::string name;
-		world->ForEach<Engine::SceneObjectComponent>([&](Engine::Entity e, Engine::SceneObjectComponent& so) {
-			if (name.empty() && Engine::ToString(so.localFileID) == localFileID) {
-				const Engine::NameComponent* nameComponent = world->TryGetComponent<Engine::NameComponent>(e);
-				name = nameComponent ? nameComponent->name : std::string("Entity");
-			}
-			});
-		return name;
-	}
-
 	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx,
 		const EntityDropFilter& dropFilter, const char* rejectTooltip) {
 
-		Engine::ValueEditResult result{};
-		if (!value.is_object()) { value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} }; }
-
-		const std::string kind = value.value("kind", std::string("Null"));
-		const std::string localFileID = value.value("localFileId", std::string{});
-
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return result;
+		if (!ctx.world) {
+			UUID empty;
+			return MyGUI::EntityReferenceField(label, empty, nullptr);
 		}
-		// AssetRefと同じ見た目に合わせる、行幅いっぱいのボタンで未設定はグレーアウトする
-		const bool hasValue = !(kind == "Null" || localFileID.empty());
-		std::string preview;
-		if (!hasValue) {
-			preview = "None (Drop entity here)";
-		} else {
-			// AssetRefと同じくName表示にし、解決できなければ欠落表示にする
-			const std::string name = ResolveEntityRefName(ctx.world, localFileID);
-			preview = name.empty() ? ("Missing Entity | " + localFileID) : ("Name: " + name);
+		SceneEntityReference reference;
+		from_json(value, reference);
+		EntityEditSetting setting;
+		setting.acceptEntity = dropFilter;
+		setting.rejectReason = rejectTooltip;
+		auto result = SceneEntityReferenceFields::Draw(label, *ctx.world, ctx.owner, reference, setting);
+		if (result.valueChanged) {
+			if (reference.localFileID) value = nlohmann::json(reference);
+			else value = {{"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""}};
 		}
-
-		ImGui::PushID(label);
-		if (!hasValue) { ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); }
-		ImGui::Button(preview.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
-		if (!hasValue) { ImGui::PopStyleColor(); }
-		result.anyItemActive = ImGui::IsItemActive();
-
-		// 解除はClearボタンではなくAssetRefと同じ右クリックの削除メニューで行う
-		if (hasValue && ImGui::BeginPopupContextItem("##entityRefDelete")) {
-			if (ImGui::MenuItem("削除")) {
-				value = nlohmann::json{ {"kind", "Null"}, {"sourceAsset", ""}, {"localFileId", ""} };
-				result.valueChanged = true;
-				result.editFinished = true;
-			}
-			ImGui::EndPopup();
-		}
-
-		// ドラッグされたエンティティを参照に設定する、フィルタを通らないエンティティは受け付けない
-		if (ImGui::BeginDragDropTarget()) {
-
-			// Accept前にpayloadを覗いて判定する、受け入れない場合はハイライトを出さずUnityの禁止表示相当にする
-			bool acceptable = true;
-			if (dropFilter && ctx.world) {
-				const ImGuiPayload* hovered = ImGui::GetDragDropPayload();
-				if (hovered && hovered->IsDataType(Engine::IEditorPanel::kHierarchyDragDropPayloadType) &&
-					hovered->DataSize == sizeof(Engine::UUID)) {
-
-					Engine::UUID draggedUUID = *static_cast<const Engine::UUID*>(hovered->Data);
-					Engine::Entity target = ctx.world->FindByUUID(draggedUUID);
-					acceptable = ctx.world->IsAlive(target) && dropFilter(*ctx.world, target);
-					if (!acceptable && rejectTooltip) {
-						ImGui::SetTooltip("%s", rejectTooltip);
-					}
-				}
-			}
-
-			if (acceptable) {
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType)) {
-					if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID) && ctx.world) {
-
-						Engine::UUID draggedUUID = *static_cast<const Engine::UUID*>(payload->Data);
-						Engine::Entity target = ctx.world->FindByUUID(draggedUUID);
-						if (ctx.world->IsAlive(target) && ctx.world->HasComponent<Engine::SceneObjectComponent>(target)) {
-
-							const auto& sceneObject = ctx.world->GetComponent<Engine::SceneObjectComponent>(target);
-							value["kind"] = "Scene";
-							value["sourceAsset"] = sceneObject.sourceAsset ? Engine::ToString(sceneObject.sourceAsset) : std::string{};
-							value["localFileId"] = Engine::ToString(sceneObject.localFileID);
-							result.valueChanged = true;
-							result.editFinished = true;
-						}
-					}
-				}
-			}
-			ImGui::EndDragDropTarget();
-		}
-		ImGui::PopID();
-		Engine::MyGUI::EndPropertyRow();
 		return result;
 	}
 

@@ -1,0 +1,21 @@
+{
+  "id": "git-e3bf78351fe7-5bb771c12b3d",
+  "gitVersion": "v2.56.0.windows.4",
+  "lfsVersion": "v3.8.1",
+  "git": {
+    "id": "git-v2-56-0-windows-4",
+    "url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip",
+    "sha256": "e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877",
+    "bytes": 39846926,
+    "unpackedBytes": 96237338
+  },
+  "lfs": {
+    "id": "git-lfs-v3-8-1",
+    "url": "https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-windows-amd64-v3.8.1.zip",
+    "sha256": "5bb771c12b3dacc535e912d0270a010c209d4da2e63819c5918e3547c2defed9",
+    "bytes": 5870805,
+    "unpackedBytes": 15320675
+  },
+  "gitExecutable": "cmd/git.exe",
+  "lfsExecutable": "git-lfs-3.8.1/git-lfs.exe"
+}

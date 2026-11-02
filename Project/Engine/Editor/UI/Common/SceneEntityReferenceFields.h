@@ -9,5 +9,8 @@
 namespace Engine::SceneEntityReferenceFields {
 
 	// 保存用の参照をHierarchyのEntityへ対応付けて編集する
-	ValueEditResult Draw(const char* label, ECSWorld& world, Entity owner, SceneEntityReference& reference);
+	ValueEditResult Draw(const char* label, ECSWorld& world, Entity owner, SceneEntityReference& reference,
+		const EntityEditSetting& setting = {});
+	// LocalFileIDだけを保持する既存の参照を編集する
+	ValueEditResult DrawLocal(const char* label, ECSWorld& world, UUID& localFileID);
 }

@@ -14,17 +14,8 @@ void Engine::SkyboxRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "Rendering Layer", draft.renderingLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-		});
 
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("cubemap", draft.cubemapTexture,
-			context.editorContext->assetDatabase, { AssetType::Texture });
-		});
+
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);
 		});
@@ -33,5 +24,9 @@ void Engine::SkyboxRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("物理環境光", draft.physicalEnvironmentEnabled);
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::AssetReferenceField("cubemap", draft.cubemapTexture,
+			context.editorContext->assetDatabase, { AssetType::Texture });
 		});
 }

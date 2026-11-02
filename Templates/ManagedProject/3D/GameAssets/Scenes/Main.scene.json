@@ -1,0 +1,106 @@
+{
+  "SchemaVersion": 3,
+  "Header": {
+    "name": "Main",
+    "subScenes": []
+  },
+  "Entities": [
+    {
+      "LocalFileID": "0000000000000001",
+      "Components": {
+        "Name": {
+          "name": "Camera3D"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "0000000000000001",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 2,
+            "z": -10
+          },
+          "localRotation": {
+            "w": 1,
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 0
+        },
+        "PerspectiveCamera": {
+          "isMain": true,
+          "enabled": true,
+          "renderPasses": "4e454d4153534554525450524f46494c"
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000002",
+      "Components": {
+        "Name": {
+          "name": "DirectionalLight"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "0000000000000002",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "w": 1,
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 1
+        },
+        "DirectionalLight": {
+          "enabled": true,
+          "color": {
+            "r": 1,
+            "g": 1,
+            "b": 1,
+            "a": 1
+          },
+          "direction": {
+            "x": 0,
+            "y": -1,
+            "z": 0
+          },
+          "intensity": 10,
+          "shadowStrength": 0.92,
+          "shadowAngularRadius": 0.27
+        }
+      }
+    }
+  ],
+  "PrefabInstances": []
+}

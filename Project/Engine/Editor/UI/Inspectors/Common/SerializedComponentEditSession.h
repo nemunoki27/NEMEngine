@@ -45,6 +45,10 @@ namespace Engine {
 		// 入力結果を編集要求へ反映する
 		void PushEditResult(const ValueEditResult& result, bool& anyItemActive);
 
+		// 対象変更と削除後に編集要求を持ち越さない
+		void EndEditing(bool restore = true);
+		void SyncOwner(ECSWorld* world, Entity entity);
+
 		//--------- accessor -----------------------------------------------------
 
 		bool NeedsSync(const ECSWorld& world, UUID entityUUID) const {
@@ -85,8 +89,35 @@ namespace Engine {
 
 		// 編集対象を失う前に未確定プレビューを戻す
 		void RestorePreview();
+		// 保存先へ触れず編集中の状態を破棄する
+		void Reset();
 
 	};
+
+	template<typename T>
+	inline void SerializedComponentEditSession<T>::EndEditing(bool restore) {
+
+		if (restore) {
+			RestorePreview();
+		} else {
+			Reset();
+		}
+	}
+
+	template<typename T>
+	inline void SerializedComponentEditSession<T>::SyncOwner(ECSWorld* world, Entity entity) {
+
+		if (!editingWorldPointer_) {
+			return;
+		}
+		const auto lifetime = editingWorld_.lock();
+		if (!world || !lifetime || lifetime != world->GetLifetime() || !world->IsAlive(entity) ||
+			editingEntityStableUUID_ != world->GetUUID(entity)) {
+			EndEditing();
+		} else if (!world->HasComponent<T>(entity)) {
+			EndEditing(false);
+		}
+	}
 
 	template<typename T>
 	inline void SerializedComponentEditSession<T>::SyncDraftFromWorld(ECSWorld& world, const Entity& entity, SerializedComponentEditHooks<T>& hooks) {
@@ -220,6 +251,16 @@ namespace Engine {
 				editingWorldPointer_->ApplyComponentJson(entity, componentTypeName_, previewBeginData_);
 			}
 		}
+		Reset();
+	}
+
+	template<typename T>
+	inline void SerializedComponentEditSession<T>::Reset() {
+
+		isEditing_ = false;
+		commitRequested_ = false;
+		draftComponent_ = T{};
+		previewBeginComponent_ = T{};
 		previewActive_ = false;
 		previewRequested_ = false;
 		previewBeginData_ = nlohmann::json{};

@@ -5,8 +5,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshFileImporter.h>
+#include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
+#include <Engine/Core/Rendering/Meshes/Import/ModelFileDependencyCollector.h>
+#include <Engine/Core/World/Systems/Animation/SkeletonPoseEvaluator.h>
 #include <Engine/Core/World/Systems/Animation/SkeletonPlaybackTime.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
@@ -14,6 +20,12 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iostream>
+
+// assimp
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 namespace {
 
@@ -58,6 +70,127 @@ namespace {
 		return !model.fail();
 	}
 
+	// 元のノード階層からモデル空間の行列を求める
+	aiMatrix4x4 SourceNodeMatrix(const aiNode* node) {
+
+		return node->mParent ? SourceNodeMatrix(node->mParent) * node->mTransformation : node->mTransformation;
+	}
+
+	// Assimpの元データと実際のスキニング入力を頂点単位で照合する
+	bool CheckModelPose(const std::filesystem::path& path, bool animated) {
+
+		using namespace Engine;
+		AssetDatabase database;
+		if (!database.Init()) return false;
+		const auto id = database.ImportOrGet(RuntimePaths::ToAssetPath(path), AssetType::Mesh);
+		SkinnedMeshAnimationManager manager;
+		manager.Init(1);
+		manager.RequestLoadAsync(database, id);
+		manager.WaitAll();
+		const auto animation = manager.Find(id);
+		const auto mesh = MeshFileImporter::ImportFile(id, path, {}, {}, false);
+		if (!animation || !animation->valid || !mesh.isSkinned || mesh.boneCount != animation->skeleton.joints.size()) {
+			std::cerr << "Model definition mismatch: animation=" << bool(animation) << " skinned=" << mesh.isSkinned << " bones=" << mesh.boneCount << '\n';
+			return false;
+		}
+		auto skeleton = animation->skeleton;
+		std::vector<WellForGPU> palette;
+		SkeletonPoseEvaluator::UpdateSkeletonHierarchy(skeleton);
+		SkeletonPoseEvaluator::BuildPalette(skeleton, animation->skinCluster, palette);
+		Assimp::Importer importer;
+		auto* files = new ModelFileIOSystem(path);
+		importer.SetIOHandler(files);
+		const auto* scene = importer.ReadFile(files->GetModelPath(), aiProcess_Triangulate | aiProcess_PopulateArmatureData |
+			aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace |
+			aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality | aiProcess_SortByPType);
+		if (!scene) return false;
+		uint32_t offset = 0, attachments = 0;
+		for (uint32_t index = 0; index < scene->mNumMeshes; ++index) {
+			const auto* source = scene->mMeshes[index];
+			std::vector<aiVector3D> expected(source->mNumVertices);
+			if (source->HasBones()) {
+				for (uint32_t boneIndex = 0; boneIndex < source->mNumBones; ++boneIndex) {
+					const auto* bone = source->mBones[boneIndex];
+					if (!bone->mNode) return false;
+					const auto matrix = SourceNodeMatrix(bone->mNode) * bone->mOffsetMatrix;
+					for (uint32_t weight = 0; weight < bone->mNumWeights; ++weight) {
+						const auto& influence = bone->mWeights[weight];
+						expected[influence.mVertexId] += matrix * source->mVertices[influence.mVertexId] * influence.mWeight;
+					}
+				}
+			} else {
+				++attachments;
+				const aiNode* owner = nullptr;
+				auto find = [&](auto&& self, const aiNode* node) -> void {
+					for (uint32_t meshIndex = 0; meshIndex < node->mNumMeshes; ++meshIndex) if (node->mMeshes[meshIndex] == index) owner = node;
+					for (uint32_t child = 0; child < node->mNumChildren; ++child) self(self, node->mChildren[child]);
+				};
+				find(find, scene->mRootNode);
+				if (!owner) return false;
+				const auto matrix = SourceNodeMatrix(owner);
+				for (uint32_t vertex = 0; vertex < source->mNumVertices; ++vertex) expected[vertex] = matrix * source->mVertices[vertex];
+			}
+			for (uint32_t vertex = 0; vertex < source->mNumVertices; ++vertex) {
+				const auto& original = mesh.vertices[offset + vertex].position;
+				const Vector3 position(original.x, original.y, original.z);
+				const auto& influence = mesh.vertexInfluences[offset + vertex];
+				Vector3 actual{};
+				float sum = 0;
+				for (uint32_t slot = 0; slot < kNumMaxInfluence; ++slot) {
+					if (influence.weights[slot] <= 0) continue;
+					actual += Vector3::Transform(position, palette[influence.jointIndices[slot]].skeletonSpaceMatrix) * influence.weights[slot];
+					sum += influence.weights[slot];
+				}
+				if (sum > 0) actual /= sum;
+				else actual = position;
+				const Vector3 reference(-expected[vertex].x, expected[vertex].y, expected[vertex].z);
+				if ((actual - reference).Length() > 0.002f * (std::max)(1.0f, reference.Length())) {
+					std::cerr << "Model pose mismatch: " << source->mName.C_Str() << " vertex=" << vertex
+						<< " actual=" << actual.x << ',' << actual.y << ',' << actual.z
+						<< " expected=" << reference.x << ',' << reference.y << ',' << reference.z << '\n';
+					return false;
+				}
+			}
+			offset += source->mNumVertices;
+		}
+		if (animated) {
+			skeleton = animation->skeleton;
+			SkeletonPoseEvaluator::ApplyClipToSkeleton(skeleton, animation->clipJointTracks.at("Move"), 0.5f);
+			SkeletonPoseEvaluator::UpdateSkeletonHierarchy(skeleton);
+			SkeletonPoseEvaluator::BuildPalette(skeleton, animation->skinCluster, palette);
+			const auto sword = skeleton.jointMap.find("Sword");
+			if (sword == skeleton.jointMap.end()) return false;
+			const auto position = Vector3::Transform({}, palette[sword->second].skeletonSpaceMatrix);
+			if ((position - Vector3(-4, 3.5f, 0)).Length() > 0.001f) {
+				std::cerr << "Attachment motion mismatch: " << position.x << ',' << position.y << ',' << position.z << '\n';
+				return false;
+			}
+			for (const auto& [name, track] : animation->clips.at("Move").nodeAnimations) {
+				if (track.translate.keyframes.size() != 2) { std::cerr << "Duplicate animation keys: " << track.translate.keyframes.size() << '\n'; return false; }
+			}
+		}
+		std::cout << "Model pose verified: vertices=" << mesh.vertices.size() << " rigidParts=" << attachments << '\n';
+		return attachments > 0;
+	}
+
+	// 回転と非一様Scaleを持つ剣が手の移動へ追従する
+	bool CheckRigidAttachment(const std::filesystem::path& root) {
+
+		using namespace Engine;
+		const auto path = root / "attachment.gltf";
+		if (!WriteAnimatedModel(path, 1)) return false;
+		auto document = JsonFile::Load(path, false);
+		document["nodes"][0]["translation"] = {0, 3, 0};
+		document["nodes"][1]["translation"] = {0, 2, 0};
+		document["nodes"][1]["children"] = {3};
+		document["nodes"].push_back({{"name", "Sword"}, {"mesh", 1}, {"translation", {4, 0, 0}},
+			{"scale", {2, 1, 1}}, {"rotation", {0, 0, std::sqrt(0.5f), std::sqrt(0.5f)}}});
+		document["meshes"].push_back({{"primitives", {{{"attributes", {{"POSITION", 0}}}, {"indices", 3}}}}});
+		document["animations"][0]["channels"].push_back(document["animations"][0]["channels"][0]);
+		std::ofstream(path) << document.dump();
+		return CheckModelPose(path, true);
+	}
+
 	bool TestPlaybackTime() {
 
 		using Engine::SkeletonPlaybackTime::Advance;
@@ -77,6 +210,23 @@ bool NEMTests::TestSkeletonAnimation() {
 	using namespace Engine;
 	if (!TestPlaybackTime()) return false;
 	TestDirectory directory("SkeletonAnimation", RuntimePaths::GetGameAssetsRoot());
+	if (!CheckRigidAttachment(directory.GetPath())) return false;
+	const auto external = Algorithm::GetEnvironmentPath(L"NEM_TEST_GLTF_MODEL");
+	if (!external.empty()) {
+		// ユーザーのモデルは読み取りだけ行い、検証用コピーで評価する
+		TestDirectory copied("ModelPose", RuntimePaths::GetGameAssetsRoot());
+		std::vector<std::filesystem::path> dependencies;
+		std::string message;
+		if (!ModelFileDependencyCollector::Collect(external, dependencies, message)) return false;
+		for (const auto& file : dependencies) {
+			const auto relative = std::filesystem::relative(file, external.parent_path());
+			if (relative.empty() || relative.has_root_path() || *relative.begin() == "..") return false;
+			const auto destination = copied.GetPath() / relative;
+			std::filesystem::create_directories(destination.parent_path());
+			std::filesystem::copy_file(file, destination);
+		}
+		if (!CheckModelPose(copied.GetPath() / external.filename(), false)) return false;
+	}
 	const auto path = directory.GetPath() / "mesh.gltf";
 	if (!WriteAnimatedModel(path, 1.0f)) return false;
 	AssetDatabase database;

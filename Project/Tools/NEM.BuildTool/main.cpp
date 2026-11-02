@@ -235,28 +235,28 @@ namespace {
 	}
 }
 
-int main(int argc, char** argv) {
+int wmain(int argc, wchar_t** argv) {
 
-	if (argc == 3 && std::string_view(argv[1]) == "--validate-project") {
+	if (argc == 3 && std::wstring_view(argv[1]) == L"--validate-project") {
 		return ValidateProject(std::filesystem::path(argv[2]));
 	}
-	if (argc == 3 && std::string_view(argv[1]) == "--canonicalize-scenes") {
+	if (argc == 3 && std::wstring_view(argv[1]) == L"--canonicalize-scenes") {
 		return CanonicalizeScenes(std::filesystem::path(argv[2]), false);
 	}
-	if (argc == 4 && std::string_view(argv[1]) == "--canonicalize-scenes" &&
-		std::string_view(argv[3]) == "--include-engine") {
+	if (argc == 4 && std::wstring_view(argv[1]) == L"--canonicalize-scenes" &&
+		std::wstring_view(argv[3]) == L"--include-engine") {
 		return CanonicalizeScenes(std::filesystem::path(argv[2]), true);
 	}
-	if (argc == 4 && std::string_view(argv[1]) == "--recover-json-merge") {
+	if (argc == 4 && std::wstring_view(argv[1]) == L"--recover-json-merge") {
 		return RecoverMergeJson(argv[2], argv[3]);
 	}
-	if (argc == 6 && std::string_view(argv[1]) == "--merge-json") {
+	if (argc == 6 && std::wstring_view(argv[1]) == L"--merge-json") {
 		return MergeJsonFiles(argv[2], argv[3], argv[4], argv[5]);
 	}
-	if (argc == 4 && std::string_view(argv[1]) == "--verify-cook") {
+	if (argc == 4 && std::wstring_view(argv[1]) == L"--verify-cook") {
 		return VerifyCook(argv[2], argv[3]);
 	}
-	if (argc == 4 && std::string_view(argv[1]) == "--cook-shaders") {
+	if (argc == 4 && std::wstring_view(argv[1]) == L"--cook-shaders") {
 		return CookShaders(argv[2], argv[3]);
 	}
 

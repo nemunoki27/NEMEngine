@@ -17,17 +17,14 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 
 	// 再生設定
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("ループ再生", draft.loop);
+		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("ループ間隔", draft.loopInterval,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 600.0f });
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("編集中も再生", draft.playInEditMode);
+		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("再生終了後に非表示", draft.endAnimUnDisplay);

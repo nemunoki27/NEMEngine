@@ -1,4 +1,5 @@
 #include "ParticleEmitterDrawer.h"
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 
 //============================================================================
 //	include
@@ -41,7 +42,7 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 			MyGUI::ScopedPropertyLabelWidth labelWidth("EmitterEmissionSettings");
 
 			changed |= MyGUI::DragFloat("発生間隔", group.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
-			changed |= MyGUI::Checkbox("ループ再生", group.looping);
+			changed |= MyGUI::Checkbox(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), group.looping);
 			changed |= ParticleGUI::DrawParticleValueUInt("発生数", group.emitter.emitCount);
 			{
 				int32_t maxParticles = static_cast<int32_t>(group.emitter.maxParticles);
@@ -154,8 +155,8 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 					}
 				}
 			}
-			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
-			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
+			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::BlendMode), group.blendMode).valueChanged;
+			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::RenderQueue), group.queue).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };

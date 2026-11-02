@@ -1,0 +1,10 @@
+{
+  "name": "nemengine-support",
+  "main": "worker.mjs",
+  "account_id": "9f245d7568ac402a6d148015f6b13e96",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "r2_buckets": [{ "binding": "REPORT_FILES", "bucket_name": "nemengine-bug-reports" }],
+  "d1_databases": [{ "binding": "REPORTS", "database_name": "nemengine-bug-reports", "database_id": "778bf7b7-12f7-4175-a088-817d9b940223" }],
+  "triggers": { "crons": ["17 3 * * *"] }
+}

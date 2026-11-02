@@ -3,10 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 // c++
 #include <algorithm>
 #include <atomic>
 #include <cwctype>
+#include <exception>
 
 namespace {
 
@@ -61,9 +63,14 @@ namespace {
 
 			if (!source) { return E_POINTER; }
 			*source = nullptr;
-			// 絶対パスやリンクで入力rootを抜ける参照も拒否する
-			if (!fileName || !Engine::IsShaderSourceWithinRoot(fileName, root_)) { return E_ACCESSDENIED; }
-			return handler_->LoadSource(fileName, source);
+			if (!fileName) { return E_INVALIDARG; }
+			try {
+				// 親階層を畳み、長いパスをWindows形式へ揃える
+				const auto normalized = std::filesystem::path(fileName).lexically_normal();
+				if (!root_.empty() && !Engine::IsShaderSourceWithinRoot(normalized, root_)) { return E_ACCESSDENIED; }
+				const auto native = Engine::Algorithm::ToFileSystemPath(normalized);
+				return handler_->LoadSource(native.c_str(), source);
+			} catch (const std::exception&) { return E_FAIL; }
 		}
 	private:
 		//========================================================================
@@ -91,6 +98,6 @@ ComPtr<IDxcIncludeHandler> Engine::CreateShaderSourceIncludeHandler(IDxcIncludeH
 	const std::filesystem::path& root) {
 
 	ComPtr<IDxcIncludeHandler> result;
-	if (handler && !root.empty()) { result.Attach(new ShaderSourceIncludeHandler(handler, root)); }
+	if (handler) { result.Attach(new ShaderSourceIncludeHandler(handler, root)); }
 	return result;
 }

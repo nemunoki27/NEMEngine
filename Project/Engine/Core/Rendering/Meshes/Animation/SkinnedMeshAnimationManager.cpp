@@ -25,6 +25,16 @@
 //============================================================================
 namespace {
 
+	// 同じノードを参照する重複Channelでも補間順を維持する
+	template <class T>
+	void NormalizeKeyframes(std::vector<T>& keys) {
+
+		std::stable_sort(keys.begin(), keys.end(), [](const T& left, const T& right) { return left.time < right.time; });
+		keys.erase(std::unique(keys.begin(), keys.end(), [](const T& left, const T& right) {
+			return left.time == right.time && left.value == right.value;
+		}), keys.end());
+	}
+
 	// アニメーションの名前を解決
 	std::string ResolveClipName(const aiAnimation* anim, uint32_t index, uint32_t totalCount) {
 
@@ -265,6 +275,12 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 				f.value = {kv.mValue.x, kv.mValue.y, kv.mValue.z};
 				dst.scale.keyframes.emplace_back(f);
 			}
+		}
+		// 重複したChannelから追加されたキーを整理する
+		for (auto& [path, track] : clip.nodeAnimations) {
+			NormalizeKeyframes(track.translate.keyframes);
+			NormalizeKeyframes(track.rotate.keyframes);
+			NormalizeKeyframes(track.scale.keyframes);
 		}
 		// アニメーションの名前を取得
 		std::string clipName = ResolveClipName(anim, animIndex, scene->mNumAnimations);

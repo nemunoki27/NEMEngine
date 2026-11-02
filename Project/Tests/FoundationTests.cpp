@@ -354,13 +354,29 @@ namespace {
 		if (!logger) {
 			return false;
 		}
+		// EngineとGameを発生順で保持し、表示上限を両方の合計へ適用する
+		const auto previousLimit = Engine::Logger::GetRecentLogLimit();
+		Engine::Logger::SetRecentLogLimit(3);
+		Engine::Logger::Output(Engine::LogType::Engine, "first");
+		Engine::Logger::Output(Engine::LogType::GameLogic, "second");
+		Engine::Logger::Output(Engine::LogType::Engine, "third");
+		Engine::Logger::Output(Engine::LogType::GameLogic, "fourth");
+		const auto entries = Engine::Logger::GetRecentLogs();
+		const bool combined = entries.size() == 3 && entries[0].message == "second" &&
+			entries[0].type == Engine::LogType::GameLogic && entries[1].type == Engine::LogType::Engine &&
+			entries[2].message == "fourth" && entries[0].sequence < entries[1].sequence &&
+			entries[1].sequence < entries[2].sequence && Engine::Logger::GetRecentLogs(Engine::LogType::Engine).size() == 1;
+		Engine::Logger::SetRecentLogLimit(1);
+		const auto reduced = Engine::Logger::GetRecentLogs();
+		const bool trimmed = reduced.size() == 1 && reduced[0].message == "fourth";
+		Engine::Logger::SetRecentLogLimit(previousLimit);
 		Engine::Logger::BlankLine(Engine::LogType::Engine);
 		Engine::Logger::Finalize();
 		Engine::Logger::Output(Engine::LogType::Engine, "after shutdown");
 		const bool stopped = !Engine::Logger::Get(Engine::LogType::Engine);
 		// 借用中だったLoggerを解放してからfixtureを片付ける
 		logger.reset();
-		return stopped;
+		return stopped && combined && trimmed;
 	}
 
 	// descriptor探索とURI変換をglobal状態の更新なしで検証する

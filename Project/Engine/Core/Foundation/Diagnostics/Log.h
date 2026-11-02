@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <cstdint>
 #include <mutex>
-#include <array>
 #include <vector>
 #include <deque>
 #include <chrono>
@@ -41,6 +40,8 @@ namespace Engine {
 		struct LogEntry {
 			spdlog::level::level_enum level = spdlog::level::info;
 			std::string message;
+			LogType type = LogType::Engine;
+			uint64_t sequence = 0;
 		};
 
 		//============================================================================
@@ -77,6 +78,7 @@ namespace Engine {
 		static void Flush(LogType type);
 		static void FlushAll();
 		static std::vector<LogEntry> GetRecentLogs(LogType type);
+		static std::vector<LogEntry> GetRecentLogs();
 		// メモリに保持するログ件数を変更する
 		static void SetRecentLogLimit(std::size_t limit);
 		// メモリに保持するログ件数を取得する
@@ -138,7 +140,8 @@ namespace Engine {
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };
 		static inline std::size_t recentLogLimit_ = 30;
-		static inline std::array<std::deque<LogEntry>, static_cast<std::size_t>(LogType::Count)> recentLogs_;
+		static inline std::deque<LogEntry> recentLogs_;
+		static inline uint64_t nextLogSequence_ = 0;
 	};
 
 	template <typename... Args>

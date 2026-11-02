@@ -7,6 +7,7 @@
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // windowsの_wcsicmp等
 #include <cwctype>
@@ -17,6 +18,15 @@
 #include <vector>
 
 #include "ManagedBuildUtility.h"
+
+namespace {
+	// 配布版は同梱したSDKだけを使用する
+	std::wstring DotnetCommand() {
+
+		const auto root = Engine::RuntimePaths::GetToolchainRoot();
+		return root.empty() ? L"dotnet" : L"\"" + (root / "dotnet.exe").wstring() + L"\"";
+	}
+}
 
 using namespace Engine::ManagedBuildUtility;
 
@@ -78,9 +88,9 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	const std::wstring intermediateDirectory = ToMSBuildDirectory(cycle_.currentStagingDir / "obj");
 	// ステージング出力へdotnet buildし実行中DLLは触らない、NEMScriptStagingOutputでこのプロジェクトだけステージングへ向ける
 	cycle_.pendingBuildCommand =
-		L"dotnet build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
+		DotnetCommand() + L" build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
 		L" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false" +
-		L" -p:NEMScriptMetadataMode=EditorSync" +
+		L" -p:NEMScriptMetadataMode=EditorSync -p:NEMSkipMetadataSync=true" +
 		L" -p:NEMScriptIntermediateOutput=\"" + intermediateDirectory + L"\"" +
 		L" -p:NEMScriptStagingOutput=\"" + cycle_.currentStagingDir.wstring() + L"\"";
 	cycle_.lastBuildWorkingDir = projectPath.parent_path();
@@ -91,6 +101,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	// prebuilt SDK構成: <GameRoot>/External/NEMEngine/Managed/Tools/
 	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
 	const std::filesystem::path syncToolCandidates[] = {
+		RuntimePaths::GetEngineProjectRoot() / "Managed/Tools/NEM.ScriptMetaSync.dll",
 		projectRoot / "Engine" / "Managed" / "NEM.ScriptMetaSync" / "bin" / BuildProfile() / "net10.0" / "NEM.ScriptMetaSync.dll",
 		projectRoot.parent_path() / "External" / "NEMEngine" / "Managed" / "Tools" / "NEM.ScriptMetaSync.dll",
 	};
@@ -115,7 +126,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	}
 
 	const std::wstring syncCommand =
-		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() +
+		DotnetCommand() + L" \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() +
 		L"\" --project \"" + projectPath.wstring() + L"\" --configuration " + Widen(BuildProfile()) + L" --mode EditorSync";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
@@ -162,6 +173,17 @@ bool Engine::ManagedScriptBuildService::StartGameScriptsBuild() {
 
 bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
+	if (RuntimePaths::IsInstalledEngine()) {
+		const auto root = RuntimePaths::GetEngineProjectRoot();
+		for (const char* relative : { "Managed/Ref/NEM.ScriptCore.dll", "Managed/Analyzers/NEM.ScriptCodeGen.dll",
+			"Managed/Analyzers/NEM.ScriptAnalyzers.dll", "Managed/Tools/NEM.ScriptMetaSync.dll" }) {
+			if (!std::filesystem::is_regular_file(root / relative)) {
+				Logger::Output(LogType::Engine, spdlog::level::err, "C#ツールがありません ランチャーで修復してください: {}", relative);
+				return false;
+			}
+		}
+		return true;
+	}
 	const std::filesystem::path projectPath = runtime_ ? runtime_->GameScriptProjectPath() : std::filesystem::path{};
 	if (projectPath.empty()) {
 		return true;

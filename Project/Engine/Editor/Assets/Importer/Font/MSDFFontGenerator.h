@@ -30,6 +30,8 @@ namespace Engine {
 			std::string message;		// 失敗時の理由
 		};
 
+		// Project内へ既定の文字集合を不足分だけ配置する
+		bool EnsureProjectFiles(std::string& message);
 		// 対応するFontソースか調べる
 		bool IsFontSourceExtension(const std::filesystem::path& path);
 

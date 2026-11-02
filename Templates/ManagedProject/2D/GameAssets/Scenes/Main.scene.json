@@ -1,0 +1,51 @@
+{
+  "SchemaVersion": 3,
+  "Header": {
+    "name": "Main",
+    "subScenes": []
+  },
+  "Entities": [
+    {
+      "LocalFileID": "0000000000000001",
+      "Components": {
+        "Name": {
+          "name": "Camera2D"
+        },
+        "SceneObject": {
+          "activeSelf": true,
+          "localFileId": "0000000000000001",
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 0,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "w": 1,
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 0
+        },
+        "OrthographicCamera": {
+          "isMain": true,
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "PrefabInstances": []
+}

@@ -68,7 +68,7 @@ bool NEMTests::TestShaderGraphPublication() {
 	}
 	AssetDatabase database;
 	database.Init();
-	if (!database.RebuildMeta({RuntimePaths::GetEngineAssetsRoot() / "Shaders", directory.GetPath()})) {
+	if (!database.RebuildMeta({RuntimePaths::GetEngineAssetsRoot() / "Rendering", directory.GetPath()})) {
 		return false;
 	}
 	const AssetID graphID = database.ImportOrGet(RuntimePaths::ToAssetPath(graphPath), AssetType::ShaderGraph);

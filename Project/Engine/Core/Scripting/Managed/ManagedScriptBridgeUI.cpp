@@ -57,6 +57,8 @@ namespace Engine {
 			runtime->submittedThisFrame ? 1 : 0;
 		outState->disabledThisFrame =
 			runtime->disabledThisFrame ? 1 : 0;
+		outState->currentColor = {runtime->currentColor.r, runtime->currentColor.g, runtime->currentColor.b, runtime->currentColor.a};
+		outState->currentScale = {runtime->currentScale.x, runtime->currentScale.y};
 		return 1;
 	}
 

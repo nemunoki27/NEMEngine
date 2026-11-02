@@ -139,6 +139,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetCopyUtility::CopyAsset(const 
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
 	const std::filesystem::path targetDirectory =
 		ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (!RuntimePaths::CanWritePath(targetDirectory)) { result.message = "共通エンジンには取り込めません GameAssetsを選択してください"; return result; }
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
 		result.message = "コピー元のアセットまたはコピー先フォルダーが見つかりません";
 		return result;
@@ -288,6 +289,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetCopyUtility::ImportExternalFi
 	// 取り込み先ディレクトリを解決して確保する
 	const std::filesystem::path targetDirectory =
 		ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
+	if (!RuntimePaths::CanWritePath(targetDirectory)) { result.message = "共通エンジンには取り込めません GameAssetsを選択してください"; return result; }
 	if (targetDirectory.empty()) {
 		result.message = "取り込み先フォルダーが見つかりません";
 		return result;

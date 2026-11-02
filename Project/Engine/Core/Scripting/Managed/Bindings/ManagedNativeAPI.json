@@ -1149,13 +1149,15 @@
     {
       "nativeType": "ManagedUISelectableRuntimeState",
       "managedType": "NativeUISelectableRuntimeState",
-      "size": 20,
+      "size": 44,
       "members": {
         "state": 0,
         "normalThisFrame": 4,
         "selectedThisFrame": 8,
         "submittedThisFrame": 12,
-        "disabledThisFrame": 16
+        "disabledThisFrame": 16,
+        "currentColor": 20,
+        "currentScale": 36
       }
     },
     {

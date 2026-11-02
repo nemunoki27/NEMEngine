@@ -121,67 +121,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo ===== Patch Imported Game Projects =====
-rem Patch imported game projects and their managed/debug settings.
-if exist "%ENGINE_ROOT%\Project\GameProjects" (
-    for /d %%G in ("%ENGINE_ROOT%\Project\GameProjects\*") do (
-        if exist "%%G\%%~nxG\GameAssets" (
-            call :PatchGameProject "%%G"
-            if errorlevel 1 (
-                popd
-                exit /b 1
-            )
-        )
-    )
-)
-
 popd
-endlocal
-exit /b 0
-
-rem ============================================================================
-rem Patch one imported game project.
-rem %1 = game project container under Project/GameProjects.
-rem ============================================================================
-:PatchGameProject
-setlocal
-set "GP_CONTAINER=%~1"
-set "GP_NAME=%~nx1"
-set "GP_APP=%GP_CONTAINER%\%GP_NAME%"
-echo --- Game project: %GP_NAME% ---
-
-rem Add GameScripts.csproj to the game-specific solution folder.
-if exist "%GP_APP%\Scripts\GameScripts.csproj" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -GameScriptsProject "%GP_APP%\Scripts\GameScripts.csproj" -GameScriptsSolutionFolder "GameProjects\%GP_NAME%" -DependentProject "%GP_APP%\%GP_NAME%.vcxproj"
-    if errorlevel 1 (
-        echo [ERROR] Failed to add C# project to solution: %GP_NAME%
-        endlocal
-        exit /b 1
-    )
-)
-
-rem Keep the working directory at the game project container.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_user_debugger.ps1" -ProjectUserPath "%GP_APP%\%GP_NAME%.vcxproj.user" -WorkingDirectory ".." -EnvironmentVariables "NEMENGINE_ROOT=%ENGINE_ROOT%\Project"
-if errorlevel 1 (
-    echo [ERROR] Failed to patch debugger settings: %GP_NAME%
-    endlocal
-    exit /b 1
-)
-
-rem The app is four levels below the repository root.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_vcxproj_managed_config.ps1" -ProjectPath "%GP_APP%\%GP_NAME%.vcxproj" -ScriptCoreProjectPath "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -ScriptCoreManagedOutputPath "%ENGINE_ROOT%\Generated\Managed\NEM.ScriptCore" -RepoRootFromProject "..\..\..\.."
-if errorlevel 1 (
-    echo [ERROR] Failed to patch managed build/copy settings: %GP_NAME%
-    endlocal
-    exit /b 1
-)
-
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_native_debug_settings.ps1" -ProjectPaths "%GP_APP%\%GP_NAME%.vcxproj"
-if errorlevel 1 (
-    echo [ERROR] Failed to patch native debug settings: %GP_NAME%
-    endlocal
-    exit /b 1
-)
-
 endlocal
 exit /b 0

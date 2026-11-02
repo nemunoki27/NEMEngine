@@ -1,0 +1,15 @@
+{
+  "name": "nemengine-distribution",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "deploy": "wrangler deploy",
+    "publish-engine": "node publish.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1161.0",
+    "@aws-sdk/lib-storage": "3.1161.0",
+    "wrangler": "4.156.0"
+  }
+}

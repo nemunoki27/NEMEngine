@@ -89,16 +89,6 @@ namespace Engine::UISelectableStyle {
 		return { &selectable.normal,&selectable.selected,&selectable.submitted,&selectable.disabled };
 	}
 
-	bool HasStateTransitionRuntime(const Engine::UISelectableComponent& selectable) {
-
-		for (const Engine::UITransitionStyle* style : GetStyles(selectable)) {
-			if ((style->animationEnabled && style->useAnimationClip) || style->sound) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	void ApplySelectableBaseVisual(Engine::ECSWorld& world, Engine::Entity entity,
 		Engine::UISelectableRuntimeComponent& runtime) {
 
@@ -186,7 +176,7 @@ namespace Engine::UISelectableStyle {
 	}
 
 	void InitializeSelectableRuntime(Engine::ECSWorld& world, Engine::Entity entity,
-		const Engine::UISelectableComponent& selectable, Engine::UISelectableRuntimeComponent& runtime) {
+		[[maybe_unused]] const Engine::UISelectableComponent& selectable, Engine::UISelectableRuntimeComponent& runtime) {
 
 		if (runtime.initialized) {
 			return;
@@ -227,14 +217,10 @@ namespace Engine::UISelectableStyle {
 		runtime.currentScale = runtime.baseScale;
 		runtime.startScale = runtime.baseScale;
 		runtime.previousState = runtime.state;
-		const Engine::UITransitionStyle& style =
-			ResolveStyle(selectable, runtime);
-		runtime.colorTransitionElapsed = style.colorTransitionDuration;
-		runtime.scaleTransitionElapsed = style.scaleTransitionDuration;
 		runtime.initialized = true;
 	}
 
-	void UpdateSelectableVisual(Engine::ECSWorld& world, const UISelectableEntry& entry, float deltaTime) {
+	void UpdateSelectableVisual(Engine::ECSWorld& world, const UISelectableEntry& entry, float deltaTime, float unscaledDeltaTime) {
 
 		Engine::UISelectableComponent& selectable = *entry.selectable;
 		Engine::UISelectableRuntimeComponent& runtime = *entry.runtime;
@@ -246,8 +232,8 @@ namespace Engine::UISelectableStyle {
 
 		if (runtime.previousState != runtime.state) {
 			runtime.previousState = runtime.state;
-			runtime.colorTransitionElapsed = 0.0f;
-			runtime.scaleTransitionElapsed = 0.0f;
+			runtime.colorPlayback = {};
+			runtime.scalePlayback = {};
 			runtime.startColor = runtime.currentColor;
 			runtime.startScale = runtime.currentScale;
 		}
@@ -270,38 +256,26 @@ namespace Engine::UISelectableStyle {
 			}
 			return;
 		}
-		if (style.useAnimationClip) {
-			if (style.overrideTexture) {
-				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
-					Engine::MaterialParameterValue value{};
-					value.value = style.texture;
-					if (SetMaterialParameter(*parameters,
-						Engine::MaterialParameterIDs::BaseColorTexture,
-						Engine::MaterialParameterNames::BaseColorTexture,
-						Engine::MaterialParameterSemantic::BaseColorTexture,
-						value)) {
-						NotifyRendererMaterialModified(world);
-					}
-				}
-			}
-			return;
+		auto colorSettings = style.colorAnimation;
+		auto scaleSettings = style.scaleAnimation;
+		for (auto* value : {&colorSettings.start, &colorSettings.end, &colorSettings.center, &colorSettings.amplitude})
+			*value = runtime.baseColor * std::get<Color4>(*value);
+		const Vector2 baseScale(runtime.baseScale.x, runtime.baseScale.y);
+		for (auto* value : {&scaleSettings.start, &scaleSettings.end, &scaleSettings.center, &scaleSettings.amplitude})
+			*value = baseScale * std::get<Vector2>(*value);
+		// 決定状態は無限再生せず一回分で戻す
+		if (runtime.state == UISelectableState::Submitted) {
+			colorSettings.cycleCount = scaleSettings.cycleCount = 1;
 		}
-		const float elapsedTime = (std::max)(deltaTime, 0.0f);
-		runtime.colorTransitionElapsed += elapsedTime;
-		runtime.scaleTransitionElapsed += elapsedTime;
-		const float colorProgress = style.colorTransitionDuration <= 0.0f ? 1.0f :
-			std::clamp(runtime.colorTransitionElapsed / style.colorTransitionDuration, 0.0f, 1.0f);
-		const float scaleProgress = style.scaleTransitionDuration <= 0.0f ? 1.0f :
-			std::clamp(runtime.scaleTransitionElapsed / style.scaleTransitionDuration, 0.0f, 1.0f);
-		const Engine::Color4 targetColor = runtime.baseColor * style.color;
-		const Engine::Vector3 targetScale( runtime.baseScale.x * style.scale.x, runtime.baseScale.y * style.scale.y,
-			runtime.baseScale.z);
-		runtime.currentColor = Engine::Color4::Lerp(
-			runtime.startColor, targetColor,
-			EasedValue(style.colorEasing, colorProgress));
-		runtime.currentScale = Engine::Vector3::Lerp(
-			runtime.startScale, targetScale,
-			EasedValue(style.scaleEasing, scaleProgress));
+		if (!runtime.colorPlayback.initialized) StartSimpleAnimation(runtime.colorPlayback, colorSettings, runtime.currentColor);
+		else AdvanceSimpleAnimation(runtime.colorPlayback, colorSettings, colorSettings.unscaledTime ? unscaledDeltaTime : deltaTime);
+		if (!runtime.scalePlayback.initialized) StartSimpleAnimation(runtime.scalePlayback, scaleSettings, Vector2(runtime.currentScale.x, runtime.currentScale.y));
+		else AdvanceSimpleAnimation(runtime.scalePlayback, scaleSettings, scaleSettings.unscaledTime ? unscaledDeltaTime : deltaTime);
+		if (runtime.colorPlayback.sample.valid) runtime.currentColor = std::get<Color4>(runtime.colorPlayback.sample.value);
+		if (runtime.scalePlayback.sample.valid) {
+			const auto value = std::get<Vector2>(runtime.scalePlayback.sample.value);
+			runtime.currentScale = Vector3(value.x, value.y, runtime.baseScale.z);
+		}
 
 		if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
 			bool materialChanged = false;

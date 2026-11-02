@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <cstdio>
@@ -119,7 +120,8 @@ namespace {
 		parameters.size = sizeof(parameters);
 		// 同梱のhostfxrを優先して探索
 		parameters.assembly_path = scriptCoreAssemblyPath.c_str();
-		parameters.dotnet_root = nullptr;
+		const auto toolchainRoot = Engine::RuntimePaths::GetToolchainRoot();
+		parameters.dotnet_root = toolchainRoot.empty() ? nullptr : toolchainRoot.c_str();
 
 		// パス取得に必要なサイズを確認
 		size_t bufferSize = 0;

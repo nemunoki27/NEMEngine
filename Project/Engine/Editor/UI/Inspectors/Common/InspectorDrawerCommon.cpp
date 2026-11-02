@@ -58,65 +58,16 @@ void Engine::InspectorDrawerCommon::AccumulateEditResult(const ValueEditResult& 
 	commitRequested |= result.editFinished;
 }
 
-Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawCheckboxField(const char* label, bool& value) {
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawCheckboxField(const char* label, bool& value,
+	const PropertyRowSetting& setting) {
 
-	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow(label)) {
-		return result;
-	}
-
-	result.valueChanged = ImGui::Checkbox("##Value", &value);
-	result.anyItemActive = ImGui::IsItemActive();
-	result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
-
-	MyGUI::EndPropertyRow();
-	return result;
+	return MyGUI::CheckboxField(label, value, setting);
 }
 
-Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const EditorPanelContext& context, const char* label, uint32_t& value) {
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const EditorPanelContext& context,
+	const char* label, uint32_t& value) {
 
-	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow(label)) {
-		return result;
-	}
-	value &= kRenderingLayerMaskBits;
-	const auto& names = context.renderingLayerSettings->GetNames();
-	const uint32_t definedMask =
-		context.renderingLayerSettings->GetDefinedMask();
-	const uint32_t visibleValue = value & definedMask;
-	std::string preview = "なし";
-	if (visibleValue != 0u && visibleValue == definedMask) {
-		preview = "すべて";
-	} else if (visibleValue != 0u) {
-		const uint32_t count = std::popcount(visibleValue);
-		if (count == 1u) {
-			preview = names[std::countr_zero(visibleValue)];
-		} else {
-			preview = std::to_string(count) + "個選択";
-		}
-	}
-	if (ImGui::BeginCombo("##Value", preview.c_str())) {
-		for (uint32_t index = 0u;
-			index < ProjectRenderingLayerSettings::kLayerCount; ++index) {
-
-			if (names[index].empty()) {
-				continue;
-			}
-			const uint32_t bit = 1u << index;
-			bool selected = (value & bit) != 0u;
-			ImGui::PushID(static_cast<int>(index));
-			if (ImGui::Checkbox(names[index].c_str(), &selected)) {
-				value = selected ? value | bit : value & ~bit;
-				result.valueChanged = true;
-			}
-			ImGui::PopID();
-		}
-		ImGui::EndCombo();
-	}
-	result.anyItemActive = ImGui::IsItemActive();
-	result.editFinished = result.valueChanged;
-	MyGUI::EndPropertyRow();
-	return result;
+	return DrawInspectorMask(context, label, value, InspectorMaskDomain::Rendering);
 }
 
 Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(

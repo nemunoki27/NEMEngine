@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/BuiltinComponentEditorRegistration.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/Commands/Components/AddComponentCommand.h>
@@ -18,6 +19,7 @@
 
 // c++
 #include <string_view>
+#include <vector>
 
 // imgui
 #include <imgui_internal.h>
@@ -48,18 +50,25 @@ void Engine::InspectorComponentSession::SyncPreviewOwner(ECSWorld* world, Entity
 void Engine::InspectorComponentSession::DrawComponents(
 	const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
+	const std::string entityID = ToString(world.GetUUID(entity));
+	ImGui::PushID(entityID.c_str());
 	// 対象が持つComponentのDrawerだけを描画する
 	for (const auto& drawer : componentEditorRegistry_.GetDrawers()) {
 		if (drawer->CanDraw(world, entity)) {
+			ImGui::PushID(drawer->GetComponentTypeName().c_str());
 			drawer->Draw(context, world, entity);
+			ImGui::PopID();
 		}
 	}
+	ImGui::PopID();
 }
 
 void Engine::InspectorComponentSession::DrawSubMesh(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
 	if (meshRendererDrawer_ && meshRendererDrawer_->CanDraw(world, entity)) {
+		ImGui::PushID("SubMeshInspector");
 		meshRendererDrawer_->Draw(context, world, entity);
+		ImGui::PopID();
 	}
 }
 
@@ -108,52 +117,50 @@ void Engine::InspectorComponentSession::DrawComponentPopupEntries(const EditorPa
 	searchFilter.DrawInput(searchInputID, searchIcon, "検索...");
 	ImGui::Separator();
 
-	// カテゴリ区切りつきで対象コンポーネントのメニューを表示する
-	bool hasAny = false;
-	std::string_view currentCategory;
+	// 表示対象だけを集め、同じ分類をサブメニューへまとめる
+	std::vector<const ComponentEditorDescriptor*> entries;
 	for (const auto& entry : componentEditorRegistry_.GetDescriptors()) {
-
-		if (!entry.showInComponentMenu) {
-			continue;
-		}
-		// 追加可否や所持状態など対象判定は呼び出し側に委ねる
-		if (!shouldShow(entry)) {
-			continue;
-		}
-		if (!searchFilter.Matches(std::string_view(entry.menuLabel)) &&
-			!searchFilter.Matches(std::string_view(entry.typeName))) {
-			continue;
-		}
-
-		const std::string_view entryCategory(entry.category);
-		if (currentCategory != entryCategory) {
-
-			if (hasAny) {
-				ImGui::Separator();
-			}
-			currentCategory = entryCategory;
-		}
-		hasAny = true;
-		if (drawCustomEntry && drawCustomEntry(entry)) {
-			continue;
-		}
-		if (ImGui::MenuItem(entry.menuLabel.c_str())) {
-
-			if (onSelect(entry)) {
-				ImGui::CloseCurrentPopup();
-			}
+		const char* category = GetInspectorCategoryLabel(entry.category);
+		if (entry.showInComponentMenu && shouldShow(entry) &&
+			(searchFilter.Matches(std::string_view(entry.menuLabel)) ||
+			 searchFilter.Matches(std::string_view(entry.typeName)) ||
+			 searchFilter.Matches(category ? category : entry.category.c_str()))) {
+			entries.push_back(&entry);
 		}
 	}
-	// 対象コンポーネントがない
-	if (!hasAny) {
-		ImGui::TextDisabled(emptyText);
+	for (size_t begin = 0; begin < entries.size();) {
+		size_t end = begin + 1;
+		while (end < entries.size() && entries[end]->category == entries[begin]->category) {
+			++end;
+		}
+		const auto& category = entries[begin]->category;
+		const char* label = GetInspectorCategoryLabel(category);
+		ImGui::PushID(category.c_str());
+		if (ImGui::BeginMenu(label ? label : category.c_str())) {
+			for (size_t index = begin; index < end; ++index) {
+				const auto& entry = *entries[index];
+				ImGui::PushID(entry.typeName.c_str());
+				if (!(drawCustomEntry && drawCustomEntry(entry)) && ImGui::MenuItem(entry.menuLabel.c_str())) {
+					if (onSelect(entry)) {
+						ImGui::CloseCurrentPopup();
+					}
+				}
+				ImGui::PopID();
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::PopID();
+		begin = end;
+	}
+	if (entries.empty()) {
+		ImGui::TextDisabled("%s", emptyText);
 	}
 }
 
 void Engine::InspectorComponentSession::DrawAddComponentPopup(
 	const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
-	ImGui::SetNextWindowSize(ImVec2(300.0f, 420.0f), ImGuiCond_Appearing);
+	ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_Appearing);
 	if (!ImGui::BeginPopup("##Inspector_AddComponentPopup")) {
 		return;
 	}
@@ -258,14 +265,18 @@ void Engine::InspectorComponentSession::DrawRemoveComponentPopup(
 	}
 
 	DrawComponentPopupEntries(
-		context, removeComponentSearchFilter_, "##RemoveComponentSearch", "No removable components.",
+		context, removeComponentSearchFilter_, "##RemoveComponentSearch", "削除できるコンポーネントはありません",
 		// 持っていないコンポーネントは削除できない
 		[&](const ComponentEditorDescriptor& entry) {
 			return entry.showInRemoveMenu && world.HasComponent(entity, entry.typeName);
 		},
 		[&](const ComponentEditorDescriptor& entry) {
-			context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, entry.typeName));
-			return true;
+			for (const auto& drawer : componentEditorRegistry_.GetDrawers()) {
+				if (drawer->GetComponentTypeName() == entry.typeName) {
+					return drawer->RemoveComponent(context, world, entity);
+				}
+			}
+			return context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, entry.typeName));
 		});
 
 	ImGui::EndPopup();

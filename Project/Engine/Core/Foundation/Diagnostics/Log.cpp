@@ -1,5 +1,6 @@
 #include "Log.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <array>
 #include <fstream>
 #include <cstdio>
 #if defined(_MSC_VER)
@@ -77,9 +78,8 @@ void Logger::CreateLogFilesLocked(const std::filesystem::path& logDir, bool trun
 
 	loggers_.clear();
 	loggers_.resize(static_cast<std::size_t>(LogType::Count));
-	for (auto& logs : recentLogs_) {
-		logs.clear();
-	}
+	recentLogs_.clear();
+	nextLogSequence_ = 0;
 
 	for (std::size_t i = 0; i < loggers_.size(); ++i) {
 		const auto type = static_cast<LogType>(i);
@@ -140,9 +140,8 @@ void Logger::Finalize() {
 	}
 
 	loggers_.clear();
-	for (auto& logs : recentLogs_) {
-		logs.clear();
-	}
+	recentLogs_.clear();
+	nextLogSequence_ = 0;
 	initialized_ = false;
 }
 
@@ -238,23 +237,25 @@ void Logger::FlushAll() {
 std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
 
 	std::scoped_lock lock(mutex_);
-	const auto index = static_cast<std::size_t>(type);
-	if (recentLogs_.size() <= index) {
-		return {};
+	std::vector<LogEntry> result;
+	for (const auto& entry : recentLogs_) {
+		if (entry.type == type) result.push_back(entry);
 	}
-	return std::vector<LogEntry>(recentLogs_[index].begin(), recentLogs_[index].end());
+	return result;
+}
+
+std::vector<Logger::LogEntry> Logger::GetRecentLogs() {
+
+	std::scoped_lock lock(mutex_);
+	return { recentLogs_.begin(), recentLogs_.end() };
 }
 
 void Logger::SetRecentLogLimit(std::size_t limit) {
 
 	std::scoped_lock lock(mutex_);
 	recentLogLimit_ = limit == 0 ? 1 : limit;
-
-	// 保持数を減らした分だけ古いログを破棄する
-	for (auto& logs : recentLogs_) {
-		while (recentLogLimit_ < logs.size()) {
-			logs.pop_front();
-		}
+	while (recentLogLimit_ < recentLogs_.size()) {
+		recentLogs_.pop_front();
 	}
 }
 
@@ -267,16 +268,10 @@ std::size_t Logger::GetRecentLogLimit() {
 void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message) {
 
 	std::scoped_lock lock(mutex_);
-	if (!initialized_) return;
-	const auto index = static_cast<std::size_t>(type);
-	if (recentLogs_.size() <= index) {
-		return;
-	}
-	auto& logs = recentLogs_[index];
-	logs.push_back(LogEntry{ level, std::move(message) });
-
-	while (recentLogLimit_ < logs.size()) {
-		logs.pop_front();
+	if (!initialized_ || static_cast<std::size_t>(type) >= static_cast<std::size_t>(LogType::Count)) return;
+	recentLogs_.push_back(LogEntry{ level, std::move(message), type, nextLogSequence_++ });
+	while (recentLogLimit_ < recentLogs_.size()) {
+		recentLogs_.pop_front();
 	}
 }
 

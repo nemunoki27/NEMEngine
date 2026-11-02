@@ -1,1 +1,0 @@
--- ゲーム固有のinclude・link・defineを設定する、SDK修復では上書きしない

@@ -176,6 +176,7 @@ namespace {
 		database.Init();
 		const auto created = MSDFFontGenerator::EnsureGenerated(database, copied, false);
 		if (!created.success) {
+			std::cerr << "Font publication failed: " << created.message << '\n';
 			return false;
 		}
 		const auto fontPath = root / "Fixture_msdf.font.json";
@@ -244,7 +245,9 @@ namespace {
 bool NEMTests::TestFontGenerationContracts() {
 
 #if defined(NEM_USE_MSDF_ATLAS_GEN)
-	const auto source = Engine::RuntimePaths::GetGameAssetsRoot() / "Fonts" / "Cp_period" / "cp_period.ttf";
+	// Sandboxの編集内容に依存しないFontを使う
+	const auto source = Engine::RuntimePaths::GetEngineProjectRoot() /
+		"Externals" / "imgui-node-editor" / "examples" / "data" / "Cuprum-Bold.ttf";
 	TestDirectory directory("FontGeneration");
 	return RunTest("FontCharsetIncludes", [&] { return CheckCharsetIncludes(directory.GetPath()); }) &&
 		   RunTest("FontAtlasDocument", [&] { return CheckAtlasDocument(source, directory.GetPath()); }) &&

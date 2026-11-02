@@ -19,7 +19,6 @@ void Engine::UITextButtonInspectorDrawer::DrawFields(
 	[[maybe_unused]] const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
 	DrawField(anyItemActive, [&]() { return MyGUI::InputText("アクション名", draft.actionName); });
 	if (!world.HasComponent<TextRendererComponent>(entity)) {
 		ImGui::TextDisabled("Text Rendererが必要です");

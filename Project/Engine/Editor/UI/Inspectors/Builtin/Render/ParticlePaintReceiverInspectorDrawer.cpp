@@ -4,11 +4,10 @@ void Engine::ParticlePaintReceiverInspectorDrawer::DrawFields([[maybe_unused]] c
 	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
 	DrawField(anyItemActive, [&]() { return MyGUI::EnumCombo("投影方式", draft.projection); });
 	int32_t resolution = static_cast<int32_t>(draft.resolution);
 	DrawField(anyItemActive, [&]() {
-		auto result = MyGUI::DragInt("Texture解像度", resolution, {.minValue = 32, .maxValue = 2048});
+		auto result = MyGUI::DragInt("テクスチャ解像度", resolution, {.minValue = 32, .maxValue = 2048});
 		if (result.valueChanged) draft.resolution = static_cast<uint32_t>(resolution);
 		return result;
 	});

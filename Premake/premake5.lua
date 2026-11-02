@@ -19,5 +19,12 @@ group ""
 include "premakeNemengine.lua"
 include "sandbox.lua"
 
--- Project/GameProjects/* に取り込んだ外部ゲームを自動でプロジェクト化する
-include "gameProjects.lua"
+group "Launcher"
+for _, name in ipairs({ "NEM.Distribution", "NEM.ProjectTool", "NEM.Launcher", "NEM.Distribution.Tests" }) do
+    externalproject (name)
+        location (path.join(NEM_PROJECT_ROOT, "Tools", name))
+        filename (name)
+        kind "SharedLib"
+        language "C#"
+end
+group ""

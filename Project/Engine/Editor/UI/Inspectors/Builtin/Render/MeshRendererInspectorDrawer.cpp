@@ -18,7 +18,6 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	auto& draft = GetDraft();
 	previewSubMeshIndex_ = UINT32_MAX;
 
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible); });
 
 	// 現在のメッシュに合わせてサブメッシュ配列を整える
 	SyncDraftSubMeshes(context, draft, true);
@@ -76,13 +75,11 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//	メッシュ描画パラメータ
 	//============================================================================
 	{
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("レイヤー", draft.layer); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragInt("描画順", draft.order); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::SortLayer), draft.layer); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::DrawOrder), draft.order); });
 		DrawField(
 			anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("既定ブレンドモード", draft.blendMode); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("既定キュー", draft.queue); });
-		DrawField(anyItemActive,
-			[&]() { return InspectorDrawerCommon::DrawLayerMaskField(context, "Rendering Layer", draft.renderingLayerMask); });
 
 		// ライティングや影の適用フラグ、ビット単位で持つためboolへ写してから書き戻す
 		auto drawRenderFlagField = [&](const char* label, MeshRenderFlags flag) {

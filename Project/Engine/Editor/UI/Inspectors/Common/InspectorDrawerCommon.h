@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include "InspectorPresentation.h"
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -38,15 +39,13 @@ namespace Engine::InspectorDrawerCommon {
 	template <typename DrawFunc>
 	void DrawFieldEdit(ValueEditResult& accumulated, DrawFunc&& drawFunc) {
 
-		const ValueEditResult result = std::forward<DrawFunc>(drawFunc)();
-		AccumulateEditResult(result, accumulated.anyItemActive, accumulated.editFinished);
-		accumulated.valueChanged |= result.valueChanged;
+		accumulated.Merge(std::forward<DrawFunc>(drawFunc)());
 		ImGui::Separator();
 	}
 
 	// チェックボックスフィールドを描画する
-	ValueEditResult DrawCheckboxField(const char* label, bool& value);
-	// 定義済みのRendering Layerを選択する
+	ValueEditResult DrawCheckboxField(const char* label, bool& value, const PropertyRowSetting& setting = {});
+	// 描画レイヤーの集合を選択する
 	ValueEditResult DrawLayerMaskField(const EditorPanelContext& context, const char* label, uint32_t& value);
 	// 列挙型の選択欄を描画する
 	template <typename Enum>
@@ -69,20 +68,14 @@ namespace Engine::InspectorDrawerCommon {
 
 	// Rendererの共通設定をDrawerへ渡す
 	template <typename DrawFieldFn>
-	void DrawCommonRenderFields(const EditorPanelContext& context, DrawFieldFn&& drawField,
+	void DrawCommonRenderFields([[maybe_unused]] const EditorPanelContext& context, DrawFieldFn&& drawField,
 		int32_t& layer, int32_t& order, BlendMode& blendMode,
-		RenderPhase& queue, uint32_t* renderingLayerMask = nullptr) {
+		RenderPhase& queue) {
 
-		drawField([&]() { return MyGUI::DragInt("レイヤー", layer); });
-		drawField([&]() { return MyGUI::DragInt("描画順", order); });
-		drawField([&]() { return DrawEnumComboField("ブレンドモード", blendMode); });
-		drawField([&]() { return DrawEnumComboField("キュー", queue); });
-		if (renderingLayerMask) {
-			drawField([&]() {
-
-				return DrawLayerMaskField(context, "Rendering Layer", *renderingLayerMask);
-			});
-		}
+		drawField([&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::SortLayer), layer); });
+		drawField([&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::DrawOrder), order); });
+		drawField([&]() { return DrawEnumComboField(Engine::GetInspectorLabel(Engine::InspectorFieldID::BlendMode), blendMode); });
+		drawField([&]() { return DrawEnumComboField(Engine::GetInspectorLabel(Engine::InspectorFieldID::RenderQueue), queue); });
 	}
 
 	// エンティティの種類に応じてデバッグラインを描画する

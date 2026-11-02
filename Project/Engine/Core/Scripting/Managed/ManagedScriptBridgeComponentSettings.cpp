@@ -5,11 +5,12 @@
 //============================================================================
 #include "ManagedScriptUtility.h"
 #include "ManagedCameraSettings.h"
+#include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
-#include <Engine/Core/World/Components/Animation/AnimationPlayerComponent.h>
+#include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Systems/Animation/AnimationGroupLookup.h>
 
 // c++
 #include <cmath>
@@ -19,32 +20,6 @@
 
 using namespace Engine;
 using namespace Engine::ManagedCameraSettings;
-
-namespace {
-
-	// 同じStateの再生時刻を残し、追加と削除を実行配列へ反映する
-	void SynchronizeAnimationStates(AnimationPlayerComponent& player, std::string& name,
-		std::vector<AnimationClipRuntime>& runtime) {
-
-		const auto* group = AnimationGroupLookup::FindGroup(player, name);
-		if (!group) { name.clear(); runtime.clear(); return; }
-		std::vector<AnimationClipRuntime> next;
-		next.reserve(group->states.size());
-		for (const auto& state : group->states) {
-			const auto found = std::find_if(runtime.begin(), runtime.end(),
-				[&](const auto& value) { return value.stateName == state.name; });
-			if (found != runtime.end()) { next.push_back(*found); continue; }
-			AnimationClipRuntime value{};
-			value.stateName = state.name;
-			value.dir = 1;
-			value.delayRemaining = (std::max)(state.startDelay, 0.0f);
-			value.started = value.delayRemaining <= 0.0f;
-			value.playing = value.started;
-			next.push_back(std::move(value));
-		}
-		runtime = std::move(next);
-	}
-}
 
 //============================================================================
 //	ManagedScriptRuntime componentSettingsMethods
@@ -58,7 +33,7 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 		if (!world || !world->IsAlive(target)) return -1;
 		nlohmann::json data;
 		if (type == 0) {
-			const auto* component = world->TryGetComponentForBinding<AnimationPlayerComponent>(target);
+			const auto* component = world->TryGetComponentForBinding<AnimationClipPlayerComponent>(target);
 			if (!component) return -1;
 			data = *component;
 		} else if (type == 14) {
@@ -76,6 +51,14 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			data["renderPassesAsset"] = ToString(camera->renderPasses);
 			data["renderPassesRevision"] = library.GetRenderPassesRevision(camera->renderPasses);
 			if (const auto* passes = ResolvePasses(*camera, library)) data["renderPasses"] = ToJson(*passes);
+		} else if (type == 70) {
+			const auto* component = world->TryGetComponentForBinding<SimpleAnimationComponent>(target);
+			if (!component) return -1;
+			data = *component;
+		} else if (type == 35) {
+			const auto* component = world->TryGetComponentForBinding<UISelectableComponent>(target);
+			if (!component) return -1;
+			data = *component;
 		} else return -1;
 		return CopyStringToBuffer(data.dump(), buffer, capacity);
 	} catch (...) { return -1; }
@@ -90,31 +73,49 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return 0;
 		const auto data = nlohmann::json::parse(buffer, buffer + size);
-		if (type == 0) {
-			auto* component = world->TryGetComponentForBinding<AnimationPlayerComponent>(target);
-			if (!component || !data.contains("groups") || !data["groups"].is_array()) return 0;
-			std::vector<AnimationGroup> groups;
-			std::unordered_set<std::string> names;
-			for (const auto& json : data["groups"]) {
-				auto group = LoadAnimationGroup(json);
-				if (group.name.empty() || !names.insert(group.name).second) return 0;
-				std::unordered_set<std::string> stateNames;
-				for (const auto& state : group.states) {
-					if (state.name.empty() || !stateNames.insert(state.name).second ||
-						!std::isfinite(state.speed) || !std::isfinite(state.weight)) return 0;
-				}
-				groups.push_back(std::move(group));
-			}
-			// 全設定の同期に成功してから実行中Componentへ公開する
+		if (type == 70) {
+			auto* component = world->TryGetComponentForBinding<SimpleAnimationComponent>(target);
+			if (!component) return 0;
 			auto candidate = *component;
-			candidate.groups = std::move(groups);
-			SynchronizeAnimationStates(candidate, candidate.runtimeCurrentGroup, candidate.runtimeCurrentClips);
-			SynchronizeAnimationStates(candidate, candidate.runtimeFromGroup, candidate.runtimeFromClips);
-			if (candidate.runtimeCurrentGroup.empty()) candidate.runtimePlaying = false;
-			if (candidate.runtimeFromGroup.empty()) candidate.runtimeInTransition = false;
-			candidate.runtimeClipRevision = std::numeric_limits<uint64_t>::max();
+			if (data.contains("targetNative")) {
+				const auto& value = data.at("targetNative");
+				ManagedNativeEntity reference{};
+				reference.world.index = value.at("world").at("index").get<uint32_t>();
+				reference.world.generation = value.at("world").at("generation").get<uint32_t>();
+				reference.index = value.at("index").get<uint32_t>();
+				reference.generation = value.at("generation").get<uint32_t>();
+				if (reference.IsValid()) {
+					if (ResolveWorld(reference) != world || !world->IsAlive(ResolveEntity(reference))) return 0;
+					candidate.runtimeTarget = ResolveEntity(reference);
+					candidate.runtimeTargetOverride = true;
+					candidate.target = SceneEntityReference::FromEntity(*world, candidate.runtimeTarget);
+				} else {
+					candidate.target = {}; candidate.runtimeTargetOverride = false;
+				}
+				candidate.binding = data.at("binding").get<AnimationPropertyBinding>();
+			} else {
+				from_json(data, candidate);
+			}
 			*component = std::move(candidate);
-			world->MarkComponentModified<AnimationPlayerComponent>(target);
+			world->MarkComponentModified<SimpleAnimationComponent>(target);
+			return 1;
+		}
+		if (type == 35) {
+			auto* component = world->TryGetComponentForBinding<UISelectableComponent>(target);
+			if (!component) return 0;
+			auto candidate = *component;
+			from_json(data, candidate);
+			ApplyUISelectableAuthoring(candidate, *component);
+			world->MarkComponentModified<UISelectableComponent>(target);
+			return 1;
+		}
+		if (type == 0) {
+			auto* component = world->TryGetComponentForBinding<AnimationClipPlayerComponent>(target);
+			if (!component) return 0;
+			auto candidate = *component;
+			from_json(data, candidate);
+			ApplyAnimationClipPlayerSettings(candidate, *component);
+			world->MarkComponentModified<AnimationClipPlayerComponent>(target);
 			return 1;
 		}
 		if (type == 16 || type == 17) {

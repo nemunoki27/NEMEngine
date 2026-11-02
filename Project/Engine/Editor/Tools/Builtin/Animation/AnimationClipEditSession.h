@@ -12,6 +12,7 @@
 
 // c++
 #include <memory>
+#include <deque>
 
 namespace Engine {
 
@@ -78,6 +79,11 @@ namespace Engine {
 		// プレビューを復元して再生時刻を戻す
 		void StopPreviewPlayback(const EditorToolContext& context);
 
+		// 編集単位でClipの履歴を確定する
+		void CommitHistory();
+		// Clipの編集を戻す、またはやり直す
+		bool RestoreHistory(bool redo);
+
 		//--------- accessor -----------------------------------------------------
 
 		AssetID& GetClipAssetID() { return clipAssetID_; }
@@ -85,7 +91,7 @@ namespace Engine {
 		AnimationClipAsset& GetClip() { return clip_; }
 		const AnimationClipAsset& GetClip() const { return clip_; }
 		bool GetHasClip() const { return hasClip_; }
-		void MarkClipDirty() { clipDirty_ = true; }
+		void MarkClipDirty() { clipDirty_ = true; historyPending_ = true; }
 		bool GetClipDirty() const { return clipDirty_; }
 		const std::string& GetClipErrorText() const { return clipErrorText_; }
 		const UUID& GetTargetEntityUUID() const { return targetEntityUUID_; }
@@ -116,6 +122,11 @@ namespace Engine {
 		AssetID clipAssetID_{};
 		AssetID loadedClipAssetID_{};
 		AnimationClipAsset clip_{};
+		AnimationClipAsset historyCurrent_{};
+		std::string historyState_;
+		bool historyPending_ = true;
+		std::deque<AnimationClipAsset> undo_;
+		std::deque<AnimationClipAsset> redo_;
 		bool hasClip_ = false;
 		bool clipDirty_ = false;
 		std::string clipErrorText_;

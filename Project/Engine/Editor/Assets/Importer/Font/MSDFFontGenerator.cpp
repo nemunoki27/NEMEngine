@@ -26,10 +26,11 @@ namespace {
 	constexpr const char* kFontJsonSuffix = "_msdf.font.json";
 	constexpr const char* kAtlasSuffix = "_msdf.png";
 
-	// 同じ階層の基底文字集合も読み込む
+	// Project内の既定文字集合より個別指定を優先する
 	std::filesystem::path GameCharsetPath() {
 
-		return Engine::RuntimePaths::GetGameRoot() / "GameAssets" / "Fonts" / "Charset" / "game_charset.txt";
+		const auto project = Engine::RuntimePaths::GetGameAssetsRoot() / "Fonts" / "Charset" / "game_charset.txt";
+		return std::filesystem::exists(project) ? project : project.parent_path() / "default_charset.txt";
 	}
 
 	// 区切りを除き単語の先頭を大文字にする
@@ -52,6 +53,26 @@ namespace {
 //============================================================================
 //	MSDFFontGenerator namespaceMethods
 //============================================================================
+bool Engine::MSDFFontGenerator::EnsureProjectFiles(std::string& message) {
+
+	// 既存Projectにも不足したファイルだけを配置する
+	const auto engine = RuntimePaths::GetEngineProjectRoot();
+	const auto source = RuntimePaths::IsInstalledEngine() ? engine / "ProjectTemplates/Common/GameAssets/Fonts" :
+		engine.parent_path() / "Templates/ManagedProject/Common/GameAssets/Fonts";
+	const auto target = RuntimePaths::GetGameAssetsRoot() / "Fonts";
+	std::error_code error;
+	std::filesystem::create_directories(target, error);
+	if (!error) {
+		std::filesystem::copy(source, target,
+			std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing, error);
+	}
+	if (error) {
+		message = "Fontの文字集合をGameAssetsへ配置できません: " + error.message();
+		return false;
+	}
+	return true;
+}
+
 bool Engine::MSDFFontGenerator::IsFontSourceExtension(const std::filesystem::path& path) {
 
 	const std::string extension = Algorithm::ToLower(path.extension().string());

@@ -20,6 +20,23 @@ bool NEMTests::TestAnimationClipPreview() {
 
 	using namespace Engine;
 	RegisterBuiltinAnimationProperties();
+	// 任意軸の初期姿勢とEulerの複数回転を保持する
+	AnimationCurveTrack rotation;
+	rotation.binding = {"Transform", "localRotation", AnimationValueType::Quaternion};
+	const auto initial = Quaternion::FromEulerDegrees(Vector3(20, 45, 10));
+	AnimationClipEditorUtility::SetupTrackInitialValue(rotation, initial);
+	AnimationPropertyValue evaluated;
+	if (!AnimationClipEvaluator::EvaluateTrack(rotation, 0.0f, evaluated) ||
+		!AnimationClipEditorUtility::ApproxEqualValue(evaluated, initial)) return false;
+	AnimationClipEditorUtility::ConvertQuaternionTrackToEuler(rotation);
+	for (auto& channel : rotation.channels) { channel.keys.clear(); channel.defaultValue = 0; }
+	rotation.channels[1].AddKey(0, 0);
+	rotation.channels[1].AddKey(1, 720);
+	NormalizeAnimationTrackChannels(rotation);
+	if (!AnimationClipEvaluator::EvaluateTrack(rotation, 0.125f, evaluated) ||
+		!AnimationClipEditorUtility::ApproxEqualValue(evaluated, Quaternion::FromEulerDegrees(Vector3(0, 90, 0)))) return false;
+	AnimationCurveTrack roundTrip = nlohmann::json(rotation).get<AnimationCurveTrack>();
+	if (!IsQuaternionEulerTrack(roundTrip) || roundTrip.channels[1].keys.back().value != 720) return false;
 	TestDirectory directory("ClipPreview", RuntimePaths::GetGameAssetsRoot());
 	const auto path = directory.GetPath() / "Motion.animclip.json";
 	AnimationClipAsset clip;
@@ -130,6 +147,12 @@ bool NEMTests::TestAnimationClipPreview() {
 	if (!LoadAnimationClipAsset(path, saved) || saved.duration == 3.0f) return false;
 	std::ofstream(importPath) << "{";
 	if (session.ImportSettings(context, importID) || !session.GetClipDirty() || session.GetClip().duration != 3.0f) return false;
+	session.CommitHistory();
+	session.GetClip().duration = 4.0f;
+	session.MarkClipDirty();
+	session.CommitHistory();
+	if (!session.RestoreHistory(false) || session.GetClip().duration != 3.0f ||
+		!session.RestoreHistory(true) || session.GetClip().duration != 4.0f || !session.RestoreHistory(false)) return false;
 	session.SaveClipToSelectedAsset(context);
 	// AssetのGUIDはClip本体ではなくmetaで保持する
 	std::ifstream metaFile(path.wstring() + L".meta");

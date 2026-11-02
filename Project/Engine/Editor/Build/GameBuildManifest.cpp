@@ -61,9 +61,10 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 	const std::string projectName = Algorithm::PathToUTF8(projectNamePath);
 	std::filesystem::path projectFileName = projectNamePath;
 	projectFileName += L".vcxproj";
-	const std::filesystem::path projectPath = gameRoot / projectFileName;
+	const bool installed = RuntimePaths::IsInstalledEngine();
+	const std::filesystem::path projectPath = installed ? RuntimePaths::GetProjectDescriptorPath() : gameRoot / projectFileName;
 	const std::filesystem::path sourceRuntime =
-		buildRoot / "Generated/Output/Release" / projectNamePath;
+		installed ? RuntimePaths::GetEngineProjectRoot() / "Runtime/Release" : buildRoot / "Generated/Output/Release" / projectNamePath;
 	outScriptPath = ResolveGameBuildScript(buildRoot);
 
 	if (!std::filesystem::is_regular_file(projectPath, ec)) {
@@ -95,8 +96,10 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
 	manifest["gameRoot"] = Algorithm::PathToUTF8(gameRoot);
 	const std::filesystem::path engineProjectRoot = RuntimePaths::GetEngineProjectRoot();
-	if (std::filesystem::is_regular_file(engineProjectRoot / "Include/NEMEngineRuntime.h", ec)) {
-		// SDKでは同梱済みツールを使い、エンジンソースをビルドしない
+	manifest["prebuiltRuntime"] = installed;
+	manifest["toolchainRoot"] = Algorithm::PathToUTF8(RuntimePaths::GetToolchainRoot());
+	if (installed) {
+		// 配布版は同梱済みツールを使う
 		manifest["buildToolProject"] = "";
 		manifest["buildToolExecutable"] = Algorithm::PathToUTF8(
 			engineProjectRoot / "Tools/NEMBuildTool/NEMBuildTool.exe");
@@ -108,7 +111,7 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 			"Generated/Output/Release/NEMBuildTool/NEMBuildTool.exe");
 	}
 	manifest["sourceRuntime"] = Algorithm::ConvertString(sourceRuntime.generic_wstring());
-	manifest["runtimeExecutable"] = projectName + ".exe";
+	manifest["runtimeExecutable"] = installed ? "NEMPlayer.exe" : projectName + ".exe";
 	manifest["outputRoot"] = Algorithm::ConvertString(settings.outputRoot.generic_wstring());
 	manifest["productName"] = productName;
 	manifest["executableName"] = productName + ".exe";
@@ -156,7 +159,7 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 		return false;
 	}
 
-	const std::filesystem::path manifestDirectory = buildRoot / "Generated/GameBuild";
+	const std::filesystem::path manifestDirectory = installed ? RuntimePaths::GetLibraryRoot() / "GameBuild" : buildRoot / "Generated/GameBuild";
 	std::filesystem::create_directories(manifestDirectory, ec);
 	if (ec) {
 		outError = "ビルド用一時フォルダを作成できません";

@@ -5,9 +5,9 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
 #include "SerializedComponentEditSession.h"
+#include "InspectorCommonBindings.h"
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
-#include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -37,11 +37,16 @@ namespace Engine {
 
 		SerializedComponentInspectorDrawer(const std::string_view& headerLabel,
 			const std::string_view& componentTypeName, bool drawHeader = true) :
-			headerLabel_(headerLabel), drawHeader_(drawHeader), session_(componentTypeName) {}
+			headerLabel_(headerLabel), drawHeader_(drawHeader), session_(componentTypeName) {
+			SetComponentTypeName(std::string(componentTypeName));
+		}
 		~SerializedComponentInspectorDrawer() = default;
 
 		// インスペクター描画
 		void Draw(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) override;
+
+		void SyncPreviewOwner(ECSWorld* world, const Entity& entity) override { session_.SyncOwner(world, entity); }
+		void EndPreview() override { session_.EndEditing(); }
 
 		//--------- accessor -----------------------------------------------------
 
@@ -52,6 +57,8 @@ namespace Engine {
 		//	protected Methods
 		//============================================================================
 		//--------- functions ----------------------------------------------------
+
+		void CommitPendingEdits(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) override;
 
 		// コミット状態へ反映する
 		void PushEditResult(const ValueEditResult& result, bool& anyItemActive);
@@ -118,6 +125,7 @@ namespace Engine {
 
 		// 描画できない場合は何もしない
 		if (!CanDraw(world, entity)) {
+			SyncPreviewOwner(&world, entity);
 			return;
 		}
 
@@ -130,17 +138,20 @@ namespace Engine {
 		if (drawHeader_) {
 
 			// ヘッダーの右クリックでソース移動と削除を選ぶ
-			const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
+			bool removeRequested = false;
+			const bool headerOpen = MyGUI::CollapsingHeader(GetDisplayName().empty() ? headerLabel_.c_str() : GetDisplayName().c_str());
 			if (ImGui::BeginPopupContextItem()) {
 
 				InspectorDrawerCommon::DrawComponentSourceMenu(GetEditorSourceFile());
 				if (ImGui::MenuItem("コンポーネントを削除")) {
-					if (context.host) {
-						context.host->ExecuteEditorCommand(
-							std::make_unique<RemoveComponentCommand>(entity, session_.GetComponentTypeName()));
-					}
+					removeRequested = true;
 				}
 				ImGui::EndPopup();
+			}
+			// Popupを閉じてから削除し、このフレームの描画を終了する
+			if (removeRequested) {
+				RemoveComponent(context, world, entity);
+				return;
 			}
 			// ヘッダーが閉じている場合は中身を描画しない
 			if (!headerOpen) {
@@ -150,7 +161,14 @@ namespace Engine {
 
 		// アイテムのアクティブ状態を追跡するフラグ
 		bool anyItemActive = false;
+		PushEditResult(DrawInspectorCommonFields(context, BindInspectorCommonFields(GetDraft())), anyItemActive);
 		DrawFields(context, world, entity, anyItemActive);
+
+		if (!CanDraw(world, entity)) {
+			SyncPreviewOwner(&world, entity);
+			EndPreview();
+			return;
+		}
 
 		// 編集結果を適用
 		session_.ApplyPreviewIfNeeded(world, entity, *this);
@@ -163,9 +181,18 @@ namespace Engine {
 	}
 
 	template<typename T>
+	inline void SerializedComponentInspectorDrawer<T>::CommitPendingEdits(const EditorPanelContext& context,
+		ECSWorld& world, const Entity& entity) {
+
+		session_.ApplyPreviewIfNeeded(world, entity, *this);
+		session_.RequestCommit();
+		session_.CommitIfNeeded(context, world, entity, *this);
+	}
+
+	template<typename T>
 	inline bool SerializedComponentInspectorDrawer<T>::CanDraw(ECSWorld& world, const Entity& entity) const {
 
-		return world.HasComponent<T>(entity);
+		return world.IsAlive(entity) && world.HasComponent<T>(entity);
 	}
 
 	template<typename T>

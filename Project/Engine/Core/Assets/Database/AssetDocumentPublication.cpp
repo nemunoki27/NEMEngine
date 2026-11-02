@@ -8,6 +8,7 @@
 #include "AssetDocumentRecovery.h"
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <stdexcept>
@@ -33,6 +34,10 @@ bool Engine::AssetDocumentPublication::Prepare(const AssetDatabase& database, co
 		// 書込前の文書とmetaの状態を保持する
 		AssetDocumentChange next;
 		next.filePath = database.ResolveAssetPath(assetPath);
+		if (!RuntimePaths::CanWritePath(next.filePath)) {
+			diagnostic = "Engineのアセットは読み取り専用です GameAssetsへ複製して編集してください";
+			return false;
+		}
 		if (next.filePath.empty()) {
 			diagnostic = "Assetの保存先を解決できません";
 			return false;
@@ -99,6 +104,10 @@ bool Engine::AssetDocumentPublication::Commit(AssetDatabase& database, std::span
 		std::vector<JsonFileChange> documents;
 		std::unordered_set<AssetID> identifiers;
 		for (const auto& change : changes) {
+			if (!RuntimePaths::CanWritePath(change.filePath)) {
+				diagnostic = "共通エンジンのアセットは保存できません GameAssetsへコピーしてください";
+				return false;
+			}
 			if (!change.metadata.guid || !identifiers.emplace(change.metadata.guid).second ||
 				change.filePath != database.ResolveAssetPath(change.metadata.assetPath)) {
 				diagnostic = "保存するAssetの識別子かパスが不正です";

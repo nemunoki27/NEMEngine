@@ -40,7 +40,7 @@ namespace Engine {
 		float bridgeT = 0.0f;
 	};
 
-	// Clipを書き込まずに評価した1プロパティ分の最終値、クロスフェード合成に使う
+	// Clipを書き込まずに評価した1プロパティ分の最終値
 	struct AnimationEvaluatedValue {
 
 		AnimationPropertyBinding binding;
@@ -48,13 +48,6 @@ namespace Engine {
 		uint8_t channelMask = 0x0f;
 	};
 
-	struct AnimationContribution {
-
-		AnimationEvaluatedValue evaluated;
-		float weight = 1.0f;
-		int32_t priority = 0;
-		bool additive = false;
-	};
 
 	//============================================================================
 	//	AnimationClipEvaluator class
@@ -73,7 +66,7 @@ namespace Engine {
 			const AnimationClipAsset& clip, AnimationPropertyValue& outValue);
 		// 再生時間をClip内時刻へ変換する
 		static AnimationResolvedTime ResolveClipEvaluationTime(const AnimationClipAsset& clip, float playbackTime);
-		// LoopBridgeの0-1補間率を指定モードで曲げて返す、実行時のstate側補間を使う合成に使う
+		// LoopBridgeの0-1補間率を指定モードで曲げて返す
 		static float BridgeInterp(float t, CurveInterpolationMode mode);
 		// LoopBridge込みの再生上限時間を返す
 		static float GetPlaybackDuration(const AnimationClipAsset& clip);
@@ -87,13 +80,6 @@ namespace Engine {
 		static void EvaluateClipValues(ECSWorld& world, const Entity& entity, const AnimationClipAsset& clip,
 			const AnimationResolvedTime& time, std::span<const AnimationPreviewBaseValue> baseValues,
 			std::vector<AnimationEvaluatedValue>& outValues);
-		// from/to2つの評価済み値をweightで合成する、片側に無いプロパティはbaseへ寄せる
-		static void BlendValues(std::span<const AnimationEvaluatedValue> fromValues,
-			std::span<const AnimationEvaluatedValue> toValues, std::span<const AnimationPreviewBaseValue> baseValues,
-			float weight, std::vector<AnimationEvaluatedValue>& outValues);
-		// 同じ成分を優先度とweightで合成する
-		static void ComposeValues(std::span<const AnimationContribution> contributions,
-			std::span<const AnimationPreviewBaseValue> baseValues, std::vector<AnimationEvaluatedValue>& outValues);
 		// 評価済み値を対象EntityのComponentへ書き込む
 		static void WriteValues(ECSWorld& world, const Entity& entity, std::span<const AnimationEvaluatedValue> values);
 		// キーの無いチャネルは書き込まず、対象Entityの現在値のまま残す(スクリプト等が持つ未キー成分を保持する)

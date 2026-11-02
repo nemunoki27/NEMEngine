@@ -114,7 +114,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 
 	InspectorDrawerCommon::DrawFieldEdit(editResult, [&]() {
 		ValueEditResult result{};
-		result.valueChanged = MyGUI::Checkbox("表示", subMesh.visible);
+		result.valueChanged = MyGUI::Checkbox(Engine::GetInspectorLabel(Engine::InspectorFieldID::Visible), subMesh.visible);
 		result.editFinished = result.valueChanged;
 		return result;
 	});

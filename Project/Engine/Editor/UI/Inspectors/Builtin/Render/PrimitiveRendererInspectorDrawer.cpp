@@ -42,9 +42,6 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-		});
 
 	// 形状の選択
 	{
@@ -70,8 +67,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	// 描画パラメータ
 	InspectorDrawerCommon::DrawCommonRenderFields(context,
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-		draft.layer, draft.order, draft.blendMode, draft.queue,
-		&draft.renderingLayerMask);
+		draft.layer, draft.order, draft.blendMode, draft.queue);
 	// 影/反射などのフラグ
 	{
 		const auto drawFlag = [&](const char* label, MeshRenderFlags flag) {
@@ -120,8 +116,8 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面半径", draft.cylinder.topRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("中心半径", draft.cylinder.centerRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面半径", draft.cylinder.bottomRadius, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 10000.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面Weight", draft.cylinder.topRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
-		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面Weight", draft.cylinder.bottomRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("上面の重み", draft.cylinder.topRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
+		DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("下面の重み", draft.cylinder.bottomRadiusWeight, { .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f }); });
 		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("上面色", draft.cylinder.topColor); });
 		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("中心色", draft.cylinder.centerColor); });
 		DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("底面色", draft.cylinder.bottomColor); });

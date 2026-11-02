@@ -72,6 +72,9 @@ namespace Engine {
 		uint32_t originalEditorTargetFps_ = 0;
 		bool overridesFrameRate_ = false;
 		bool quickCheck_ = false;
+		// デバッガ接続後に通常のPlay要求を送る
+		std::filesystem::path playGate_;
+		bool playRequested_ = false;
 		CaptureMode captureMode_ = CaptureMode::Final;
 		// 起動から全frameを一秒単位で集計する
 		bool continuousCapture_ = false;

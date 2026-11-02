@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "BuiltinAnimationPropertyGroups.h"
+#include <Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.h>
 
 void Engine::RegisterBuiltinAnimationProperties() {
 
@@ -26,6 +27,7 @@ void Engine::RegisterBuiltinAnimationProperties() {
 	RegisterRuntimeAnimationProperties(registry);
 	RegisterCollisionAnimationProperties(registry);
 	RegisterMeshUVAnimationProperties(registry);
+	GeneratedComponentBindings::RegisterAnimationProperties(registry);
 
 	// Materialの個別パラメータはreflectionから解決する
 	RegisterMaterialAnimationAccessors();

@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 // c++
 #include <algorithm>
@@ -85,7 +86,7 @@ namespace Engine {
 
 		// エンティティ参照のラベルテキストを構築する
 		std::string BuildEntityReferenceLabel(UUID entityUUID, ECSWorld* world) {
-			if (!entityUUID) { return "未設定（エンティティをドロップ）"; }
+			if (!entityUUID) { return "エンティティをドロップ"; }
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
@@ -99,7 +100,7 @@ namespace Engine {
 
 		// エンティティ参照のツールチップテキストを構築する
 		std::string BuildEntityReferenceTooltip(UUID entityUUID, ECSWorld* world) {
-			if (!entityUUID) { return "ヒエラルキーからエンティティをドロップしてください"; }
+			if (!entityUUID) { return {}; }
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
@@ -193,45 +194,61 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	return result;
 }
 
-Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, UUID& value, ECSWorld* world, const EntityEditSetting& setting) {
-	ValueEditResult result{};
-	if (setting.useAutoPropertyRow) { if (!BeginPropertyRow(label, setting.propertyRow)) { return result; } }
+Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, UUID& value,
+	ECSWorld* world, const EntityEditSetting& setting) {
 
+	ValueEditResult result;
+	if (setting.useAutoPropertyRow && !BeginPropertyRow(label, setting.propertyRow)) return result;
 	ImGui::PushID(label);
-	const std::string displayText = BuildEntityReferenceLabel(value, world);
-	const bool hasValue = static_cast<bool>(value);
-
-	if (!hasValue) { ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)); }
-	const ImVec2 button = setting.buttonSize.has_value() ? setting.buttonSize.value() : ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight());
-	ImGui::Button(displayText.c_str(), button);
-	if (!hasValue) { ImGui::PopStyleColor(); }
-
+	const bool hasValue = value || setting.hasStoredReference;
+	const std::string display = !value && setting.hasStoredReference ?
+		"参照先が見つかりません : " + std::string(setting.missingReferenceID) : BuildEntityReferenceLabel(value, world);
+	if (!hasValue) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	const ImVec2 size = setting.buttonSize.value_or(ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+	if (ImGui::Button((display + "###EntityValue").c_str(), size) && world) ImGui::OpenPopup("##EntityCandidates");
+	if (!hasValue) ImGui::PopStyleColor();
 	result.anyItemActive = ImGui::IsItemActive();
-
-	// ツールチップ表示
-	if (ImGui::BeginItemTooltip()) {
-		const std::string tooltip = BuildEntityReferenceTooltip(value, world);
-		ImGui::TextUnformatted(tooltip.c_str());
-		ImGui::EndTooltip();
-	}
-
-	// ヒエラルキーからのドラッグ＆ドロップ受け入れでUUIDベースで紐付け
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-				UUID droppedUUID{};
-				if (TryReadEntityPayload(payload, droppedUUID)) {
-					// 同一ワールド内に存在し、生存しているか確認
-					const Entity droppedEntity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
-					if (world && world->IsAlive(droppedEntity) && value != droppedUUID) {
-						value = droppedUUID; result.valueChanged = true; result.editFinished = true;
-					}
-				}
-			}
+	if (ImGui::BeginPopupContextItem("##EntityReferenceMenu")) {
+		ImGui::BeginDisabled(!hasValue);
+		if (ImGui::MenuItem("参照を解除")) {
+			value = {};
+			result.valueChanged = result.editFinished = true;
 		}
+		ImGui::EndDisabled();
+		ImGui::EndPopup();
+	}
+	if (ImGui::BeginDragDropTarget()) {
+		const auto* payload = ImGui::GetDragDropPayload();
+		UUID candidate;
+		const bool valid = world && payload && payload->IsDataType(IEditorPanel::kHierarchyDragDropPayloadType) && TryReadEntityPayload(payload, candidate) && world->IsAlive(world->FindByUUID(candidate));
+		const bool accepted = valid && (!setting.acceptEntity || setting.acceptEntity(*world, world->FindByUUID(candidate)));
+		if (accepted) {
+			if (const auto* delivered = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
+				delivered && delivered->IsDelivery() && value != candidate) {
+				value = candidate;
+				result.valueChanged = result.editFinished = true;
+			}
+		} else if (valid && setting.rejectReason) ImGui::SetTooltip("%s", setting.rejectReason);
 		ImGui::EndDragDropTarget();
 	}
+	if (hasValue && ImGui::BeginItemTooltip()) {
+		ImGui::TextUnformatted(!value && setting.hasStoredReference ? display.c_str() : BuildEntityReferenceTooltip(value, world).c_str());
+		ImGui::EndTooltip();
+	}
+	if (ImGui::BeginPopup("##EntityCandidates")) {
+		if (world) world->ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent&) {
+			if (setting.acceptEntity && !setting.acceptEntity(*world, entity)) return;
+			ImGui::PushID(static_cast<int>(entity.index));
+			const UUID id = world->GetUUID(entity);
+			if (ImGui::Selectable(BuildEntityReferenceLabel(id, world).c_str(), value == id)) {
+				value = id;
+				result.valueChanged = result.editFinished = true;
+			}
+			ImGui::PopID();
+		});
+		ImGui::EndPopup();
+	}
 	ImGui::PopID();
-	if (setting.useAutoPropertyRow) { EndPropertyRow(); }
+	if (setting.useAutoPropertyRow) EndPropertyRow();
 	return result;
 }

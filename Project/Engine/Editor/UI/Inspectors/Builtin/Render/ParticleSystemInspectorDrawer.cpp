@@ -27,38 +27,29 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 
 	ParticleSystemComponent& draft = GetDraft();
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "表示レイヤー", draft.renderingLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
+		return InspectorDrawerCommon::DrawCheckboxField(
+			Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayOnStart), draft.playOnAwake);
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField(
-			"開始時に再生", draft.playOnAwake);
+			Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField(
-			"編集中も再生", draft.playInEditMode);
+			Engine::GetInspectorLabel(Engine::InspectorFieldID::UnscaledTime), draft.useUnscaledTime);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(
-			"非スケール時間", draft.useUnscaledTime);
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("再生速度", draft.playbackSpeed,
+		return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), draft.playbackSpeed,
 			{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField(
-			"Seedを自動生成", draft.useAutoRandomSeed);
+			"乱数シードを自動生成", draft.useAutoRandomSeed);
 		});
 	if (!draft.useAutoRandomSeed) {
 		DrawField(anyItemActive, [&]() {
 			ValueEditResult result{};
-			if (MyGUI::BeginPropertyRow("Seed")) {
+			if (MyGUI::BeginPropertyRow("乱数シード")) {
 				result.valueChanged = ImGui::InputScalar("##RandomSeed", ImGuiDataType_U32, &draft.randomSeed);
 				result.anyItemActive = ImGui::IsItemActive();
 				result.editFinished = ImGui::IsItemDeactivatedAfterEdit();
@@ -74,10 +65,10 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 		return MyGUI::EnumCombo("終了時の処理", draft.stopAction);
 		});
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragInt("レイヤー", draft.layer);
+		return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::SortLayer), draft.layer);
 		});
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragInt("描画順", draft.order);
+		return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::DrawOrder), draft.order);
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField(

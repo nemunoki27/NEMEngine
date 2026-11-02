@@ -107,6 +107,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(Proje
 
 		// 仮想パスから実ディレクトリを特定し失敗なら中断
 		const std::filesystem::path directory = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
+		if (!RuntimePaths::CanWritePath(directory)) { result.message = "共通エンジンにはアセットを作成できません"; return result; }
 		if (directory.empty()) {
 			result.message = "作成先のフォルダーを解決できません";
 			return result;
@@ -242,6 +243,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(
 	ProjectAssetFileResult result{};
 
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
+	if (!RuntimePaths::CanWritePath(sourcePath)) { result.message = "共通エンジンのアセットは削除できません"; return result; }
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
 		result.message = "Source asset was not found.";
 		return result;
@@ -262,6 +264,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(
 	result.isDirectory = true;
 
 	const std::filesystem::path sourcePath = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
+	if (!RuntimePaths::CanWritePath(sourcePath)) { result.message = "共通エンジンのフォルダーは削除できません"; return result; }
 	const std::filesystem::path rootPath = ProjectAssetPath::GetSourceRoot(source);
 	// ルートフォルダ自身は削除禁止
 	if (sourcePath.empty() || sourcePath == rootPath || !std::filesystem::exists(sourcePath) ||

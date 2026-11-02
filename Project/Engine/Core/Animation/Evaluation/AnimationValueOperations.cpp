@@ -10,7 +10,11 @@ namespace Engine::AnimationValueOperations {
 
 	bool SameBinding(const Engine::AnimationPropertyBinding& lhs, const Engine::AnimationPropertyBinding& rhs) {
 
-		return lhs.componentName == rhs.componentName && lhs.propertyPath == rhs.propertyPath && lhs.valueType == rhs.valueType;
+		if (lhs.componentName != rhs.componentName || lhs.valueType != rhs.valueType) return false;
+		if (lhs.propertyPath == rhs.propertyPath) return true;
+		if (lhs.componentName != "SpriteRenderer" && lhs.componentName != "TextRenderer") return false;
+		const auto isColor = [](const std::string& path) { return path == "color" || path == "material.color"; };
+		return isColor(lhs.propertyPath) && isColor(rhs.propertyPath);
 	}
 
 	const Engine::AnimationPropertyValue* FindBaseValue( const Engine::AnimationCurveTrack& track,
@@ -61,6 +65,14 @@ namespace Engine::AnimationValueOperations {
 
 		// Add/MultiplyはPreview開始時に記録した基準値だけを使う
 		// 毎フレーム現在値へ積み上げると、ScrubやPlayで値が破綻する
+		if (const int32_t* base = std::get_if<int32_t>(&baseValue)) {
+			if (const auto* curve = std::get_if<int32_t>(&curveValue)) {
+				const int64_t result = mode == Engine::AnimationApplyMode::Add ?
+					static_cast<int64_t>(*base) + *curve : static_cast<int64_t>(*base) * *curve;
+				out = static_cast<int32_t>(std::clamp(result, static_cast<int64_t>(INT32_MIN), static_cast<int64_t>(INT32_MAX)));
+				return true;
+			}
+		}
 		if (const float* base = std::get_if<float>(&baseValue)) {
 			if (const float* curve = std::get_if<float>(&curveValue)) {
 				out = mode == Engine::AnimationApplyMode::Add ? *base + *curve : *base * *curve;
@@ -115,6 +127,13 @@ namespace Engine::AnimationValueOperations {
 		const Engine::AnimationPropertyValue& to, float t, Engine::AnimationPropertyValue& out) {
 
 		// LoopBridgeで使う型別補間
+		if (const int32_t* a = std::get_if<int32_t>(&from)) {
+			if (const auto* b = std::get_if<int32_t>(&to)) {
+				out = static_cast<int32_t>(std::clamp(std::round(*a + (static_cast<double>(*b) - *a) * t),
+					static_cast<double>(INT32_MIN), static_cast<double>(INT32_MAX)));
+				return true;
+			}
+		}
 		if (const float* a = std::get_if<float>(&from)) {
 			if (const float* b = std::get_if<float>(&to)) {
 				out = *a + (*b - *a) * t;

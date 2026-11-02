@@ -1,6 +1,7 @@
 #include "MenuBarPanel.h"
 #include "EditorGraphicsMenu.h"
 #include <Engine/Editor/Build/EditorGameBuildMenu.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
 //	include
@@ -137,7 +138,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	layoutSession_.DrawMenu(context);
 
 	// 使用中のSDK情報を表示
-	ImGui::TextDisabled("SDKバージョン: %s / ビルド構成: %s", EditorBuildInfo::kVersion, EditorBuildInfo::kConfiguration);
+	const std::string version = RuntimePaths::IsInstalledEngine() ? RuntimePaths::GetEngineVersion() : EditorBuildInfo::kVersion;
+	ImGui::TextDisabled("エンジン: %s / %s", version.c_str(), EditorBuildInfo::kConfiguration);
 
 	ImGui::SetWindowFontScale(1.0f);
 

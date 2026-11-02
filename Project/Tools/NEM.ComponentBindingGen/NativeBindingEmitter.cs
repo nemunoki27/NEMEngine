@@ -13,7 +13,9 @@ internal static class NativeBindingEmitter {
         sb.Append(NativeBanner());
         sb.Append("#pragma once\n\n");
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>\n\n");
+        sb.Append("namespace Engine { class AnimationPropertyRegistry; }\n\n");
         sb.Append("namespace Engine::GeneratedComponentBindings {\n\n");
+        sb.Append("\tvoid RegisterAnimationProperties(AnimationPropertyRegistry& registry);\n\n");
         sb.Append("\t// Componentの型とプロパティ番号で操作を振り分ける\n");
         sb.Append("\tManagedStatus GetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, void* outValue, int32_t valueSize);\n");
         sb.Append("\tManagedStatus SetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, const void* value, int32_t valueSize);\n");
@@ -28,6 +30,7 @@ internal static class NativeBindingEmitter {
         var sb = new StringBuilder();
         sb.Append(NativeBanner());
         sb.Append("#include \"ManagedComponentBindings.generated.h\"\n\n");
+        sb.Append("#include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>\n");
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>\n");
         sb.Append("#include <Engine/Core/Foundation/Identity/UUID.h>\n");
         if (components.SelectMany(c => c.Properties).Any(p => p.Kind == "EntityRef")) {
@@ -55,6 +58,7 @@ internal static class NativeBindingEmitter {
             EmitCppComponentHandlers(sb, components[i], enumByName);
         }
         sb.Append("\t} // anonymous namespace\n\n");
+        AnimationPropertyBindingEmitter.Emit(sb, components);
 
         // 型番号で操作を振り分ける
         EmitCppDispatch(sb, components, "GetComponentProperty", "GetProp", "void* outValue, int32_t valueSize", "outValue, valueSize", checkOut: true);

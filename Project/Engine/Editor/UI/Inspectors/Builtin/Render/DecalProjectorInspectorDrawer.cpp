@@ -11,14 +11,11 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
 	const AssetID defaultMaterial = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Decal);
 	AssetEditSetting materialSetting{};
 	materialSetting.defaultAssetID = defaultMaterial;
 	DrawField(anyItemActive, [&]() { return MyGUI::AssetReferenceField("マテリアル", draft.material,
 		context.editorContext->assetDatabase, {AssetType::Material}, materialSetting); });
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawLayerMaskField(context, "表示レイヤー", draft.renderingLayerMask); });
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawLayerMaskField(context, "受け取り先レイヤー", draft.receiverRenderingLayerMask); });
 	// 寸法とPivotは親Transformのローカル空間で指定する
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("大きさと奥行き", draft.size, {.minValue = 0.001f}); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("中心のオフセット", draft.pivot); });

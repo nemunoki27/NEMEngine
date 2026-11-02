@@ -26,6 +26,26 @@
 
 namespace {
 
+	// ウェイトを持たない部品を配置ノードへ追従させる
+	void AssignRigidInfluences(const aiScene* scene, const aiNode* node, const Engine::Skeleton& skeleton,
+		const std::vector<uint32_t>& offsets, std::vector<Engine::VertexInfluence>& influences) {
+
+		const int32_t joint = Engine::FindSkeletonJointIndex(skeleton, node);
+		for (uint32_t index = 0; index < node->mNumMeshes; ++index) {
+			const uint32_t meshIndex = node->mMeshes[index];
+			const auto* mesh = scene->mMeshes[meshIndex];
+			if (joint < 0 || !Engine::MeshImportUtility::HasTriangleGeometry(mesh) || mesh->HasBones()) continue;
+			for (uint32_t vertex = 0; vertex < mesh->mNumVertices; ++vertex) {
+				auto& influence = influences[offsets[meshIndex] + vertex];
+				influence.weights[0] = 1.0f;
+				influence.jointIndices[0] = joint;
+			}
+		}
+		for (uint32_t index = 0; index < node->mNumChildren; ++index) {
+			AssignRigidInfluences(scene, node->mChildren[index], skeleton, offsets, influences);
+		}
+	}
+
 	// 頂点のジョイント影響を正規化
 	void NormalizeInfluence(Engine::VertexInfluence& influence) {
 
@@ -251,6 +271,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 
 	// 骨が入っていれば、ジョイントの影響を頂点に割り当てる
 	if (result.isSkinned) {
+		AssignRigidInfluences(scene, scene->mRootNode, skeleton, meshBaseVertexOffsets, result.vertexInfluences);
 
 		for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 

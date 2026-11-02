@@ -94,6 +94,11 @@ namespace Engine::AnimationTrackSampling {
 	bool ReadValueChannels(const Engine::AnimationPropertyValue& value, float* values, uint32_t valueCount) {
 
 		// 現在値やPreview開始時の値をfloat配列へ展開する
+		if (const int32_t* v = std::get_if<int32_t>(&value)) {
+			if (valueCount != 1) return false;
+			values[0] = static_cast<float>(*v);
+			return true;
+		}
 		if (const float* v = std::get_if<float>(&value)) {
 			if (valueCount != 1) {
 				return false;
@@ -165,6 +170,10 @@ namespace Engine::AnimationTrackSampling {
 		if (values.size() != GetAnimationValueTypeChannelCount(type)) return false;
 		// 保存型に合わせて評価成分を戻す
 		switch (type) {
+		case AnimationValueType::Int:
+			if (!std::isfinite(values[0])) return false;
+			outValue = static_cast<int32_t>(std::clamp(std::round(static_cast<double>(values[0])),
+				static_cast<double>(INT32_MIN), static_cast<double>(INT32_MAX))); break;
 		case AnimationValueType::Float: outValue = values[0]; break;
 		case AnimationValueType::Vector2: outValue = Vector2(values[0], values[1]); break;
 		case AnimationValueType::Vector3: outValue = Vector3(values[0], values[1], values[2]); break;
@@ -200,6 +209,9 @@ namespace Engine::AnimationTrackSampling {
 		// Override用の評価で部分キー編集で未編集成分を壊さないために使う
 		float v[4]{};
 		switch (track.binding.valueType) {
+		case Engine::AnimationValueType::Int:
+			if (!ReadChannelsWithFallback(track, time, fallback, v, 1)) return false;
+			return WriteValueChannels(AnimationValueType::Int, std::span<const float>(v, 1), outValue);
 		case Engine::AnimationValueType::Float:
 			if (!ReadChannelsWithFallback(track, time, fallback, v, 1)) {
 				return false;
@@ -237,6 +249,17 @@ namespace Engine::AnimationTrackSampling {
 			outValue = Engine::Color4(v[0], v[1], v[2], v[3]);
 			return true;
 		case Engine::AnimationValueType::Quaternion:
+			if (IsQuaternionEulerTrack(track)) {
+				const auto* rotation = std::get_if<Quaternion>(&fallback);
+				if (!rotation || !HasAnyKey(track)) return false;
+				const auto euler = Quaternion::ToEulerAngles(*rotation);
+				v[0] = euler.x; v[1] = euler.y; v[2] = euler.z;
+				for (size_t i = 0; i < 3; ++i) {
+					if (!track.channels[i].keys.empty()) v[i] = track.channels[i].Evaluate(time);
+				}
+				outValue = Quaternion::FromEulerDegrees(Vector3(v[0], v[1], v[2]));
+				return true;
+			}
 			if (IsQuaternionAxisAngleTrack(track)) {
 				return EvaluateQuaternionAxisAngleTrack(track, time, outValue);
 			}

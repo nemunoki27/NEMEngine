@@ -1,10 +1,8 @@
-﻿param(
+param(
     [string]$Probe = "",
     [string]$BuildTool = "",
     [string]$GameSourceRoot = "",
-    [switch]$Cook,
-    [switch]$Product,
-    [string]$SdkRoot = ""
+    [switch]$Cook
 )
 
 # GameBuildServiceProbe.targetsをForceImportAfterCppTargetsへ指定してNEMTestsのDebug構成をビルドしておく
@@ -195,63 +193,4 @@ if ($Cook) {
     Write-Host "[成功] Cookと必須ファイル欠損検出"
 }
 
-if ($Product) {
-    if (-not $SdkRoot) { $SdkRoot = Join-Path $engineRoot "Generated\SDK" }
-    # 検証用SDKへ最新のCookを配置し、実際のSDKを更新せず同じ経路でビルドする
-    $sdkToolRoot = Join-Path $gameRoot "Tools\NEMBuildTool"
-    New-Item -ItemType Directory -Path $sdkToolRoot, (Join-Path $gameRoot "Include") | Out-Null
-    Copy-Item -LiteralPath (Join-Path $SdkRoot "Include\NEMEngineRuntime.h") -Destination (Join-Path $gameRoot "Include")
-    Copy-Item -LiteralPath (Join-Path $engineRoot "Tools\BuildGame.ps1") -Destination (Join-Path $gameRoot "Tools")
-    Copy-Item -Recurse -LiteralPath (Join-Path $engineRoot "Tools\ProductBuild") -Destination (Join-Path $gameRoot "Tools")
-    Get-ChildItem -LiteralPath (Split-Path -Parent $BuildTool) -File | Where-Object {
-        $_.Extension -in @(".exe", ".dll", ".json")
-    } | Copy-Item -Destination $sdkToolRoot
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $engineRoot "Tools\NewGame.ps1") `
-        -Name RuntimeProbe -SdkPath $SdkRoot -Dest $testRoot
-    if ($LASTEXITCODE -ne 0) { throw "製品検証用ゲームの生成に失敗しました" }
-    $appRoot = Join-Path $testRoot "RuntimeProbe\Project\RuntimeProbe"
-    foreach ($directory in @("GameAssets", "CustomSettings", "Packages")) {
-        $source = Join-Path $gameRoot $directory
-        if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $appRoot -Recurse -Force }
-    }
-    $descriptorPath = Join-Path $appRoot "RuntimeProbe.nemproject"
-    $descriptor = Get-Content -LiteralPath $descriptorPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $descriptor.projectSettingsDirectory = "CustomSettings"
-    Write-TestJson $descriptorPath $descriptor
-    $previousEngineRoot = $env:NEMENGINE_ROOT
-    try {
-        $env:NEMENGINE_ROOT = $gameRoot
-        & $Probe $appRoot $sceneID (Join-Path $testRoot "Products")
-        if ($LASTEXITCODE -ne 0) { throw "Menubarと共通の製品ビルドに失敗しました" }
-    } finally {
-        $env:NEMENGINE_ROOT = $previousEngineRoot
-    }
-    $productRoot = Join-Path $testRoot "Products\ProductProbe"
-    foreach ($required in @("ProductProbe.exe", "NEMRuntime.dll", "Managed\GameScripts.dll",
-        "Managed\NEM.ScriptCore.dll", "Cooked\Shaders\ShaderCookManifest.json", "GameAssets\Stage.csv")) {
-        if (-not (Test-Path -LiteralPath (Join-Path $productRoot $required) -PathType Leaf)) { throw "製品のファイルが不足しています: $required" }
-    }
-    & $Probe --collision $collisionPath (Join-Path $productRoot "ProjectSettings\CollisionSettings.json")
-    if ($LASTEXITCODE -ne 0) { throw "製品の衝突設定が元の設定と一致しません" }
-    & $BuildTool --verify-cook (Join-Path $productRoot ".nemCookManifest.json") $productRoot
-    if ($LASTEXITCODE -ne 0) { throw "製品ファイルのハッシュ検証に失敗しました" }
-    foreach ($file in $files | Where-Object { $_.destination -match '\.csv$|\.(scene|prefab|actor)\.json$' }) {
-        $destination = Join-Path $productRoot $file.destination
-        if (-not (Test-Path -LiteralPath $destination) -or
-            (Get-FileHash -LiteralPath $destination).Hash.ToLowerInvariant() -ne $file.sha256) {
-            throw "CSV・シーン・Prefab・Actorの配置内容が一致しません: $destination"
-        }
-    }
-    $sourceScripts = Join-Path $appRoot "Managed\Release\GameScripts.dll"
-    $productScripts = Join-Path $productRoot "Managed\GameScripts.dll"
-    if ((Get-FileHash -LiteralPath $sourceScripts).Hash -ne (Get-FileHash -LiteralPath $productScripts).Hash) {
-        throw "製品のC#スクリプトがReleaseの成果物と一致しません"
-    }
-    $editorFiles = @(Get-ChildItem -LiteralPath $productRoot -Recurse -File | Where-Object {
-        $_.Name -match '\.(hlsl|hlsli)(\.meta)?$|\.shadergraph\.json(\.meta)?$' -or
-        $_.Name -in @("dxcompiler.dll", "dxil.dll", "NEMBuildTool.exe")
-    })
-    if ($editorFiles.Count) { throw "製品に開発用ファイルが混入しています" }
-    Write-Host "[成功] Menubar共通の製品ビルドと配置検証"
-}
 Write-Host "[完了] 製品同梱ファイルの回帰検証: $testRoot"

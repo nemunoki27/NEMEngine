@@ -1,6 +1,7 @@
 #include "AnimationClipEditorUI.h"
 #include "AnimationClipEditSession.h"
 #include "AnimationClipEditorUtility.h"
+#include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 
 //============================================================================
 //	include
@@ -82,16 +83,18 @@ void Engine::AnimationClipEditorUI::DrawPropertyTreeUI(AnimationClipEditSession&
 					// 同じPropertyの重複追加を防ぐ
 					const bool exists = std::any_of(session.GetClip().curveTracks.begin(), session.GetClip().curveTracks.end(),
 						[desc](const AnimationCurveTrack& track) {
-							return track.binding.componentName == desc->componentName &&
-								   track.binding.propertyPath == desc->propertyPath;
+							return AnimationValueOperations::SameBinding(track.binding,
+								{desc->componentName, desc->propertyPath, desc->valueType});
 						});
 					if (exists) {
 						ImGui::BeginDisabled();
 					}
+					ImGui::PushID(desc->propertyPath.c_str());
 					if (ImGui::MenuItem(desc->displayName.c_str())) {
 						session.AddPropertyTrack(*desc, *world, targetEntity);
 						session.ApplyPreviewAtCurrentTime(context, true);
 					}
+					ImGui::PopID();
 					if (exists) {
 						ImGui::EndDisabled();
 					}

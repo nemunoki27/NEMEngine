@@ -6,7 +6,7 @@ namespace NEMEngine;
 internal static class ManagedABI {
 
     // NativeとManagedを同じ版で接続する
-    internal const uint Version = 69;
+    internal const uint Version = 71;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -167,6 +167,8 @@ public struct NativeUISelectableRuntimeState {
     public int selectedThisFrame;
     public int submittedThisFrame;
     public int disabledThisFrame;
+    public Color4 currentColor;
+    public Vector2 currentScale;
 }
 
 // Nativeと共通のUI表示値

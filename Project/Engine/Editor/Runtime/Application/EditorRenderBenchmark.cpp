@@ -64,6 +64,11 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 			static_cast<int32_t>(std::clamp(std::wcstoul(height, nullptr, 10), 1ul, 8192ul))));
 	}
 	application_->Init(graphicsCore);
+	playGate_ = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_PLAY_GATE");
+	if (!playGate_.empty()) {
+		std::ofstream ready(playGate_.wstring() + L".ready");
+		ready << GetCurrentProcessId();
+	}
 	// Project設定を保存せず、計測プロセスだけFPS上限を変更する
 	wchar_t fps[32]{};
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_FPS", fps, 32) > 0) {
@@ -222,6 +227,17 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	const bool preparingScene = sceneReadPending_ && application_->pendingSceneRead_.valid() &&
 		application_->pendingSceneRead_.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
 	application_->Tick(graphicsCore, freezeAnimation_ ? 0.0f : deltaTime);
+	if (!playGate_.empty()) {
+
+		// 接続確認までは編集Worldを保つ
+		if (!playRequested_ && std::filesystem::exists(playGate_)) {
+			application_->editorManager_.RequestPlayToggle();
+			playRequested_ = true;
+		} else if (playRequested_ && !std::filesystem::exists(playGate_)) {
+			PostQuitMessage(0);
+		}
+		return;
+	}
 	// Editorの操作受付を開始してから変更を確定する
 	if (report_.contains("transformSequence") && phase_ < phaseCount_ &&
 		report_.value("appliedTransformPhase", UINT32_MAX) != phase_) {

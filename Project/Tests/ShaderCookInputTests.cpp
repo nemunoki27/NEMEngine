@@ -29,6 +29,15 @@ bool NEMTests::TestShaderCookInputs() {
 	compiler.SetSourceRoot(root);
 	// 配置済みのソースとIncludeは通常どおりコンパイルできる
 	if (!compiler.CompileShader(source.wstring(), L"ps_6_0", L"main", ShaderStage::PS).IsValid()) { return false; }
+	// 深い相対IncludeをCookとEditorの両方で解決する
+	std::filesystem::create_directory(root / "nested");
+	std::string include;
+	for (int index = 0; index < 32; ++index) { include += "nested/../"; }
+	{ std::ofstream file(source); file << "#include \"" << include << "inside.hlsli\"\nfloat4 main() : SV_Target { return GetColor(); }\n"; }
+	if (!compiler.CompileShader(source.wstring(), L"ps_6_0", L"main", ShaderStage::PS).IsValid()) { return false; }
+	compiler.SetSourceRoot({});
+	if (!compiler.CompileShader(source.wstring(), L"ps_6_0", L"main", ShaderStage::PS).IsValid()) { return false; }
+	compiler.SetSourceRoot(root);
 	// 正常な親ソースでも入力外のIncludeは使用できない
 	{ std::ofstream file(source); file << "#include \"../outside.hlsli\"\nfloat4 main() : SV_Target { return GetColor(); }\n"; }
 	if (compiler.CompileShader(source.wstring(), L"ps_6_0", L"main", ShaderStage::PS).IsValid()) { return false; }

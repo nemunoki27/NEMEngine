@@ -61,8 +61,8 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::Draw(IParticleModule& module
 		changed |= DrawParameter("上面半径", kCylinderTopRadius, 1.0f, 0.0f, 10000.0f);
 		changed |= DrawParameter("中心半径", kCylinderCenterRadius, 1.0f, 0.0f, 10000.0f);
 		changed |= DrawParameter("下面半径", kCylinderBottomRadius, 1.0f, 0.0f, 10000.0f);
-		changed |= DrawParameter("上面Weight", kCylinderTopRadiusWeight, 0.0f, 0.0f, 1.0f);
-		changed |= DrawParameter("下面Weight", kCylinderBottomRadiusWeight, 0.0f, 0.0f, 1.0f);
+		changed |= DrawParameter("上面の重み", kCylinderTopRadiusWeight, 0.0f, 0.0f, 1.0f);
+		changed |= DrawParameter("下面の重み", kCylinderBottomRadiusWeight, 0.0f, 0.0f, 1.0f);
 		changed |= DrawColorParameter("上面色", kCylinderTopColor, Color4::White());
 		changed |= DrawColorParameter("中心色", kCylinderCenterColor, Color4::White());
 		changed |= DrawColorParameter("底面色", kCylinderBottomColor, Color4::White());

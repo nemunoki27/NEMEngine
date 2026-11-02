@@ -64,8 +64,9 @@ export function generate({ metadata = true } = {}) {
 			if (!resolved) throw new Error(`公開C#設定がありません: ${editor.name}.${property.managedName}`);
 			const description = describeProperty(property.nativeMember);
 			if (!description) unresolved.push(`${editor.name}.${property.managedName}`);
-			const match = data.ui.find(field => field.file === editor.source &&
-				field.value.replace(/^draft\./, '') === property.nativeMember && drawerPart.includes(field.label));
+			const match = data.ui.find(field => (field.file === editor.source || field.owner === editor.name) &&
+				field.value.replace(/^draft\./, '') === property.nativeMember && (field.owner === editor.name || drawerPart.includes(field.label) ||
+					(field.fieldKey && drawerPart.includes("InspectorFieldID::" + field.fieldKey))));
 			const defaults = nativeDefault(nativeDefinitions, component.nativeType, property.nativeMember);
 			coverage.fields.push({ id: `${editor.name}.${property.managedName}`, page: target, described: Boolean(description),
 				managedPath: resolved.path, member: resolved.member.id });
@@ -266,7 +267,7 @@ const guideLabel = id => ({ particles: 'Particle', camera: 'Camera', rendering: 
 function generateIndexes(data, api, coverage, typeLinks) {
 
 	const componentRows = data.editors.map(editor => [`[${editor.name}](/components/${slug(editor.name)})`, editor.category, components[editor.name][0]]);
-	save('components/index.md', page('Component一覧', `HierarchyでEntityを選択し、Inspectorの「コンポーネントを追加」から追加します。Transformは初めから付いています。\n\n${table(['Component', '分類', '用途'], componentRows)}\nC#名が異なる例として、AnimationPlayerはAnimator、CollisionはCollisionComponentを使います。`));
+	save('components/index.md', page('Component一覧', `HierarchyでEntityを選択し、Inspectorの「コンポーネントを追加」から追加します。Transformは初めから付いています。\n\n${table(['Component', '分類', '用途'], componentRows)}\nC#名が異なる例として、CollisionはCollisionComponentを使います。`));
 	const groups = new Map();
 	for (const type of api) {
 		const guide = guideFor(type);

@@ -7,6 +7,20 @@
 
 namespace Engine::RuntimePathDetail {
 
+	struct RuntimeLaunchOptions {
+
+		std::filesystem::path project;
+		std::filesystem::path engineRoot;
+		std::filesystem::path toolchainRoot;
+	};
+
+	// ランチャーから渡された配置を取得する
+	RuntimeLaunchOptions ReadLaunchOptions();
+	// 配布物とプロジェクトの使用版を照合する
+	void ResolveInstalledEngine(RuntimePaths::PathState& state, const RuntimeLaunchOptions& options);
+	// 使用中の配布物とプロジェクトを保持する
+	void AcquireInstalledEngineLeases(RuntimePaths::PathState& state);
+
 	// 探索・環境選択・初期化を共通の解決結果へまとめる
 	bool ExistsDirectory(const std::filesystem::path& path);
 

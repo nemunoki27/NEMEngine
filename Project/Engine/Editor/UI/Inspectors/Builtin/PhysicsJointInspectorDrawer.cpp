@@ -1,14 +1,11 @@
 #include "PhysicsJointInspectorDrawer.h"
+#include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 // c++
 #include <algorithm>
@@ -18,61 +15,10 @@
 
 namespace {
 
-	// Entity参照の表示名を作成
-	std::string MakeEntityLabel(Engine::ECSWorld& world, Engine::UUID localFileID) {
-
-		if (!localFileID) {
-			return "なし";
-		}
-		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(
-			world, localFileID);
-		if (!entity.IsValid() || !world.IsAlive(entity)) {
-			return "不明 : " + Engine::ToString(localFileID);
-		}
-		if (const auto* name = world.TryGetComponent<Engine::NameComponent>(entity)) {
-			return name->name;
-		}
-		return Engine::ToString(localFileID);
-	}
-
 	// Jointの接続先を編集
-	Engine::ValueEditResult DrawConnectedBody(Engine::ECSWorld& world,
-		Engine::UUID& localFileID) {
+	Engine::ValueEditResult DrawConnectedBody(Engine::ECSWorld& world, Engine::UUID& localFileID) {
 
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow("接続先")) {
-			return result;
-		}
-
-		constexpr float kClearButtonWidth = 56.0f;
-		const std::string label = MakeEntityLabel(world, localFileID);
-		ImGui::Button(label.c_str(), ImVec2((std::max)(0.0f,
-			ImGui::GetContentRegionAvail().x - kClearButtonWidth), 0.0f));
-		result.anyItemActive |= ImGui::IsItemActive();
-		if (ImGui::BeginDragDropTarget()) {
-			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
-				Engine::IEditorPanel::kHierarchyDragDropPayloadType);
-			if (payload && payload->DataSize == sizeof(Engine::UUID)) {
-				const Engine::Entity target = world.FindByUUID(
-					*static_cast<const Engine::UUID*>(payload->Data));
-				if (const auto* sceneObject =
-					world.TryGetComponent<Engine::SceneObjectComponent>(target)) {
-					localFileID = sceneObject->localFileID;
-					result.valueChanged = true;
-					result.editFinished = true;
-				}
-			}
-			ImGui::EndDragDropTarget();
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button("クリア", ImVec2(kClearButtonWidth, 0.0f))) {
-			localFileID = {};
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
-		Engine::MyGUI::EndPropertyRow();
-		return result;
+		return Engine::SceneEntityReferenceFields::DrawLocal("接続先", world, localFileID);
 	}
 
 }
@@ -86,9 +32,6 @@ void Engine::FixedJointInspectorDrawer::DrawFields(
 
 	auto& draft = GetDraft();
 	PushEditResult(DrawConnectedBody(world, draft.connectedBodyLocalFileID), anyItemActive);
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragVector3("支点", draft.anchor, { .dragSpeed = 0.01f });
 		});
@@ -113,9 +56,6 @@ void Engine::HingeJointInspectorDrawer::DrawFields(
 
 	auto& draft = GetDraft();
 	PushEditResult(DrawConnectedBody(world, draft.connectedBodyLocalFileID), anyItemActive);
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragVector3("支点", draft.anchor, { .dragSpeed = 0.01f });
 		});

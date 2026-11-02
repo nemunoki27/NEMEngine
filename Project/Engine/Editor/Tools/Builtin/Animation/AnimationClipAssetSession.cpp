@@ -65,6 +65,9 @@ void AnimationClipEditSession::ApplyLoadedClip(const EditorToolContext& context,
 	EndPreviewAndRestore();
 	previewBaseValues_.clear();
 	clip_ = std::move(loaded);
+	historyState_.clear();
+	undo_.clear();
+	redo_.clear();
 	clip_.guid = clipAssetID_;
 	clipDirty_ = dirty;
 	editorViewTrackIndex_ = -1;
@@ -84,6 +87,7 @@ void AnimationClipEditSession::ApplyLoadedClip(const EditorToolContext& context,
 	curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, clip_.duration);
 	curveState_.ClearSelection();
 	LoadSelectedTrackEditorView();
+	CommitHistory();
 	// 読み込み直後も現在時刻のPreviewをTarget Entityへ反映する
 	ApplyPreviewAtCurrentTime(context, true);
 }

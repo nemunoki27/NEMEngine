@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/PostProcess/Bloom/BloomSettings.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
@@ -152,6 +153,10 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		return;
 	}
 
+	const AssetDatabase* database = context.toolContext.assetDatabase;
+	const bool readOnly = database && !RuntimePaths::CanWritePath(database->ResolveFullPath(editSession_.GetProfileID()));
+	if (readOnly) { ImGui::TextWrapped("共通エンジンの設定です ProjectからGameAssetsへコピーして編集してください"); }
+	ImGui::BeginDisabled(readOnly);
 	AssetID importSource{};
 	AssetEditSetting importSetting{};
 	importSetting.allowDelete = false;
@@ -195,6 +200,7 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		DrawPassDetail(context);
 	}
 	ImGui::EndChild();
+	ImGui::EndDisabled();
 	ImGui::End();
 }
 

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
+#include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 // c++
 #include <stdexcept>
 
@@ -92,6 +93,12 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	g_activeEngineApplication = this;
 	WinApp::SetCloseRequestCallback(RequestEngineApplicationClose);
 	Assert::SetPreAssertHandler(NotifyEngineApplicationAssert);
+
+	// 既存ProjectにもFont用の文字集合を不足分だけ配置する
+	std::string fontMessage;
+	if (!MSDFFontGenerator::EnsureProjectFiles(fontMessage)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "{}", fontMessage);
+	}
 
 	// アセットデータベース初期化
 	assetDatabase_.Init();

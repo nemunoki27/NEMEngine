@@ -27,7 +27,9 @@ namespace {
 //============================================================================
 //	Easing functions
 //============================================================================
-void Easing::SelectEasingType(EasingType& easingType, const std::string& label, float itemWidth) {
+bool Easing::DrawSelector(const char* label, EasingType& easingType, float itemWidth) {
+
+	const auto before = easingType;
 
 	const char* easeInOptions[] = {"EaseInSine", "EaseInQuad", "EaseInCubic", "EaseInQuart", "EaseInQuint", "EaseInExpo",
 		"EaseInCirc", "EaseInBack", "EaseInBounce"};
@@ -51,8 +53,8 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& label, 
 	}
 
 	ImGui::SetNextItemWidth(itemWidth);
-	if (!ImGui::BeginCombo(("イージング##" + label).c_str(), previewLabel)) {
-		return;
+	if (!ImGui::BeginCombo(label, previewLabel)) {
+		return false;
 	}
 
 	if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
@@ -100,6 +102,12 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& label, 
 	}
 	ImGui::PopItemWidth();
 	ImGui::EndCombo();
+	return before != easingType;
+}
+
+void Easing::SelectEasingType(EasingType& easingType, const std::string& label, float itemWidth) {
+
+	DrawSelector(label.c_str(), easingType, itemWidth);
 }
 
 namespace Engine {

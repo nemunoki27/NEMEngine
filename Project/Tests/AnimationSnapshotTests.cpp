@@ -1,4 +1,5 @@
 #include "AnimationSnapshotTests.h"
+#include "TestFixtures.h"
 
 //============================================================================
 //	include
@@ -7,14 +8,86 @@
 #include <Engine/Core/Animation/Properties/MaterialAnimationPropertyValue.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Editor/Tools/Builtin/Animation/AnimationClipEditorUtility.h>
 
 // c++
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
+#include <fstream>
 #include <array>
+#include <iostream>
+#include <unordered_set>
 
 bool NEMTests::TestAnimationSnapshot() {
 
 	using namespace Engine;
-	RegisterMaterialAnimationAccessors();
+	RegisterBuiltinAnimationProperties();
+	// 全標準Componentの公開候補を取得、適用、復元する
+	auto& registry = AnimationPropertyRegistry::GetInstance();
+	size_t componentCount = 0, propertyCount = 0;
+	const auto& componentTypes = ComponentTypeRegistry::GetInstance();
+	for (uint32_t index = 0; index < componentTypes.GetComponentTypeCount(); ++index) {
+		const auto& info = componentTypes.GetInfo(index);
+		if (!info.serializable || info.storageKind != ComponentStorageKind::Data || info.worldDomain == ComponentWorldDomain::Runtime) continue;
+		++componentCount;
+		ECSWorld fixture;
+		const auto target = fixture.CreateEntity();
+		fixture.AddComponentByName(target, "Transform");
+		if (info.name != "Transform") fixture.AddComponentByName(target, info.name);
+		std::unordered_set<std::string> keys;
+		for (const auto& property : registry.CollectProperties(fixture, target, {})) {
+			++propertyCount;
+			const auto key = property.componentName + "." + property.propertyPath;
+			AnimationPropertyValue original;
+			if (!keys.insert(key).second || !property.getValue || !property.setValue || !property.getValue(fixture, target, original) ||
+				original.index() != static_cast<size_t>(property.valueType)) {
+				std::cerr << "Animation property read failed: " << key << '\n';
+				return false;
+			}
+			const std::array<AnimationPropertyValue, 8> samples{0.375f, Vector2(0.375f, 0.625f), Vector3(0.375f, 0.625f, 0.875f),
+				Vector4(0.375f, 0.625f, 0.875f, 1.0f), Color3(0.375f, 0.625f, 0.875f), Color4(0.375f, 0.625f, 0.875f, 1.0f),
+				Quaternion::FromEulerDegrees(Vector3(10, 20, 30)), int32_t(3)};
+			const auto& sample = samples[original.index()];
+			std::vector<AnimationPreviewBaseValue> snapshot;
+			const AnimationPropertyBinding binding{property.componentName, property.propertyPath, property.valueType};
+			AnimationPropertyValue actual;
+			if (!AnimationPropertySnapshot::Capture(fixture, target, binding, snapshot) ||
+				!property.setValue(fixture, target, sample) || !property.getValue(fixture, target, actual) ||
+				!AnimationClipEditorUtility::ApproxEqualValue(actual, sample)) {
+				std::cerr << "Animation property write failed: " << key << '\n';
+				return false;
+			}
+			AnimationPropertySnapshot::Restore(fixture, target, snapshot);
+			if (!property.getValue(fixture, target, actual) || !AnimationClipEditorUtility::ApproxEqualValue(actual, original)) {
+				std::cerr << "Animation property restore failed: " << key << '\n';
+				return false;
+			}
+		}
+	}
+	if (componentCount < 20 || propertyCount < 100) return false;
+	std::cout << "Animation property matrix: components=" << componentCount << " properties=" << propertyCount << '\n';
+	// アセットの既定色と個別設定を同じ適用先として扱う
+	TestDirectory directory("AnimationMaterial", RuntimePaths::GetGameAssetsRoot());
+	const auto path = directory.GetPath() / "Color.material.json";
+	std::ofstream(path) << R"({"name":"Color","domain":"UI","parameters":{"color":{"r":0.2,"g":0.3,"b":0.4,"a":0.5}},"passes":[]})";
+	AssetDatabase database;
+	if (!database.Init()) return false;
+	const auto material = database.ImportOrGet(RuntimePaths::ToAssetPath(path), AssetType::Material);
+	if (!material) return false;
+	ECSWorld materialWorld;
+	const auto sprite = materialWorld.CreateEntity();
+	materialWorld.AddComponent<SpriteRendererComponent>(sprite).material = material;
+	const auto properties = registry.CollectProperties(materialWorld, sprite, {.assetDatabase = &database});
+	size_t colors = 0;
+	for (const auto& property : properties) if (property.propertyPath == "material.color") {
+		++colors;
+		AnimationPropertyValue value;
+		if (!property.getValue(materialWorld, sprite, value) ||
+			!AnimationClipEditorUtility::ApproxEqualValue(value, Color4(0.2f, 0.3f, 0.4f, 0.5f)) ||
+			property.setValue(materialWorld, sprite, 1.0f)) return false;
+	}
+	if (colors != 1) return false;
 	ECSWorld world;
 	const Entity entity = world.CreateEntity();
 	world.AddComponent<MeshRendererComponent>(entity);

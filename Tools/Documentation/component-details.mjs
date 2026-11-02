@@ -22,6 +22,14 @@ const camera = [
 ];
 
 export const componentDetails = {
+	SimpleAnimation: [
+		both('有効・開始時再生・編集時再生', 'Enabled, PlayOnStart, PlayInEditMode', '通常はPlay中だけ進みます。編集中も再生を有効にするとInspectorで確認できます。編集時の適用値は保存前・プレビュー終了時に戻します。'),
+		both('型・補間・Sin・Cos', 'GetSettings, SetSettings', 'float/int/Vector2/3/4/Color3/4/Quaternionに対応します。InterpolateはA→B、Sin/Cosは中心＋振幅で変化します。Quaternionの振幅は度単位のEuler角です。intは四捨五入（中間値は0から遠い側）します。'),
+		both('時間と繰り返し', 'GetSettings, SetSettings', 'Durationは片道の秒数、Periodは波の周期秒、PhaseDegreesは位相角です。Onceは1回、Loopは繰り返し、PingPongは往復します。CycleCount=0は無制限、往復は往路＋復路で1回です。Delay、Speed、UnscaledTimeも設定できます。'),
+		both('適用先・自動適用', 'AutoApply, SetTarget', '未設定の対象は自分です。登録されたアニメーション可能項目から型が一致するものを選びます。同じ適用先を複数のアニメーションで操作した場合は診断を表示します。自動適用OFFでも値は計算できます。'),
+		both('再生制御', 'Play, Pause, Resume, Stop, Reset, Seek', 'Playは先頭から、Pauseは一時停止、Resumeは再開、Stopは現在値で停止します。Resetは適用前へ戻して停止します。Seekの秒数は速度を掛けた後の再生時刻です。操作は次の更新で反映されます。'),
+		code('結果を使う', 'GetValue, TryGetValue, IsPlaying, IsPaused, IsFinished, CompletedCycles, CurrentTime, Diagnostic', 'GetValue<T>で型を指定します。未評価・型違いを許容する場合はTryGetValue<T>を使います。ScriptのUpdate後、LateUpdate前に評価されるため、最新の結果はLateUpdateで読みます。'),
+	],
 	Transform: [
 		editor('次元', '2D向けか3D向けかを指定します。Inspectorの表示軸や関連処理の基準になります。現在のTransformのC# APIに次元を直接変更するプロパティはありません。'),
 		both('位置・回転・スケール', 'localPosition, localEulerAngles, localScale', 'Inspectorでは親を基準にした値を編集します。位置のWorld値はposition、回転のWorld値はrotationです。eulerAngles系は度数、rotation系はQuaternionを使います。'),
@@ -210,8 +218,9 @@ export const componentDetails = {
 	],
 	UISelectable: [
 		both('入力操作対象', 'Interactable', '無効にすると選択・決定の対象から外します。UI全体をGameObjectごと非アクティブにすることとは別です。'),
-		both('通常・選択・決定・無効のスタイル', 'NormalColor, SelectedColor, SubmittedColor, DisabledColor', '各状態で色、スケール、変化時間、Easingを指定します。Normal/Selected/Submitted/Disabledの接頭辞が、C#プロパティの状態を表します。'),
-		both('Texture・音・Animation Clip', 'NormalTexture, SelectedTexture, SubmittedTexture, DisabledTexture, SelectedSound, SelectedAnimationClip', 'Texture上書きの有無、状態移行時の音と音量、色・拡縮補間またはAnimation Clipを選びます。各状態のUseAnimationClipやAnimationEnabledで使用する経路を確認します。'),
+		both('通常・選択・決定・無効のスタイル', 'GetColorAnimation, SetColorAnimation, GetScaleAnimation, SetScaleAnimation', '状態ごとにColor4とVector2のSimpleAnimation設定を持ちます。値はRendererの元の色とTransformの元のScaleへの倍率です。現在値から開始を有効にすると素早い状態切替でも現在の見た目から補間します。決定状態は無制限設定でも1周期で終了します。'),
+		both('Texture・音', 'NormalTexture, SelectedTexture, SubmittedTexture, DisabledTexture, SelectedSound', 'Texture上書きと状態移行時の音を設定します。AnimationClipの指定は廃止しました。旧Clipを設定していた状態は色・スケールの設定をし直してください。Clip Asset自体は削除されません。'),
+		code('表示結果', 'CurrentColor, CurrentScale', '現在の色とスケールを取得します。状態設定の倍率ではなく、元の見た目へ倍率を適用した結果です。'),
 		code('状態の取得', 'State, SelectedThisFrame, SubmittedThisFrame, DisabledThisFrame, NormalThisFrame', '現在の状態や、このframeに移行した状態を読み取れます。状態が続く間の判定と、そのframeだけの通知を混同しないでください。'),
 	],
 	UIImageButton: [
@@ -229,16 +238,15 @@ export const componentDetails = {
 		code('表示中の割合・遅延先', 'DisplayedNormalizedValue, DelayedNormalizedValue, DelayedTargetLocalFileID', '補間後の表示割合は取得用です。遅延先はGameObject参照として扱い、保存用IDをゲームコードで直接組み立てません。'),
 	],
 	SkinnedAnimation: [
-		both('クリップ・有効・ループ・速度・遷移時間', 'Clip, Enabled, Loop, PlaybackSpeed, TransitionDuration', 'スキン付きモデル内のAnimationを再生します。選択肢は読み込んだモデルのClipで、Animation Clip Assetを設定するAnimationPlayerとは別です。'),
+		both('クリップ・有効・ループ・速度・遷移時間', 'Clip, Enabled, Loop, PlaybackSpeed, TransitionDuration', 'スキン付きモデル内のAnimationを再生します。選択肢は読み込んだモデルのClipで、Animation Clip Assetを設定するAnimationClipPlayerとは別です。'),
 		editor('編集中に再生・骨表示', 'Play前のAnimation確認と骨の可視化です。現在のSkinnedAnimationの公開C# APIに、この2つを直接変更するプロパティはありません。'),
 		code('再生・停止・状態', 'Play, Stop, CurrentState, CurrentTime, IsPlaying, Finished, InTransition, RepeatCount, GetDuration', 'Clip名で再生し、遷移中か・再生時間・完了を確認できます。モデル内にないClip名を指定しても目的の動きは出ないため、Inspectorの候補を先に確認します。'),
 	],
-	AnimationPlayer: [
-		both('有効・開始時再生・全体速度・開始グループ', 'enabled, PlayOnStart, speed, DefaultGroup', 'C#の操作型はAnimatorです。保存したグループを名前で再生し、全体速度を個々のStateの速度へ掛けます。'),
-		both('グループ・State・Clip・weight・優先度', 'GetGroups, SetGroups', 'StateごとのClip、再生速度、weight、優先度、Additive、向き相対、開始遅延を設定します。設定を取得して編集した後はSetGroupsで反映します。'),
-		both('ループ形式・回数・インターバル・繋ぎ補間', 'GetGroups, SetGroups', '一度だけ・ループ・往復などの再生形式をStateに設定します。ループの繋ぎ補間は終端から次の開始までの補間で、回数や待機時間とは別です。'),
-		editor('編集中に再生', 'Play前にClipの見た目を確認する設定です。現在のAnimatorの公開C# APIに対応するPreview用プロパティはありません。'),
-		code('Play・PlayClip・CrossFade・Seek・Stop', 'Play, PlayClip, CrossFade, CrossFadeInFixedTime, Seek, Stop', 'State名での再生、Clipの直接再生、遷移、再生位置指定、停止に使います。CrossFadeの遷移量は正規化値、CrossFadeInFixedTimeは秒指定なので引数を取り違えないでください。'),
+	AnimationClipPlayer: [
+		both('クリップ・有効・開始時に再生', 'Clip, Enabled, PlayOnStart', '1つの.animClipを再生します。複数の値はClip内の複数トラックで設定します。'),
+		both('再生速度・開始待ち・インターバル・繰り返し', 'Speed, StartDelay, Interval, WrapMode, RepeatCount', '待ち時間は秒、回数0は無制限です。UseClipはClipの繰り返し設定に従います。'),
+		both('編集中も再生・TimeScale', 'PlayInEditMode, UnscaledTime', '編集時のプレビュー終了・保存時には元の値へ戻します。UnscaledTimeはTimeScaleの影響を受けません。'),
+		code('再生・一時停止・再開・停止・リセット・時刻', 'Play, Pause, Resume, Stop, Reset, Seek, Time, Duration, IsPlaying, IsPaused, IsFinished', 'Stopは現在値を保ち、Resetは再生前の値に戻します。Seekは秒で指定し、イベントは発火しません。'),
 	],
 	DirectionalLight: [
 		both('色・方向・強度・有効', 'Color, Direction, Intensity, Enabled', '太陽のように一定方向から照らす光です。Directionは光の進む向きで、Cameraの注視方向や点光源の位置とは別です。'),
@@ -266,6 +274,7 @@ export const componentDetails = {
 };
 
 export const componentExamples = {
+	SimpleAnimation: ['FloatingItem.cs', 'アイテムを上下に揺らす', '表示用のGameObjectへSimpleAnimationとこのScriptを追加します。自動適用を使わず、計算結果をLateUpdateでTransformへ渡す例です。'],
 	Transform: ['FirstMover.cs', '入力で物体を移動する', 'このGameObjectへ追加し、Play中に左右キーで移動します。物理のDynamic Bodyを直接動かす例ではありません。'],
 	Spline: ['SplinePatrol.cs', '経路に沿って物体を動かす', 'Splineの制御点をEditorで用意し、移動する物体のpathObjectへSplineのGameObjectを設定します。'],
 	AudioSource: ['TriggerSound.cs', 'プレイヤーが範囲へ入ったときに音を鳴らす', 'AudioSourceへ音声を設定し、CollisionのShape.IsTriggerを有効にします。Playerタグを持つ相手との接触で一度再生します。'],
@@ -283,11 +292,12 @@ export const componentExamples = {
 	UIImageButton: ['SubmitMenu.cs', 'ボタンを決定するとメニューを閉じる', 'Canvas配下にUISelectableと画像ボタンを用意し、menuへ閉じたいメニューのルートを指定します。'],
 	UITextButton: ['SubmitMenu.cs', '文字ボタンを決定するとメニューを閉じる', 'Canvas配下にUISelectableと文字ボタンを用意します。例はUIImageButtonとUITextButtonの両方を扱います。'],
 	UIProgress: ['HealthBar.cs', 'ダメージでHPバーを減らす', 'UIProgressのあるGameObjectへ追加し、ApplyDamage(amount)をゲーム側の被弾処理から呼びます。補間と遅延表示も設定します。'],
-	AnimationPlayer: ['ActionAnimation.cs', '操作に応じて作成済みのStateを再生する', 'AnimationPlayerへグループとStateを用意し、stateNameを存在するState名へ合わせます。C#ではAnimatorを取得します。'],
+	AnimationClipPlayer: ['ActionAnimation.cs', '操作に応じてClipを再生する', 'AnimationClipPlayerのクリップへ作成済み.animClipを設定します。'],
 	PointLight: ['PulsingLight.cs', 'ランプの明るさを周期的に変える', 'PointLightと同じGameObjectへ追加します。照射範囲はEditorで設定し、ここでは強度だけを時間で変えます。'],
 };
 
 export const componentReferenceTypes = {
+	SimpleAnimation: ['SimpleAnimationSettings', 'SimpleAnimationMode', 'SimpleAnimationRepeat'],
 	Transform: ['GameObject', 'Space'],
 	Spline: ['SplineControlPoint', 'SplineSample'],
 	PerspectiveCamera: ['CameraRenderingSettings', 'CameraRenderPasses'],
@@ -300,6 +310,6 @@ export const componentReferenceTypes = {
 	ParticleSystem: ['ParticleSystemSettings', 'ParticleEmitterSettings', 'ParticlePhaseSettings', 'ParticleModuleSettings', 'ParticleTrailSettings', 'ParticleSourceSettings', 'ParticleSurfaceSettings', 'ParticleFeedbackSettings', 'ParticleEventRouteSettings'],
 	Collision: ['ColliderShapeType', 'CapsuleAxis', 'Collision'],
 	Canvas: ['CanvasTransitionTable', 'CanvasInputAction'],
-	AnimationPlayer: ['AnimationGroupSettings', 'AnimationStateSettings', 'AnimationClip', 'AnimatorStateInfo'],
+	AnimationClipPlayer: ['AnimationClip', 'AnimationWrapMode'],
 	Script: ['SerializeFieldAttribute', 'FormerlySerializedAsAttribute'],
 };

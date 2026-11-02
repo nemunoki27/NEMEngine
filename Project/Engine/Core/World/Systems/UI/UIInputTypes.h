@@ -27,19 +27,4 @@ namespace Engine {
 		Vector2 center{};
 	};
 
-	struct UISelectableAnimationRuntime {
-
-		std::array<AssetID, 4> configuredClips{};
-		std::array<bool, 4> configuredAnimations{};
-		std::array<bool, 4> configuredUseClips{};
-		std::vector<AnimationPreviewBaseValue> baseValues;
-		AssetID activeClip{};
-		float time = 0.0f;
-		uint8_t state = 0;
-		bool configured = false;
-		bool baseCaptured = false;
-		bool stateInitialized = false;
-		bool playing = false;
-		bool applied = false;
-	};
 }

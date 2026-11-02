@@ -338,7 +338,8 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	const std::string profileStr = Algorithm::ConvertString(std::wstring(profile));
 
 	ComPtr<IDxcBlobEncoding> source;
-	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &source);
+	const auto sourcePath = Algorithm::ToFileSystemPath(filePath);
+	HRESULT hr = dxcUtils_->LoadFile(sourcePath.c_str(), nullptr, &source);
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
 			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: HLSLファイルの読み込みに失敗しました",

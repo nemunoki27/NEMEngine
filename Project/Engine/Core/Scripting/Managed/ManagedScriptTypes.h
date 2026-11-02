@@ -14,7 +14,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 69;
+	inline constexpr uint32_t kManagedABIVersion = 71;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {
@@ -226,6 +226,8 @@ namespace Engine {
 		int32_t selectedThisFrame = 0;
 		int32_t submittedThisFrame = 0;
 		int32_t disabledThisFrame = 0;
+		ManagedColor4 currentColor{};
+		ManagedVector2 currentScale{};
 	};
 
 	// C#へ返すUIProgressの表示状態

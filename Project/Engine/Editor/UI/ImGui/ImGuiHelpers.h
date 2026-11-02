@@ -42,6 +42,7 @@ namespace Engine {
 		std::optional<float> labelWidth = std::nullopt;
 		// 行全体の表示幅
 		std::optional<float> rowWidth = std::nullopt;
+		const char* id = nullptr;
 	};
 
 	// 値編集設定
@@ -76,6 +77,12 @@ namespace Engine {
 		bool valueChanged = false;
 		bool anyItemActive = false;
 		bool editFinished = false;
+
+		void Merge(const ValueEditResult& other) {
+			valueChanged |= other.valueChanged;
+			anyItemActive |= other.anyItemActive;
+			editFinished |= other.editFinished;
+		}
 	};
 	// 文字入力ポップアップの操作結果
 	struct TextInputPopupResult {
@@ -131,6 +138,10 @@ namespace Engine {
 		std::optional<ImVec2> buttonSize = std::nullopt;
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
+		bool hasStoredReference = false;
+		std::string_view missingReferenceID;
+		std::function<bool(ECSWorld&, Entity)> acceptEntity;
+		const char* rejectReason = nullptr;
 	};
 	// ビューポートの位置とサイズを表す構造体
 	struct GizmoViewportRect {
@@ -305,6 +316,7 @@ namespace Engine {
 		//	パラメータ変更
 		//============================================================================
 		// チェックボックス切り替え
+		static ValueEditResult CheckboxField(const char* label, bool& value, const PropertyRowSetting& setting = {});
 		static bool Checkbox(const char* label, bool& value, const PropertyRowSetting& setting = PropertyRowSetting{});
 		static bool SmallCheckbox(const char* id, bool& value);
 		// 入力

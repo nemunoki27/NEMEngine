@@ -20,7 +20,7 @@ namespace NEMTests {
 	// 設定取り込みと失敗時の旧値維持を確認する
 	bool TestShaderGraphSettingsImport(const ShaderGraphCompileFixture& fixture) {
 
-		const auto& shaderRoot = fixture.GetShaderRoot();
+		const auto renderingRoot = fixture.GetShaderRoot().parent_path() / "Rendering";
 		// アセット取り込みは保存先を維持し、失敗時に編集内容を変更しない
 		{
 			using namespace Engine;
@@ -30,7 +30,7 @@ namespace NEMTests {
 			source.renderState.cullMode = D3D12_CULL_MODE_NONE;
 			MaterialAsset material;
 			nlohmann::json materialData;
-			if (!JsonAdapter::TryLoad(shaderRoot / "Builtin/Mesh/MeshPBR/meshPBR.material.json", materialData)) {
+			if (!JsonAdapter::TryLoad(renderingRoot / "Builtin/Mesh/MeshPBR/meshPBR.material.json", materialData)) {
 				return false;
 			}
 			if (!FromJson(materialData, material)) {
@@ -66,7 +66,7 @@ namespace NEMTests {
 				if (path.empty() || type != AssetType::RenderPipeline) {
 					return false;
 				}
-				return JsonAdapter::TryLoad(shaderRoot / "Builtin/Mesh/MeshPBR" / path, data);
+				return JsonAdapter::TryLoad(renderingRoot / "Builtin/Mesh/MeshPBR" / path, data);
 			};
 			ShaderGraphAsset imported;
 			std::string error;

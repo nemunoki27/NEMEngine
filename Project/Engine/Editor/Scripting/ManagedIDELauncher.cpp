@@ -10,6 +10,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
+#include <algorithm>
 #include <fstream>
 #include <system_error>
 
@@ -89,6 +90,21 @@ namespace {
 
 		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn, "Managed IDE起動: {}", message);
 	}
+
+	// 共有エンジンのプロジェクトツールへ処理を渡す
+	bool LaunchProjectTool(const std::filesystem::path& file, int32_t line) {
+
+		const auto engineRoot = Engine::RuntimePaths::GetEngineProjectRoot();
+		const auto executable = Engine::RuntimePaths::GetToolchainRoot() / "dotnet.exe";
+		std::wstring arguments = L"\"" + (engineRoot / "Tools/ProjectTool/NEM.ProjectTool.dll").wstring() +
+			L"\" open --ui --project \"" + Engine::RuntimePaths::GetProjectDescriptorPath().wstring() +
+			L"\" --engine-root \"" + engineRoot.wstring() + L"\" --toolchain-root \"" + Engine::RuntimePaths::GetToolchainRoot().wstring() + L"\"";
+		// Scriptを開いた時点でEditorへ接続する
+		arguments += L" --editor-pid " + std::to_wstring(::GetCurrentProcessId());
+		arguments += L" --file \"" + file.wstring() + L"\" --line " + std::to_wstring(std::max(1, line));
+		const auto result = ::ShellExecuteW(nullptr, L"open", executable.c_str(), arguments.c_str(), nullptr, SW_HIDE);
+		return reinterpret_cast<INT_PTR>(result) > 32;
+	}
 }
 
 void Engine::ManagedIDELauncher::ReloadSettings() {
@@ -146,6 +162,7 @@ bool Engine::ManagedIDELauncher::OpenFile(const std::filesystem::path& file, int
 	// VisualStudioが見つかれば既存のウィンドウで開く
 	if (g_settings.mode == "VisualStudio") {
 
+		if (RuntimePaths::IsInstalledEngine()) { return LaunchProjectTool(file, line); }
 		if (VisualStudioLauncher::OpenFile(file)) {
 			return true;
 		}

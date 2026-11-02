@@ -21,6 +21,8 @@
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 
 // c++
 #include <algorithm>
@@ -295,6 +297,8 @@ bool Engine::PrefabEditSession::SaveCurrentPrefab() {
 	if (!meta || !editWorld) {
 		return false;
 	}
+	SimpleAnimationSystem::RestoreEditPreviews(*editWorld);
+	AnimationClipPlayerSystem::RestoreEditPreviews(*editWorld);
 
 	auto entityKey = [](const Entity& e) { return (static_cast<uint64_t>(e.generation) << 32) | e.index; };
 	auto isHierarchyRoot = [&](const Entity& e) {

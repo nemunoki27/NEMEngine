@@ -3,6 +3,7 @@ import path from 'node:path';
 import { root, output, website, read, write, walk, formatDocumentation } from './paths.mjs';
 import { describeProperty } from './component-notes.mjs';
 import { names, modules } from './api-notes.mjs';
+import { launcherGuide } from './launcher-guide.mjs';
 
 const slug = value => value.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').replace(/([a-z\d])([A-Z])/g, '$1-$2').replace(/[^\w-]+/g, '-').toLowerCase();
 const escape = value => String(value ?? '').replaceAll('|', '&#124;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', ' ');
@@ -74,6 +75,7 @@ function describeWidget(field) {
 
 export function referencePages(data, api, coverage) {
 
+	launcherGuide(save);
 	for (const tool of data.tools) {
 		const [guide, menu, summary] = toolGuides[tool.name] || [];
 		if (!guide) throw new Error(`Toolの説明がありません: ${tool.name}`);

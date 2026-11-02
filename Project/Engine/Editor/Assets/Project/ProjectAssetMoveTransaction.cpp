@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <exception>
@@ -55,6 +56,10 @@ bool Engine::ProjectAssetMoveTransaction::Execute(std::string& diagnostic) {
 	// 全ての移動先を変更前に確認する
 	std::error_code error;
 	for (auto& entry : entries_) {
+		if (!RuntimePaths::CanWritePath(entry.source) || !RuntimePaths::CanWritePath(entry.target)) {
+			diagnostic = "共通エンジンのアセットは移動できません GameAssetsへコピーしてください";
+			return false;
+		}
 		if (!std::filesystem::exists(entry.source, error) || error || std::filesystem::exists(entry.target, error) || error) {
 			diagnostic = "移動元が見つからないか、移動先が使用されています";
 			return false;

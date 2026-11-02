@@ -66,6 +66,14 @@ namespace Engine {
 		static std::filesystem::path GetSavedRoot();
 		// 製品ビルドから実行しているか
 		static bool IsProductBuild();
+		// 配布版の共有エンジンから実行しているか
+		static bool IsInstalledEngine();
+		// 配布版が指定するC#ツールチェーンを取得する
+		static std::filesystem::path GetToolchainRoot();
+		// 実行中のエンジン版を取得する
+		static std::string GetEngineVersion();
+		// 共有インストール先への書込を拒否する
+		static bool CanWritePath(const std::filesystem::path& path);
 		// パッケージmanifestと埋め込みパッケージのルートを取得
 		static std::filesystem::path GetPackagesRoot();
 		// 解決済みパッケージのマウント一覧を取得
@@ -110,6 +118,12 @@ namespace Engine {
 			std::filesystem::path libraryRoot;
 			std::filesystem::path savedRoot;
 			std::filesystem::path packagesRoot;
+			std::filesystem::path toolchainRoot;
+			std::string engineVersion;
+			bool installedEngine = false;
+			std::shared_ptr<void> engineLease;
+			std::shared_ptr<void> toolchainLease;
+			std::shared_ptr<void> projectLease;
 			std::string projectGUID;
 			std::string projectName;
 			SceneStorageMode sceneStorageMode =

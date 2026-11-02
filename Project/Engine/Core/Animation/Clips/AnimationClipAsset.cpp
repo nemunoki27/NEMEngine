@@ -150,10 +150,21 @@ std::vector<Engine::CurveChannel> Engine::MakeDefaultAnimationChannels(Animation
 	return channels;
 }
 
+bool Engine::IsQuaternionEulerTrack(const AnimationCurveTrack& track) {
+
+	return track.binding.valueType == AnimationValueType::Quaternion && track.channels.size() == 3 &&
+		track.channels[0].name == "EulerX" && track.channels[1].name == "EulerY" && track.channels[2].name == "EulerZ";
+}
+
 void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 
 	// JSONの手編集や古い形式でチャンネル数がずれた場合でも、ツール側で落ちない形へ補正する
 	if (track.binding.valueType == AnimationValueType::Quaternion) {
+		if (IsQuaternionEulerTrack(track) || track.channels.size() == 4) {
+			for (auto& channel : track.channels) channel.SortKeys();
+			track.quaternionAxisKeys.clear();
+			return;
+		}
 
 		if (IsQuaternionAxisAngleChannels(track.channels)) {
 			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);

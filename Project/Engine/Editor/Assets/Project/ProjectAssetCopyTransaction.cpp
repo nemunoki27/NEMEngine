@@ -10,6 +10,7 @@
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Serialization/StorageDirectoryLease.h>
 #include <Engine/Core/Foundation/Serialization/StorageFilePublication.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
@@ -57,6 +58,10 @@ bool Engine::ProjectAssetCopyTransaction::Add(const std::filesystem::path& sourc
 
 bool Engine::ProjectAssetCopyTransaction::Stage(std::string& diagnostic) {
 
+	if (!RuntimePaths::CanWritePath(targetDirectory_)) {
+		diagnostic = "共通エンジンへはコピーできません GameAssetsを選択してください";
+		return false;
+	}
 	if (entries_.empty() || targetDirectory_.empty() || !stagingDirectory_.empty() || committed_) {
 		diagnostic = "Assetのコピー計画が無効です";
 		return false;

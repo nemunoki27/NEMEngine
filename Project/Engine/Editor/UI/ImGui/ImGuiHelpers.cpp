@@ -171,6 +171,7 @@ Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* la
 
 bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting& setting) {
 
+	const char* id = setting.id ? setting.id : label;
 	float labelWidth = kLabelColumnWidth;
 	if (setting.labelWidth.has_value()) {
 		labelWidth = setting.labelWidth.value();
@@ -182,7 +183,7 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 		labelWidth = (std::max)(state.labelWidth, measuredWidth);
 	}
 
-	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + label;
+	const std::string tableID = std::string("##MyGUI_RowTable_Public_") + id;
 	const ImVec2 tableSize = setting.rowWidth.has_value() ? ImVec2(setting.rowWidth.value(), 0.0f) : ImVec2(0.0f, 0.0f);
 	if (!ImGui::BeginTable(tableID.c_str(), 2,
 			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_NoSavedSettings, tableSize)) {
@@ -199,7 +200,7 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 	DrawPropertyLabel(label);
 	if (propertyLabelContextMenu && *propertyLabelContextMenu) {
 
-		ImGui::PushID(label);
+		ImGui::PushID(id);
 		if (ImGui::BeginPopupContextItem("##PropertyLabelContextMenu")) {
 			(*propertyLabelContextMenu)();
 			ImGui::EndPopup();
@@ -208,7 +209,7 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 	}
 
 	ImGui::TableSetColumnIndex(1);
-	ImGui::PushID(label);
+	ImGui::PushID(id);
 	return true;
 }
 
@@ -294,16 +295,21 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& valu
 	return result;
 }
 
+Engine::ValueEditResult Engine::MyGUI::CheckboxField(const char* label, bool& value,
+	const PropertyRowSetting& setting) {
+
+	ValueEditResult result;
+	if (!BeginPropertyRow(label, setting)) return result;
+	result.valueChanged = ImGui::Checkbox("##Value", &value);
+	result.anyItemActive = ImGui::IsItemActive();
+	result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
+	EndPropertyRow();
+	return result;
+}
+
 bool Engine::MyGUI::Checkbox(const char* label, bool& value, const PropertyRowSetting& setting) {
 
-	if (!BeginPropertyRow(label, setting)) {
-		return false;
-	}
-
-	bool changed = ImGui::Checkbox("##Value", &value);
-
-	EndPropertyRow();
-	return changed;
+	return CheckboxField(label, value, setting).valueChanged;
 }
 
 bool Engine::MyGUI::SmallCheckbox(const char* id, bool& value) {

@@ -9,6 +9,7 @@
 
 // c++
 #include <utility>
+#include <Engine/Editor/UI/Inspectors/Common/SimpleAnimationFields.h>
 
 //============================================================================
 //	UISelectableInspectorDrawer classMethods
@@ -21,53 +22,19 @@
 namespace {
 
 	template <class DrawFieldFn>
-	void DrawTransitionAnimationFields(DrawFieldFn&& drawField, const Engine::EditorPanelContext& context,
+	void DrawTransitionAnimationFields(DrawFieldFn&& drawField, [[maybe_unused]] const Engine::EditorPanelContext& context,
 		Engine::UITransitionStyle& style, bool& anyItemActive) {
 
-		drawField(anyItemActive,
-			[&]() { return Engine::InspectorDrawerCommon::DrawCheckboxField("アニメーションを使用", style.animationEnabled); });
-		if (!style.animationEnabled) {
-			return;
-		}
-		drawField(anyItemActive, [&]() {
-			return Engine::InspectorDrawerCommon::DrawCheckboxField("アニメーションクリップを使用", style.useAnimationClip);
-		});
-		if (style.useAnimationClip) {
-			if (context.editorContext) {
-				drawField(anyItemActive, [&]() {
-					return Engine::MyGUI::AssetReferenceField("アニメーションクリップ", style.animationClip,
-						context.editorContext->assetDatabase, {Engine::AssetType::AnimationClip});
-				});
-			}
-		} else {
-			ImGui::SeparatorText("色");
-			{
-				ImGui::PushID("UIColorAnim");
-				drawField(anyItemActive, [&]() { return Engine::MyGUI::ColorEdit("色", style.color); });
-				drawField(anyItemActive, [&]() {
-					return Engine::MyGUI::DragFloat(
-						"遷移時間", style.colorTransitionDuration, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 10.0f});
-				});
-				drawField(anyItemActive,
-					[&]() { return Engine::InspectorDrawerCommon::DrawEnumComboField("イージング", style.colorEasing); });
-				ImGui::PopID();
-			}
-			ImGui::SeparatorText("スケール");
-			{
-				ImGui::PushID("UIScaleAnim");
-				drawField(anyItemActive, [&]() {
-					return Engine::MyGUI::DragVector2(
-						"スケール", style.scale, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 8.0f});
-				});
-				drawField(anyItemActive, [&]() {
-					return Engine::MyGUI::DragFloat(
-						"遷移時間", style.scaleTransitionDuration, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 10.0f});
-				});
-				drawField(anyItemActive,
-					[&]() { return Engine::InspectorDrawerCommon::DrawEnumComboField("イージング", style.scaleEasing); });
-				ImGui::PopID();
-			}
-		}
+		drawField(anyItemActive, [&] { return Engine::InspectorDrawerCommon::DrawCheckboxField("アニメーションを使用", style.animationEnabled); });
+		if (!style.animationEnabled) return;
+		ImGui::SeparatorText("色");
+		ImGui::PushID("ColorAnimation");
+		drawField(anyItemActive, [&] { return Engine::SimpleAnimationFields::DrawSettings(style.colorAnimation, false); });
+		ImGui::PopID();
+		ImGui::SeparatorText("スケール");
+		ImGui::PushID("ScaleAnimation");
+		drawField(anyItemActive, [&] { return Engine::SimpleAnimationFields::DrawSettings(style.scaleAnimation, false); });
+		ImGui::PopID();
 	}
 
 	template <class DrawFieldFn>
@@ -147,7 +114,7 @@ void Engine::UISelectableInspectorDrawer::DrawFields(const EditorPanelContext& c
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive,
-		[&]() { return InspectorDrawerCommon::DrawCheckboxField("入力操作対象、アクティブ設定", draft.interactable); });
+		[&]() { return InspectorDrawerCommon::DrawCheckboxField("操作可能", draft.interactable); });
 
 	auto drawField = [&](bool& active, auto&& function) { DrawField(active, std::forward<decltype(function)>(function)); };
 	// 状態ごとの表示と音声を編集する

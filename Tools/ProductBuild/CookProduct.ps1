@@ -13,8 +13,12 @@
     $snapshotPath = Get-ChildPath -Root $stageDirectory -Relative '.nemCookInputs.json'
     Write-Utf8Json $snapshotPath $cookManifest
     $previousPortable = $env:NEMENGINE_PORTABLE
+    $previousEngineRoot = $env:NEMENGINE_ROOT
+    $previousToolchainRoot = $env:NEMENGINE_TOOLCHAIN_ROOT
     try {
         $env:NEMENGINE_PORTABLE = '1'
+        $env:NEMENGINE_ROOT = $stageDirectory
+        $env:NEMENGINE_TOOLCHAIN_ROOT = ''
         & $buildToolExecutable --cook-shaders $snapshotPath $cookedShaderRoot
         if ($LASTEXITCODE -ne 0) {
             throw "シェーダーのCookに失敗しました。直前の診断ログを確認してください"
@@ -25,6 +29,8 @@
         }
     } finally {
         $env:NEMENGINE_PORTABLE = $previousPortable
+        $env:NEMENGINE_ROOT = $previousEngineRoot
+        $env:NEMENGINE_TOOLCHAIN_ROOT = $previousToolchainRoot
         Remove-Item -LiteralPath $snapshotPath -Force
     }
 

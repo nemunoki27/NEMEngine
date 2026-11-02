@@ -1,0 +1,11 @@
+Library/
+Managed/
+Saved/
+Generated/
+UserSettings/
+.vs/
+**/bin/
+**/obj/
+*.csproj.user
+*.slnx
+global.json

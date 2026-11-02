@@ -122,6 +122,7 @@ namespace Engine::AssetMetaStorage {
 
 	bool WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta) {
 
+		if (!RuntimePaths::CanWritePath(metaFullPath)) { return false; }
 		// 未知キーを保持し、破損した既存metaを空文書で上書きしない
 		nlohmann::json data = nlohmann::json::object();
 		std::error_code error;

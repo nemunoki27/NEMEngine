@@ -29,6 +29,7 @@ namespace Engine {
 		Color3,
 		Color4,
 		Quaternion,
+		Int,
 	};
 
 	// カーブ値を対象プロパティへ反映するときの計算方法
@@ -143,6 +144,7 @@ namespace Engine {
 	std::vector<CurveChannel> MakeDefaultAnimationChannels(AnimationValueType type);
 	// JSON互換用に不足チャンネルや表示色を補正する
 	void NormalizeAnimationTrackChannels(AnimationCurveTrack& track);
+	bool IsQuaternionEulerTrack(const AnimationCurveTrack& track);
 	// autoDuration有効時に最大キー時刻からdurationを更新する
 	void UpdateAnimationClipAutoDuration(AnimationClipAsset& clip);
 

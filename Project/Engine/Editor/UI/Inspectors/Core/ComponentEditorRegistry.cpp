@@ -3,10 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
+#include <algorithm>
 #include <utility>
 
 //============================================================================
@@ -35,6 +37,7 @@ Engine::IInspectorComponentDrawer* Engine::ComponentEditorRegistry::Register(Com
 		return nullptr;
 	}
 
+	descriptor.category = GetInspectorComponentCategory(descriptor.typeName, descriptor.category);
 	IInspectorComponentDrawer* drawer = nullptr;
 	if (descriptor.drawerFactory) {
 
@@ -42,11 +45,19 @@ Engine::IInspectorComponentDrawer* Engine::ComponentEditorRegistry::Register(Com
 		// 表示名とは分けて編集元をDrawerへ渡す
 		if (created) {
 			created->SetEditorSourceFile(descriptor.editorSourceFile);
+			created->SetDisplayName(descriptor.menuLabel);
+			created->SetComponentTypeName(descriptor.typeName);
 		}
 		drawer = created.get();
 		drawers_.emplace_back(std::move(created));
 	}
 	descriptors_.emplace_back(std::move(descriptor));
+	std::stable_sort(descriptors_.begin(), descriptors_.end(), [](const auto& lhs, const auto& rhs) {
+		const int left = GetInspectorCategoryOrder(lhs.category), right = GetInspectorCategoryOrder(rhs.category);
+		if (left != right) return left < right;
+		if (lhs.category != rhs.category) return lhs.category < rhs.category;
+		return lhs.menuLabel < rhs.menuLabel;
+	});
 	return drawer;
 }
 

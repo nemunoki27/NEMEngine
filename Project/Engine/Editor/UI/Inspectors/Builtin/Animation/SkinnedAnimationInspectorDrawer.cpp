@@ -1,4 +1,5 @@
 #include "SkinnedAnimationInspectorDrawer.h"
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 
 //============================================================================
 //	SkinnedAnimationInspectorDrawer classMethods
@@ -15,9 +16,6 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 	//	アニメーションの基本設定
 	//============================================================================
 	{
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-			});
 		if (runtime && !runtime->availableClips.empty()) {
 			DrawField(anyItemActive, [&]() {
 				return MyGUI::StringCombo(
@@ -29,13 +27,13 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 				});
 		}
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("ループ", draft.loop);
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("編集中に再生", draft.playInEditMode);
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("再生速度", draft.playbackSpeed,
+			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), draft.playbackSpeed,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
 			});
 		DrawField(anyItemActive, [&]() {

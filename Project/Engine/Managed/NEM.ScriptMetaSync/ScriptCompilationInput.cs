@@ -9,7 +9,14 @@ namespace NEM.ScriptMetaSync;
 internal static class ScriptCompilationInput {
 
     internal static CSharpCompilation Read(string project, string configuration) {
-        var start = new ProcessStartInfo("dotnet") {
+        string? toolchain = Environment.GetEnvironmentVariable("NEMENGINE_TOOLCHAIN_ROOT");
+        string executable = !string.IsNullOrEmpty(toolchain) ? Path.Combine(toolchain, "dotnet.exe") :
+            string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase)
+                ? Environment.ProcessPath! : "dotnet";
+        string cache = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(project))!, "obj", "MetadataEvaluation");
+        Directory.CreateDirectory(cache);
+        string resultFile = Path.Combine(cache, Guid.NewGuid().ToString("N") + ".json");
+        var start = new ProcessStartInfo(executable) {
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
@@ -17,21 +24,25 @@ internal static class ScriptCompilationInput {
             WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(project))!,
         };
         string[] arguments = {
-            "msbuild", Path.GetFullPath(project), "-nologo", "-verbosity:quiet", "-maxcpucount:1", "-nodeReuse:false",
+            "msbuild", Path.GetFullPath(project), "-restore", "-nologo", "-verbosity:quiet", "-maxcpucount:1", "-nodeReuse:false",
             "-target:ResolveReferences,GenerateGlobalUsings", "-property:BuildProjectReferences=false",
             "-property:Configuration=" + configuration, "-getItem:Compile,ReferencePath",
             "-getProperty:DefineConstants,LangVersion,AllowUnsafeBlocks,Nullable",
+            "-getResultOutputFile:" + resultFile,
         };
         foreach (string argument in arguments) { start.ArgumentList.Add(argument); }
-        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Cannot start MSBuild.");
-        Task<string> output = process.StandardOutput.ReadToEndAsync();
-        Task<string> errors = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-        string text = output.GetAwaiter().GetResult();
-        string diagnostics = errors.GetAwaiter().GetResult();
-        if (process.ExitCode != 0) { throw new InvalidOperationException("Cannot resolve script compilation inputs.\n" + text + diagnostics); }
-        using JsonDocument document = JsonDocument.Parse(text);
-        return Read(document.RootElement);
+        try {
+            using Process process = Process.Start(start) ?? throw new InvalidOperationException("Cannot start MSBuild.");
+            Task<string> output = process.StandardOutput.ReadToEndAsync();
+            Task<string> errors = process.StandardError.ReadToEndAsync();
+            process.WaitForExit();
+            string text = output.GetAwaiter().GetResult();
+            string diagnostics = errors.GetAwaiter().GetResult();
+            if (process.ExitCode != 0) { throw new InvalidOperationException("Cannot resolve script compilation inputs.\n" + text + diagnostics); }
+            // 診断ログと評価結果を混在させない
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(resultFile));
+            return Read(document.RootElement);
+        } finally { if (File.Exists(resultFile)) File.Delete(resultFile); }
     }
 
     // MSBuildから得たCompile集合をそのまま解析する

@@ -71,6 +71,8 @@
         $destination = Get-ChildPath -Root $stageDirectory -Relative $relative
         New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($destination)) -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $destination -Force
+        # Cookする作業データへ共有元の保護属性を持ち込まない
+        Set-ItemProperty -LiteralPath $destination -Name IsReadOnly -Value $false
         Assert-FileHash -Path $destination -ExpectedSize ([long]$entry.size) -ExpectedSha256 ([string]$entry.sha256)
     }
 

@@ -9,7 +9,12 @@
 #include <string>
 #include <string_view>
 #include <span>
+#include <type_traits>
 #include <imgui.h>
+
+namespace Easing {
+	bool DrawSelector(const char* label, EasingType& easing, float width);
+}
 
 namespace Engine::ImGuiUtility {
 
@@ -28,6 +33,9 @@ namespace Engine::ImGuiUtility {
 	template <typename T>
 	bool EnumCombo(const char* label, T* current, std::span<const EnumOptionState> options = {}) noexcept {
 
+		if constexpr (std::is_same_v<T, EasingType>) {
+			if (options.empty()) return Easing::DrawSelector(label, *current, ImGui::CalcItemWidth());
+		}
 		int idx = static_cast<int>(EnumAdapter<T>::GetIndex(*current));
 		// 表示名だけを変え、保存する列挙値は維持する
 		static const auto names = [] {

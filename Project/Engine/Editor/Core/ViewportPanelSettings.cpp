@@ -42,6 +42,12 @@ void Engine::ViewportPanelSettings::Load(EditorState& state) {
 	}
 
 	const nlohmann::json& sceneView = data["sceneView"];
+	if (sceneView.contains("showFPS") && sceneView["showFPS"].is_boolean()) {
+		state.showSceneViewFPS = sceneView["showFPS"].get<bool>();
+	}
+	if (sceneView.contains("showDeltaTime") && sceneView["showDeltaTime"].is_boolean()) {
+		state.showSceneViewDeltaTime = sceneView["showDeltaTime"].get<bool>();
+	}
 	if (sceneView.contains("drawDefaultGrid") && sceneView["drawDefaultGrid"].is_boolean()) {
 		state.drawSceneViewDefaultGrid = sceneView["drawDefaultGrid"].get<bool>();
 	}
@@ -89,6 +95,8 @@ void Engine::ViewportPanelSettings::Save(const EditorState& state) {
 
 	nlohmann::json sceneView = nlohmann::json::object();
 	sceneView["drawDefaultGrid"] = state.drawSceneViewDefaultGrid;
+	sceneView["showFPS"] = state.showSceneViewFPS;
+	sceneView["showDeltaTime"] = state.showSceneViewDeltaTime;
 	sceneView["enableSnapEditEntity"] = state.enableSnapEditEntity;
 	// ギズモのスナップ設定を書き出す
 	{

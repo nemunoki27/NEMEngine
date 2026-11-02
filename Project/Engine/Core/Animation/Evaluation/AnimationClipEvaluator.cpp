@@ -88,6 +88,11 @@ bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& tr
 	// Trackの保存型に応じて、floatチャンネル配列を実際のPropertyValueへ戻す
 	float v[4]{};
 	switch (track.binding.valueType) {
+	case AnimationValueType::Int:
+		if (!ReadChannels(track, time, v, 1) || !std::isfinite(v[0])) return false;
+		outValue = static_cast<int32_t>(std::clamp(std::round(static_cast<double>(v[0])),
+			static_cast<double>(INT32_MIN), static_cast<double>(INT32_MAX)));
+		return true;
 	case AnimationValueType::Float:
 		if (!ReadChannels(track, time, v, 1)) {
 			return false;
@@ -125,6 +130,11 @@ bool Engine::AnimationClipEvaluator::EvaluateTrack(const AnimationCurveTrack& tr
 		outValue = Color4(v[0], v[1], v[2], v[3]);
 		return true;
 	case AnimationValueType::Quaternion:
+		if (IsQuaternionEulerTrack(track)) {
+			if (!ReadChannels(track, time, v, 3)) return false;
+			outValue = Quaternion::FromEulerDegrees(Vector3(v[0], v[1], v[2]));
+			return true;
+		}
 		if (IsQuaternionAxisAngleTrack(track)) {
 			return EvaluateQuaternionAxisAngleTrack(track, time, outValue);
 		}

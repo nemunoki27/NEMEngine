@@ -5,6 +5,7 @@
 //============================================================================
 const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, const char* name) {
 
+	if (type.ends_with("EasingType")) return name;
 	if (type.ends_with("SceneViewCameraControlStyle") && std::string_view(name) == "Original") return "オリジナル";
 	if (type.ends_with("SceneViewCameraControlSource") && std::string_view(name) == "Disabled") return "使用しない";
 

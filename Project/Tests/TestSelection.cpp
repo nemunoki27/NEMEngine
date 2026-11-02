@@ -1,4 +1,6 @@
 #include "TestSelection.h"
+#include "InspectorPresentationTests.h"
+#include "ShaderCookInputTests.h"
 #include "RuntimeAPITests.h"
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
@@ -21,6 +23,8 @@
 #include "AudioHardwareTests.h"
 #include "SceneStorageTests.h"
 #include "FBXImportTests.h"
+#include "SkeletonAnimationTests.h"
+#include "SimpleAnimationTests.h"
 #include "EditorAssetWorkflowTests.h"
 #include "ProjectGitIgnoreTests.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
@@ -36,6 +40,25 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--inspector-ui") {
+		return RunTest("TestInspectorPresentation", TestInspectorPresentation) ? 0 : 80;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--simple-animation") {
+		return RunTest("TestSimpleAnimation", TestSimpleAnimation) ? 0 : 79;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--shader-cook-inputs") {
+		return RunTest("TestShaderCookInputs", TestShaderCookInputs) ? 0 : 77;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--font-generation") {
+		return RunTest("TestFontGenerationContracts", TestFontGenerationContracts) ? 0 : 76;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--skeleton-animation") {
+		return RunTest("TestSkeletonAnimation", TestSkeletonAnimation) ? 0 : 78;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-camera") {
 		return RunTest("TestSceneViewCameraSettings", TestSceneViewCameraSettings) &&

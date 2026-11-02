@@ -8,8 +8,8 @@
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/World/Systems/Animation/AnimationPlayerSystem.h>
-#include <Engine/Core/World/Components/Animation/AnimationPlayerComponent.h>
+#include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
+#include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 
 bool NEMTests::TestAnimationPlayback() {
@@ -42,47 +42,33 @@ bool NEMTests::TestAnimationPlayback() {
 	ECSWorld world;
 	const Entity entity = world.CreateEntity();
 	world.AddComponent<TransformComponent>(entity);
-	world.AddComponent<AnimationPlayerComponent>(entity);
-	auto& player = world.GetComponent<AnimationPlayerComponent>(entity);
-	AnimationState state;
-	state.name = "Motion";
-	state.clip = meta->guid;
-	state.wrapMode = AnimationWrapMode::Once;
-	player.groups = {{"First", {state}}, {"Second", {state}}};
-	player.defaultGroup = "First";
-	AnimationPlayerSystem system;
-
-	// 自動再生と時刻指定を確認する
+	world.AddComponent<AnimationClipPlayerComponent>(entity);
+	auto& player = world.GetComponent<AnimationClipPlayerComponent>(entity);
+	player.clip = meta->guid;
+	player.wrapMode = AnimationWrapMode::Once;
+	AnimationClipPlayerSystem system;
 	system.Update(world, context);
-	player.runtimePlayTime = 0.75f;
-	player.runtimeSeekRequested = true;
+	player.runtimeSeekTime = 0.75f;
+	player.runtimeRequest = 6;
 	system.Update(world, context);
-	if (player.runtimeCurrentGroup != "First" || world.GetComponent<TransformComponent>(entity).localPos.x != 7.5f) return false;
-
-	// 停止後のSeekで時間進行を再開しない
-	player.runtimeStopRequest = true;
+	if (world.GetComponent<TransformComponent>(entity).localPos.x != 7.5f) return false;
+	player.runtimeRequest = 2;
 	system.Update(world, context);
-	player.runtimePlayTime = 0.25f;
-	player.runtimeSeekRequested = true;
+	if (!player.runtimePaused || player.runtimePlaying) return false;
+	player.runtimeRequest = 3;
+	system.Update(world, context);
+	if (!player.runtimeFinished || world.GetComponent<TransformComponent>(entity).localPos.x != 10.0f) return false;
+	player.runtimeRequest = 4;
+	system.Update(world, context);
+	player.runtimeSeekTime = 0.25f;
+	player.runtimeRequest = 6;
 	system.Update(world, context);
 	system.Update(world, context);
 	if (player.runtimePlaying || world.GetComponent<TransformComponent>(entity).localPos.x != 2.5f) return false;
-
-	// クロスフェード完了後は遷移元を残さない
-	player.runtimePlayRequest = "Second";
-	player.runtimePlayFade = 0.5f;
+	player.runtimeRequest = 5;
 	system.Update(world, context);
+	if (world.GetComponent<TransformComponent>(entity).localPos.x != 0.0f) return false;
+	player.runtimeRequest = 1;
 	system.Update(world, context);
-	if (player.runtimeCurrentGroup != "Second" || player.runtimeInTransition || !player.runtimeFromClips.empty()) return false;
-
-	// グループを保ったまま単独Clipを再生する
-	player.runtimeDirectClipRequest = meta->guid;
-	player.runtimePlayTime = 0.5f;
-	system.Update(world, context);
-	if (player.groups.size() != 2 || world.GetComponent<TransformComponent>(entity).localPos.x != 5.0f) return false;
-	player.runtimePlayRequest = "Missing";
-	player.runtimePlayTime = 0.9f;
-	context.deltaTime = 0.0f;
-	system.Update(world, context);
-	return world.GetComponent<TransformComponent>(entity).localPos.x == 5.0f;
+	return player.runtimePlaying && world.GetComponent<TransformComponent>(entity).localPos.x == 2.5f;
 }

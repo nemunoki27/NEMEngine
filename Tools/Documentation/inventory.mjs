@@ -29,17 +29,33 @@ function argumentsAt(source, start) {
 	throw new Error('UI呼出しの終端が見つかりません');
 }
 
+let presentationCache;
+
+export function inspectorPresentation() {
+	if (presentationCache) return presentationCache;
+	const file = 'Project/Engine/Editor/UI/Inspectors/Common/InspectorPresentation.cpp';
+	const source = read(file);
+	const fields = new Map([...source.slice(0, source.indexOf('struct CategoryDefinition')).matchAll(/\{"(\w+)", "([^"]+)"\}/g)].map(match => [match[1], match[2]]));
+	const categories = new Map([...source.slice(source.indexOf('struct CategoryDefinition'), source.indexOf('const char* Engine::GetInspectorLabel')).matchAll(/\{"(\w+)", "([^"]+)"\}/g)].map(match => [match[1], match[2]]));
+	const overrides = new Map();
+	for (const match of source.matchAll(/if \(([^]*?)\) return "(\w+)";/g))
+		for (const component of match[1].matchAll(/component == "(\w+)"/g)) overrides.set(component[1], match[2]);
+	return presentationCache = {fields, categories, overrides};
+}
+
 export function widgets(source) {
 
 	const result = [];
 	const pattern = /\b(?:MyGUI|ImGui|InspectorDrawerCommon)::((?:Drag|ColorEdit|EnumCombo|Checkbox|Input|Slider|AssetReference|DrawCheckbox|DrawLayerMask|DrawAssetReference)\w*)(?:<[^>\n]+>)?\s*\(/g;
 	for (const match of source.matchAll(pattern)) {
 		const args = argumentsAt(source, match.index + match[0].lastIndexOf('('));
-		if (!/^"[^"\n]*"$/.test(args[0] || '')) continue;
-		const label = args[0].slice(1, -1).split('##')[0];
+		const fieldKey = /GetInspectorLabel\((?:Engine::)?InspectorFieldID::(\w+)\)/.exec(args[0] || '')?.[1];
+		const label = fieldKey ? inspectorPresentation().fields.get(fieldKey) :
+			/^"[^"\n]*"$/.test(args[0] || '') ? args[0].slice(1, -1).split('##')[0] : '';
+		if (!label) continue;
 		if (!label.trim()) continue;
 		const value = (args[1] || '').replace(/^&/, '').trim();
-		result.push({ label, value, widget: match[1], options: args.slice(2).join(', '), line: source.slice(0, match.index).split('\n').length });
+		result.push({ label, fieldKey, value, widget: match[1], options: args.slice(2).join(', '), line: source.slice(0, match.index).split('\n').length });
 	}
 	return result;
 }
@@ -55,6 +71,23 @@ export function inventory() {
 	const editors = Array.from(registry.matchAll(/MakeComponentEditorDescriptor<\s*(\w+)\s*>\s*\(\s*"([^"]+)"\s*,\s*(?:"([^"]+)"|ScriptComponent::kTypeName)\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"/g), match => ({
 		className: match[1], label: match[2], name: match[3] || 'Script', category: match[4], source: `Project/Engine/Editor/${match[5]}`,
 	}));
+	const presentation = inspectorPresentation();
+	const bindingsFile = 'Project/Engine/Editor/UI/Inspectors/Common/InspectorCommonBindings.cpp';
+	const bindings = read(bindingsFile);
+	for (const editor of editors) {
+		editor.category = presentation.overrides.get(editor.name) || editor.category;
+		editor.categoryLabel = presentation.categories.get(editor.category) || editor.category;
+		const component = manifest.components.find(component => component.registryName === editor.name);
+		const block = new RegExp('BindInspectorCommonFields\\(' + component?.nativeType + '& value\\) \\{([^]*?)\\n\\}').exec(bindings);
+		if (!block) continue;
+		for (const match of block[1].matchAll(/\.(\w+) = &value\.(\w+(?:\.\w+)*)/g)) {
+			const fieldKey = match[1][0].toUpperCase() + match[1].slice(1);
+			const label = presentation.fields.get(fieldKey);
+			if (!label) throw new Error('共通項目の説明がありません: ' + fieldKey);
+			ui.push({label, fieldKey, value:'draft.' + match[2], widget:'CommonField', owner:editor.name,
+				file:bindingsFile, line:bindings.slice(0, block.index).split('\n').length, options:''});
+		}
+	}
 	const toolRegistration = read('Project/Engine/Editor/Tools/Builtin/BuiltinEditorTools.cpp');
 	const tools = Array.from(toolRegistration.matchAll(/RegisterBuiltinEditorTool<(\w+)>\(\);/g), match => {
 		const header = files.find(file => file.file.endsWith(`/${match[1]}.h`));
@@ -66,7 +99,7 @@ export function inventory() {
 		.matchAll(/Register\("([^"]+)",\s*&CreateParticleModule<(\w+)>/g), match => ({ id: match[1], name: match[2] }));
 	const emitters = Array.from(read('Project/Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.cpp')
 		.matchAll(/Register\(ParticleEmitterShape::(\w+)/g), match => match[1]);
-	const sources = [...files.filter(file => /Inspectors|Tools\/Builtin|Panels\/Builtin/.test(file.file)),
+	const sources = [...files.filter(file => /Inspectors|UI\/Common|UI\/ImGui|Tools\/Builtin|Panels\/Builtin/.test(file.file)),
 		...walk(path.join(root, 'Project/Engine/Core')).filter(file => /\.(h|cpp)$/.test(file)).map(file => ({
 			file: path.relative(root, file).replaceAll('\\', '/'), source: fs.readFileSync(file, 'utf8'),
 		})),
@@ -78,7 +111,8 @@ export function inventory() {
 		})),
 		{ file: 'Project/Engine/Core/Scripting/Managed/Bindings/ComponentManifest.json', source: JSON.stringify(manifest) }];
 	const hashes = Object.fromEntries(sources.map(({ file, source }) => [file, crypto.createHash('sha256').update(source.replace(/\r\n/g, '\n')).digest('hex')]));
-	const result = { components: manifest.components, editors, tools, modules, emitters, ui, hashes };
+	const publicComponents = manifest.components.map(component => ({ ...component, properties: component.properties?.filter(property => !property.visibility || property.visibility === 'Public') }));
+	const result = { components: publicComponents, editors, tools, modules, emitters, ui, hashes };
 	write(path.join(output, 'inventory.json'), JSON.stringify(result, null, 2));
 	let commit = 'working-tree';
 	try { commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim(); } catch { }

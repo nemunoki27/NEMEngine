@@ -16,6 +16,7 @@
 //============================================================================
 void Engine::AudioSourceInspectorDrawer::SyncPreviewOwner(ECSWorld* world, const Entity& entity) {
 
+	SerializedComponentInspectorDrawer<AudioSourceComponent>::SyncPreviewOwner(world, entity);
 	auto lifetime = world ? world->GetLifetime() : nullptr;
 	if (previewWorld_.lock() != lifetime || previewEntity_ != entity ||
 		(world && !world->HasComponent<AudioSourceComponent>(entity))) {
@@ -27,6 +28,7 @@ void Engine::AudioSourceInspectorDrawer::SyncPreviewOwner(ECSWorld* world, const
 
 void Engine::AudioSourceInspectorDrawer::EndPreview() {
 
+	SerializedComponentInspectorDrawer<AudioSourceComponent>::EndPreview();
 	preview_.Stop();
 }
 
@@ -55,13 +57,10 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 	//============================================================================
 	{
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayOnStart), draft.playOnAwake);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("開始時再生", draft.playOnAwake);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("ループ", draft.loop);
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("音量", draft.volume,

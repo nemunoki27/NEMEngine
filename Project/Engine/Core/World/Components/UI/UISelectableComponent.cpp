@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	UISelectableComponent internal
@@ -18,22 +19,26 @@ namespace {
 			return;
 		}
 		style.animationEnabled = in.value("animationEnabled", style.animationEnabled);
-		if (in.contains("color")) {
-			style.color = Engine::Color4::FromJson(in["color"]);
+		if (in.contains("colorAnimation")) style.colorAnimation = in.at("colorAnimation").get<Engine::SimpleAnimationSettings>();
+		else {
+			if (in.contains("color")) style.colorAnimation.end = Engine::Color4::FromJson(in.at("color"));
+			style.colorAnimation.duration = in.value("colorTransitionDuration", 0.08);
+			style.colorAnimation.easing = Engine::EnumAdapter<EasingType>::FromString(in.value("colorEasing", "Linear")).value_or(EasingType::Linear);
 		}
-		style.colorTransitionDuration = in.value("colorTransitionDuration", style.colorTransitionDuration);
-		style.colorEasing = Engine::EnumAdapter<EasingType>::FromString(
-			in.value("colorEasing", "Linear")).value_or(style.colorEasing);
-		if (in.contains("scale")) {
-			style.scale = Engine::Vector2::FromJson(in["scale"]);
+		if (in.contains("scaleAnimation")) style.scaleAnimation = in.at("scaleAnimation").get<Engine::SimpleAnimationSettings>();
+		else {
+			if (in.contains("scale")) style.scaleAnimation.end = Engine::Vector2::FromJson(in.at("scale"));
+			style.scaleAnimation.duration = in.value("scaleTransitionDuration", 0.08);
+			style.scaleAnimation.easing = Engine::EnumAdapter<EasingType>::FromString(in.value("scaleEasing", "Linear")).value_or(EasingType::Linear);
 		}
-		style.scaleTransitionDuration = in.value("scaleTransitionDuration", style.scaleTransitionDuration);
-		style.scaleEasing = Engine::EnumAdapter<EasingType>::FromString(
-			in.value("scaleEasing", "Linear")).value_or(style.scaleEasing);
+		if (style.colorAnimation.start.index() != 5 || style.scaleAnimation.start.index() != 1)
+			throw std::invalid_argument("UISelectableの色・スケールの型が不正です");
+		if (in.value("useAnimationClip", false)) {
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+				"[UISelectable] 旧AnimationClip設定をSimpleAnimationの色・スケール設定へ変更してください");
+		}
 		style.overrideTexture = in.value("overrideTexture", style.overrideTexture);
 		style.texture = Engine::ParseAssetID(in, "texture");
-		style.useAnimationClip = in.value("useAnimationClip", style.useAnimationClip);
-		style.animationClip = Engine::ParseAssetID(in, "animationClip");
 		style.sound = Engine::ParseAssetID(in, "sound");
 		style.soundVolume = in.value("soundVolume", style.soundVolume);
 	}
@@ -43,16 +48,10 @@ namespace {
 
 		return {
 			{ "animationEnabled",style.animationEnabled },
-			{ "color",style.color.ToJson() },
-			{ "colorTransitionDuration",style.colorTransitionDuration },
-			{ "colorEasing",Engine::EnumAdapter<EasingType>::ToString(style.colorEasing) },
-			{ "scale",style.scale.ToJson() },
-			{ "scaleTransitionDuration",style.scaleTransitionDuration },
-			{ "scaleEasing",Engine::EnumAdapter<EasingType>::ToString(style.scaleEasing) },
+			{ "colorAnimation",style.colorAnimation },
+			{ "scaleAnimation",style.scaleAnimation },
 			{ "overrideTexture",style.overrideTexture },
 			{ "texture",Engine::ToAssetReferenceJson(style.texture) },
-			{ "useAnimationClip",style.useAnimationClip },
-			{ "animationClip",Engine::ToAssetReferenceJson(style.animationClip) },
 			{ "sound",Engine::ToAssetReferenceJson(style.sound) },
 			{ "soundVolume",style.soundVolume }
 		};
@@ -137,4 +136,15 @@ void Engine::to_json(nlohmann::json& out, const UISelectableComponent& component
 	out["selected"] = WriteStyle(component.selected);
 	out["submitted"] = WriteStyle(component.submitted);
 	out["disabled"] = WriteStyle(component.disabled);
+}
+
+Engine::SimpleAnimationSettings Engine::MakeUIAnimationSettings(const SimpleAnimationValue& target) {
+
+	auto settings = MakeSimpleAnimationSettings(target.index());
+	settings.start = settings.end = settings.center = target;
+	settings.duration = 0.08;
+	settings.blendDuration = 0.08;
+	settings.startFromCurrent = true;
+	settings.unscaledTime = true;
+	return settings;
 }

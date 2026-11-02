@@ -11,6 +11,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
@@ -36,6 +37,7 @@ Engine::ProjectDirectoryCopyTransaction::~ProjectDirectoryCopyTransaction() {
 
 bool Engine::ProjectDirectoryCopyTransaction::Begin(std::string& diagnostic) {
 
+	if (!RuntimePaths::CanWritePath(target_)) { diagnostic = "共通エンジンにはフォルダーを作成できません"; return false; }
 	if (target_.empty() || target_.filename().empty() || target_.filename() == "." || target_.filename() == ".." ||
 		!staging_.empty() || committed_) {
 		diagnostic = "フォルダーのコピー先が無効です";

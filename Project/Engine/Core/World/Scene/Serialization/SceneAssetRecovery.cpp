@@ -7,6 +7,7 @@
 #include "SceneStorageJournal.h"
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <stdexcept>
@@ -30,6 +31,7 @@ bool Engine::SceneAssetStorage::RecoverInternal(const Path& directory, std::stri
 		return false;
 	}
 	return SceneStorageJournal::Recover(directory, error, [&](const Path& target) {
+		if (!RuntimePaths::CanWritePath(target)) { throw std::runtime_error("共通エンジンのアセットは復旧できません"); }
 		const auto loaded = loadedAssets_.find(PathKey(target));
 		if (!rollingBack && loaded != loadedAssets_.end()) {
 			RequireClosed(loaded->second);
@@ -48,6 +50,9 @@ bool Engine::SceneAssetStorage::RecoverInternal(const Path& directory, std::stri
 bool Engine::SceneAssetStorage::Commit(const std::vector<SceneStorageChange>& changes, const std::string& label,
 	std::string& error, const std::function<void()>& check) {
 
+	for (const auto& change : changes) {
+		if (!RuntimePaths::CanWritePath(change.path)) { error = "共通エンジンのアセットは変更できません"; return false; }
+	}
 	return SceneStorageJournal::Commit(
 		changes, label, error,
 		[this](const Path& directory, std::string& rollbackError) {

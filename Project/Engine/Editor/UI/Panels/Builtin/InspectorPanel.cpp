@@ -1,4 +1,5 @@
 #include "InspectorPanel.h"
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include "InspectorSelectionDisplay.h"
 
 //============================================================================
@@ -266,7 +267,7 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	}
 
 	// 名前の入力欄を表示する
-	auto editResult = MyGUI::InputText("Name", nameEditBuffer_);
+	auto editResult = MyGUI::InputText("名前", nameEditBuffer_);
 	if (editResult.editFinished) {
 		if (nameEditBuffer_ != currentName) {
 			if (context.IsPlaying()) {
@@ -345,32 +346,39 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 	MyGUI::Text("ID", ToString(meta->guid));
 	ImGui::Spacing();
 
-	// Asset種別の編集Drawerへ渡す
-	if (IAssetInspectorDrawer* drawer = assetInspectorRegistry_.Find(meta->type)) {
+	const bool readOnly = !RuntimePaths::CanWritePath(database->ResolveFullPath(meta->guid));
+	if (readOnly) { ImGui::TextWrapped("共通エンジンのアセットです コピーしてGameAssetsへ貼り付けてから編集してください"); }
+	ImGui::BeginDisabled(readOnly);
+	const auto drawDetails = [&] {
+		// Asset種別の編集Drawerへ渡す
+		if (IAssetInspectorDrawer* drawer = assetInspectorRegistry_.Find(meta->type)) {
 
-		assetEditSession_.TrackDrawer(drawer, meta->guid);
-		drawer->Draw(context, *meta);
-		if (meta->type == AssetType::Mesh) {
-			// インポート設定とモデルプレビューを同時に表示する
-			modelPreview_.DrawMeshAssetInspector(context, *meta);
+			assetEditSession_.TrackDrawer(drawer, meta->guid);
+			drawer->Draw(context, *meta);
+			if (meta->type == AssetType::Mesh) {
+				// インポート設定とモデルプレビューを同時に表示する
+				modelPreview_.DrawMeshAssetInspector(context, *meta);
+			}
+			return;
 		}
-		return;
-	}
-	assetEditSession_.TrackDrawer(nullptr, {});
+		assetEditSession_.TrackDrawer(nullptr, {});
 
-	// Materialの専用編集へ渡す
-	if (meta->type == AssetType::Material) {
+		// Materialの専用編集へ渡す
+		if (meta->type == AssetType::Material) {
 
-		materialSession_.DrawMaterialAssetInspector(context, *meta);
-		return;
-	}
-	if (meta->type == AssetType::Mesh) {
+			materialSession_.DrawMaterialAssetInspector(context, *meta);
+			return;
+		}
+		if (meta->type == AssetType::Mesh) {
 
-		modelPreview_.DrawMeshAssetInspector(context, *meta);
-		return;
-	}
+			modelPreview_.DrawMeshAssetInspector(context, *meta);
+			return;
+		}
 
-	ImGui::TextDisabled("この種類のアセットには詳細編集がありません");
+		ImGui::TextDisabled("この種類のアセットには詳細編集がありません");
+	};
+	drawDetails();
+	ImGui::EndDisabled();
 }
 
 bool Engine::InspectorPanel::HasPendingEdits() const {

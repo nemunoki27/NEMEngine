@@ -9,6 +9,9 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 
@@ -22,6 +25,7 @@ namespace {
 
 	using OverridesMap = Engine::MaterialParameterSet;
 	using OverridesLocator = std::function<OverridesMap*(Engine::ECSWorld&, const Engine::Entity&)>;
+	using MaterialLocator = std::function<Engine::AssetID(Engine::ECSWorld&, const Engine::Entity&)>;
 
 	// Materialの参照先とパラメータ名を分ける
 	bool SplitMaterialParamPath(std::string_view path, std::string& outPrefix, std::string& outName) {
@@ -49,7 +53,7 @@ namespace {
 
 		const size_t lb = prefix.find('[');
 		const size_t rb = prefix.find(']');
-		if (lb == std::string_view::npos || rb == std::string_view::npos || rb <= lb + 1) {
+		if (!prefix.starts_with("subMeshes[") || lb == std::string_view::npos || rb != prefix.size() - 1 || rb <= lb + 1) {
 			return false;
 		}
 		uint32_t value = 0;
@@ -58,7 +62,9 @@ namespace {
 			if (c < '0' || c > '9') {
 				return false;
 			}
-			value = value * 10u + static_cast<uint32_t>(c - '0');
+			const auto digit = static_cast<uint32_t>(c - '0');
+			if (value > (UINT32_MAX - digit) / 10u) return false;
+			value = value * 10u + digit;
 		}
 		outIndex = value;
 		return true;
@@ -66,7 +72,8 @@ namespace {
 
 	// 個別パラメータの取得と適用を登録する
 	Engine::AnimationPropertyDescriptor MakeMaterialParamDescriptor(std::string componentName, std::string propertyPath,
-		std::string displayName, Engine::AnimationValueType valueType, std::string paramName, OverridesLocator locator) {
+		std::string displayName, Engine::AnimationValueType valueType, std::string paramName, OverridesLocator locator,
+		MaterialLocator material) {
 
 		Engine::AnimationPropertyDescriptor desc{};
 		desc.componentName = std::move(componentName);
@@ -76,7 +83,7 @@ namespace {
 		desc.hasComponent = [locator](Engine::ECSWorld& world, const Engine::Entity& entity) {
 			return locator(world, entity) != nullptr;
 		};
-		desc.getValue = [locator, paramName, valueType](
+		desc.getValue = [locator, paramName, valueType, material](
 							Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 			OverridesMap* map = locator(world, entity);
 			if (!map) {
@@ -86,12 +93,14 @@ namespace {
 			if (it != map->end() && Engine::MaterialValueToAnimation(it->second, valueType, out)) {
 				return true;
 			}
-			// 未設定のパラメータは初期値を返す
+			if (Engine::ReadAnimationMaterialDefault(world, material(world, entity), paramName, valueType, out)) return true;
+			// 未解決のアセットでは型に応じた初期値を返す
 			out = Engine::ZeroAnimationValue(valueType);
 			return true;
 		};
-		desc.setValue = [locator, paramName](Engine::ECSWorld& world, const Engine::Entity& entity,
+		desc.setValue = [locator, paramName, valueType](Engine::ECSWorld& world, const Engine::Entity& entity,
 							const Engine::AnimationPropertyValue& value) {
+			if (value.index() != static_cast<size_t>(valueType)) return false;
 			OverridesMap* map = locator(world, entity);
 			if (!map) {
 				return false;
@@ -140,6 +149,16 @@ namespace {
 		std::function<OverridesMap*(Engine::ECSWorld&, const Engine::Entity&, std::string_view)> locateOverrides;
 	};
 
+	MaterialLocator LocateMaterial(const MaterialSlotProvider& provider, const std::string& prefix) {
+
+		return [provider, prefix](Engine::ECSWorld& world, const Engine::Entity& entity) {
+			for (const auto& slot : provider.enumerateSlots(world, entity)) {
+				if (slot.pathPrefix == prefix) return slot.material;
+			}
+			return Engine::AssetID{};
+		};
+	}
+
 	// 参照先とパラメータ名から保存用のパスを作る
 	std::string MakeMaterialParamPath(const std::string& prefix, const std::string& name) {
 
@@ -157,7 +176,7 @@ namespace {
 
 		for (const MaterialSlotInfo& slot : provider.enumerateSlots(world, entity)) {
 
-			const auto params = Engine::CollectMaterialAnimationParameters(context, slot.material, provider.cbufferName);
+			const auto params = Engine::CollectMaterialAnimationParameters(world, context, slot.material, provider.cbufferName);
 
 			for (const auto& [name, type] : params) {
 
@@ -168,7 +187,7 @@ namespace {
 					MakeMaterialParamDisplay(componentName, slot.displayPrefix, name), type, name,
 					[locateOverrides, pathPrefix](Engine::ECSWorld& world, const Engine::Entity& entity) {
 						return locateOverrides(world, entity, pathPrefix);
-					}));
+					}, LocateMaterial(provider, pathPrefix)));
 			}
 		}
 	}
@@ -187,7 +206,8 @@ namespace {
 		return MakeMaterialParamDescriptor(componentName, std::string(propertyPath),
 			MakeMaterialParamDisplay(componentName, prefix, name), valueType, name,
 			[locateOverrides, prefix](
-				Engine::ECSWorld& world, const Engine::Entity& entity) { return locateOverrides(world, entity, prefix); });
+				Engine::ECSWorld& world, const Engine::Entity& entity) { return locateOverrides(world, entity, prefix); },
+			LocateMaterial(provider, prefix));
 	}
 
 	// Component別のMaterial参照を登録する
@@ -310,17 +330,22 @@ namespace {
 			if (subMeshes.empty()) {
 				return false;
 			}
-			// 先頭サブメッシュを代表値とし、未設定なら0を現在値として返す
+			// 先頭サブメッシュを代表値として読む
 			const auto& map = subMeshes[0].materialInstance;
 			auto it = map.find(paramName);
 			if (it != map.end() && Engine::MaterialValueToAnimation(it->second, valueType, out)) {
 				return true;
 			}
+			const auto* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity);
+			if (renderer && Engine::ReadAnimationMaterialDefault(world,
+				renderer->material ? renderer->material : Engine::DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin(),
+				paramName, valueType, out)) return true;
 			out = Engine::ZeroAnimationValue(valueType);
 			return true;
 		};
-		desc.setValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity,
+		desc.setValue = [paramName, valueType](Engine::ECSWorld& world, const Engine::Entity& entity,
 							const Engine::AnimationPropertyValue& value) {
+			if (value.index() != static_cast<size_t>(valueType)) return false;
 			if (!world.HasComponent<Engine::MeshRendererComponent>(entity)) {
 				return false;
 			}
@@ -359,7 +384,7 @@ namespace {
 		if (slots.empty()) {
 			return;
 		}
-		const auto params = Engine::CollectMaterialAnimationParameters(context, slots.front().material, provider.cbufferName);
+		const auto params = Engine::CollectMaterialAnimationParameters(world, context, slots.front().material, provider.cbufferName);
 		for (const auto& [name, type] : params) {
 			out.emplace_back(MakeAllMeshParamDescriptor(std::format("allMesh.material.{}", name),
 				MakeMaterialParamDisplay(provider.componentName, "全メッシュ", name), type, name));
@@ -374,8 +399,9 @@ namespace {
 		accessor.componentName = provider.componentName;
 		accessor.enumerate = [provider](const Engine::AnimationPropertyQueryContext& context, Engine::ECSWorld& world,
 								 const Engine::Entity& entity, std::vector<Engine::AnimationPropertyDescriptor>& out) {
-			// 追加メニューには一括編集を表示する
+			// 一括編集とサブメッシュごとの編集を表示する
 			EnumerateAllMeshProperties(provider, context, world, entity, out);
+			EnumerateMaterialProperties(provider, context, world, entity, out);
 		};
 		accessor.resolve = [provider](Engine::ECSWorld&, const Engine::Entity&, std::string_view propertyPath,
 							   Engine::AnimationValueType valueType) -> std::optional<Engine::AnimationPropertyDescriptor> {
@@ -406,6 +432,12 @@ void Engine::RegisterMaterialAnimationAccessors() {
 	AnimationPropertyRegistry& registry = AnimationPropertyRegistry::GetInstance();
 
 	RegisterMeshAnimationAccessor(registry);
+	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<PrimitiveRendererComponent>("PrimitiveRenderer",
+		[]() { return DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin(); }));
+	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<LineRendererComponent>("LineRenderer",
+		[]() { return DefaultMaterialSettings::GetInstance().GetLineOrBuiltin(); }));
+	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<DecalProjectorComponent>("DecalProjector",
+		[]() { return DefaultMaterialSettings::GetInstance().GetDecalOrBuiltin(); }));
 	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<SpriteRendererComponent>("SpriteRenderer",
 											   []() { return DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin(); }));
 	RegisterMaterialSlotProvider(registry, MakeSingleSlotProvider<TextRendererComponent>("TextRenderer",

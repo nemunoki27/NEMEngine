@@ -28,15 +28,8 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields(const EditorPanelCont
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("優先度", draft.common.priority); });
-	DrawField(anyItemActive, [&]() {
-		uint32_t mask = static_cast<uint32_t>(draft.common.cullingMask);
-		const ValueEditResult result = InspectorDrawerCommon::DrawLayerMaskField(context, "カリングマスク", mask);
-		draft.common.cullingMask = static_cast<int32_t>(mask);
-		return result;
-		});
 
 	FloatEditSetting clipSetting{};
 	clipSetting.dragSpeed = 0.01f;
@@ -105,15 +98,8 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields(const EditorPanelConte
 
 	auto& draft = GetDraft();
 	MyGUI::TextFloat("アスペクト比", draft.common.aspectRatio, 3);
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("優先度", draft.common.priority); });
-	DrawField(anyItemActive, [&]() {
-		uint32_t mask = static_cast<uint32_t>(draft.common.cullingMask);
-		const ValueEditResult result = InspectorDrawerCommon::DrawLayerMaskField(context, "カリングマスク", mask);
-		draft.common.cullingMask = static_cast<int32_t>(mask);
-		return result;
-		});
 
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawEnumComboField("投影方式", draft.projectionMode);

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Animation/Simple/SimpleAnimationPlayback.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
@@ -25,20 +26,16 @@ namespace Engine {
 		Disabled,
 	};
 
+	SimpleAnimationSettings MakeUIAnimationSettings(const SimpleAnimationValue& target);
+
 	// 状態に応じた色と形状の表示設定
 	struct UITransitionStyle {
 
 		bool animationEnabled = true;
-		Color4 color = Color4::White();
-		Vector2 scale = Vector2::AnyInit(1.0f);
-		float colorTransitionDuration = 0.08f;
-		EasingType colorEasing = EasingType::Linear;
-		float scaleTransitionDuration = 0.08f;
-		EasingType scaleEasing = EasingType::Linear;
+		SimpleAnimationSettings colorAnimation = MakeUIAnimationSettings(Color4::White());
+		SimpleAnimationSettings scaleAnimation = MakeUIAnimationSettings(Vector2(1, 1));
 		bool overrideTexture = false;
 		AssetID texture{};
-		bool useAnimationClip = false;
-		AssetID animationClip{};
 		AssetID sound{};
 		float soundVolume = 1.0f;
 	};
@@ -50,8 +47,8 @@ namespace Engine {
 
 		UISelectableState state = UISelectableState::Normal;
 		UISelectableState previousState = UISelectableState::Normal;
-		float colorTransitionElapsed = 0.0f;
-		float scaleTransitionElapsed = 0.0f;
+		SimpleAnimationPlayback colorPlayback{};
+		SimpleAnimationPlayback scalePlayback{};
 		Color4 baseColor = Color4::White();
 		Color4 startColor = Color4::White();
 		Color4 currentColor = Color4::White();
@@ -78,16 +75,14 @@ namespace Engine {
 
 		UITransitionStyle normal{};
 		UITransitionStyle selected{
-			.color = Color4(1.1f, 1.1f, 1.1f, 1.0f),
-			.scale = Vector2::AnyInit(1.0f)
+			.colorAnimation = MakeUIAnimationSettings(Color4(1.1f, 1.1f, 1.1f, 1.0f))
 		};
 		UITransitionStyle submitted{
-			.color = Color4(0.8f, 0.8f, 0.8f, 1.0f),
-			.scale = Vector2::AnyInit(0.96f)
+			.colorAnimation = MakeUIAnimationSettings(Color4(0.8f, 0.8f, 0.8f, 1.0f)),
+			.scaleAnimation = MakeUIAnimationSettings(Vector2::AnyInit(0.96f))
 		};
 		UITransitionStyle disabled{
-			.color = Color4(0.55f, 0.55f, 0.55f, 0.65f),
-			.scale = Vector2::AnyInit(1.0f)
+			.colorAnimation = MakeUIAnimationSettings(Color4(0.55f, 0.55f, 0.55f, 0.65f))
 		};
 
 		// 登録時に呼ばれる実行状態の追加と解放

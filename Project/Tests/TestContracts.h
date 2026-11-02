@@ -5,7 +5,7 @@ namespace NEMTests {
 	bool TestManagedLifecycleIntegration();
 
 	bool TestProfilerContracts();
-	bool TestConsoleGPUPassContracts();
+	bool TestEditorGPUPassContracts();
 
 	bool TestAssetGUIDRoundTrip();
 	bool TestAssetDatabaseTransactions();

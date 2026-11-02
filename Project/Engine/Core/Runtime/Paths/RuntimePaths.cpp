@@ -10,6 +10,7 @@
 #include <mutex>
 #include <limits>
 #include <stdexcept>
+#include <cwchar>
 
 namespace {
 
@@ -27,6 +28,10 @@ void Engine::RuntimePaths::Refresh() {
 	if (g_pathState->revision == std::numeric_limits<uint64_t>::max()) {
 		throw std::overflow_error("RuntimePaths revision exhausted");
 	}
+	if (next->engineProjectRoot == g_pathState->engineProjectRoot) { next->engineLease = g_pathState->engineLease; }
+	if (next->toolchainRoot == g_pathState->toolchainRoot) { next->toolchainLease = g_pathState->toolchainLease; }
+	if (next->gameRoot == g_pathState->gameRoot) { next->projectLease = g_pathState->projectLease; }
+	RuntimePathDetail::AcquireInstalledEngineLeases(*next);
 	// 古い集合は借用中の利用側が解放するまで保持する
 	next->revision = g_pathState->revision + 1;
 	g_pathState = std::move(next);
@@ -35,6 +40,43 @@ void Engine::RuntimePaths::Refresh() {
 std::filesystem::path Engine::RuntimePaths::GetProjectRoot() {
 
 	return GetSnapshot()->projectRoot;
+}
+
+bool Engine::RuntimePaths::IsInstalledEngine() {
+
+	return GetSnapshot()->installedEngine;
+}
+
+std::filesystem::path Engine::RuntimePaths::GetToolchainRoot() {
+
+	return GetSnapshot()->toolchainRoot;
+}
+
+std::string Engine::RuntimePaths::GetEngineVersion() {
+
+	return GetSnapshot()->engineVersion;
+}
+
+bool Engine::RuntimePaths::CanWritePath(const std::filesystem::path& path) {
+
+	// 設定の構築中と単体検証では探索を開始しない
+	std::scoped_lock lock(g_pathMutex);
+	if (!g_pathState || !g_pathState->installedEngine) { return true; }
+	std::error_code error;
+	const auto target = std::filesystem::weakly_canonical(path, error);
+	if (error) { return false; }
+	for (const auto& protectedRoot : { g_pathState->engineProjectRoot, g_pathState->toolchainRoot }) {
+		const auto root = std::filesystem::weakly_canonical(protectedRoot, error);
+		if (error) { return false; }
+		auto current = target.begin();
+		bool inside = true;
+		for (const auto& part : root) {
+			if (current == target.end() || ::_wcsicmp(current->c_str(), part.c_str()) != 0) { inside = false; break; }
+			++current;
+		}
+		if (inside) { return false; }
+	}
+	return true;
 }
 
 std::filesystem::path Engine::RuntimePaths::GetGameRoot() {
@@ -194,6 +236,7 @@ std::shared_ptr<const Engine::RuntimePaths::PathState> Engine::RuntimePaths::Get
 
 		// 初回だけ構築し、不変の集合として公開する
 		auto initial = std::make_shared<PathState>(BuildState());
+		RuntimePathDetail::AcquireInstalledEngineLeases(*initial);
 		initial->revision = 1;
 		std::scoped_lock lock(g_pathMutex);
 		g_pathState = std::move(initial);

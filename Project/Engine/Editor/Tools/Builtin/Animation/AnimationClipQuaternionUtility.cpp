@@ -76,6 +76,7 @@ namespace Engine::AnimationClipEditorUtility {
 
 		std::vector<float> times{};
 		CollectKeyTimes(track.channels, times);
+		if (times.empty()) times.push_back(0.0f);
 
 		// キー時刻ごとの評価値を回転軸と角度へ変換する
 		for (float time : times) {
@@ -108,6 +109,37 @@ namespace Engine::AnimationClipEditorUtility {
 			curve.channels[1],
 		};
 		track.quaternionAxisKeys = curve.axisKeys;
+	}
+
+	void ConvertQuaternionTrackToEuler(AnimationCurveTrack& track) {
+
+		if (IsQuaternionEulerTrack(track)) return;
+		std::vector<float> times;
+		CollectKeyTimes(track.channels, times);
+		CurveVector3 curve;
+		const char* names[]{"EulerX", "EulerY", "EulerZ"};
+		for (size_t i = 0; i < 3; ++i) {
+			curve.channels[i].name = names[i];
+			curve.channels[i].keys.clear();
+		}
+		auto evaluate = [&](float time) {
+			AnimationPropertyValue value;
+			if (AnimationClipEvaluator::EvaluateTrack(track, time, value)) {
+				if (const auto* rotation = std::get_if<Quaternion>(&value)) return Quaternion::ToEulerAngles(*rotation);
+			}
+			return Vector3{};
+		};
+		const auto initial = evaluate(0.0f);
+		curve.channels[0].defaultValue = initial.x;
+		curve.channels[1].defaultValue = initial.y;
+		curve.channels[2].defaultValue = initial.z;
+		for (float time : times) {
+			const auto value = evaluate(time);
+			const float angles[]{value.x, value.y, value.z};
+			for (size_t i = 0; i < 3; ++i) curve.channels[i].AddKey(time, angles[i]);
+		}
+		track.channels.assign(curve.channels.begin(), curve.channels.end());
+		track.quaternionAxisKeys.clear();
 	}
 
 	bool IsQuaternionAxisAngleTrack(const AnimationCurveTrack& track) {

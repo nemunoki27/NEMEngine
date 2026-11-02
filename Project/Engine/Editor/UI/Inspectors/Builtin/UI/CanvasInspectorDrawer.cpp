@@ -22,13 +22,12 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 	const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
 
 	// 基準解像度は変更不可
 	MyGUI::TextVector2("基準解像度", draft.referenceResolution, 1);
 
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("ソートレイヤー", draft.sortingLayer); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("描画順", draft.order); });
+	DrawField(anyItemActive, [&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::DrawOrder), draft.order); });
 	if (ImGui::IsItemHovered()) {
 		ImGui::BeginTooltip();
 
@@ -43,7 +42,7 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 			[&]() { return InspectorDrawerCommon::DrawEnumComboField("ゲーム入力ブロック", draft.inputBlockMode); });
 		DrawField(anyItemActive, [&]() {
 			int32_t playerIndex = static_cast<int32_t>(draft.playerIndex);
-			ValueEditResult result = MyGUI::DragInt("Player", playerIndex, {.dragSpeed = 1.0f, .minValue = 0, .maxValue = 3});
+			ValueEditResult result = MyGUI::DragInt("プレイヤー番号", playerIndex, {.dragSpeed = 1.0f, .minValue = 0, .maxValue = 3});
 			draft.playerIndex = static_cast<uint32_t>(std::clamp(playerIndex, 0, 3));
 			return result;
 		});

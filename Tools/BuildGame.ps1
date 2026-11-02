@@ -8,6 +8,11 @@ $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $OutputEncoding
 
+# PowerShell7から起動してもWindows標準の関数を使う
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force
+}
+
 . (Join-Path $PSScriptRoot "ProductBuild\BuildFileOperations.ps1")
 . (Join-Path $PSScriptRoot "ProductBuild\CompileProduct.ps1")
 . (Join-Path $PSScriptRoot "ProductBuild\StageProduct.ps1")
@@ -37,6 +42,8 @@ try {
     }
 
     $buildToolProject = [string]$manifest.buildToolProject
+    $prebuiltRuntime = $manifest.PSObject.Properties['prebuiltRuntime'] -and [bool]$manifest.prebuiltRuntime
+    $toolchainRoot = if ($manifest.PSObject.Properties['toolchainRoot']) { [string]$manifest.toolchainRoot } else { '' }
     $buildToolExecutable = [System.IO.Path]::GetFullPath([string]$manifest.buildToolExecutable)
     if (-not [string]::IsNullOrWhiteSpace($buildToolProject)) {
         $buildToolProject = [System.IO.Path]::GetFullPath($buildToolProject)
@@ -45,10 +52,10 @@ try {
         }
     }
     elseif (-not (Test-Path -LiteralPath $buildToolExecutable -PathType Leaf)) {
-        throw "SDKの製品ビルドツールが見つかりません。SDKを更新してください: $buildToolExecutable"
+        throw "製品ビルドツールが見つかりません。エンジンを修復してください: $buildToolExecutable"
     }
 
-    Invoke-ProductCompilation $projectPath $sourceRuntime $buildToolProject $buildToolExecutable $gameScriptsProject
+    Invoke-ProductCompilation $projectPath $sourceRuntime $buildToolProject $buildToolExecutable $gameScriptsProject ([bool]$prebuiltRuntime) $toolchainRoot
     $managedSource = Join-Path $sourceRuntime "Managed"
 
     $targetDirectory = Get-ChildPath -Root $outputRoot -Relative $productName
@@ -66,6 +73,28 @@ try {
     New-Item -ItemType Directory -Path $stageDirectory -Force | Out-Null
 
     Copy-ProductFiles $manifest $sourceRuntime $runtimeExecutable $stageDirectory $executableName $managedSource
+    # ゲームDLLは共有エンジンへ書き込まず製品へ配置する
+    $managedBuildOutput = Join-Path ([System.IO.Path]::GetDirectoryName($projectPath)) 'Managed/Release'
+    foreach ($fileName in @('GameScripts.dll', 'GameScripts.deps.json', 'GameScripts.pdb')) {
+        $source = Join-Path $managedBuildOutput $fileName
+        if (Test-Path -LiteralPath $source -PathType Leaf) {
+            Copy-Item -LiteralPath $source -Destination (Join-Path $stageDirectory "Managed/$fileName") -Force
+        }
+    }
+    if ($toolchainRoot) {
+        # 製品にはSDKではなく実行用ランタイムだけを含める
+        foreach ($relative in @('host/fxr', 'shared/Microsoft.NETCore.App')) {
+            $source = Join-Path $toolchainRoot $relative
+            if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw ".NETランタイムがありません: $source" }
+            $destination = Get-ChildPath -Root (Join-Path $stageDirectory 'DotNet') -Relative $relative
+            New-Item -ItemType Directory -Path $destination -Force | Out-Null
+            Copy-Item -Path (Join-Path $source '*') -Destination $destination -Recurse -Force
+        }
+        foreach ($name in @('LICENSE.txt', 'ThirdPartyNotices.txt')) {
+            $source = Join-Path $toolchainRoot $name
+            if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination (Join-Path $stageDirectory 'DotNet') }
+        }
+    }
 
     # Cookも配置済みの同じ入力だけを読む
     Write-ProductAssetRoots $manifest $stageDirectory $productName $executableName

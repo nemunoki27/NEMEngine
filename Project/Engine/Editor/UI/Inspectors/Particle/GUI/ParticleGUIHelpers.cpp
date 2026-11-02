@@ -1,4 +1,5 @@
 #include "ParticleGUIHelpers.h"
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 
 //============================================================================
 //	include
@@ -95,7 +96,7 @@ bool Engine::ParticleGUI::DrawParticleValueVector3(const char* label, ParticleVa
 bool Engine::ParticleGUI::DrawLoopSettings(ParticleLoopSettings& loop) {
 
 	bool changed = false;
-	ImGui::SeparatorText("ループ");
+	ImGui::SeparatorText(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop));
 	int32_t loopCount = loop.loopCount;
 	if (MyGUI::DragInt("ループ回数", loopCount).valueChanged) {
 

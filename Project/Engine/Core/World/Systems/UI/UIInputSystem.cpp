@@ -123,7 +123,6 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		activeSelectableEntities.emplace(world.GetUUID(entry.entity));
 	}
 
-	visuals_.DiscardInactive(world, activeSelectableEntities);
 
 	// Canvas入力対象から外れたUIは開始前の表示へ戻す
 	world.ForEach<UISelectableComponent, UISelectableRuntimeComponent>(
@@ -330,7 +329,8 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				selected->runtime->submittedThisFrame = true;
 				selected->runtime->previousState =
 					UISelectableState::Selected;
-				visuals_.ResetSubmitState(world.GetUUID(selected->entity));
+				selected->runtime->colorPlayback = {};
+				selected->runtime->scalePlayback = {};
 				PlayStateSound(world, selected->entity, selected->selectable->submitted, context);
 				ClickButton(world, selected->entity);
 				consumedInput[playerIndex] = true;
@@ -373,12 +373,13 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 			SetStateThisFrame(selectableRuntime, selectableRuntime.state);
 		}
 
-		UISelectableAnimationRuntime* animationRuntime = visuals_.UpdateAnimation(world, entry, context);
-		UpdateSelectableVisual(world, entry, context.unscaledDeltaTime);
+		if (previousState != selectableRuntime.state && selectableRuntime.state != UISelectableState::Submitted)
+			PlayStateSound(world, entry.entity, ResolveStyle(*entry.selectable, selectableRuntime), context);
+		UpdateSelectableVisual(world, entry, context.deltaTime, context.unscaledDeltaTime);
 
 		if (selectableRuntime.submitted && !canvasRuntime.inputLocked &&
 			IsSubmitTransitionFinished(
-				*entry.selectable, selectableRuntime, animationRuntime)) {
+				*entry.selectable, selectableRuntime)) {
 			selectableRuntime.submitted = false;
 		}
 	}
@@ -406,7 +407,6 @@ void Engine::UIInputSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] System
 
 void Engine::UIInputSystem::RestoreEditModeVisuals(ECSWorld& world) {
 
-	visuals_.RestoreAll(world);
 	world.ForEach<UISelectableRuntimeComponent>(
 		[&](Entity entity, UISelectableRuntimeComponent& runtime) {
 		RestoreSelectableVisual(world, entity, runtime);

@@ -1,4 +1,5 @@
 #include "CanvasNavigationEditing.h"
+#include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
 //	include
@@ -157,60 +158,7 @@ namespace {
 Engine::ValueEditResult Engine::CanvasNavigationEditing::DrawEntityReference(
 	const char* label, Engine::ECSWorld& world, Engine::UUID& localFileID) {
 
-	Engine::ValueEditResult result{};
-	if (!Engine::MyGUI::BeginPropertyRow(label)) {
-		return result;
-	}
-
-	std::string preview = "None (Drop entity here)";
-	if (localFileID) {
-		const Engine::Entity target = Engine::SceneObjectUtility::FindByLocalFileID(world, localFileID);
-		if (world.IsAlive(target)) {
-			const auto* name = world.TryGetComponent<Engine::NameComponent>(target);
-			preview = name ? name->name : "Entity";
-		} else {
-			preview = "Missing Entity | " + Engine::ToString(localFileID);
-		}
-	}
-
-	ImGui::PushID(label);
-	if (!localFileID) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-	}
-	ImGui::Button(preview.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
-	if (!localFileID) {
-		ImGui::PopStyleColor();
-	}
-	result.anyItemActive = ImGui::IsItemActive();
-
-	if (localFileID && ImGui::BeginPopupContextItem("##deleteEntityReference")) {
-		if (ImGui::MenuItem("削除")) {
-			localFileID = {};
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
-		ImGui::EndPopup();
-	}
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Engine::IEditorPanel::kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID)) {
-				const Engine::UUID stableUUID = *static_cast<const Engine::UUID*>(payload->Data);
-				const Engine::Entity target = world.FindByUUID(stableUUID);
-				if (world.IsAlive(target)) {
-					const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(target);
-					if (sceneObject) {
-						localFileID = sceneObject->localFileID;
-						result.valueChanged = true;
-						result.editFinished = true;
-					}
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-	ImGui::PopID();
-	Engine::MyGUI::EndPropertyRow();
-	return result;
+	return Engine::SceneEntityReferenceFields::DrawLocal(label, world, localFileID);
 }
 
 Engine::ValueEditResult Engine::CanvasNavigationEditing::DrawNavigationTable(

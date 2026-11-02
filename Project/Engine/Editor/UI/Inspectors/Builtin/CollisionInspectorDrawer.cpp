@@ -23,9 +23,6 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 	// CollisionComponent全体の設定
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-		});
-	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("静的", draft.isStatic);
 		});
 	DrawField(anyItemActive, [&]() {
@@ -45,7 +42,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(CollisionComponent& component) {
 
 	ValueEditResult result{};
-	if (!MyGUI::BeginPropertyRow("衝突タイプ")) {
+	if (!MyGUI::BeginPropertyRow("自身の衝突タイプ")) {
 		return result;
 	}
 
@@ -74,7 +71,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 			ImGui::Dummy(ImVec2(pad, 0.0f));
 			ImGui::SameLine();
 		}
-		if (ImGui::SmallButton("解除")) {
+		if (ImGui::SmallButton("削除")) {
 			removeIndex = static_cast<int32_t>(i);
 		}
 		result.anyItemActive |= ImGui::IsItemActive();
@@ -172,7 +169,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(
 		};
 
 	accumulate(DrawShapeTypeField(shape.type));
-	accumulate(InspectorDrawerCommon::DrawCheckboxField("有効", shape.enabled));
+	accumulate(InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Enabled), shape.enabled));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("コールバックのみ", shape.isTrigger));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("トランスフォーム回転使用", shape.useTransformRotation));
 	if (shape.type == ColliderShapeType::Capsule2D) {

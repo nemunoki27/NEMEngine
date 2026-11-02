@@ -32,7 +32,8 @@ namespace Engine {
 		Vector4,
 		Color3,
 		Color4,
-		Quaternion>;
+		Quaternion,
+		int32_t>;
 
 	// Componentのアニメーション可能な1プロパティ、get/setはstd::functionで静的にも動的にも使える
 	struct AnimationPropertyDescriptor {

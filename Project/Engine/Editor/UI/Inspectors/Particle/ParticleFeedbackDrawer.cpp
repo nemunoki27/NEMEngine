@@ -24,7 +24,7 @@ bool ParticleFeedbackDrawer::Draw(const EditorPanelContext& context, ECSWorld& w
 		auto& event = settings.events[index];
 		ImGui::PushID(static_cast<int>(index));
 		if (MyGUI::CollapsingHeader("発生経路")) {
-			changed |= MyGUI::Checkbox("有効", event.enabled);
+			changed |= MyGUI::Checkbox(Engine::GetInspectorLabel(Engine::InspectorFieldID::Enabled), event.enabled);
 			if (MyGUI::BeginPropertyRow("発生契機")) {
 				const char* kinds[]{"衝突", "消滅", "経過時間", "フェーズ終了"};
 				int kind = static_cast<int>(event.kind);

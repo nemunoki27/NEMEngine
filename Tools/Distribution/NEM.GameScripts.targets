@@ -1,0 +1,18 @@
+<Project>
+  <!-- 中間出力先を切り替えても通常ビルドの生成コードを拾わない -->
+  <ItemGroup>
+    <Compile Remove="$(MSBuildProjectDirectory)/obj/**/*.cs;$(MSBuildProjectDirectory)/bin/**/*.cs" />
+  </ItemGroup>
+  <!-- 実ビルドだけで保存IDを同期する -->
+  <Target Name="NEMSyncScriptMetadata" BeforeTargets="NEMCollectScriptMetadata"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(NEMSkipMetadataSync)' != 'true'">
+    <Exec Command="&quot;$(NEMToolchainRoot)/dotnet.exe&quot; &quot;$(NEMEngineRoot)/Managed/Tools/NEM.ScriptMetaSync.dll&quot; --root &quot;$(MSBuildProjectDirectory)/../GameAssets&quot; --project &quot;$(MSBuildProjectFullPath)&quot; --configuration &quot;$(Configuration)&quot; --mode EditorSync" />
+  </Target>
+  <!-- 実際にコンパイルするソースと同じmetaを渡す -->
+  <Target Name="NEMCollectScriptMetadata" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <NEMScriptMetadata Include="@(Compile->'%(FullPath).meta')" />
+      <AdditionalFiles Include="@(NEMScriptMetadata)" Condition="Exists('%(NEMScriptMetadata.Identity)')" />
+    </ItemGroup>
+  </Target>
+</Project>

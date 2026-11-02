@@ -53,6 +53,12 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		return;
 	}
 
+	// Tool内の編集履歴はSceneの履歴と分けて扱う
+	if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput && !ImGui::IsAnyItemActive()) {
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z)) session_.RestoreHistory(false);
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y) || ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) session_.RestoreHistory(true);
+	}
+
 	// GizmoとUndoによる外部編集を検出する
 	session_.UpdateExternalEdits(context);
 
@@ -95,6 +101,8 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 
 		ImGui::EndTable();
 	}
+
+	if (!ImGui::IsAnyItemActive()) session_.CommitHistory();
 
 	// 対象Entityへプレビューを反映する
 	session_.UpdatePreviewPlayback(context, ImGui::GetIO().DeltaTime);

@@ -1,14 +1,11 @@
 #include "LineRendererInspectorDrawer.h"
+#include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 // c++
 #include <algorithm>
@@ -21,67 +18,10 @@
 //============================================================================
 namespace {
 
-	// 親localFileIDから表示名を作る、未設定はなし扱い
-	std::string MakeParentLabel(Engine::ECSWorld& world, Engine::UUID target) {
-
-		if (!target) {
-			return "自身のTransform";
-		}
-		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(world, target);
-		if (!entity.IsValid() || !world.IsAlive(entity)) {
-			return "不明 : " + Engine::ToString(target);
-		}
-		if (world.HasComponent<Engine::NameComponent>(entity)) {
-			return world.GetComponent<Engine::NameComponent>(entity).name;
-		}
-		return Engine::ToString(target);
-	}
-
 	// 親エンティティ参照欄、ヒエラルキーからドロップでlocalFileIDを設定しクリアで自身に戻す
 	Engine::ValueEditResult DrawParentField(const char* label, Engine::ECSWorld& world, Engine::UUID& target) {
 
-		using namespace Engine;
-		ValueEditResult result{};
-		if (!MyGUI::BeginPropertyRow(label)) {
-			return result;
-		}
-
-		const float clearWidth = 56.0f;
-		const std::string buttonLabel = MakeParentLabel(world, target);
-		ImGui::Button(buttonLabel.c_str(), ImVec2((std::max)(0.0f, ImGui::GetContentRegionAvail().x - clearWidth), 0.0f));
-		result.anyItemActive |= ImGui::IsItemActive();
-
-		if (ImGui::BeginDragDropTarget()) {
-
-			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
-			if (payload && payload->DataSize == sizeof(Engine::UUID)) {
-
-				// ヒエラルキーのpayloadはrecords_のuuidなので、Edit/Playで安定するlocalFileIDへ変換する
-				const Engine::UUID droppedUUID = *static_cast<const Engine::UUID*>(payload->Data);
-				const Entity dropped = world.FindByUUID(droppedUUID);
-				Engine::UUID localFileID{};
-				if (dropped.IsValid() && world.HasComponent<SceneObjectComponent>(dropped)) {
-					localFileID = world.GetComponent<SceneObjectComponent>(dropped).localFileID;
-				}
-				if (localFileID && target != localFileID) {
-
-					target = localFileID;
-					result.valueChanged = true;
-					result.editFinished = true;
-				}
-			}
-			ImGui::EndDragDropTarget();
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button("クリア", ImVec2(clearWidth, 0.0f))) {
-
-			target = Engine::UUID{};
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
-		MyGUI::EndPropertyRow();
-		return result;
+		return Engine::SceneEntityReferenceFields::DrawLocal(label, world, target);
 	}
 }
 
@@ -93,9 +33,6 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 
 	// ドラフトコンポーネントを参照
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-		});
 
 	//============================================================================
 	//	マテリアル
@@ -136,8 +73,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			});
 		InspectorDrawerCommon::DrawCommonRenderFields(context,
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-			draft.layer, draft.order, draft.blendMode, draft.queue,
-			&draft.renderingLayerMask);
+			draft.layer, draft.order, draft.blendMode, draft.queue);
 	}
 	//============================================================================
 	//	点列

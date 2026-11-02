@@ -19,9 +19,6 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
-		});
-	DrawField(anyItemActive, [&]() {
 		return MyGUI::ColorEdit("色", draft.color);
 		});
 	DrawField(anyItemActive, [&]() {
@@ -51,7 +48,7 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 			return InspectorDrawerCommon::DrawEnumComboField("Alpha判定元", draft.alphaSource);
 			});
 		DrawField(anyItemActive, [&]() {
-			return MyGUI::DragFloat("Alpha閾値", draft.alphaThreshold,
+			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::AlphaThreshold), draft.alphaThreshold,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {

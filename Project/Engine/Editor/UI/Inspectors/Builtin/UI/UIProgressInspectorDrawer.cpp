@@ -25,9 +25,8 @@ void Engine::UIProgressInspectorDrawer::DrawFields(
 	const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled); });
 	DrawField(anyItemActive,
-		[&]() { return InspectorDrawerCommon::DrawCheckboxField("編集中にプレビュー", draft.previewInEditMode); });
+		[&]() { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::EditorPreview), draft.previewInEditMode); });
 	// 範囲を変更したら現在値を収める
 	const auto clampValue = [&]() {
 		const float minValue = (std::min)(draft.minValue, draft.maxValue);
@@ -138,7 +137,7 @@ void Engine::UIProgressInspectorDrawer::DrawFields(
 	}
 	ImGui::Unindent();
 	DrawField(
-		anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("非スケール時間", draft.useUnscaledTime); });
+		anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::UnscaledTime), draft.useUnscaledTime); });
 }
 
 void Engine::UIProgressInspectorDrawer::ApplyPreview(

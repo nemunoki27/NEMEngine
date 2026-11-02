@@ -36,6 +36,7 @@ namespace Engine::AnimationClipEditorUtility {
 	CurveQuaternionAxisKey MakeAxisKeyFromQuaternion(const Quaternion& rotation, float& outAngleDegrees);
 	// Trackを回転軸と角度のCurveへ変換する
 	CurveQuaternion BuildQuaternionEditorCurve(const AnimationCurveTrack& track);
+	void ConvertQuaternionTrackToEuler(AnimationCurveTrack& track);
 	// 編集した回転軸と角度をTrackへ戻す
 	void StoreQuaternionEditorCurve(const CurveQuaternion& curve, AnimationCurveTrack& track);
 	// キーを空にしてChannelの既定値を設定する

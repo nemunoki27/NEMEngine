@@ -6,7 +6,7 @@
 #include <Engine/Core/Foundation/Time/FrameProfileHistory.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfileSummary.h>
-#include <Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.h>
+#include <Engine/Editor/UI/Panels/Builtin/EditorGPUPassTooltip.h>
 
 // c++
 #include <array>
@@ -15,7 +15,7 @@
 namespace {
 
 	// 表示行と合計が同じ有効な計測値を表しているか検証する
-	bool HasConsistentGPUPassTotals(const Engine::ConsoleGPUPassTooltipState& state) {
+	bool HasConsistentGPUPassTotals(const Engine::EditorGPUPassTooltipState& state) {
 
 		for (const auto& view : state.GetViews()) {
 			float total = 0.0f;
@@ -121,10 +121,10 @@ bool NEMTests::TestProfilerContracts() {
 		Engine::SummarizeScriptProfile(rows, 1, 2, 0)[0].name == "second";
 }
 
-bool NEMTests::TestConsoleGPUPassContracts() {
+bool NEMTests::TestEditorGPUPassContracts() {
 
 	// 未計測の連続時間で非表示にし再計測で復帰する
-	Engine::ConsoleGPUPassTooltipState tooltip;
+	Engine::EditorGPUPassTooltipState tooltip;
 	const std::array<Engine::FrameProfiler::GPUPassTime, 1> measured{{{ "Game/Lighting", 1.0f, 1, "Game" }}};
 	tooltip.Update(measured, 1, true, 0.0);
 	tooltip.Update({}, 2, true, 0.1);
@@ -155,7 +155,7 @@ bool NEMTests::TestConsoleGPUPassContracts() {
 	if (!tooltip.GetViews().empty()) return false;
 
 	// ホバー中も新しいパスを追加し、既存行の順番を保つ
-	Engine::ConsoleGPUPassTooltipState stable;
+	Engine::EditorGPUPassTooltipState stable;
 	const std::array<Engine::FrameProfiler::GPUPassTime, 2> initial{{
 		{"Game/Opaque", 1.0f, 1, "CameraA"}, {"Game/Lighting", 2.0f, 1, "CameraA"}}};
 	const std::array<Engine::FrameProfiler::GPUPassTime, 3> reordered{{
@@ -174,7 +174,7 @@ bool NEMTests::TestConsoleGPUPassContracts() {
 	if (stable.GetViews()[0].passTimes.size() != 3 || stable.GetViews()[0].totalMilliseconds != 12.0f) return false;
 
 	// 副Viewを間引いたフレームでは直近の計測値を維持する
-	Engine::ConsoleGPUPassTooltipState alternating;
+	Engine::EditorGPUPassTooltipState alternating;
 	const std::array<Engine::FrameProfiler::GPUPassTime, 1> game{{{"Game/Opaque", 1.5f, 1, "GameCamera"}}};
 	const std::array<Engine::FrameProfiler::GPUPassTime, 1> gameAgain{{{"Game/Opaque", 1.7f, 3, "GameCamera"}}};
 	const std::array<Engine::FrameProfiler::GPUPassTime, 1> scene{{{"Scene/Opaque", 2.0f, 2, "SceneCamera"}}};
@@ -189,7 +189,7 @@ bool NEMTests::TestConsoleGPUPassContracts() {
 	if (alternating.GetViews().size() != 1 || alternating.GetViews()[0].name != "Scene") return false;
 
 	// 同名パスは同じView内だけで合算し、ホバー中の新しいViewも表示する
-	Engine::ConsoleGPUPassTooltipState repeated;
+	Engine::EditorGPUPassTooltipState repeated;
 	const std::array<Engine::FrameProfiler::GPUPassTime, 3> duplicates{{
 		{"Game/Bloom", 1.0f, 1, "CameraA"}, {"Game/Bloom", 2.0f, 1, "CameraA"},
 		{"Game/Lighting", 4.0f, 1, "CameraA"}}};

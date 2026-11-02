@@ -112,6 +112,7 @@ public sealed class StageManager : MonoBehaviour {
 		}
 		try {
 			MathLayoutTests.Run();
+			SimpleAnimationTests.Run();
 			Console.WriteLine("[PASS] math ABI layout and values.");
 		} catch (Exception ex) {
 			++failures;

@@ -28,6 +28,7 @@ namespace Engine::ScriptFieldInspector {
 		const Engine::EditorPanelContext* panel = nullptr;
 		Engine::ECSWorld* world = nullptr;
 		bool readOnly = false;
+		Entity owner{};
 	};
 
 	// 型と診断の解決
@@ -62,7 +63,6 @@ namespace Engine::ScriptFieldInspector {
 	// 参照Fieldの編集
 	Engine::ValueEditResult DrawAssetRef(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx);
-	std::string ResolveEntityRefName(Engine::ECSWorld* world, const std::string& localFileID);
 	Engine::ValueEditResult DrawEntityRef(const char* label, nlohmann::json& value, const DrawContext& ctx,
 		const EntityDropFilter& dropFilter = {}, const char* rejectTooltip = nullptr);
 	Engine::ValueEditResult DrawComponentRef(const char* label, nlohmann::json& value,

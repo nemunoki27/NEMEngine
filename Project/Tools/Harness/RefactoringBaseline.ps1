@@ -312,16 +312,6 @@ function Get-AssetRoots {
         }
     }
 
-    $gameProjectsRoot = Join-Path $repoRoot "Project\GameProjects"
-    if (Test-Path -LiteralPath $gameProjectsRoot) {
-        foreach ($container in Get-ChildItem -LiteralPath $gameProjectsRoot -Directory) {
-            $gameAssets = Join-Path $container.FullName (Join-Path $container.Name "GameAssets")
-            if (Test-Path -LiteralPath $gameAssets) {
-                $roots.Add([System.IO.Path]::GetFullPath($gameAssets))
-            }
-        }
-    }
-
     return $roots.ToArray()
 }
 
