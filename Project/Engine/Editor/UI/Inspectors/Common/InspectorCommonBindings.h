@@ -10,6 +10,8 @@ namespace Engine {
 	template <typename T>
 	InspectorCommonFields BindInspectorCommonFields(T&) { return {}; }
 
+	struct TimeScaleComponent;
+	struct TimerComponent;
 	struct AudioSourceComponent;
 	struct AudioListenerComponent;
 	struct PerspectiveCameraComponent;
@@ -45,6 +47,8 @@ namespace Engine {
 	struct VectorFieldComponent;
 	struct HeightmapColliderComponent;
 
+	InspectorCommonFields BindInspectorCommonFields(TimeScaleComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(TimerComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(AudioSourceComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(AudioListenerComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(PerspectiveCameraComponent& value);

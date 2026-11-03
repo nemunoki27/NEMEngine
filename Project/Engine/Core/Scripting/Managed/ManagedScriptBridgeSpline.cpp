@@ -47,6 +47,8 @@ int32_t ManagedScriptRuntime::SplineGetPropertyCallback(ManagedNativeEntity enti
 	if (propertyID == 0) return CopyValue(out, size, static_cast<int32_t>(data->points.size()));
 	if (propertyID == 1) return CopyValue(out, size, data->closed ? 1 : 0);
 	if (propertyID == 2) return CopyValue(out, size, data->tolerance);
+	if (propertyID == 4) return CopyValue(out, size, data->is2D ? 1 : 0);
+	if (propertyID == 5) return CopyValue(out, size, data->drawDebug ? 1 : 0);
 	if (propertyID == 3 && index >= 0 && static_cast<size_t>(index) < data->points.size())
 		return CopyValue(out, size, data->points[static_cast<size_t>(index)]);
 	return 0;
@@ -72,7 +74,12 @@ int32_t ManagedScriptRuntime::SplineSetPropertyCallback(ManagedNativeEntity enti
 	} else if (propertyID == 2 && size == 4) std::memcpy(&data.tolerance, value, 4);
 	else if (propertyID == 3 && size == sizeof(SplineControlPoint) && index >= 0 && static_cast<size_t>(index) < data.points.size())
 		std::memcpy(&data.points[static_cast<size_t>(index)], value, sizeof(SplineControlPoint));
-	else return 0;
+	else if ((propertyID == 4 || propertyID == 5) && size == 4) {
+		int32_t enabled;
+		std::memcpy(&enabled, value, 4);
+		if (propertyID == 4) data.is2D = enabled != 0;
+		else data.drawDebug = enabled != 0;
+	} else return 0;
 	try { SetSpline(*world, target, data); }
 	catch (const std::exception&) { return 0; }
 	return 1;
@@ -85,8 +92,9 @@ int32_t ManagedScriptRuntime::SplineEvaluateCallback(ManagedNativeEntity entity,
 	auto* world = ResolveWorld(entity);
 	if (!world) return 0;
 	const auto target = ResolveEntity(entity);
-	const auto* component = world->TryGetComponent<SplineComponent>(target);
-	const auto* transform = world->TryGetComponent<TransformComponent>(target);
+	if (!TryGetSpline(*world, target)) return 0;
+	const auto* component = world->TryGetComponentForBinding<SplineComponent>(target);
+	const auto* transform = world->TryGetComponentForBinding<TransformComponent>(target);
 	const auto* storage = world->GetStorage().TryGet<SplineStorage>();
 	const auto* record = component && storage ? storage->TryGet(component->handle) : nullptr;
 	if (!record || !transform) return 0;

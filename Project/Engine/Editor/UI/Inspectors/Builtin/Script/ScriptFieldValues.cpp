@@ -152,10 +152,16 @@ namespace Engine::ScriptFieldInspector {
 		const DrawContext& ctx, const char* label) {
 
 		using namespace Engine;
+		if (ctx.readOnly || field.isReadOnly) {
+			ImGui::PushID(field.fieldID.empty() ? field.name.c_str() : field.fieldID.c_str());
+			DrawReadOnlyValue(field, value, ctx, label);
+			ImGui::PopID();
+			return {};
+		}
 		switch (field.kind) {
 		case Kind::Bool: {
 			bool v = value.is_boolean() ? value.get<bool>() : false;
-			ValueEditResult r = InspectorDrawerCommon::DrawCheckboxField(label, v);
+			ValueEditResult r = MyGUI::CheckboxField(label, v);
 			if (r.valueChanged) { value = v; }
 			return r;
 		}
@@ -229,7 +235,7 @@ namespace Engine::ScriptFieldInspector {
 		case Kind::Object: return DrawObject(label, value, field, ctx);
 		case Kind::ManagedReference: return DrawManagedReference(label, value, field, ctx);
 		default:
-			ImGui::TextDisabled("%s : 未対応の型", label);
+			MyGUI::Text(label, "未対応の型");
 			return {};
 		}
 	}

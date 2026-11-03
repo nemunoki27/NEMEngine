@@ -15,7 +15,7 @@ namespace Engine::ScriptFieldInspector {
 		Engine::ValueEditResult result{};
 		if (!value.is_array()) { value = nlohmann::json::array(); }
 		if (!field.element) {
-			ImGui::TextDisabled("%s (要素schema無し)", label);
+			MyGUI::Text(label, "要素の型情報がありません");
 			return result;
 		}
 
@@ -38,7 +38,7 @@ namespace Engine::ScriptFieldInspector {
 					if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
 						const int srcIndex = static_cast<int>(i);
 						ImGui::SetDragDropPayload(kListElementDragDropType, &srcIndex, sizeof(int));
-						ImGui::Text("要素 %d を移動", srcIndex);
+						MyGUI::Text(("要素 " + std::to_string(srcIndex) + " を移動").c_str());
 						ImGui::EndDragDropSource();
 					}
 					if (ImGui::BeginDragDropTarget()) {
@@ -146,7 +146,7 @@ namespace Engine::ScriptFieldInspector {
 
 		Engine::ValueEditResult result{};
 		if (field.members.empty()) {
-			ImGui::TextDisabled("%s (編集できるメンバ無し)", label);
+			MyGUI::Text(label, "編集できるメンバーがありません");
 			return result;
 		}
 
@@ -168,7 +168,7 @@ namespace Engine::ScriptFieldInspector {
 		if (value.is_object() && value.contains("$ref")) {
 			ImGui::PushID(label);
 			if (Engine::MyGUI::BeginPropertyRow(label)) {
-				ImGui::TextUnformatted("Shared reference");
+				Engine::MyGUI::Text("共有参照");
 				ImGui::SameLine();
 				if (ImGui::SmallButton("None")) {
 					value = nlohmann::json{ {"type", ""}, {"value", nlohmann::json::object()} };
@@ -235,7 +235,7 @@ namespace Engine::ScriptFieldInspector {
 				result.anyItemActive |= r.anyItemActive;
 				result.editFinished |= r.editFinished;
 			} else {
-				ImGui::TextDisabled("  Missing type | %s", selectedType.c_str());
+				MyGUI::Text("型が見つかりません", selectedType);
 			}
 		}
 		ImGui::PopID();

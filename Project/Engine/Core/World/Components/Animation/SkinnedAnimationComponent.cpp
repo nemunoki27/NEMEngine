@@ -121,6 +121,10 @@ const Engine::SkinnedAnimationRuntimeData* Engine::TryGetSkinnedAnimationRuntime
 
 void Engine::from_json(const nlohmann::json& in, SkinnedAnimationComponent& component) {
 
+	auto timeSource = in.value("timeSource", component.timeSource);
+	PreserveTimeSourceRuntime(component.timeSource, timeSource);
+	component.timeSource = timeSource;
+
 	component.enabled = in.value("enabled", true);
 	component.loop = in.value("loop", true);
 	component.playInEditMode = in.value("playInEditMode", true);
@@ -131,6 +135,8 @@ void Engine::from_json(const nlohmann::json& in, SkinnedAnimationComponent& comp
 }
 
 void Engine::to_json(nlohmann::json& out, const SkinnedAnimationComponent& component) {
+
+	out["timeSource"] = component.timeSource;
 
 	out["enabled"] = component.enabled;
 	out["loop"] = component.loop;

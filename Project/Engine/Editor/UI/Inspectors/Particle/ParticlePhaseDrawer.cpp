@@ -177,7 +177,7 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 			changed |= MyGUI::Checkbox("モジュールを有効にする", entry.enabled);
 			ImGui::BeginDisabled(!entry.enabled);
 			if (!gpu && IsParticleModuleGPUOnly(entry.id)) {
-				ImGui::TextWrapped("このモジュールにはGPU実行が必要です");
+				Engine::MyGUI::Text("このモジュールにはGPU実行が必要です");
 			} else if (auto* module = session_.ResolveModuleCache(cache[i], entry)) {
 				if (auto* drawer = dynamic_cast<ParticleCustomShaderParameterModuleDrawer*>(cache[i].drawer.get())) {
 					if (const auto material = LoadMaterialAsset(context, ResolvePhaseMaterialID(group, phase))) {

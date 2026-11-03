@@ -111,7 +111,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// アニメーションの更新を行うか
 			bool allowTimeAdvance = anim.enabled && (context.mode == WorldMode::Play || anim.playInEditMode);
 			// Playはゲーム時間、Editは実時間で進める
-			float sourceDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
+			const float sourceDelta = ResolveLocalTime(world, entity, anim.timeSource, TimeChannel::SkinnedAnimation,
+				context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime, context.unscaledDeltaTime).deltaTime;
 			// フレーム時間を再生速度に応じてスケーリング
 			float deltaTime = allowTimeAdvance && std::isfinite(sourceDelta) && std::isfinite(anim.playbackSpeed)
 								  ? (std::max)(sourceDelta, 0.0f) * anim.playbackSpeed

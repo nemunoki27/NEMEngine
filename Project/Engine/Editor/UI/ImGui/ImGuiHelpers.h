@@ -263,10 +263,20 @@ namespace Engine {
 		//============================================================================
 		// 表示
 		// 読み取り専用の文字列を表示する
+		static void Text(const char* text);
 		static void Text(const char* label, const std::string& value);
+		static void TextInt(const char* label, int32_t value);
+		static void TextUInt(const char* label, uint32_t value);
+		static void TextInt64(const char* label, int64_t value);
+		static void TextUInt64(const char* label, uint64_t value);
+		static void TextDouble(const char* label, double value, uint32_t precision = 3);
+		static void TextBool(const char* label, bool value);
 		static void TextFloat(const char* label, float value, uint32_t precision = 3);
 		static void TextVector2(const char* label, const Vector2& value, uint32_t precision = 3);
 		static void TextVector3(const char* label, const Vector3& value, uint32_t precision = 3);
+		static void TextVector4(const char* label, const Vector4& value, uint32_t precision = 3);
+		static void TextColor3(const char* label, const Color3& value, uint32_t precision = 3);
+		static void TextColor4(const char* label, const Color4& value, uint32_t precision = 3);
 		static void TextQuaternion(const char* label, const Quaternion& value, uint32_t precision = 3);
 		static void TextMatrix4x4(const char* label, const Matrix4x4& value, uint32_t precision = 3);
 		// ドラッグ編集

@@ -46,7 +46,7 @@ namespace {
 				  binding.propertyPath == "material.color"))) return true;
 		}
 		if (const auto* player = world.TryGetComponent<Engine::AnimationClipPlayerComponent>(entity);
-			player && player->enabled && (player->runtimePlaying || player->runtimePaused) && context.assetDatabase && context.animationClipManager) {
+			player && player->enabled && (player->runtimePlaying || player->runtimePaused || player->runtimeApplied) && context.assetDatabase && context.animationClipManager) {
 			if (const auto* clip = context.animationClipManager->GetOrLoad(*context.assetDatabase, player->clip)) {
 				for (const auto& track : clip->curveTracks) {
 					if (Engine::AnimationValueOperations::SameBinding(track.binding, binding)) return true;
@@ -92,6 +92,7 @@ void Engine::SimpleAnimationSystem::Update(ECSWorld& world, SystemContext& conte
 	for (auto& [id, state] : bindings_) state.visited = false;
 	entries_.clear();
 	world.ForEach<SimpleAnimationComponent>([&](Entity owner, SimpleAnimationComponent& component) {
+		component.runtimeApplied = false;
 		const bool active = IsEntityActiveInHierarchy(world, owner) && component.enabled &&
 			(context.mode == WorldMode::Play || component.playInEditMode);
 		if (!active) {
@@ -174,7 +175,10 @@ void Engine::SimpleAnimationSystem::UpdateEntry(ECSWorld& world, SystemContext& 
 	if (request == 3) { runtime.paused = false; if (!runtime.sample.finished) runtime.playing = true; }
 	if (request == 4) { runtime.playing = false; runtime.paused = false; }
 	if (request == 5) {
-		Restore(world, state);
+		if (!conflict) {
+			component.runtimeApplied = !state.base.empty();
+			Restore(world, state);
+		}
 		if (applicable && state.descriptor->getValue) {
 			AnimationPropertyValue value;
 			if (state.descriptor->getValue(world, entry.target, value)) initial = FromProperty(value, type);
@@ -189,10 +193,15 @@ void Engine::SimpleAnimationSystem::UpdateEntry(ECSWorld& world, SystemContext& 
 		SampleSimpleAnimation(runtime, component.settings);
 		started = true;
 	}
-	const double dt = context.mode == WorldMode::Edit || component.settings.unscaledTime ? context.unscaledDeltaTime : context.deltaTime;
+	auto source = component.timeSource;
+	if (component.settings.unscaledTime) source.mode = TimeSourceMode::Unscaled;
+	const auto localTime = ResolveLocalTime(world, entry.owner, source, TimeChannel::SimpleAnimation,
+		context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime, context.unscaledDeltaTime);
+	if (!localTime.valid) component.runtimeDiagnostic = "時間源のTimeScaleが未設定です";
+	const double dt = localTime.deltaTime;
 	AdvanceSimpleAnimation(runtime, component.settings, started ? 0.0 : dt);
 	PublishSimpleAnimationValue(component);
 	if (applicable && !conflict && runtime.sample.valid && state.descriptor->setValue && (runtime.playing || runtime.sample.finished || request == 6 || request == 1)) {
-		state.descriptor->setValue(world, entry.target, ToProperty(runtime.sample.value));
+		component.runtimeApplied = state.descriptor->setValue(world, entry.target, ToProperty(runtime.sample.value));
 	}
 }

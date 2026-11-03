@@ -14,19 +14,46 @@
 namespace {
 
 	struct FieldDefinition { const char* key; const char* label; };
-	constexpr std::array<FieldDefinition, 20> kFields{{
+	constexpr std::array<FieldDefinition, 27> kFields{{
 		FieldDefinition{"Enabled", "有効"}, {"Visible", "表示"}, {"DisplayLayer", "表示レイヤー"},
 		{"CameraLayer", "描画対象レイヤー"}, {"ReceiverLayer", "受け取り先レイヤー"}, {"ParticleGroup", "作用グループ"},
 		{"SortLayer", "ソートレイヤー"}, {"DrawOrder", "描画順"}, {"BlendMode", "ブレンドモード"}, {"RenderQueue", "描画キュー"},
 		{"PlayOnStart", "開始時に再生"}, {"PlayInEditMode", "編集中も再生"}, {"EditorPreview", "編集中にプレビュー"},
 		{"UnscaledTime", "TimeScaleの影響を受けない"}, {"Loop", "ループ再生"}, {"PlaybackSpeed", "再生速度"},
-		{"Restitution", "はね返り率"}, {"Friction", "摩擦"}, {"AllowTopple", "支えが外れたら倒れる"}, {"AlphaThreshold", "アルファ閾値"}
+		{"Restitution", "はね返り率"}, {"Friction", "摩擦"}, {"AllowTopple", "支えが外れたら倒れる"}, {"AlphaThreshold", "アルファ閾値"},
+		{"PlaybackMode", "繰り返し"}, {"Duration", "再生時間"}, {"StartDelay", "開始待ち"},
+		{"PlaybackState", "再生状態"}, {"AxisAngle", "軸＋角度"}, {"Once", "1回"}, {"PingPong", "往復"}
 	}};
 	struct CategoryDefinition { std::string_view key; const char* label; };
-	constexpr std::array<CategoryDefinition, 10> kCategories{{
-		CategoryDefinition{"Core", "基本"}, {"Rendering", "描画"}, {"Particle", "パーティクル"}, {"Camera", "カメラ"},
-		{"Lighting", "照明"}, {"Physics", "物理"}, {"UI", "UI"}, {"Audio", "音声"}, {"Animation", "アニメーション"}, {"Scripting", "スクリプト"}
+	constexpr std::array<CategoryDefinition, 11> kCategories{{
+		CategoryDefinition{"Core", "空間・経路"}, {"Rendering", "描画"}, {"Particle", "パーティクル"}, {"Camera", "カメラ"},
+		{"Lighting", "照明"}, {"Physics", "物理"}, {"UI", "UI"}, {"Audio", "音声"}, {"Animation", "アニメーション"}, {"Time", "時間"}, {"Scripting", "スクリプト"}
 	}};
+}
+
+Engine::InspectorPlaybackAction Engine::DrawInspectorPlaybackControls(bool enabled, bool timer,
+	std::span<const InspectorPlaybackAction> actions) {
+
+	constexpr InspectorPlaybackAction defaults[]{InspectorPlaybackAction::Play, InspectorPlaybackAction::Pause,
+		InspectorPlaybackAction::Resume, InspectorPlaybackAction::Stop, InspectorPlaybackAction::Reset};
+	if (actions.empty()) actions = defaults;
+	constexpr const char* labels[]{"", "再生", "一時停止", "再開", "停止", "リセット", "単発再生", "消去"};
+	const float width = MyGUI::CalcEqualItemWidth(static_cast<int>(actions.size()));
+	auto result = InspectorPlaybackAction::None;
+	ImGui::BeginDisabled(!enabled);
+	for (size_t index = 0; index < actions.size(); ++index) {
+		if (index) ImGui::SameLine();
+		const auto action = actions[index];
+		const char* label = timer && action == InspectorPlaybackAction::Play ? "開始" : labels[static_cast<size_t>(action)];
+		if (ImGui::Button(label, ImVec2(width, 0))) result = action;
+	}
+	ImGui::EndDisabled();
+	return result;
+}
+
+const char* Engine::GetInspectorPlaybackState(bool playing, bool paused, bool finished, bool timer) {
+
+	return paused ? "一時停止" : playing ? (timer ? "計測中" : "再生中") : finished ? "完了" : "停止中";
 }
 
 Engine::InspectorIndentScope::InspectorIndentScope(const char* id) : hasID_(id != nullptr) {

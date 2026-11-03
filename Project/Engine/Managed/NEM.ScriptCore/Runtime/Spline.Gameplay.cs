@@ -36,6 +36,9 @@ public sealed partial class Spline {
 	}
 
 	public bool closed { get => Read<int>(1) != 0; set => Write(1, value ? 1 : 0); }
+	public bool is2D { get => Read<int>(4) != 0; set => Write(4, value ? 1 : 0); }
+	public bool drawDebug { get => Read<int>(5) != 0; set => Write(5, value ? 1 : 0); }
+
 	public float tolerance { get => Read<float>(2); set => Write(2, value); }
 
 	public SplineControlPoint GetPoint(int index) {

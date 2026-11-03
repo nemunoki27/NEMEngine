@@ -19,6 +19,10 @@ using namespace Engine;
 
 void Engine::from_json(const nlohmann::json& in, FlipbookAnimationComponent& component) {
 
+	auto timeSource = in.value("timeSource", component.timeSource);
+	PreserveTimeSourceRuntime(component.timeSource, timeSource);
+	component.timeSource = timeSource;
+
 	component.enabled = in.value("enabled", component.enabled);
 	component.loop = in.value("loop", component.loop);
 	component.loopInterval = in.value("loopInterval", component.loopInterval);
@@ -31,6 +35,8 @@ void Engine::from_json(const nlohmann::json& in, FlipbookAnimationComponent& com
 }
 
 void Engine::to_json(nlohmann::json& out, const FlipbookAnimationComponent& component) {
+
+	out["timeSource"] = component.timeSource;
 
 	out["enabled"] = component.enabled;
 	out["loop"] = component.loop;

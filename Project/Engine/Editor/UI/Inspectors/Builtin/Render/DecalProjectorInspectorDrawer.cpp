@@ -39,7 +39,7 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 			DrawField(anyItemActive, [&]() { return DecalMaterialFields::Draw(draft.materialInstance, material->parameters,
 				context.editorContext->assetDatabase); });
 		} else {
-			ImGui::TextDisabled("デカール用マテリアルを設定してください");
+			Engine::MyGUI::Text("デカール用マテリアルを設定してください");
 		}
 	}
 	ImGui::Unindent();

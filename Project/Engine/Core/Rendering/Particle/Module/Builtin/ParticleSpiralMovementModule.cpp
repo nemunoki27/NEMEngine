@@ -74,7 +74,7 @@ Engine::ParticleSpiralMovementModule::SpiralBasis Engine::ParticleSpiralMovement
 	return { basisX, basisY };
 }
 
-float Engine::ParticleSpiralMovementModule::CalculateStartAngle(uint32_t particleID) const {
+float Engine::ParticleSpiralMovementModule::CalculateStartAngle(uint64_t particleID) const {
 
 	const double angleOffset = std::fmod(
 		static_cast<double>(settings_.particleAngleOffset) * static_cast<double>(particleID), 360.0);

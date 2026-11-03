@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
+#include <Engine/Core/World/Components/Time/TimerComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -204,3 +206,13 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(HeightmapCollide
 	return { .enabled = &value.enabled, .particleGroup = &value.layerMask };
 }
 
+
+Engine::InspectorCommonFields Engine::BindInspectorCommonFields(TimeScaleComponent& value) {
+
+	return { .enabled = &value.enabled };
+}
+
+Engine::InspectorCommonFields Engine::BindInspectorCommonFields(TimerComponent& value) {
+
+	return { .enabled = &value.enabled };
+}

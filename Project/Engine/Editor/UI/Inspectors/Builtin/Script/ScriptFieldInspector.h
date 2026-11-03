@@ -84,6 +84,10 @@ namespace Engine::ScriptFieldInspector {
 	Engine::ValueEditResult DrawManagedReference(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx);
 
+	// 値を変更せず型に応じて表示する
+	void DrawReadOnlyValue(const Engine::ManagedFieldSchema& field, const nlohmann::json& value,
+		const DrawContext& ctx, const char* label);
+
 	// Field値の編集
 	Engine::FloatEditSetting MakeFloatSetting(const Engine::ManagedFieldSchema& field);
 	void DrawHeaderIfAny(const Engine::ManagedFieldSchema& field);

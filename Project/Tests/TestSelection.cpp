@@ -1,5 +1,9 @@
 #include "TestSelection.h"
 #include "InspectorPresentationTests.h"
+#include "TimerTests.h"
+#include "LocalTimeTests.h"
+#include "MotionAnimationTests.h"
+#include "ParticleWorldTests.h"
 #include "ShaderCookInputTests.h"
 #include "RuntimeAPITests.h"
 #include "BloomTests.h"
@@ -41,6 +45,18 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--local-time") {
+		return RunTest("TestLocalTime", TestLocalTime) ? 0 : 83;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--motion-animation") {
+		return RunTest("TestMotionAnimation", TestMotionAnimation) ? 0 : 84;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--timer") {
+		return RunTest("TestTimer", TestTimer) ? 0 : 81;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--spline") {
+		return RunTest("TestParticleWorldData", TestParticleWorldData) ? 0 : 82;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--inspector-ui") {
 		return RunTest("TestInspectorPresentation", TestInspectorPresentation) ? 0 : 80;
 	}

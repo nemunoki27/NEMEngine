@@ -146,7 +146,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				if (playing) {
 
 					// 実行中は実体の値を表示編集し保存しない
-					ImGui::TextDisabled("Runtime 値");
+					Engine::MyGUI::Text("実行中の値");
 					const BehaviorHandle handle = FindLiveHandle(world, entity, entry.scriptSlotID);
 
 					nlohmann::json& state = runtimeValues_.GetState(handle);
@@ -170,21 +170,19 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered ||
 				resolutionReason == ManagedScriptResolutionReason::Unassigned) {
 				// 未登録のときだけ欠落表示し値は保持する
-				ImGui::TextDisabled("スクリプト型を読み込めません。保存済みの値は保持されます。");
-				ImGui::BulletText("直前の型: %s",
-					entry.lastKnownTypeName.empty() ? "不明" : entry.lastKnownTypeName.c_str());
-				ImGui::BulletText("スクリプト型ID: %s", entry.scriptTypeID.c_str());
-				ImGui::BulletText("ソースアセット: %s", ToString(entry.scriptAsset).c_str());
-				ImGui::BulletText("スロットID: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
-				ImGui::BulletText("理由: %s", ResolutionReasonLabel(resolutionReason));
+				Engine::MyGUI::Text("スクリプト型を読み込めません。保存済みの値は保持されます。");
+				MyGUI::Text("直前の型", entry.lastKnownTypeName.empty() ? "不明" : entry.lastKnownTypeName);
+				MyGUI::Text("スクリプト型ID", entry.scriptTypeID);
+				MyGUI::Text("ソースアセット", ToString(entry.scriptAsset));
+				MyGUI::Text("スロットID", ToString(entry.scriptSlotID));
+				MyGUI::Text("理由", ResolutionReasonLabel(resolutionReason));
 				if (resolutionReason == ManagedScriptResolutionReason::BuildFailed) {
 					const ManagedBuildDiagnostic* diagnostic = sourceBuildError ? sourceBuildError : globalBuildError;
 					if (diagnostic) {
-						ImGui::TextWrapped("ビルドエラー %s (%d:%d): %s",
-							diagnostic->code.c_str(), diagnostic->line, diagnostic->column,
-							diagnostic->message.c_str());
+						MyGUI::Text("ビルドエラー", diagnostic->code + " (" + std::to_string(diagnostic->line) + ":" +
+							std::to_string(diagnostic->column) + "): " + diagnostic->message);
 					} else {
-						ImGui::TextWrapped("ビルドエラー: %s", buildSnapshot.lastFailureSummary.c_str());
+						MyGUI::Text("ビルドエラー", buildSnapshot.lastFailureSummary);
 					}
 				}
 				if (ImGui::SmallButton("GUID をコピー")) {

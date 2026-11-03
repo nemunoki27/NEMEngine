@@ -10,6 +10,7 @@
 
 void Engine::ApplySimpleAnimationSettings(const SimpleAnimationComponent& source, SimpleAnimationComponent& destination) {
 
+	destination.timeSource = source.timeSource;
 	destination.enabled = source.enabled;
 	destination.playOnStart = source.playOnStart;
 	destination.playInEditMode = source.playInEditMode;
@@ -44,6 +45,8 @@ void Engine::PublishSimpleAnimationValue(SimpleAnimationComponent& component) {
 void Engine::from_json(const nlohmann::json& in, SimpleAnimationComponent& component) {
 
 	SimpleAnimationComponent candidate;
+	candidate.timeSource = in.value("timeSource", component.timeSource);
+	PreserveTimeSourceRuntime(component.timeSource, candidate.timeSource);
 	candidate.enabled = in.value("enabled", true);
 	candidate.playOnStart = in.value("playOnStart", true);
 	candidate.playInEditMode = in.value("playInEditMode", false);
@@ -51,12 +54,13 @@ void Engine::from_json(const nlohmann::json& in, SimpleAnimationComponent& compo
 	if (in.contains("target")) candidate.target = in.at("target").get<SceneEntityReference>();
 	if (in.contains("binding")) candidate.binding = in.at("binding").get<AnimationPropertyBinding>();
 	if (in.contains("settings")) candidate.settings = in.at("settings").get<SimpleAnimationSettings>();
+	if (!in.contains("timeSource") && candidate.settings.unscaledTime) candidate.timeSource.mode = TimeSourceMode::Unscaled;
 	ApplySimpleAnimationSettings(candidate, component);
 }
 
 void Engine::to_json(nlohmann::json& out, const SimpleAnimationComponent& component) {
 
-	out = {{"enabled", component.enabled}, {"playOnStart", component.playOnStart},
+	out = {{"timeSource", component.timeSource}, {"enabled", component.enabled}, {"playOnStart", component.playOnStart},
 		{"playInEditMode", component.playInEditMode}, {"autoApply", component.autoApply},
 		{"target", component.target}, {"binding", component.binding}, {"settings", component.settings}};
 }

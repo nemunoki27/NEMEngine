@@ -34,10 +34,9 @@ void Engine::MyGUI::TextMatrix4x4(const char* label, const Matrix4x4& value, uin
 			for (int col = 0; col < 4; ++col) {
 				ImGui::TableSetColumnIndex(col);
 				const std::string text = FormatFloat(value.m[row][col], precision);
-				const std::string buttonID = std::format("##{}_{}_{}", label, row, col);
-				// 数値をボタンとして描画し、クリックで値をクリップボードにコピー可能にする
-				if (ImGui::Button((text + buttonID).c_str(), ImVec2(-FLT_MIN, 0.0f))) { ImGui::SetClipboardText(text.c_str()); }
-				if (ImGui::IsItemHovered()) { ImGui::SetTooltip("Click to copy"); }
+				ImGui::PushID(row * 4 + col);
+				DrawCopyableValue("##Value", text, ImGui::GetContentRegionAvail().x);
+				ImGui::PopID();
 			}
 		}
 		ImGui::EndTable();

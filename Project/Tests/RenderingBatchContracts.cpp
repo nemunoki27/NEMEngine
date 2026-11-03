@@ -15,6 +15,13 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderItemExtractor.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
+#include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
+#include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 
 //============================================================================
 //	include
@@ -40,11 +47,75 @@
 #include <utility>
 #include <unordered_map>
 
+namespace {
+
+	// UVの変更だけで実際の描画キャッシュが更新されることを確認する
+	bool TestAnimatedUVBatchInvalidation() {
+
+		using namespace Engine;
+		struct CountingPrimitiveExtractor final : PrimitiveRenderItemExtractor {
+			int count = 0;
+			void Extract(ECSWorld& world, RenderSceneBatch& batch) override {
+				++count;
+				PrimitiveRenderItemExtractor::Extract(world, batch);
+			}
+		};
+		ECSWorld world(ECSWorldKind::Runtime);
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "Flipbook");
+		world.AddComponent<PrimitiveRendererComponent>(entity);
+		world.AddComponent<UVTransformComponent>(entity);
+		world.AddComponent<FlipbookAnimationComponent>(entity);
+		world.AddComponent<TimeScaleComponent>(entity);
+		auto& flipbook = world.GetComponent<FlipbookAnimationComponent>(entity);
+		flipbook.duration = 2.0f;
+		flipbook.tilesY = 1;
+		flipbook.easingType = EasingType::Linear;
+		const std::array<int32_t, 1> columns{4};
+		SetFlipbookTileColumns(world, entity, columns);
+		RenderExtractorRegistry extractors;
+		auto extractor = std::make_unique<CountingPrimitiveExtractor>();
+		auto* counter = extractor.get();
+		extractors.Register(std::move(extractor));
+		RenderSceneBatch batch;
+		extractors.BuildBatch(world, batch);
+		if (batch.GetItems().size() != 1) return false;
+		SystemContext context;
+		context.mode = WorldMode::Play;
+		context.deltaTime = context.unscaledDeltaTime = 0.5f;
+		FlipbookAnimationSystem flipbookSystem;
+		UVTransformSystem uvSystem;
+		for (int frame = 1; frame <= 2; ++frame) {
+			flipbookSystem.Update(world, context);
+			uvSystem.LateUpdate(world, context);
+			extractors.BuildBatch(world, batch);
+			const auto* payload = batch.GetPayload<PrimitiveRenderPayload>(batch.GetItems().front());
+			if (!payload || payload->uvMatrix.m[0][0] != 0.25f || payload->uvMatrix.m[3][0] != frame * 0.25f ||
+				counter->count != frame + 1) return false;
+			// 同じ値のLateUpdateでは再抽出せずキャッシュを再利用する
+			const uint64_t revision = world.GetRenderDataRevision();
+			uvSystem.LateUpdate(world, context);
+			extractors.BuildBatch(world, batch);
+			if (world.GetRenderDataRevision() != revision || counter->count != frame + 1) return false;
+		}
+		world.GetComponent<TimeScaleComponent>(entity).timeScale = 0;
+		const uint64_t revision = world.GetRenderDataRevision();
+		flipbookSystem.Update(world, context);
+		uvSystem.LateUpdate(world, context);
+		extractors.BuildBatch(world, batch);
+		const auto* payload = batch.GetPayload<PrimitiveRenderPayload>(batch.GetItems().front());
+		return payload && payload->uvMatrix.m[3][0] == 0.5f && world.GetRenderDataRevision() == revision && counter->count == 3;
+	}
+}
+
 namespace NEMTests {
 
 	bool TestMeshBatchInvalidation() {
 
 		using namespace Engine;
+		if (!TestAnimatedUVBatchInvalidation()) {
+			std::cerr << "Flipbook UV cache update failed\n";
+			return false;
+		}
 		// 検索キーで別WorldとEntityの世代を区別
 		ECSWorld keyWorld(ECSWorldKind::Runtime);
 		ECSWorld otherKeyWorld(ECSWorldKind::Runtime);

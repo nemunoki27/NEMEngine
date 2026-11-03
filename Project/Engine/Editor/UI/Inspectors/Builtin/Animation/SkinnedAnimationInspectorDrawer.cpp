@@ -1,5 +1,6 @@
 #include "SkinnedAnimationInspectorDrawer.h"
 #include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
+#include <Engine/Editor/UI/Inspectors/Common/TimeSourceFields.h>
 
 //============================================================================
 //	SkinnedAnimationInspectorDrawer classMethods
@@ -9,6 +10,10 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&] { return DrawTimeSourceField(context, world, entity, draft.timeSource); });
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
+		});
 	const SkinnedAnimationRuntimeData* runtime =
 		TryGetSkinnedAnimationRuntime(world, entity);
 
@@ -30,9 +35,6 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
-			});
-		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), draft.playbackSpeed,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
 			});
@@ -52,13 +54,13 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 	//============================================================================
 	{
 		// Runtime情報は編集Draftへ混ぜず、現在のWorldから直接表示する
-		ImGui::Text("実行クリップ : %s",
-			runtime ? runtime->currentClip.c_str() : "");
-		ImGui::Text("実行時間     : %.3f",
-			runtime ? runtime->time : 0.0f);
-		ImGui::Text("ブレンド時間 : %.3f",
-			runtime ? runtime->blendTime : 0.0f);
-		ImGui::Text("パレット数   : %u",
-			runtime ? static_cast<uint32_t>(runtime->palette.size()) : 0u);
+		MyGUI::Text("実行クリップ", runtime ? runtime->currentClip : "");
+		MyGUI::TextFloat("再生時刻", runtime ? runtime->time : 0.0f);
+		MyGUI::TextFloat("ブレンド時間", runtime ? runtime->blendTime : 0.0f);
+		MyGUI::TextUInt("パレット数", runtime ? static_cast<uint32_t>(runtime->palette.size()) : 0u);
+		const bool playing = runtime && runtime->initialized && draft.enabled &&
+			(context.IsPlaying() || draft.playInEditMode) && !runtime->animationFinished;
+		MyGUI::Text(GetInspectorLabel(InspectorFieldID::PlaybackState),
+			GetInspectorPlaybackState(playing, false, runtime && runtime->animationFinished));
 	}
 }

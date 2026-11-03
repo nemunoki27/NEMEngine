@@ -84,7 +84,7 @@ namespace Engine {
 		// 発生時の進行方向から振り子の基底を作る
 		PendulumBasis CalculateBasis(const Particle& particle) const;
 		// 粒子ごとの開始位相を取得する
-		float CalculateStartPhase(uint32_t particleID) const;
+		float CalculateStartPhase(uint64_t particleID) const;
 		// 寿命進行度から振り子の位置差分を取得する
 		Vector3 CalculateOffset(const PendulumBasis& basis, float particleStartPhase, float rawT) const;
 	};

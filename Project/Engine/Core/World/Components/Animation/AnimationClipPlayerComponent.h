@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Time/LocalTime.h>
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 #include <Engine/Core/Animation/Playback/AnimationPlaybackTypes.h>
 
@@ -10,6 +11,8 @@ namespace Engine {
 
 	// 単一クリップの設定と再生状態
 	struct AnimationClipPlayerComponent {
+
+		TimeSourceSettings timeSource{};
 
 		AssetID clip{};
 		bool enabled = true;
@@ -28,6 +31,7 @@ namespace Engine {
 		bool runtimePlaying = false;
 		bool runtimePaused = false;
 		bool runtimeFinished = false;
+		bool runtimeApplied = false;
 		std::string runtimeDiagnostic;
 	};
 

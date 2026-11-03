@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Time/LocalTime.h>
 #include <Engine/Core/Animation/Simple/SimpleAnimationPlayback.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/World/Scene/Utility/SceneEntityReference.h>
@@ -11,6 +12,8 @@ namespace Engine {
 
 	// 単一値のアニメーション設定と公開する再生状態
 	struct SimpleAnimationComponent {
+
+		TimeSourceSettings timeSource{};
 
 		bool enabled = true;
 		bool playOnStart = true;
@@ -34,6 +37,7 @@ namespace Engine {
 		bool runtimePlaying = false;
 		bool runtimePaused = false;
 		bool runtimeFinished = false;
+		bool runtimeApplied = false;
 		std::string runtimeDiagnostic;
 	};
 

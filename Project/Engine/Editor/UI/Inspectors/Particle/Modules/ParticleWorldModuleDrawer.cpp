@@ -78,7 +78,7 @@ namespace {
 		changed |= MyGUI::Checkbox("Camera深度", settings.depth);
 		if (settings.depth) {
 			changed |= DrawReference(context, "判定Camera", settings.depthCamera);
-			ImGui::TextWrapped("未指定はメインGame Cameraを使用します");
+			Engine::MyGUI::Text("未指定はメインGame Cameraを使用します");
 			changed |= MyGUI::DragFloat("深度の厚み", settings.depthThickness, ParticleGUI::MakeDragSetting(0.001f, 100)).valueChanged;
 		}
 		changed |= MyGUI::DragFloat("粒子半径", settings.radius, ParticleGUI::MakeDragSetting(0, 100)).valueChanged;

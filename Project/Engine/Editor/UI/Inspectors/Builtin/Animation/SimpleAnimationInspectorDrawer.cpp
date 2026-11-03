@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SimpleAnimationFields.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/TimeSourceFields.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 
@@ -24,9 +25,10 @@ void Engine::SimpleAnimationInspectorDrawer::DrawFields(const EditorPanelContext
 	const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&] { if (draft.settings.unscaledTime) draft.timeSource.mode = TimeSourceMode::Unscaled; auto result = DrawTimeSourceField(context, world, entity, draft.timeSource); if (result.valueChanged) draft.settings.unscaledTime = false; return result; });
 	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayOnStart), draft.playOnStart); });
 	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode); });
-	DrawField(anyItemActive, [&] { return SimpleAnimationFields::DrawSettings(draft.settings, true); });
+	DrawField(anyItemActive, [&] { return SimpleAnimationFields::DrawSettings(draft.settings, true, false); });
 	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField("自動適用", draft.autoApply); });
 	if (draft.autoApply) {
 		Entity target = draft.target.localFileID ? draft.target.Resolve(world, entity) : entity;
@@ -86,16 +88,16 @@ void Engine::SimpleAnimationInspectorDrawer::DrawFields(const EditorPanelContext
 		}
 	}
 	auto& current = world.GetComponent<SimpleAnimationComponent>(entity);
-	const char* controls[]{"再生", "一時停止", "再開", "停止", "リセット"};
-	const float width = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 4) / 5;
-	for (int i = 0; i < 5; ++i) {
-		if (i) ImGui::SameLine();
-		if (ImGui::Button(controls[i], ImVec2(width, 0))) current.runtimeRequest = i + 1;
-	}
+	const bool playbackEnabled = context.IsPlaying() || draft.playInEditMode;
+	const auto action = DrawInspectorPlaybackControls(playbackEnabled, false);
+	if (action != InspectorPlaybackAction::None) current.runtimeRequest = static_cast<int>(action);
+	ImGui::BeginDisabled(!playbackEnabled);
 	float time = current.runtimeTime;
 	if (MyGUI::DragFloat("再生時刻", time, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1000000.0f}).valueChanged) {
 		current.runtimeSeekTime = time; current.runtimeRequest = 6;
 	}
+	ImGui::EndDisabled();
+	MyGUI::Text(GetInspectorLabel(InspectorFieldID::PlaybackState), GetInspectorPlaybackState(current.runtimePlaying, current.runtimePaused, current.runtimeFinished));
 	if (current.runtimeValid) {
 		SimpleAnimationFields::DrawCurrentValue("現在値", current.runtime.sample.value);
 	}

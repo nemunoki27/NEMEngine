@@ -189,7 +189,7 @@ void Engine::TextureAssetInspectorDrawer::DrawImportSettings(
 	}
 	ImGui::EndDisabled();
 	if (!statusMessage_.empty()) {
-		ImGui::TextDisabled("%s", statusMessage_.c_str());
+		MyGUI::Text("状態", statusMessage_);
 	}
 }
 
@@ -223,7 +223,7 @@ void Engine::TextureAssetInspectorDrawer::DrawPreview(
 	if (!texture || !texture->valid || !texture->resource) {
 
 		ImGui::Dummy(ImVec2(kPreviewSize, kPreviewSize));
-		ImGui::TextDisabled("プレビューを読み込み中...");
+		Engine::MyGUI::Text("プレビューを読み込み中...");
 		return;
 	}
 
@@ -269,6 +269,6 @@ void Engine::TextureAssetInspectorDrawer::DrawPreview(
 		MyGUI::Text("Format", std::format("DXGI_FORMAT({})", static_cast<uint32_t>(resourceDesc.Format)));
 	}
 	MyGUI::Text("サイズ", std::format("{} x {}", resourceDesc.Width, resourceDesc.Height));
-	MyGUI::Text("ミップ数", std::to_string(resourceDesc.MipLevels));
+	MyGUI::TextUInt("ミップ数", resourceDesc.MipLevels);
 	MyGUI::Text("推測用途", GuessTextureUsageLabel(meta.assetPath));
 }

@@ -1,6 +1,7 @@
 #include "ViewportPanel.h"
 #include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
 #include "ViewportDecalGizmo.h"
+#include "ViewportMotionGizmo.h"
 
 //============================================================================
 //	include
@@ -255,6 +256,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			ViewportDecalGizmo::Draw(context, imagePos, viewSize_);
+			ViewportMotionGizmo::Draw(context, imagePos, viewSize_);
 			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}

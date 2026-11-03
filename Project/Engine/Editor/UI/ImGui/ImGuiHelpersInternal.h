@@ -42,6 +42,9 @@ namespace Engine {
 	// 精度を指定してfloatを文字列へ変換する
 	std::string FormatFloat(float value, uint32_t precision);
 
+	// 値と独立したIDで全文表示とクリックコピーを行う
+	void DrawCopyableValue(const char* id, const std::string& value, float width);
+
 	// プロパティ行に読み取り専用の数値フィールド群を描画する
 	void DrawTextFields(const char* label, const std::array<char, 4>& axes,
 		const float* values, uint32_t count, uint32_t precision);

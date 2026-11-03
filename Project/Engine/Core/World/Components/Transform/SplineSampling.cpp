@@ -35,15 +35,16 @@ std::vector<SplineSample> Engine::BuildSplineSamples(const SplineData& data, con
 
 	std::vector<SplineSample> samples;
 	if (data.points.size() < 2) return samples;
+	const auto flatten = [&](Vector3 value) { if (data.is2D) value.z = 0; return value; };
 	const auto& first = data.points.front();
-	samples.push_back({Vector3::Transform(first.position, world), 0,
-		Vector3::NormalizeOr(Vector3::TransferNormal(first.tangentOut, world), Vector3(1, 0, 0))});
+	samples.push_back({Vector3::Transform(flatten(first.position), world), 0,
+		Vector3::NormalizeOr(Vector3::TransferNormal(flatten(first.tangentOut), world), Vector3(1, 0, 0))});
 	const size_t count = data.closed ? data.points.size() : data.points.size() - 1;
 	for (size_t i = 0; i < count; ++i) {
 		const auto& a = data.points[i];
 		const auto& b = data.points[(i + 1) % data.points.size()];
-		Subdivide(Vector3::Transform(a.position, world), Vector3::Transform(a.position + a.tangentOut, world),
-			Vector3::Transform(b.position + b.tangentIn, world), Vector3::Transform(b.position, world),
+		Subdivide(Vector3::Transform(flatten(a.position), world), Vector3::Transform(flatten(a.position + a.tangentOut), world),
+			Vector3::Transform(flatten(b.position + b.tangentIn), world), Vector3::Transform(flatten(b.position), world),
 			(std::max)(data.tolerance, 0.00001f), 0, samples);
 	}
 	return samples;

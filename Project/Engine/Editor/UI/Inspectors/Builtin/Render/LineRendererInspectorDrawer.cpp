@@ -79,7 +79,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//	点列
 	//============================================================================
 	{
-		ImGui::Text("点数 %d", static_cast<int>(pointDraft_.size()));
+		MyGUI::TextUInt64("点数", pointDraft_.size());
 
 		// 末尾へ点を追加する、直前の点があればずらして置く
 		DrawField(anyItemActive, [&]() {

@@ -11,6 +11,7 @@
 
 void Engine::ApplyAnimationClipPlayerSettings(const AnimationClipPlayerComponent& source, AnimationClipPlayerComponent& target) {
 
+	target.timeSource = source.timeSource;
 	target.clip = source.clip;
 	target.enabled = source.enabled;
 	target.playOnStart = source.playOnStart;
@@ -25,7 +26,7 @@ void Engine::ApplyAnimationClipPlayerSettings(const AnimationClipPlayerComponent
 
 void Engine::to_json(nlohmann::json& out, const AnimationClipPlayerComponent& component) {
 
-	out = {{"clip", ToString(component.clip)}, {"enabled", component.enabled}, {"playOnStart", component.playOnStart},
+	out = {{"timeSource", component.timeSource}, {"clip", ToString(component.clip)}, {"enabled", component.enabled}, {"playOnStart", component.playOnStart},
 		{"playInEditMode", component.playInEditMode}, {"unscaledTime", component.unscaledTime}, {"speed", component.speed},
 		{"startDelay", component.startDelay}, {"interval", component.interval}, {"repeatCount", component.repeatCount},
 		{"wrapMode", EnumAdapter<AnimationWrapMode>::ToString(component.wrapMode)}};
@@ -34,11 +35,14 @@ void Engine::to_json(nlohmann::json& out, const AnimationClipPlayerComponent& co
 void Engine::from_json(const nlohmann::json& in, AnimationClipPlayerComponent& component) {
 
 	AnimationClipPlayerComponent candidate;
+	candidate.timeSource = in.value("timeSource", component.timeSource);
+	PreserveTimeSourceRuntime(component.timeSource, candidate.timeSource);
 	candidate.clip = ParseAssetID(in, "clip");
 	candidate.enabled = in.value("enabled", true);
 	candidate.playOnStart = in.value("playOnStart", true);
 	candidate.playInEditMode = in.value("playInEditMode", false);
 	candidate.unscaledTime = in.value("unscaledTime", false);
+	if (!in.contains("timeSource") && in.value("unscaledTime", false)) candidate.timeSource.mode = TimeSourceMode::Unscaled;
 	candidate.speed = in.value("speed", 1.0f);
 	candidate.startDelay = in.value("startDelay", 0.0f);
 	candidate.interval = in.value("interval", 0.0f);

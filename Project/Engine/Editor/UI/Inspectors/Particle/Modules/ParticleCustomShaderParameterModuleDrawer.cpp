@@ -60,7 +60,7 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::Draw(IParticleModule& mo
 	auto parameters = concrete->GetParameters();
 
 	if (reflectedParameters_.empty()) {
-		ImGui::TextDisabled("アニメーション可能なカスタムパラメータがありません");
+		Engine::MyGUI::Text("アニメーション可能なカスタムパラメータがありません");
 		return false;
 	}
 

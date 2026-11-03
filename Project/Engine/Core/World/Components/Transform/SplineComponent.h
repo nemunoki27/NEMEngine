@@ -22,6 +22,8 @@ namespace Engine {
 
 		std::vector<SplineControlPoint> points{{}, {Vector3(1, 0, 0)}};
 		bool closed = false;
+		bool is2D = false;
+		bool drawDebug = true;
 		float tolerance = 0.002f;
 	};
 
@@ -58,6 +60,8 @@ namespace Engine {
 	static_assert(sizeof(SplineComponent) == 8);
 
 	const SplineData* TryGetSpline(const ECSWorld& world, Entity entity);
+	// 追加予約中は所有Storageを準備して同じ読取経路を使う
+	const SplineData* TryGetSpline(ECSWorld& world, Entity entity);
 	void SetSpline(ECSWorld& world, Entity entity, const SplineData& data);
 	// ワールド空間の長さで誤差を抑えた弧長表を構築する
 	std::vector<SplineSample> BuildSplineSamples(const SplineData& data, const Matrix4x4& world);

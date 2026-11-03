@@ -9,6 +9,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
+#include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 
@@ -51,24 +52,52 @@ bool NEMTests::TestAnimationPlayback() {
 	player.runtimeSeekTime = 0.75f;
 	player.runtimeRequest = 6;
 	system.Update(world, context);
-	if (world.GetComponent<TransformComponent>(entity).localPos.x != 7.5f) return false;
+	if (!player.runtimeApplied || world.GetComponent<TransformComponent>(entity).localPos.x != 7.5f) return false;
 	player.runtimeRequest = 2;
 	system.Update(world, context);
-	if (!player.runtimePaused || player.runtimePlaying) return false;
+	if (player.runtimeApplied || !player.runtimePaused || player.runtimePlaying) return false;
 	player.runtimeRequest = 3;
 	system.Update(world, context);
-	if (!player.runtimeFinished || world.GetComponent<TransformComponent>(entity).localPos.x != 10.0f) return false;
+	if (!player.runtimeApplied || !player.runtimeFinished || world.GetComponent<TransformComponent>(entity).localPos.x != 10.0f) return false;
 	player.runtimeRequest = 4;
 	system.Update(world, context);
+	if (player.runtimeApplied) return false;
 	player.runtimeSeekTime = 0.25f;
 	player.runtimeRequest = 6;
 	system.Update(world, context);
+	if (!player.runtimeApplied) return false;
 	system.Update(world, context);
-	if (player.runtimePlaying || world.GetComponent<TransformComponent>(entity).localPos.x != 2.5f) return false;
+	if (player.runtimeApplied || player.runtimePlaying || world.GetComponent<TransformComponent>(entity).localPos.x != 2.5f) return false;
 	player.runtimeRequest = 5;
 	system.Update(world, context);
-	if (world.GetComponent<TransformComponent>(entity).localPos.x != 0.0f) return false;
+	if (!player.runtimeApplied || world.GetComponent<TransformComponent>(entity).localPos.x != 0.0f) return false;
+	if (nlohmann::json(player).contains("runtimeApplied")) return false;
 	player.runtimeRequest = 1;
 	system.Update(world, context);
-	return player.runtimePlaying && world.GetComponent<TransformComponent>(entity).localPos.x == 2.5f;
+	if (!player.runtimePlaying || world.GetComponent<TransformComponent>(entity).localPos.x != 2.5f) return false;
+	world.AddComponent<MotionAnimationComponent>(entity);
+	auto* motion = TryGetMotionAnimation(world, entity);
+	motion->settings.offset = {100, 0, 0};
+	motion->settings.duration = 10;
+	MotionAnimationSystem motionSystem;
+	motionSystem.Update(world, context);
+	auto& controlled = world.GetComponent<AnimationClipPlayerComponent>(entity);
+	controlled.runtimeRequest = 4;
+	system.Update(world, context);
+	controlled.runtimeSeekTime = 0.75f;
+	controlled.runtimeRequest = 6;
+	system.Update(world, context);
+	motionSystem.Update(world, context);
+	if (!controlled.runtimeApplied || motion->runtime.diagnostic.empty() ||
+		world.GetComponent<TransformComponent>(entity).localPos.x != 7.5f) return false;
+	controlled.runtimeRequest = 5;
+	system.Update(world, context);
+	motionSystem.Update(world, context);
+	if (!controlled.runtimeApplied || world.GetComponent<TransformComponent>(entity).localPos.x != 0.0f) return false;
+	controlled.runtimeRequest = 1;
+	for (int i = 0; i < 4; ++i) system.Update(world, context);
+	motionSystem.Update(world, context);
+	if (!controlled.runtimeFinished || !controlled.runtimeApplied ||
+		world.GetComponent<TransformComponent>(entity).localPos.x != 10.0f) return false;
+	return true;
 }

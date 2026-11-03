@@ -7,6 +7,8 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<int> IsUpdateInterrupted;
     // 倍率を適用した差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetDeltaTime;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, uint, float> GetLocalDeltaTime;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, uint, float> GetLocalTimeScale;
     // 固定更新の差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetFixedDeltaTime;
     // C#のログをNativeへ渡す
@@ -397,6 +399,8 @@ internal static unsafe class NativeAPI {
 
         // C++側から渡されたECSアクセス用の関数テーブルを保持する
         GetDeltaTime = callbacks->getDeltaTime;
+        GetLocalDeltaTime = callbacks->getLocalDeltaTime;
+        GetLocalTimeScale = callbacks->getLocalTimeScale;
         GetFixedDeltaTime = callbacks->getFixedDeltaTime;
         Log = callbacks->log;
         GetKey = callbacks->getKey;

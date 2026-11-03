@@ -22,6 +22,7 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 
 // c++
@@ -298,6 +299,7 @@ bool Engine::PrefabEditSession::SaveCurrentPrefab() {
 		return false;
 	}
 	SimpleAnimationSystem::RestoreEditPreviews(*editWorld);
+	MotionAnimationSystem::RestoreEditPreviews(*editWorld);
 	AnimationClipPlayerSystem::RestoreEditPreviews(*editWorld);
 
 	auto entityKey = [](const Entity& e) { return (static_cast<uint64_t>(e.generation) << 32) | e.index; };

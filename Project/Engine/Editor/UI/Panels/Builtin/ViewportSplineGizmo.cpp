@@ -8,6 +8,9 @@
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+
+#include <cmath>
 
 using namespace Engine;
 
@@ -37,13 +40,18 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 		return false;
 	}
 	const auto entity = context.editorState->selectedEntity;
+	if (!world->IsAlive(entity) || !IsEntityActiveInHierarchy(*world, entity)) { EndPreview(); return false; }
 	if (point_ >= 0 && (world != world_ || lifetime_.lock() != world->GetLifetime() || owner_ != world->GetUUID(entity))) EndPreview();
+	const bool navigating = context.editorState->sceneCameraNavigating || ImGui::IsMouseDown(ImGuiMouseButton_Right) ||
+		ImGui::IsMouseDown(ImGuiMouseButton_Middle) || ImGui::IsKeyPressed(ImGuiKey_Escape);
+	if (navigating || !context.CanEditScene()) EndPreview();
 	const auto* data = TryGetSpline(*world, entity);
 	const auto* transform = world->TryGetComponent<TransformComponent>(entity);
-	const auto* camera = context.sceneRenderView->FindCamera(RenderCameraDomain::Perspective);
-	if (!data || !transform || !camera || !camera->valid || !context.CanEditScene()) { EndPreview(); return false; }
-	if (context.editorState->sceneCameraNavigating || ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsMouseDown(ImGuiMouseButton_Middle) ||
-		ImGui::IsKeyPressed(ImGuiKey_Escape)) { EndPreview(); return false; }
+	if (!data || !transform || !data->drawDebug) { EndPreview(); return false; }
+	const auto* camera = context.sceneRenderView->FindCamera(data->is2D ?
+		RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective);
+	if (!camera || !camera->valid) { EndPreview(); return false; }
+	const bool canEdit = context.CanEditScene() && !navigating;
 	Matrix4x4 inverseWorld;
 	Matrix4x4 inverseView;
 	const auto& viewProjection = camera->matrices.viewProjectionMatrix;
@@ -92,6 +100,7 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 			draw->AddLine(pixels[0], pixels[part], IM_COL32(90, 210, 255, 180), 1);
 	}
 	draw->PopClipRect();
+	if (!canEdit) return false;
 	const bool inside = mouse.x >= imagePosition.x && mouse.y >= imagePosition.y &&
 		mouse.x < imagePosition.x + imageSize.x && mouse.y < imagePosition.y + imageSize.y;
 	if (point_ < 0 && inside && hoverPoint >= 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -109,7 +118,15 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 		auto& point = draft_.points[static_cast<size_t>(point_)];
 		const Vector3 ndc((mouse.x - imagePosition.x) / imageSize.x * 2 - 1,
 			1 - (mouse.y - imagePosition.y) / imageSize.y * 2, depth_);
-		const auto local = Vector3::Transform(Vector3::Transform(ndc, inverseView), inverseWorld);
+		auto local = Vector3::Transform(Vector3::Transform(ndc, inverseView), inverseWorld);
+		if (draft_.is2D) {
+			const auto nearPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, 0), inverseView), inverseWorld);
+			const auto farPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, 1), inverseView), inverseWorld);
+			const auto direction = farPoint - nearPoint;
+			if (std::abs(direction.z) < 0.000001f) return captured;
+			local = nearPoint - direction * (nearPoint.z / direction.z);
+			local.z = 0;
+		}
 		if (part_ == 0) point.position = local;
 		else if (part_ == 1) point.tangentIn = local - point.position;
 		else point.tangentOut = local - point.position;

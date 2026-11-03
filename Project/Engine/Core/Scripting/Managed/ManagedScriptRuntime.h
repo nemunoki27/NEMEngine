@@ -268,6 +268,8 @@ namespace Engine {
 
 		// 倍率を適用した差分時刻を返す
 		static float __cdecl GetDeltaTimeCallback();
+		static float __cdecl GetLocalDeltaTimeCallback(ManagedNativeEntity entity, uint32_t channel);
+		static float __cdecl GetLocalTimeScaleCallback(ManagedNativeEntity entity, uint32_t channel);
 		// 固定更新の差分時刻を返す
 		static float __cdecl GetFixedDeltaTimeCallback();
 		// C#のログをNativeへ渡す

@@ -26,12 +26,12 @@ bool Engine::ParticleTextureDrawer::Draw(const EditorPanelContext& context,
 	}
 	const auto material = LoadMaterialAsset(context, materialID);
 	if (!material) {
-		ImGui::TextDisabled("マテリアルを解決できません");
+		Engine::MyGUI::Text("マテリアルを解決できません");
 		return changed;
 	}
 	const ShaderReflectionInfo* reflection = FindParticleMaterialReflection(context, *material);
 	if (!reflection) {
-		ImGui::TextDisabled("シェーダーリフレクションを取得できません");
+		Engine::MyGUI::Text("シェーダーリフレクションを取得できません");
 		return changed;
 	}
 	// Shaderが公開するTextureだけを名前で対応付ける

@@ -8,16 +8,20 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 Engine::ValueEditResult Engine::SceneEntityReferenceFields::Draw(const char* label,
-	ECSWorld& world, Entity owner, SceneEntityReference& reference, const EntityEditSetting& setting) {
+	ECSWorld& world, Entity owner, SceneEntityReference& reference, const EntityEditSetting& setting, UUID* runtimeReference) {
 
-	const Entity resolved = reference.Resolve(world, owner);
+	const bool hasRuntime = runtimeReference && *runtimeReference;
+	const Entity resolved = hasRuntime ? world.FindByUUID(*runtimeReference) : reference.Resolve(world, owner);
 	UUID selected = world.IsAlive(resolved) ? world.GetUUID(resolved) : UUID{};
 	auto options = setting;
-	const std::string missing = ToString(reference.localFileID);
-	options.hasStoredReference = static_cast<bool>(reference.localFileID);
+	const std::string missing = ToString(hasRuntime ? *runtimeReference : reference.localFileID);
+	options.hasStoredReference = hasRuntime || static_cast<bool>(reference.localFileID);
 	options.missingReferenceID = missing;
 	auto result = MyGUI::EntityReferenceField(label, selected, &world, options);
-	if (result.valueChanged) reference = selected ? SceneEntityReference::FromEntity(world, world.FindByUUID(selected)) : SceneEntityReference{};
+	if (result.valueChanged) {
+		reference = selected ? SceneEntityReference::FromEntity(world, world.FindByUUID(selected)) : SceneEntityReference{};
+		if (runtimeReference) *runtimeReference = reference.localFileID ? UUID{} : selected;
+	}
 	return result;
 }
 

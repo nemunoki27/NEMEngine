@@ -6,6 +6,8 @@
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
+#include <Engine/Core/World/Systems/Time/TimerSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
@@ -39,6 +41,8 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	scheduler.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<AnimationClipPlayerSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<SimpleAnimationSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<MotionAnimationSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<TimerSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/ECS/World/PendingStorageCleanup.h>
 
 // c++
 #include <algorithm>
@@ -79,10 +80,19 @@ void SplineComponent::CloneStorage(const ECSWorld& sourceWorld, ECSWorld& destin
 
 const SplineData* Engine::TryGetSpline(const ECSWorld& world, Entity entity) {
 
-	const auto* component = world.TryGetComponent<SplineComponent>(entity);
+	const auto* component = world.TryGetComponentForBinding<SplineComponent>(entity);
 	const auto* storage = world.GetStorage().TryGet<SplineStorage>();
 	const auto* record = component && storage ? storage->TryGet(component->handle) : nullptr;
 	return record ? &record->value : nullptr;
+}
+
+const SplineData* Engine::TryGetSpline(ECSWorld& world, Entity entity) {
+
+	auto* component = world.TryGetComponentForBinding<SplineComponent>(entity);
+	if (!component) return nullptr;
+	auto& record = EnsureSpline(world, entity, *component);
+	TrackPendingStorage<SplineComponent, SplineStorage>(world, entity, &SplineComponent::handle);
+	return &record.value;
 }
 
 void Engine::SetSpline(ECSWorld& world, Entity entity, const SplineData& data) {
@@ -91,8 +101,10 @@ void Engine::SetSpline(ECSWorld& world, Entity entity, const SplineData& data) {
 	nlohmann::json json;
 	to_json(json, data);
 	from_json(json, checked);
-	auto& component = world.GetComponent<SplineComponent>(entity);
-	auto& record = EnsureSpline(world, entity, component);
+	auto* component = world.TryGetComponentForBinding<SplineComponent>(entity);
+	if (!component) throw std::invalid_argument("Splineがありません");
+	auto& record = EnsureSpline(world, entity, *component);
+	TrackPendingStorage<SplineComponent, SplineStorage>(world, entity, &SplineComponent::handle);
 	record.value = std::move(checked);
 	++record.revision;
 	world.MarkComponentModified<SplineComponent>(entity);
@@ -102,6 +114,8 @@ void Engine::from_json(const nlohmann::json& in, SplineData& data) {
 
 	SplineData candidate;
 	candidate.closed = in.value("closed", false);
+	candidate.is2D = in.value("is2D", false);
+	candidate.drawDebug = in.value("drawDebug", true);
 	candidate.tolerance = in.value("tolerance", 0.002f);
 	if (!std::isfinite(candidate.tolerance) || candidate.tolerance < 0.00001f || candidate.tolerance > 1)
 		throw std::invalid_argument("Splineの分割精度が不正です");
@@ -116,6 +130,7 @@ void Engine::from_json(const nlohmann::json& in, SplineData& data) {
 			value.tangentOut = Vector3::FromJson(point.at("tangentOut"));
 			if (!IsFinite(value.position) || !IsFinite(value.tangentIn) || !IsFinite(value.tangentOut))
 				throw std::invalid_argument("Splineの制御点が不正です");
+			if (candidate.is2D) value.position.z = value.tangentIn.z = value.tangentOut.z = 0.0f;
 			candidate.points.push_back(value);
 		}
 	}
@@ -124,7 +139,8 @@ void Engine::from_json(const nlohmann::json& in, SplineData& data) {
 
 void Engine::to_json(nlohmann::json& out, const SplineData& data) {
 
-	out = {{"closed", data.closed}, {"tolerance", data.tolerance}, {"points", nlohmann::json::array()}};
+	out = {{"is2D", data.is2D}, {"drawDebug", data.drawDebug},
+		{"closed", data.closed}, {"tolerance", data.tolerance}, {"points", nlohmann::json::array()}};
 	for (const auto& point : data.points) out["points"].push_back({{"position", point.position.ToJson()},
 		{"tangentIn", point.tangentIn.ToJson()}, {"tangentOut", point.tangentOut.ToJson()}});
 }

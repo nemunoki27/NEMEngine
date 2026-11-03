@@ -95,7 +95,7 @@ namespace {
 			// セル番号を渡して配置を入れ替える
 			const int32_t sourceIndex = static_cast<int32_t>(index);
 			ImGui::SetDragDropPayload(kNavigationCellDragDropType, &sourceIndex, sizeof(sourceIndex));
-			ImGui::TextUnformatted(GetNavigationCellLabel(world, canvas, cell).c_str());
+			Engine::MyGUI::Text(GetNavigationCellLabel(world, canvas, cell).c_str());
 			ImGui::EndDragDropSource();
 		}
 		if (ImGui::BeginDragDropTarget()) {

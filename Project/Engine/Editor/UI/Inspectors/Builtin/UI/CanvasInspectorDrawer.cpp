@@ -31,7 +31,7 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 	if (ImGui::IsItemHovered()) {
 		ImGui::BeginTooltip();
 
-		ImGui::Text("キャンバス単位の制御");
+		Engine::MyGUI::Text("キャンバス単位の制御");
 
 		ImGui::EndTooltip();
 	}

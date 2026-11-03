@@ -4,6 +4,12 @@ namespace NEMEngine;
 // hot path で reflection / JSON / file I/O を行わない。scaled と unscaled を明確に分離する。
 public static class Time {
 
+    // 対象GameObjectの親階層を含むローカル時間を取得する
+    public static float GetLocalDeltaTime(GameObject owner, TimeChannel channel = TimeChannel.SimpleAnimation) =>
+        NativeApplicationAPI.ReadLocalDeltaTime(GameObject.RawNative(owner), channel);
+    public static float GetLocalScale(GameObject owner, TimeChannel channel = TimeChannel.SimpleAnimation) =>
+        NativeApplicationAPI.ReadLocalTimeScale(GameObject.RawNative(owner), channel);
+
     // time scale 適用後のフレーム間秒数（TimeScale=0 で 0 になる）
     public static float deltaTime => NativeApplicationAPI.ReadDeltaTime();
 

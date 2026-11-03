@@ -77,7 +77,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 
 	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, materialID, defaultMaterialID);
 	if (!reflection) {
-		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
+		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return;
 	}
 
@@ -182,6 +182,6 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	}
 
 	if (!hasParameter) {
-		ImGui::TextDisabled("編集可能なシェーダーパラメータがありません");
+		Engine::MyGUI::Text("編集可能なシェーダーパラメータがありません");
 	}
 }

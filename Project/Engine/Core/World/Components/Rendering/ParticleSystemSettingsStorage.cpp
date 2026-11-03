@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
-#include <Engine/Core/World/ECS/World/PendingComponent.h>
+#include <Engine/Core/World/ECS/World/PendingStorageCleanup.h>
 
 // c++
 #include <stdexcept>
@@ -21,9 +21,11 @@ namespace {
 		if (current && current->owner == owner) return *current;
 		// 値コピーで追加された場合も、設定の変更先を分ける
 		auto value = current ? current->value : std::make_shared<const ParticleSystemSettings>(MakeDefaultParticleSystemSettings());
-		component.settings = storage.Emplace(ParticleSystemSettingsRecord{std::move(value), owner});
+		const auto timeSource = current ? current->timeSource : TimeSourceSettings{};
+		component.settings = storage.Emplace(ParticleSystemSettingsRecord{std::move(value), owner, 1, timeSource});
 		return *storage.TryGet(component.settings);
 	}
+
 }
 
 void ParticleSystemComponent::InitializeStorage(ECSWorld& world, const Entity& entity, ParticleSystemComponent& component) {
@@ -48,7 +50,8 @@ void ParticleSystemComponent::CloneStorage(const ECSWorld& sourceWorld, ECSWorld
 	const auto* record = storage ? storage->TryGet(source.settings) : nullptr;
 	auto value = record ? record->value : std::make_shared<const ParticleSystemSettings>(MakeDefaultParticleSystemSettings());
 	destination.settings = destinationWorld.GetStorage().Get<ParticleSystemSettingsStorage>().Emplace(
-		ParticleSystemSettingsRecord{std::move(value), destinationWorld.GetUUID(entity), record ? record->revision : 1});
+		ParticleSystemSettingsRecord{std::move(value), destinationWorld.GetUUID(entity), record ? record->revision : 1,
+			record ? record->timeSource : TimeSourceSettings{}});
 }
 
 void ParticleSystemComponent::DeserializeECS(ECSWorld& world, const Entity& entity,
@@ -63,6 +66,10 @@ void ParticleSystemComponent::DeserializeECS(ECSWorld& world, const Entity& enti
 	from_json(in, replacement);
 	auto settings = std::make_shared<const ParticleSystemSettings>(std::move(candidate));
 	auto& record = EnsureSettings(world, entity, component);
+	auto timeSource = in.value("timeSource", TimeSourceSettings{});
+	PreserveTimeSourceRuntime(record.timeSource, timeSource);
+	if (!in.contains("timeSource") && replacement.useUnscaledTime) timeSource.mode = TimeSourceMode::Unscaled;
+	record.timeSource = timeSource;
 	replacement.settings = component.settings;
 	component = replacement;
 	record.value = std::move(settings);
@@ -77,6 +84,7 @@ void ParticleSystemComponent::SerializeECS(const ECSWorld& world, [[maybe_unused
 	const auto* record = storage ? storage->TryGet(component.settings) : nullptr;
 	if (!record) throw std::logic_error("ParticleSystemの保存設定が見つかりません");
 	out["settings"] = ToJson(*record->value);
+	out["timeSource"] = record->timeSource;
 }
 
 std::shared_ptr<const ParticleSystemSettings> Engine::GetParticleSystemSettings(const ECSWorld& world, const Entity& entity) {
@@ -94,22 +102,34 @@ void Engine::SetParticleSystemSettings(ECSWorld& world, const Entity& entity, co
 	auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity);
 	if (!component) throw std::invalid_argument("ParticleSystemがありません");
 	auto& record = EnsureSettings(world, entity, *component);
-	if (!world.HasComponent<ParticleSystemComponent>(entity)) {
-		const auto type = ComponentTypeRegistry::GetInstance().GetID<ParticleSystemComponent>();
-		auto* pending = world.GetCommandBuffer().FindPendingComponent(entity, type);
-		const auto lifetime = world.GetLifetime();
-		// 追加取消時は設定を解放し、追加済みならComponentへ所有を残す
-		pending->SetExternalCleanup([&world, entity, lifetime](void* data) {
-			if (!lifetime->IsAlive()) return;
-			auto& value = *static_cast<ParticleSystemComponent*>(data);
-			const auto* published = world.TryGetComponent<ParticleSystemComponent>(entity);
-			if (!published || published->settings != value.settings) {
-				world.GetStorage().Get<ParticleSystemSettingsStorage>().Release(value.settings);
-			}
-		});
-	}
+	TrackPendingStorage<ParticleSystemComponent, ParticleSystemSettingsStorage>(world, entity, &ParticleSystemComponent::settings);
 	if (ToJson(*record.value) == ToJson(checked)) return;
 	record.value = std::make_shared<const ParticleSystemSettings>(std::move(checked));
 	++record.revision;
 	world.MarkComponentModified<ParticleSystemComponent>(entity);
+}
+
+TimeSourceSettings Engine::GetParticleSystemTimeSource(const ECSWorld& world, const Entity& entity) {
+
+	const auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity);
+	const auto* storage = world.GetStorage().TryGet<ParticleSystemSettingsStorage>();
+	const auto* record = component && storage ? storage->TryGet(component->settings) : nullptr;
+	return record ? record->timeSource : TimeSourceSettings{};
+}
+
+TimeSourceSettings* Engine::TryGetParticleSystemTimeSource(ECSWorld& world, const Entity& entity) {
+
+	auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity);
+	if (!component) return nullptr;
+	auto& record = EnsureSettings(world, entity, *component);
+	TrackPendingStorage<ParticleSystemComponent, ParticleSystemSettingsStorage>(world, entity, &ParticleSystemComponent::settings);
+	return &record.timeSource;
+}
+
+void Engine::SetParticleSystemTimeSource(ECSWorld& world, const Entity& entity, const TimeSourceSettings& source) {
+
+	if (auto* destination = TryGetParticleSystemTimeSource(world, entity)) {
+		*destination = source;
+		world.MarkComponentModified<ParticleSystemComponent>(entity);
+	}
 }

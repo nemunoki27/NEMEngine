@@ -117,6 +117,14 @@ namespace Engine {
 		// コピー表示と編集表示の既存色を保持する
 		const bool copyable = palette == AxisLabelPalette::Copyable;
 		switch (axis) {
+		case 'R':
+			return {"R", ImVec4(1.0f, 0.26f, 0.20f, 1.0f)};
+		case 'G':
+			return {"G", ImVec4(0.20f, 1.0f, 0.25f, 1.0f)};
+		case 'B':
+			return {"B", ImVec4(0.20f, 0.45f, 1.0f, 1.0f)};
+		case 'A':
+			return {"A", ImVec4(0.90f, 0.78f, 0.20f, 1.0f)};
 		case 'X':
 			return {"X", copyable ? ImVec4(1.0f, 0.1f, 0.1f, 1.0f) : ImVec4(1.0f, 0.26f, 0.20f, 1.0f)};
 		case 'Y':
@@ -204,34 +212,6 @@ namespace Engine {
 	//============================================================================
 	//	Drawing Helpers
 	//============================================================================
-
-	void DrawTextFields(
-		const char* label, const std::array<char, 4>& axes, const float* values, uint32_t count, uint32_t precision) {
-		if (!MyGUI::BeginPropertyRow(label)) {
-			return;
-		}
-		const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		const float totalWidth = ImGui::GetContentRegionAvail().x;
-		const float itemWidth = (totalWidth - (spacing * (count - 1))) / count;
-
-		for (uint32_t i = 0; i < count; ++i) {
-			if (i > 0) {
-				ImGui::SameLine(0, spacing);
-			}
-			ImGui::BeginGroup();
-			const AxisDisplayInfo axis = GetAxisDisplayInfo(axes[i]);
-			const bool hasAxis = axis.name[0] != '\0';
-			if (hasAxis) {
-				ImGui::TextColored(axis.color, "%s", axis.name);
-				ImGui::SameLine(0, spacing);
-			}
-			// 軸がない項目は入力領域を全幅で使う
-			ImGui::SetNextItemWidth((std::max)(1.0f, itemWidth - (hasAxis ? kAxisLabelWidth + spacing : 0.0f)));
-			ImGui::TextUnformatted(FormatFloat(values[i], precision).c_str());
-			ImGui::EndGroup();
-		}
-		MyGUI::EndPropertyRow();
-	}
 
 	ValueEditResult DrawDragFields(
 		const char* label, const std::array<char, 4>& axes, float* values, uint32_t count, const FloatEditSetting& setting) {

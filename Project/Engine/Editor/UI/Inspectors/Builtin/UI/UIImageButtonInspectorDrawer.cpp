@@ -21,6 +21,6 @@ void Engine::UIImageButtonInspectorDrawer::DrawFields(
 	auto& draft = GetDraft();
 	DrawField(anyItemActive, [&]() { return MyGUI::InputText("アクション名", draft.actionName); });
 	if (!world.HasComponent<SpriteRendererComponent>(entity)) {
-		ImGui::TextDisabled("Sprite Rendererが必要です");
+		Engine::MyGUI::Text("Sprite Rendererが必要です");
 	}
 }

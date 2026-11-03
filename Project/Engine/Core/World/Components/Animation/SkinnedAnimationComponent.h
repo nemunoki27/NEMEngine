@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Time/LocalTime.h>
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
@@ -74,6 +75,8 @@ namespace Engine {
 	//	SkinnedAnimationComponent struct
 	//============================================================================
 	struct SkinnedAnimationComponent {
+
+		TimeSourceSettings timeSource{};
 
 		static constexpr bool kHasECSHooks = true;
 

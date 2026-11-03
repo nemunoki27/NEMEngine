@@ -36,7 +36,7 @@ namespace {
 	bool DrawSubMeshes(std::vector<uint32_t>& subMeshes) {
 
 		bool changed = false;
-		ImGui::TextUnformatted("SubMeshを指定しない場合は全体から発生します");
+		Engine::MyGUI::Text("SubMeshを指定しない場合は全体から発生します");
 		for (size_t i = 0; i < subMeshes.size(); ++i) {
 			ImGui::PushID(static_cast<int32_t>(i));
 			int32_t value = static_cast<int32_t>(subMeshes[i]);
@@ -89,7 +89,7 @@ bool Engine::ParticleSourceDrawer::Draw(const EditorPanelContext& context, Parti
 	changed |= MyGUI::Checkbox("表面へ固定", settings.attachToSurface);
 	changed |= MyGUI::DragFloat("移動速度を継承", settings.inheritVelocity, MakeDragSetting(0, 10)).valueChanged;
 	ImGui::EndDisabled();
-	if (cameraSurface) ImGui::TextWrapped("Camera表面は同じ表面点を保持できないため、固定と速度継承を使えません");
+	if (cameraSurface) Engine::MyGUI::Text("Camera表面は同じ表面点を保持できないため、固定と速度継承を使えません");
 	changed |= MyGUI::Checkbox("表面色を継承", settings.inheritColor);
 	changed |= MyGUI::Checkbox("マスクを使う", settings.useMask);
 	if (settings.useMask) {

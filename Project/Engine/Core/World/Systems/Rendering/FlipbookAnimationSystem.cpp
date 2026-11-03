@@ -33,7 +33,8 @@ void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& con
 		// 再生を進めるか、Play中はTimeScale適用済みのdeltaTime、Editのプレビューはリアル時間を使う
 		const bool allowTimeAdvance = flipbook.enabled &&
 			(context.mode == WorldMode::Play || flipbook.playInEditMode);
-		const float deltaTime = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
+		const float deltaTime = ResolveLocalTime(world, entity, flipbook.timeSource, TimeChannel::Flipbook,
+			context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime, context.unscaledDeltaTime).deltaTime;
 		if (!allowTimeAdvance || deltaTime <= 0.0f) {
 			return;
 		}

@@ -21,6 +21,6 @@ void Engine::UITextButtonInspectorDrawer::DrawFields(
 	auto& draft = GetDraft();
 	DrawField(anyItemActive, [&]() { return MyGUI::InputText("アクション名", draft.actionName); });
 	if (!world.HasComponent<TextRendererComponent>(entity)) {
-		ImGui::TextDisabled("Text Rendererが必要です");
+		Engine::MyGUI::Text("Text Rendererが必要です");
 	}
 }

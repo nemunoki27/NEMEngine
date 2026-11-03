@@ -7,7 +7,6 @@
 #include "ManagedBuildUtility.h"
 #include "ManagedScriptUtility.h"
 #include "Generated/ManagedComponentBindings.generated.h"
-#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
@@ -345,26 +344,10 @@ const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
 	return currentContext_;
 }
 
-namespace {
+void Engine::ManagedScriptRuntime::BeginPlayTime([[maybe_unused]] const ECSWorld* playWorld) {
 
-	// 非有限の時間倍率を1へ、負値を0へ補正
-	float SanitizeTimeScale(float value) {
-
-		if (!std::isfinite(value)) {
-			return 1.0f;
-		}
-		return value < 0.0f ? 0.0f : value;
-	}
-}
-
-void Engine::ManagedScriptRuntime::BeginPlayTime(const ECSWorld* playWorld) {
-
-	// SceneからPlay開始時の時間倍率を取得
+	// Global時間はScene内のローカル倍率と独立して開始する
 	timeScale_ = 1.0f;
-	if (playWorld) {
-		playWorld->ForEach<TimeScaleComponent>(
-			[&](Entity, const TimeScaleComponent& component) { timeScale_ = SanitizeTimeScale(component.timeScale); });
-	}
 	scaledDeltaTime_ = 0.0f;
 	unscaledDeltaTime_ = 0.0f;
 	timeSinceStartup_ = 0.0;

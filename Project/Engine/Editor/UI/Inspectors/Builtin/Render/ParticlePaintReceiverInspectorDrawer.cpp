@@ -14,5 +14,5 @@ void Engine::ParticlePaintReceiverInspectorDrawer::DrawFields([[maybe_unused]] c
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("投影範囲", draft.planarSize, {.minValue = 0.001f}); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("塗装の不透明度", draft.opacity, {.minValue = 0.0f, .maxValue = 1.0f}); });
 	if (ImGui::Button("塗装を消去")) ClearParticlePaint(world, entity);
-	ImGui::TextDisabled("塗装はPlay終了とScene解放で消去されます");
+	Engine::MyGUI::Text("塗装はPlay終了とScene解放で消去されます");
 }

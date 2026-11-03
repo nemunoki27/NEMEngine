@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/TimeSourceFields.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Flipbook/FlipbookTileLayout.h>
 
@@ -14,6 +15,10 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&] { return DrawTimeSourceField(context, world, entity, draft.timeSource); });
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
+		});
 
 	// 再生設定
 	DrawField(anyItemActive, [&]() {
@@ -24,15 +29,12 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 600.0f });
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
-		});
-	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("再生終了後に非表示", draft.endAnimUnDisplay);
 		});
 
 	// アニメーション設定
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("再生時間", draft.duration, { .dragSpeed = 0.01f,.minValue = 0.001f,.maxValue = 600.0f });
+		return MyGUI::DragFloat(GetInspectorLabel(InspectorFieldID::Duration), draft.duration, { .dragSpeed = 0.01f,.minValue = 0.001f,.maxValue = 600.0f });
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragInt("分割Y", draft.tilesY, { .minValue = 1,.maxValue = 256 });
@@ -53,6 +55,11 @@ void Engine::FlipbookAnimationInspectorDrawer::DrawFields([[maybe_unused]] const
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::EnumCombo("イージング", draft.easingType);
 		});
+	const auto* runtime = world.TryGetComponent<FlipbookAnimationRuntimeComponent>(entity);
+	MyGUI::TextFloat("再生時刻", runtime ? runtime->elapsed : 0.0f);
+	const bool playing = runtime && runtime->playing && draft.enabled && (context.IsPlaying() || draft.playInEditMode);
+	MyGUI::Text(GetInspectorLabel(InspectorFieldID::PlaybackState),
+		GetInspectorPlaybackState(playing, false, runtime && runtime->animationFinished));
 }
 
 void Engine::FlipbookAnimationInspectorDrawer::OnSyncDraftFromWorld(

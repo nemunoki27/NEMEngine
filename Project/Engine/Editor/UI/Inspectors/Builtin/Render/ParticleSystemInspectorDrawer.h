@@ -31,6 +31,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ParticleSettingsEditSession settingsEditor_;
+		TimeSourceSettings timeSourceDraft_{};
 		TextSearchFilter moduleSearch_;
 		std::string status_;
 

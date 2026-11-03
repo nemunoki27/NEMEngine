@@ -784,6 +784,20 @@
           "value": 3
         }
       ]
+    },
+    {
+      "managedType": "TimerMode",
+      "nativeType": "TimerMode",
+      "members": [
+        {
+          "name": "Seconds",
+          "value": 0
+        },
+        {
+          "name": "Frames",
+          "value": 1
+        }
+      ]
     }
   ],
   "components": [
@@ -4103,9 +4117,49 @@
       "registryName": "TimeScale",
       "nativeType": "TimeScaleComponent",
       "nativeHeader": "Engine/Core/World/Components/Time/TimeScaleComponent.h",
-      "exposure": "HandwrittenFacade",
-      "managedSurface": "NEMEngine.Time.TimeScale",
-      "reason": "global な time scale special API。component の raw wrapper ではなく Time facade に集約する。"
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.TimeScale",
+      "reason": "オブジェクト単位の時間倍率と適用先を公開する",
+      "managedType": "TimeScale",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Scale",
+          "nativeMember": "timeScale",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "ApplyToChildren",
+          "nativeMember": "applyToChildren",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 2
+        },
+        {
+          "managedName": "InheritParentScale",
+          "nativeMember": "inheritParentScale",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 3
+        },
+        {
+          "managedName": "ChannelMask",
+          "nativeMember": "channels",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 4
+        }
+      ]
     },
     {
       "id": 32,
@@ -5484,6 +5538,132 @@
           "id": 15
         }
       ]
+    },
+    {
+      "id": 71,
+      "registryName": "Timer",
+      "nativeType": "TimerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Time/TimerComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Timer",
+      "reason": "秒数と基準フレーム数のタイマーと再生操作を公開する",
+      "managedType": "Timer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "PlayOnStart",
+          "nativeMember": "playOnStart",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "PlayInEditMode",
+          "nativeMember": "playInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 2
+        },
+        {
+          "managedName": "Mode",
+          "nativeMember": "mode",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 3,
+          "enumType": "TimerMode"
+        },
+        {
+          "managedName": "TargetSeconds",
+          "nativeMember": "targetSeconds",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 4
+        },
+        {
+          "managedName": "TargetFrames",
+          "nativeMember": "targetFrames",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 5
+        },
+        {
+          "managedName": "BaseFPS",
+          "nativeMember": "baseFPS",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 6
+        },
+        {
+          "managedName": "ControlRequest",
+          "nativeMember": "runtimeRequest",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 7
+        },
+        {
+          "managedName": "CurrentSeconds",
+          "nativeMember": "runtimeSeconds",
+          "kind": "Float",
+          "access": "ReadOnly",
+          "id": 8
+        },
+        {
+          "managedName": "CurrentFrames",
+          "nativeMember": "runtimeFrames",
+          "kind": "Int",
+          "access": "ReadOnly",
+          "id": 9
+        },
+        {
+          "managedName": "IsPlaying",
+          "nativeMember": "runtimePlaying",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 10
+        },
+        {
+          "managedName": "IsPaused",
+          "nativeMember": "runtimePaused",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 11
+        },
+        {
+          "managedName": "IsReached",
+          "nativeMember": "runtimeReached",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 12
+        },
+        {
+          "managedName": "Diagnostic",
+          "nativeMember": "runtimeDiagnostic",
+          "kind": "String",
+          "access": "ReadOnly",
+          "id": 13
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "registryName": "MotionAnimation",
+      "nativeType": "MotionAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/MotionAnimationComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.MotionAnimation",
+      "reason": "移動と回転の設定および再生状態を公開する",
+      "managedType": "MotionAnimation",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
     }
   ]
 }

@@ -5,6 +5,12 @@
 //============================================================================
 #include "ManagedScriptUtility.h"
 #include "ManagedCameraSettings.h"
+#include "ManagedMotionAnimationSettings.h"
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Animation/MotionAnimationComponent.h>
+#include <Engine/Core/World/Components/Time/TimerComponent.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
@@ -20,6 +26,35 @@
 
 using namespace Engine;
 using namespace Engine::ManagedCameraSettings;
+
+namespace {
+
+	TimeSourceSettings* ResolveComponentTimeSource(ECSWorld& world, Entity entity, int32_t type) {
+		switch (type) {
+		case 0: if (auto* component = world.TryGetComponentForBinding<AnimationClipPlayerComponent>(entity)) return &component->timeSource; break;
+		case 8: return TryGetParticleSystemTimeSource(world, entity);
+		case 9: if (auto* component = world.TryGetComponentForBinding<FlipbookAnimationComponent>(entity)) return &component->timeSource; break;
+		case 26: if (auto* component = world.TryGetComponentForBinding<SkinnedAnimationComponent>(entity)) return &component->timeSource; break;
+		case 70: if (auto* component = world.TryGetComponentForBinding<SimpleAnimationComponent>(entity)) return &component->timeSource; break;
+		case 71: if (auto* component = world.TryGetComponentForBinding<TimerComponent>(entity)) return &component->timeSource; break;
+		case 72: if (auto* record = TryGetMotionAnimation(world, entity)) return &record->settings.timeSource; break;
+		}
+		return nullptr;
+	}
+
+	void ClearLegacyUnscaledTime(ECSWorld& world, Entity entity, int32_t type) {
+		if (type == 0) {
+			if (auto* component = world.TryGetComponentForBinding<AnimationClipPlayerComponent>(entity)) component->unscaledTime = false;
+		}
+		if (type == 8) {
+			if (auto* component = world.TryGetComponentForBinding<ParticleSystemComponent>(entity)) component->useUnscaledTime = false;
+		}
+		if (type == 70) {
+			if (auto* component = world.TryGetComponentForBinding<SimpleAnimationComponent>(entity)) component->settings.unscaledTime = false;
+		}
+	}
+}
+
 
 //============================================================================
 //	ManagedScriptRuntime componentSettingsMethods
@@ -59,7 +94,22 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			const auto* component = world->TryGetComponentForBinding<UISelectableComponent>(target);
 			if (!component) return -1;
 			data = *component;
+		} else if (type == 71) {
+			const auto* component = world->TryGetComponentForBinding<TimerComponent>(target);
+			if (!component) return -1;
+			data = *component;
+		} else if (type == 72) {
+			if (!ReadMotionAnimationSettings(*world, target, data)) return -1;
+		} else if (type == 8 || type == 9 || type == 26) {
+			if (!ResolveComponentTimeSource(*world, target, type)) return -1;
+			data = nlohmann::json::object();
 		} else return -1;
+		if (const auto* source = ResolveComponentTimeSource(*world, target, type)) {
+			data["timeSource"] = *source;
+			const auto reference = MakeNativeEntity(*world, ResolveTimeSourceEntity(*world, target, *source));
+			data["timeSourceNative"] = {{"world", {{"index", reference.world.index}, {"generation", reference.world.generation}}},
+				{"index", reference.index}, {"generation", reference.generation}};
+		}
 		return CopyStringToBuffer(data.dump(), buffer, capacity);
 	} catch (...) { return -1; }
 }
@@ -73,6 +123,55 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return 0;
 		const auto data = nlohmann::json::parse(buffer, buffer + size);
+		auto restoreTimeSource = [&] {
+			auto* source = ResolveComponentTimeSource(*world, target, type);
+			if (!source || !data.contains("timeSourceNative") || source->mode != TimeSourceMode::Explicit) return;
+			const auto& value = data.at("timeSourceNative");
+			ManagedNativeEntity reference{};
+			reference.world.index = value.at("world").at("index").get<uint32_t>();
+			reference.world.generation = value.at("world").at("generation").get<uint32_t>();
+			reference.index = value.at("index").get<uint32_t>();
+			reference.generation = value.at("generation").get<uint32_t>();
+			if (!reference.IsValid() || ResolveWorld(reference) != world || !world->IsAlive(ResolveEntity(reference))) return;
+			const auto persisted = SceneEntityReference::FromEntity(*world, ResolveEntity(reference));
+			if (persisted.sourceAsset == source->source.sourceAsset && persisted.localFileID == source->source.localFileID)
+				source->runtimeSourceID = world->GetUUID(ResolveEntity(reference));
+		};
+		if (data.value("timeSourcePatch", false)) {
+			auto* source = ResolveComponentTimeSource(*world, target, type);
+			if (!source) return 0;
+			auto candidate = data.at("timeSource").get<TimeSourceSettings>();
+			const auto& value = data.at("timeSourceNative");
+			ManagedNativeEntity reference{};
+			reference.world.index = value.at("world").at("index").get<uint32_t>();
+			reference.world.generation = value.at("world").at("generation").get<uint32_t>();
+			reference.index = value.at("index").get<uint32_t>();
+			reference.generation = value.at("generation").get<uint32_t>();
+			if (reference.IsValid()) {
+				if (ResolveWorld(reference) != world || !world->IsAlive(ResolveEntity(reference))) return 0;
+				candidate.source = SceneEntityReference::FromEntity(*world, ResolveEntity(reference));
+				candidate.runtimeSourceID = world->GetUUID(ResolveEntity(reference));
+			} else candidate.source = {};
+			*source = candidate;
+			ClearLegacyUnscaledTime(*world, target, type);
+			world->MarkComponentModified(target, type);
+			return 1;
+		}
+		if (type == 72) {
+			if (!ApplyMotionAnimationSettings(*world, target, data)) return 0;
+			restoreTimeSource();
+			return 1;
+		}
+		if (type == 71) {
+			auto* component = world->TryGetComponentForBinding<TimerComponent>(target);
+			if (!component) return 0;
+			auto candidate = *component;
+			from_json(data, candidate);
+			ApplyTimerSettings(candidate, *component);
+			restoreTimeSource();
+			world->MarkComponentModified<TimerComponent>(target);
+			return 1;
+		}
 		if (type == 70) {
 			auto* component = world->TryGetComponentForBinding<SimpleAnimationComponent>(target);
 			if (!component) return 0;
@@ -97,6 +196,7 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 				from_json(data, candidate);
 			}
 			*component = std::move(candidate);
+			restoreTimeSource();
 			world->MarkComponentModified<SimpleAnimationComponent>(target);
 			return 1;
 		}
@@ -115,6 +215,7 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			auto candidate = *component;
 			from_json(data, candidate);
 			ApplyAnimationClipPlayerSettings(candidate, *component);
+			restoreTimeSource();
 			world->MarkComponentModified<AnimationClipPlayerComponent>(target);
 			return 1;
 		}

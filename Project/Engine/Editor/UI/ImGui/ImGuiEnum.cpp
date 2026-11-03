@@ -252,7 +252,7 @@ const char* Engine::ImGuiUtility::GetDisplayName(const char* name) {
 		{ "NotEqual", "等しくない" },
 		{ "UseClip", "クリップに従う" },
 		{ "Once", "1回" },
-		{ "Loop", "ループ" },
+		{ "Loop", "ループ再生" },
 		{ "Repeat", "繰り返し" },
 		{ "PingPong", "往復" },
 		{ "Override", "上書き" },

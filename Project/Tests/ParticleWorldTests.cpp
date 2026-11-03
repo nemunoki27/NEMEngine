@@ -8,6 +8,8 @@
 #include <Engine/Core/Rendering/Particle/ParticleGPUWorldInputs.h>
 #include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleWorldModules.h>
 #include <Engine/Core/Rendering/Particle/ParticleSimulationValidation.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticlePendulumMovementModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSpiralMovementModule.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -42,6 +44,57 @@ namespace {
 		SplineData restored;
 		from_json(saved, restored);
 		return restored.closed && restored.points.size() == data.points.size();
+	}
+
+	// 2D制御点を保存と評価の両方でXY平面へ制限する
+	bool CheckSpline2D() {
+
+		SplineData data;
+		data.is2D = true;
+		data.drawDebug = false;
+		data.points = {{{0, 0, 12}, {}, {1, 1, 7}}, {{3, 0, -8}, {-1, 1, -5}, {}}};
+		const auto samples = BuildSplineSamples(data, Matrix4x4::MakeTranslateMatrix(Vector3(0, 0, 9)));
+		if (samples.size() <= 2) return false;
+		for (const auto& sample : samples) if (std::abs(sample.position.z - 9) > 0.0001f) return false;
+		nlohmann::json saved;
+		to_json(saved, data);
+		SplineData restored;
+		from_json(saved, restored);
+		if (!restored.is2D || restored.drawDebug) return false;
+		for (const auto& point : restored.points)
+			if (point.position.z != 0 || point.tangentIn.z != 0 || point.tangentOut.z != 0) return false;
+		saved.erase("is2D");
+		saved.erase("drawDebug");
+		from_json(saved, restored);
+		return !restored.is2D && restored.drawDebug;
+	}
+
+	// 32bitを越えた粒子IDの位相を切り捨てずに評価する
+	bool CheckParticleIDPhase() {
+
+		ParticleSpiralMovementModule spiral;
+		auto spiralSettings = spiral.GetSettings();
+		spiralSettings.particleAngleOffset = 1;
+		spiral.SetSettings(spiralSettings);
+		ParticlePendulumMovementModule pendulum;
+		auto pendulumSettings = pendulum.GetSettings();
+		pendulumSettings.particlePhaseOffset = 1;
+		pendulum.SetSettings(pendulumSettings);
+		for (auto* module : {static_cast<IParticleModule*>(&spiral), static_cast<IParticleModule*>(&pendulum)}) {
+			Particle high, expected;
+			high.id = uint64_t(UINT32_MAX) + 2;
+			expected.id = high.id % 360;
+			high.lifetime = expected.lifetime = 1;
+			high.spawnDirection = expected.spawnDirection = Vector3(0, 1, 0);
+			module->OnSpawn(high);
+			module->OnSpawn(expected);
+			if (!Vector3::NearlyEqual(high.pos, expected.pos)) return false;
+			high.age = expected.age = 0.25f;
+			module->OnUpdate(high, 0.25f);
+			module->OnUpdate(expected, 0.25f);
+			if (!Vector3::NearlyEqual(high.pos, expected.pos)) return false;
+		}
+		return true;
 	}
 
 	// 格子順序と境界補間を確認し、不正FGAで以前のデータを失わない
@@ -148,5 +201,6 @@ namespace {
 bool NEMTests::TestParticleWorldData() {
 
 	return RunTest("ParticleFGA", CheckFGA) && RunTest("ParticleSpline", CheckSpline) &&
+		RunTest("Spline2D", CheckSpline2D) && RunTest("ParticleIDPhase", CheckParticleIDPhase) &&
 		RunTest("ParticleWorldCompiler", CheckCompiler) && RunTest("ParticleWorldSnapshots", CheckSnapshots);
 }

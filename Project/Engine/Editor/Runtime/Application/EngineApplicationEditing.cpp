@@ -11,6 +11,7 @@
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
@@ -315,6 +316,7 @@ void Engine::EngineApplication::RestoreEditModeUIVisuals() {
 		return;
 	}
 	SimpleAnimationSystem::RestoreEditPreviews(worldManager_.GetEditWorld());
+	MotionAnimationSystem::RestoreEditPreviews(worldManager_.GetEditWorld());
 	AnimationClipPlayerSystem::RestoreEditPreviews(worldManager_.GetEditWorld());
 	uiInputSystem_->RestoreEditModeVisuals(
 		worldManager_.GetEditWorld());

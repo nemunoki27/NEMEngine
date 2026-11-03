@@ -77,7 +77,7 @@ namespace Engine {
 		// 発生時の進行方向から渦の基底を作る
 		SpiralBasis CalculateBasis(const Particle& particle) const;
 		// 粒子ごとの開始角度を取得する
-		float CalculateStartAngle(uint32_t particleID) const;
+		float CalculateStartAngle(uint64_t particleID) const;
 		// 寿命進行度から渦の位置差分を取得する
 		Vector3 CalculateOffset(const SpiralBasis& basis, float particleStartAngle, float rawT) const;
 	};

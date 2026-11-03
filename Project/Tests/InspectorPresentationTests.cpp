@@ -19,6 +19,9 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpersInternal.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Script/ScriptFieldInspector.h>
+#include <imgui_internal.h>
 
 // c++
 #include <array>
@@ -96,12 +99,125 @@ namespace {
 		return !world.HasComponent<SimpleAnimationComponent>(other);
 	}
 
+	// 読み取り専用表示のコピーとIDと保存値の不変性を確認する
+	bool TestReadOnlyFields() {
+
+		using namespace Engine;
+		ImGuiContext* previous = ImGui::GetCurrentContext();
+		ImGuiContext* gui = ImGui::CreateContext();
+		ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = ImVec2(900, 1600);
+		io.DeltaTime = 1.0f / 60.0f;
+		unsigned char* pixels;
+		int width, height;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		std::string clipboard;
+		auto& platform = ImGui::GetPlatformIO();
+		platform.Platform_ClipboardUserData = &clipboard;
+		platform.Platform_SetClipboardTextFn = [](ImGuiContext* context, const char* text) {
+			*static_cast<std::string*>(context->PlatformIO.Platform_ClipboardUserData) = text;
+		};
+		using Kind = ManagedSerializedFieldKind;
+		auto number = std::make_shared<ManagedFieldSchema>();
+		number->kind = Kind::Double;
+		auto nullable = std::make_shared<ManagedFieldSchema>();
+		nullable->kind = Kind::Nullable;
+		nullable->element = number;
+		ManagedFieldSchema list;
+		list.name = "Samples";
+		list.kind = Kind::List;
+		list.isReadOnly = true;
+		list.element = nullable;
+		nlohmann::json values = nlohmann::json::array({nullptr, 1.234567890123, -4.5});
+		const auto saved = values;
+		auto member = std::make_shared<ManagedFieldSchema>();
+		member->name = "Color";
+		member->kind = Kind::Color4;
+		ManagedFieldSchema object;
+		object.name = "Object";
+		object.kind = Kind::Object;
+		object.members = {member};
+		nlohmann::json objectValue = {{"Color", {{"r", 2.0}, {"g", 3.0}, {"b", 4.0}, {"a", 0.5}}}};
+		const auto savedObject = objectValue;
+		ImVec2 click;
+		ImVec2 longClick;
+		bool changingValueCopied = false;
+		ImGuiID initialID = 0;
+		bool valid = true;
+		auto check = [&](bool passed, const char* reason) {
+			if (!passed) std::cerr << "Read-only display: " << reason << "\n";
+			valid &= passed;
+		};
+		const std::string longText = std::string(300, 'W') + "##全文の末尾";
+		for (int frame = 0; frame < 7; ++frame) {
+			if (frame > 0) { const ImVec2 target = frame < 4 ? click : longClick; io.AddMousePosEvent(target.x, target.y); }
+			if (frame == 2 || frame == 5) io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+			if (frame == 3 || frame == 6) io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			ImGui::NewFrame();
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2(700, 1500));
+			ImGui::Begin("ReadOnlyFields", nullptr, ImGuiWindowFlags_NoTitleBar);
+			MyGUI::BeginPropertyRow("First");
+			DrawCopyableValue("##Value", frame >= 3 ? "11" : "10", ImGui::GetContentRegionAvail().x);
+			const ImGuiID first = gui->LastItemData.ID;
+			if (frame == 0) { initialID = first; click = gui->LastItemData.Rect.GetCenter(); }
+			check(first != 0 && first == initialID, "changing value ID");
+			MyGUI::EndPropertyRow();
+			MyGUI::BeginPropertyRow("Second");
+			DrawCopyableValue("##Value", "10", ImGui::GetContentRegionAvail().x);
+			check(gui->LastItemData.ID != first, "equal value IDs");
+			MyGUI::EndPropertyRow();
+			const float top = ImGui::GetCursorPosY();
+			MyGUI::Text("Long", longText);
+			if (frame < 4) longClick = gui->LastItemData.Rect.GetCenter();
+			check(ImGui::GetCursorPosY() - top > ImGui::GetFrameHeight() * 2, "long text wrapping");
+			MyGUI::TextInt("Int", INT32_MIN);
+			MyGUI::TextUInt("UInt", UINT32_MAX);
+			MyGUI::TextInt64("Int64", INT64_MIN);
+			MyGUI::TextUInt64("UInt64", UINT64_MAX);
+			MyGUI::TextDouble("Double", 1.234567890123, 12);
+			MyGUI::TextBool("Bool", true);
+			MyGUI::TextVector4("Vector", Vector4(1, 1, 1, 1));
+			MyGUI::TextColor3("Color3", Color3(1, 1, 1));
+			MyGUI::TextColor4("Color4", Color4(1, 1, 1, 1));
+			MyGUI::TextMatrix4x4("Matrix", Matrix4x4::Identity());
+			ScriptFieldInspector::DrawContext context;
+			ImGui::SetNextItemOpen(true);
+			const auto listResult = ScriptFieldInspector::DrawValue(list, values, context, "Samples");
+			context.readOnly = true;
+			ImGui::SetNextItemOpen(true);
+			const auto objectResult = ScriptFieldInspector::DrawValue(object, objectValue, context, "Object");
+			check(!listResult.valueChanged && !objectResult.valueChanged && values == saved && objectValue == savedObject, "read-only data changed");
+			ImGui::PushID("Playback");
+			check(DrawInspectorPlaybackControls(false) == InspectorPlaybackAction::None, "disabled playback controls");
+			ImGui::PopID();
+			check((gui->CurrentItemFlags & ImGuiItemFlags_Disabled) == 0, "disabled flag leak");
+			ImGui::End();
+			ImGui::Render();
+			if (frame == 3) changingValueCopied = clipboard == "11";
+		}
+		check(changingValueCopied, "changing value clipboard");
+		check(clipboard == longText, "long text clipboard");
+		return valid;
+	}
+
 }
 
 bool NEMTests::TestInspectorPresentation() {
 
 	using namespace Engine;
-	if (!TestRemovedComponentEditSession()) return false;
+	if (!TestRemovedComponentEditSession() || !TestReadOnlyFields()) return false;
+	if (std::string_view(GetInspectorPlaybackState(true, false)) != "再生中" ||
+		std::string_view(GetInspectorPlaybackState(true, true)) != "一時停止" ||
+		std::string_view(GetInspectorPlaybackState(false, false, true)) != "完了" ||
+		std::string_view(GetInspectorPlaybackState(false, false)) != "停止中" ||
+		std::string_view(GetInspectorPlaybackState(true, false, false, true)) != "計測中" ||
+		std::string_view(GetInspectorLabel(InspectorFieldID::PlaybackMode)) != "繰り返し" ||
+		std::string_view(GetInspectorLabel(InspectorFieldID::Duration)) != "再生時間" ||
+		std::string_view(GetInspectorLabel(InspectorFieldID::StartDelay)) != "開始待ち" ||
+		std::string_view(GetInspectorLabel(InspectorFieldID::AxisAngle)) != "軸＋角度") return false;
 	SkyboxRendererComponent sky;
 	ParticleSystemComponent particle;
 	ForceFieldComponent field;
@@ -120,7 +236,7 @@ bool NEMTests::TestInspectorPresentation() {
 	ComponentEditorRegistry registry;
 	for (const auto& [name, category] : std::array{std::pair{"ForceField", "Physics"},
 		std::pair{"MeshRenderer", "Rendering"}, std::pair{"FlipbookAnimation", "Rendering"},
-		std::pair{"AnimationClipPlayer", "Animation"}}) {
+		std::pair{"AnimationClipPlayer", "Animation"}, std::pair{"Timer", "Time"}, std::pair{"Spline", "Core"}}) {
 		ComponentEditorDescriptor entry;
 		entry.typeName = entry.menuLabel = name;
 		entry.category = category;
@@ -135,7 +251,8 @@ bool NEMTests::TestInspectorPresentation() {
 		lastCategory = order;
 		if (entry.typeName == "AnimationClipPlayer" && entry.menuLabel != "AnimationClipPlayer") return false;
 	}
-	if (types.size() != 4 || GetInspectorComponentCategory("ForceField", "Physics") != "Particle" ||
+	if (std::string_view(GetInspectorCategoryLabel("Core")) != "空間・経路" ||
+		std::string_view(GetInspectorCategoryLabel("Time")) != "時間" || types.size() != 6 || GetInspectorComponentCategory("ForceField", "Physics") != "Particle" ||
 		GetInspectorComponentCategory("FlipbookAnimation", "Rendering") != "Animation") return false;
 	for (const auto& drawer : registry.GetDrawers()) if (drawer->GetDisplayName().empty() || drawer->GetComponentTypeName().empty()) return false;
 	for (const char* name : EnumAdapter<EasingType>::GetEnumArray()) {

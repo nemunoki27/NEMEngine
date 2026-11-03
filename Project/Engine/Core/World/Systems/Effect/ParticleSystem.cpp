@@ -51,8 +51,10 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 				return;
 			}
 
-			const float baseDeltaTime = component.useUnscaledTime ||
-				context.mode != WorldMode::Play ? context.unscaledDeltaTime : context.deltaTime;
+			auto source = GetParticleSystemTimeSource(world, entity);
+			if (component.useUnscaledTime) source.mode = TimeSourceMode::Unscaled;
+			const float baseDeltaTime = ResolveLocalTime(world, entity, source, TimeChannel::Particle,
+				context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime, context.unscaledDeltaTime).deltaTime;
 			const float deltaTime = baseDeltaTime * (std::max)(component.playbackSpeed, 0.0f);
 			// 一時停止中も親の姿勢と編集値を同期する
 			const bool updateSimulation = !runtime->paused && component.enabled && canPlay && 0.0f < deltaTime;

@@ -61,7 +61,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 
 		ImGui::PushID(static_cast<int32_t>(i));
 		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(types[i].name.c_str());
+		MyGUI::Text(types[i].name.c_str());
 
 		// 解除ボタンを行末へ寄せる
 		ImGui::SameLine();
@@ -78,7 +78,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(Coll
 		ImGui::PopID();
 	}
 	if (assignedCount == 0) {
-		ImGui::TextDisabled("未設定");
+		Engine::MyGUI::Text("未設定");
 	}
 
 	// 解除指定があればビットを下ろす

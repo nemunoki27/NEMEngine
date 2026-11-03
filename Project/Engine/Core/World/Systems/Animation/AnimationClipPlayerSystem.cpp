@@ -38,6 +38,7 @@ void Engine::AnimationClipPlayerSystem::Update(ECSWorld& world, SystemContext& c
 	auto& states = world.GetStorage().Get<PlaybackStorage>().values;
 	for (auto& [id, state] : states) state.visited = false;
 	world.ForEach<AnimationClipPlayerComponent>([&](Entity entity, AnimationClipPlayerComponent& player) {
+		player.runtimeApplied = false;
 		if (context.IsUpdateInterrupted()) return;
 		if (!player.enabled || !IsEntityActiveInHierarchy(world, entity) ||
 			(context.mode == WorldMode::Edit && !player.playInEditMode)) {
@@ -64,6 +65,7 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 	state.edit = context.mode == WorldMode::Edit;
 	const auto* clip = context.animationClipManager->GetOrLoad(*context.assetDatabase, player.clip);
 	if (state.clip != player.clip || state.revision != context.animationClipManager->GetRevision(player.clip)) {
+		player.runtimeApplied |= !state.base.empty();
 		AnimationPropertySnapshot::Restore(world, entity, state.base);
 		state.base.clear();
 		state.initialized = false;
@@ -78,6 +80,7 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 	auto& runtime = state.playback;
 	bool evaluate = false;
 	if (!state.initialized || request == 1 || request == 5) {
+		player.runtimeApplied |= !state.base.empty();
 		AnimationPropertySnapshot::Restore(world, entity, state.base);
 		state.base.clear();
 		AnimationPropertySnapshot::CaptureClip(world, entity, *clip, clip->relativeTransform, state.base);
@@ -103,7 +106,12 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 	}
 	std::vector<AnimationPlaybackTime::Interval> traversed;
 	std::vector<AnimationEvent> events;
-	float delta = state.edit || player.unscaledTime ? context.unscaledDeltaTime : context.deltaTime;
+	auto source = player.timeSource;
+	if (player.unscaledTime) source.mode = TimeSourceMode::Unscaled;
+	const auto localTime = ResolveLocalTime(world, entity, source, TimeChannel::AnimationClip,
+		state.edit ? context.unscaledDeltaTime : context.deltaTime, context.unscaledDeltaTime);
+	if (!localTime.valid) player.runtimeDiagnostic = "時間源のTimeScaleが未設定です";
+	float delta = localTime.deltaTime;
 	if (runtime.playing && !player.runtimePaused && request != 5 && request != 6 && std::isfinite(delta) && delta > 0) {
 		if (!runtime.started) {
 			const float waiting = (std::min)(delta, runtime.delayRemaining);
@@ -143,6 +151,7 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 			AnimationClipEvaluator::ComposeRelativeTransform(values, state.base, neutral);
 		} else AnimationClipEvaluator::PreserveUnkeyedChannels(world, entity, *clip, values);
 		AnimationClipEvaluator::WriteValues(world, entity, values);
+		player.runtimeApplied |= !values.empty();
 	}
 	player.runtimeTime = runtime.time;
 	player.runtimePlaying = runtime.playing && !player.runtimePaused;

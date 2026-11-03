@@ -4,6 +4,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Time/LocalTime.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
@@ -50,6 +51,20 @@ namespace Engine {
 		}
 		// エンジン共通のロガーを通じて出力し、エディタのコンソール等へ反映される
 		Logger::Output(LogType::GameLogic, logLevel, "{}", message ? message : "");
+	}
+
+	float ManagedScriptRuntime::GetLocalDeltaTimeCallback(ManagedNativeEntity entity, uint32_t channel) {
+		const auto* context = GetCurrentContext();
+		const auto* world = ResolveWorld(entity);
+		if (!context || !world || !world->IsAlive(ResolveEntity(entity))) return 0.0f;
+		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & 127u),
+			context->deltaTime, context->unscaledDeltaTime).deltaTime;
+	}
+
+	float ManagedScriptRuntime::GetLocalTimeScaleCallback(ManagedNativeEntity entity, uint32_t channel) {
+		const auto* world = ResolveWorld(entity);
+		if (!world || !world->IsAlive(ResolveEntity(entity))) return 0.0f;
+		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & 127u), 1, 1).localScale;
 	}
 
 	float ManagedScriptRuntime::GetDeltaTimeCallback() {

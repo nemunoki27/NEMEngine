@@ -320,6 +320,7 @@ namespace Engine {
 		using EndScriptSampleCallback = void(__cdecl*)(uint64_t);
 		using DontDestroyOnLoadCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetDeltaTimeCallback = float(__cdecl*)();
+		using GetLocalTimeCallback = float(__cdecl*)(ManagedNativeEntity, uint32_t);
 		using GetVector2Callback = ManagedVector2(__cdecl*)();
 		using GetVector3Callback = ManagedVector3(__cdecl*)(ManagedNativeEntity);
 		using SetVector3Callback = void(__cdecl*)(ManagedNativeEntity, ManagedVector3);

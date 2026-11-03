@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Time/LocalTime.h>
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
@@ -38,6 +39,8 @@ namespace Engine {
 
 	// 連番画像アニメーションの再生
 	struct FlipbookAnimationComponent {
+
+		TimeSourceSettings timeSource{};
 
 		static constexpr bool kHasECSHooks = true;
 	

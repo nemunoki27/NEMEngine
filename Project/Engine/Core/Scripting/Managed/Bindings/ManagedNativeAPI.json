@@ -961,6 +961,16 @@
       "name": "copyParticleModuleDefaults",
       "nativeType": "CopyParticleModuleDefaultsCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, byte*, int, int>"
+    },
+    {
+      "name": "getLocalDeltaTime",
+      "nativeType": "GetLocalTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, uint, float>"
+    },
+    {
+      "name": "getLocalTimeScale",
+      "nativeType": "GetLocalTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, uint, float>"
     }
   ],
   "layouts": [

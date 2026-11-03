@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
+// c++
+#include <span>
+
 namespace Engine {
 
 	struct EditorPanelContext;
@@ -14,8 +17,15 @@ namespace Engine {
 		Enabled, Visible, DisplayLayer, CameraLayer, ReceiverLayer, ParticleGroup,
 		SortLayer, DrawOrder, BlendMode, RenderQueue, PlayOnStart, PlayInEditMode,
 		EditorPreview, UnscaledTime, Loop, PlaybackSpeed, Restitution, Friction,
-		AllowTopple, AlphaThreshold
+		AllowTopple, AlphaThreshold, PlaybackMode, Duration, StartDelay, PlaybackState, AxisAngle, Once, PingPong
 	};
+
+	enum class InspectorPlaybackAction { None, Play, Pause, Resume, Stop, Reset, EmitOnce, Clear };
+
+	// 操作の意味は呼び出し側で適用し、並びと幅だけを共通化する
+	InspectorPlaybackAction DrawInspectorPlaybackControls(bool enabled, bool timer = false,
+		std::span<const InspectorPlaybackAction> actions = {});
+	const char* GetInspectorPlaybackState(bool playing, bool paused, bool finished = false, bool timer = false);
 
 	enum class InspectorMaskDomain { Rendering, Particle, Collision };
 

@@ -94,7 +94,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		const size_t glyphCount = GetTextLayoutGlyphs(world, entity).size();
 		if (glyphCount == 0) {
 
-			ImGui::TextDisabled("表示中の文字がありません");
+			Engine::MyGUI::Text("表示中の文字がありません");
 		} else {
 
 			if (charTransformDraft_.size() != glyphCount) {

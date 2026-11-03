@@ -83,7 +83,7 @@ Engine::ParticlePendulumMovementModule::PendulumBasis Engine::ParticlePendulumMo
 	return { axis, basisX, basisY };
 }
 
-float Engine::ParticlePendulumMovementModule::CalculateStartPhase(uint32_t particleID) const {
+float Engine::ParticlePendulumMovementModule::CalculateStartPhase(uint64_t particleID) const {
 
 	const double phaseOffset = std::fmod(
 		static_cast<double>(settings_.particlePhaseOffset) * static_cast<double>(particleID), 360.0);

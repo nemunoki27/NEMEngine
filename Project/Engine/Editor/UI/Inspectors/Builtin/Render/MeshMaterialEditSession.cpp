@@ -35,16 +35,6 @@ namespace {
 		}
 	}
 
-	// 編集できない値を表示する
-	void DrawTextProperty(const char* label, const char* value) {
-
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return;
-		}
-		ImGui::TextUnformatted(value);
-		Engine::MyGUI::EndPropertyRow();
-	}
-
 	// 表面方式の候補を表示する
 	Engine::ValueEditResult DrawSurfaceModeCombo(const char* label, Engine::MaterialSurfaceMode& surfaceMode) {
 
@@ -127,9 +117,9 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 	});
 	InspectorDrawerCommon::DrawFieldEdit(editResult, [&]() { return DrawSurfaceModeCombo("表面方式", subMesh.surfaceMode); });
 
-	DrawTextProperty("モデル判定", SurfaceModeLabel(subMesh.sourceSurfaceMode));
+	MyGUI::Text("モデル判定", SurfaceModeLabel(subMesh.sourceSurfaceMode));
 	const MaterialSurfaceMode resolvedMode = ResolveSubMeshSurfaceMode(context, renderer, subMesh);
-	DrawTextProperty("描画方式", SurfaceModeLabel(resolvedMode));
+	MyGUI::Text("描画方式", SurfaceModeLabel(resolvedMode));
 
 	if (resolvedMode == MaterialSurfaceMode::Masked) {
 
@@ -139,7 +129,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 			material = context.renderPipeline->GetRenderAssetLibrary().LoadMaterial(materialID);
 		}
 		if (material && material->shaderGraph) {
-			DrawTextProperty("アルファ破棄閾値", "Shader Graph出力");
+			MyGUI::Text("アルファ破棄閾値", "Shader Graph出力");
 			return editResult;
 		}
 
@@ -173,7 +163,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 
 		const AssetID materialID = subMesh.material ? subMesh.material : draft.material;
 		if (materialID != commonMaterial) {
-			ImGui::TextDisabled("サブメッシュごとにマテリアルが異なります");
+			Engine::MyGUI::Text("サブメッシュごとにマテリアルが異なります");
 			return editResult;
 		}
 	}
@@ -181,7 +171,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(
 		context, commonMaterial, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
 	if (!reflection) {
-		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
+		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return editResult;
 	}
 	MaterialParameterLayout layout{};
@@ -292,7 +282,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawParameters(
 	const ShaderReflectionInfo* reflection =
 		materialReflection_.EnsureReflection(context, materialID, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
 	if (!reflection) {
-		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
+		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return editResult;
 	}
 

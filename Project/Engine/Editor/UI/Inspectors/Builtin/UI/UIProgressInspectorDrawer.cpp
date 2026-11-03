@@ -74,9 +74,9 @@ void Engine::UIProgressInspectorDrawer::DrawFields(
 	const auto* primitive = world.TryGetComponent<PrimitiveRendererComponent>(entity);
 	const bool hasPrimitiveRenderer = primitive != nullptr;
 	if (!hasPrimitiveRenderer) {
-		ImGui::TextDisabled("Primitive Rendererが必要です");
+		Engine::MyGUI::Text("Primitive Rendererが必要です");
 	} else if (!IsPrimitiveScreen2D(*primitive)) {
-		ImGui::TextDisabled("Screen2DのPlaneまたはRingが必要です");
+		Engine::MyGUI::Text("Screen2DのPlaneまたはRingが必要です");
 	}
 
 	ImGui::Indent();

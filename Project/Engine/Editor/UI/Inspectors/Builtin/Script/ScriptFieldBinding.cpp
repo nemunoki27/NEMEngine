@@ -20,20 +20,10 @@ namespace Engine::ScriptFieldInspector {
 		nlohmann::json& value = EnsureFieldValue(sf, field);
 		const std::string label = FieldDisplayLabel(field);
 
-		bool changed = false;
-		if (field.isReadOnly) {
-			ImGui::BeginDisabled();
-			// 読み取り専用は結果を使わない
-			[[maybe_unused]] Engine::ValueEditResult r = DrawValue(field, value, ctx, label.c_str());
-			DrawTooltipIfAny(field);
-			ImGui::EndDisabled();
-		} else {
-			Engine::ValueEditResult r = DrawValue(field, value, ctx, label.c_str());
-			DrawTooltipIfAny(field);
-			anyItemActive |= r.anyItemActive;
-			changed = r.valueChanged;
-		}
-		return changed;
+		const Engine::ValueEditResult result = DrawValue(field, value, ctx, label.c_str());
+		DrawTooltipIfAny(field);
+		anyItemActive |= result.anyItemActive;
+		return result.valueChanged;
 	}
 
 	void DrawRuntimeField(const Engine::ManagedFieldSchema& field, nlohmann::json& runtimeState,
@@ -50,13 +40,6 @@ namespace Engine::ScriptFieldInspector {
 		}
 		const std::string label = FieldDisplayLabel(field);
 
-		if (field.isReadOnly) {
-			ImGui::BeginDisabled();
-			DrawValue(field, fieldValue, ctx, label.c_str());
-			DrawTooltipIfAny(field);
-			ImGui::EndDisabled();
-			return;
-		}
 		Engine::ValueEditResult r = DrawValue(field, fieldValue, ctx, label.c_str());
 		DrawTooltipIfAny(field);
 		if (r.valueChanged) {
@@ -82,7 +65,7 @@ namespace Engine::ScriptFieldInspector {
 		}
 		if (ImGui::TreeNodeEx("未解決フィールド", ImGuiTreeNodeFlags_SpanAvailWidth)) {
 			for (auto& [name, val] : sf["unresolvedFields"].items()) {
-				ImGui::TextDisabled("%s = %s", name.c_str(), val.dump().c_str());
+				MyGUI::Text(name.c_str(), val.dump());
 			}
 			ImGui::TreePop();
 		}

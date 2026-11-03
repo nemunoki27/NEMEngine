@@ -29,6 +29,7 @@ void Engine::UVTransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Sys
 
 			// 行列を計算
 			uvTransform.uvMatrix = Matrix4x4::MakeAffineMatrix(scale, rotation, pos);
+			world.MarkComponentModified<UVTransformComponent>(entity);
 		}
 
 		// 前フレームのSRTを更新

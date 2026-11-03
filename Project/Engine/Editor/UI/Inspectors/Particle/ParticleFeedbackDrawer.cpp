@@ -19,7 +19,7 @@ bool ParticleFeedbackDrawer::Draw(const EditorPanelContext& context, ECSWorld& w
 		settings.eventCapacity = static_cast<uint32_t>(capacity);
 		changed = true;
 	}
-	ImGui::TextDisabled("別Systemの粒子は次回更新に発生します");
+	Engine::MyGUI::Text("別Systemの粒子は次回更新に発生します");
 	for (size_t index = 0; index < settings.events.size();) {
 		auto& event = settings.events[index];
 		ImGui::PushID(static_cast<int>(index));
@@ -35,7 +35,7 @@ bool ParticleFeedbackDrawer::Draw(const EditorPanelContext& context, ECSWorld& w
 				}
 				MyGUI::EndPropertyRow();
 			}
-			if (event.kind == ParticleEventKind::PhaseTransition) ImGui::TextDisabled("選択フェーズの終了時に発生します");
+			if (event.kind == ParticleEventKind::PhaseTransition) Engine::MyGUI::Text("選択フェーズの終了時に発生します");
 			changed |= SceneEntityReferenceFields::Draw("発生先System", world, owner, event.target).valueChanged;
 			int32_t phase = event.phase == UINT32_MAX ? -1 : static_cast<int32_t>(event.phase);
 			if (MyGUI::DragInt("フェーズ番号", phase, {.minValue = -1, .maxValue = 255}).valueChanged) {
@@ -73,7 +73,7 @@ bool ParticleFeedbackDrawer::Draw(const EditorPanelContext& context, ECSWorld& w
 		changed |= MyGUI::DragFloat("半径", settings.paint.radius, {.minValue = 0.001f}).valueChanged;
 		changed |= MyGUI::DragFloat("輪郭の硬さ", settings.paint.hardness, {.minValue = 0.0f, .maxValue = 1.0f}).valueChanged;
 		changed |= MyGUI::ColorEdit("塗装色", settings.paint.color).valueChanged;
-		ImGui::TextDisabled("受け取り面にParticlePaintReceiverを追加してください");
+		Engine::MyGUI::Text("受け取り面にParticlePaintReceiverを追加してください");
 	}
 	if (MyGUI::CollapsingHeader("衝突デカール")) {
 		changed |= MyGUI::Checkbox("デカールを残す", settings.decal.enabled);

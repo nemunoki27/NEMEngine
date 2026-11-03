@@ -30,6 +30,9 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SimpleAnimationInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/MotionAnimationInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Time/TimerInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Time/TimeScaleInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioListenerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
@@ -185,6 +188,12 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<SpotLightInspectorDrawer>(
 			"SpotLight", "SpotLight", "Lighting", "UI/Inspectors/Builtin/Light/LightInspectorDrawers.cpp"));
 	}
+	registry.Register(MakeComponentEditorDescriptor<MotionAnimationInspectorDrawer>(
+		"MotionAnimation", "MotionAnimation", "Animation", "UI/Inspectors/Builtin/Animation/MotionAnimationInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<TimeScaleInspectorDrawer>(
+		"TimeScale", "TimeScale", "Time", "UI/Inspectors/Builtin/Time/TimeScaleInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<TimerInspectorDrawer>(
+		"Timer", "Timer", "Time", "UI/Inspectors/Builtin/Time/TimerInspectorDrawer.cpp"));
 	// スクリプト
 	{
 		ComponentEditorDescriptor scriptDescriptor = MakeComponentEditorDescriptor<ScriptInspectorDrawer>(

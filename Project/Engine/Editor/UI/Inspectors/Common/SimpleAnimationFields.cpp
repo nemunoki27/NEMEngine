@@ -9,7 +9,6 @@
 // c++
 #include <array>
 #include <algorithm>
-#include <format>
 #include <cmath>
 #include <type_traits>
 
@@ -83,20 +82,20 @@ Engine::ValueEditResult Engine::SimpleAnimationFields::DrawValue(const char* lab
 
 void Engine::SimpleAnimationFields::DrawCurrentValue(const char* label, const SimpleAnimationValue& value) {
 
-	const std::string text = std::visit([](const auto& typed) -> std::string {
+	std::visit([&](const auto& typed) {
 		using T = std::decay_t<decltype(typed)>;
-		if constexpr (std::is_same_v<T, int32_t>) return std::format("{}", typed);
-		else if constexpr (std::is_same_v<T, float>) return std::format("{:.3f}", typed);
-		else if constexpr (std::is_same_v<T, Color3>) return std::format("R {:.3f}  G {:.3f}  B {:.3f}", typed.r, typed.g, typed.b);
-		else if constexpr (std::is_same_v<T, Color4>) return std::format("R {:.3f}  G {:.3f}  B {:.3f}  A {:.3f}", typed.r, typed.g, typed.b, typed.a);
-		else if constexpr (std::is_same_v<T, Vector2>) return std::format("X {:.3f}  Y {:.3f}", typed.x, typed.y);
-		else if constexpr (std::is_same_v<T, Vector3>) return std::format("X {:.3f}  Y {:.3f}  Z {:.3f}", typed.x, typed.y, typed.z);
-		else return std::format("X {:.3f}  Y {:.3f}  Z {:.3f}  W {:.3f}", typed.x, typed.y, typed.z, typed.w);
+		if constexpr (std::is_same_v<T, int32_t>) MyGUI::TextInt(label, typed);
+		else if constexpr (std::is_same_v<T, float>) MyGUI::TextFloat(label, typed);
+		else if constexpr (std::is_same_v<T, Color3>) MyGUI::TextColor3(label, typed);
+		else if constexpr (std::is_same_v<T, Color4>) MyGUI::TextColor4(label, typed);
+		else if constexpr (std::is_same_v<T, Vector2>) MyGUI::TextVector2(label, typed);
+		else if constexpr (std::is_same_v<T, Vector3>) MyGUI::TextVector3(label, typed);
+		else if constexpr (std::is_same_v<T, Vector4>) MyGUI::TextVector4(label, typed);
+		else MyGUI::TextQuaternion(label, typed);
 	}, value);
-	MyGUI::Text(label, text);
 }
 
-Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimationSettings& settings, bool allowTypeChange) {
+Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimationSettings& settings, bool allowTypeChange, bool showTimeSource) {
 
 	ValueEditResult result;
 	auto field = [&](auto&& draw) {
@@ -118,7 +117,7 @@ Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimat
 	field([&] { return Select("アニメーション", settings.mode, std::array{"A→B補間", "Sin", "Cos"}); });
 	if (settings.start.index() == 6) {
 		field([&] {
-			auto edit = Select("回転編集", settings.rotationMode, std::array{"軸＋角度", "オイラー角"});
+			auto edit = Select("回転編集", settings.rotationMode, std::array{GetInspectorLabel(InspectorFieldID::AxisAngle), "オイラー角"});
 			if (edit.valueChanged && settings.rotationMode == SimpleAnimationRotationMode::Euler) {
 				settings.startEuler = Quaternion::ToEulerAngles(std::get<Quaternion>(settings.start));
 				settings.endEuler = Quaternion::ToEulerAngles(std::get<Quaternion>(settings.end));
@@ -143,7 +142,7 @@ Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimat
 		field([&] { return drawValue("A値", settings.start, settings.startEuler); });
 		ImGui::EndDisabled();
 		field([&] { return drawValue("B値", settings.end, settings.endEuler); });
-		number("再生時間", settings.duration);
+		number(GetInspectorLabel(InspectorFieldID::Duration), settings.duration);
 	} else {
 		field([&] { return drawValue("中心値", settings.center, settings.centerEuler); });
 		if (settings.center.index() == 6) field([&] { return MyGUI::DragVector3("角度振幅", settings.angularAmplitude); });
@@ -162,15 +161,15 @@ Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimat
 		MyGUI::EndPropertyRow();
 		return edit;
 	});
-	field([&] { return Select("再生方法", settings.repeat, std::array{"1回", Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), "往復"}); });
+	field([&] { return Select(GetInspectorLabel(InspectorFieldID::PlaybackMode), settings.repeat, std::array{GetInspectorLabel(InspectorFieldID::Once), GetInspectorLabel(InspectorFieldID::Loop), GetInspectorLabel(InspectorFieldID::PingPong)}); });
 	if (settings.repeat != SimpleAnimationRepeat::Once) {
 		int32_t count = static_cast<int32_t>((std::min)(settings.cycleCount, uint32_t(INT32_MAX)));
 		field([&] { auto edit = MyGUI::DragInt("回数・0は無制限", count, {.minValue = 0});
 			if (edit.valueChanged) settings.cycleCount = static_cast<uint32_t>(count); return edit; });
 	}
-	number("開始待ち", settings.delay);
+	number(GetInspectorLabel(InspectorFieldID::StartDelay), settings.delay);
 	number(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), settings.speed);
 	if (settings.mode != SimpleAnimationMode::Interpolate) number("切替補間時間", settings.blendDuration);
-	field([&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::UnscaledTime), settings.unscaledTime); });
+	if (showTimeSource) field([&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::UnscaledTime), settings.unscaledTime); });
 	return result;
 }

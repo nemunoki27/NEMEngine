@@ -5,6 +5,11 @@ using static NEMEngine.NativeAPI;
 // 接続済みcallbackを用途別に呼び出す
 internal static unsafe class NativeApplicationAPI {
 
+    internal static float ReadLocalDeltaTime(NativeEntity entity, TimeChannel channel) =>
+        GetLocalDeltaTime != null ? GetLocalDeltaTime(entity, (uint)channel) : 0;
+    internal static float ReadLocalTimeScale(NativeEntity entity, TimeChannel channel) =>
+        GetLocalTimeScale != null ? GetLocalTimeScale(entity, (uint)channel) : 0;
+
     // callbackを終えた地点で更新の中断を確認する
     internal static bool ReadUpdateInterrupted() => IsUpdateInterrupted != null && IsUpdateInterrupted() != 0;
 

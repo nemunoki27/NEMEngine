@@ -78,6 +78,6 @@ Engine::ValueEditResult Engine::CameraSurfaceSettingsEditor::DrawAmbientOcclusio
 		{ .dragSpeed = 0.01f, .minValue = 0.001f, .maxValue = 1000.0f }));
 	Accumulate(result, DrawQuality(settings.ambientOcclusionQuality));
 	ImGui::EndDisabled();
-	if (!supported) ImGui::TextDisabled("このGPUではレイトレーシングAOを使用できません");
+	if (!supported) Engine::MyGUI::Text("このGPUではレイトレーシングAOを使用できません");
 	return result;
 }

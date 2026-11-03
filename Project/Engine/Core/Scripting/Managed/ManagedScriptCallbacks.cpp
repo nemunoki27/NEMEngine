@@ -20,6 +20,8 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.header.bindingFingerprint = ManagedNativeAPITable::kBindingFingerprint;
 	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
+	callbacks.getLocalDeltaTime = &ManagedScriptRuntime::GetLocalDeltaTimeCallback;
+	callbacks.getLocalTimeScale = &ManagedScriptRuntime::GetLocalTimeScaleCallback;
 	callbacks.getFixedDeltaTime = &ManagedScriptRuntime::GetFixedDeltaTimeCallback;
 	callbacks.getKey = &ManagedScriptRuntime::GetKeyCallback;
 	callbacks.getKeyDown = &ManagedScriptRuntime::GetKeyDownCallback;

@@ -10,5 +10,5 @@ namespace Engine::SimpleAnimationFields {
 
 	ValueEditResult DrawValue(const char* label, SimpleAnimationValue& value);
 	void DrawCurrentValue(const char* label, const SimpleAnimationValue& value);
-	ValueEditResult DrawSettings(SimpleAnimationSettings& settings, bool allowTypeChange);
+	ValueEditResult DrawSettings(SimpleAnimationSettings& settings, bool allowTypeChange, bool showTimeSource = true);
 }

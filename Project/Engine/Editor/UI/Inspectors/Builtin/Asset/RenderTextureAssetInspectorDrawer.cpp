@@ -57,7 +57,7 @@ void Engine::RenderTextureAssetInspectorDrawer::Draw(const EditorPanelContext& c
 		Load(context, meta);
 	}
 	if (!status_.empty()) {
-		ImGui::TextWrapped("%s", status_.c_str());
+		MyGUI::Text("状態", status_);
 	}
 }
 

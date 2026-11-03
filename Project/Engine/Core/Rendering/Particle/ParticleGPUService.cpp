@@ -166,7 +166,8 @@ void ParticleGPUService::UpdateWorld(GraphicsCore& graphics, ECSWorld& world,
 		const auto* paint = getPipeline(BuiltinAssets::Pipelines::ParticleGPUPaint);
 		const auto* decal = getPipeline(BuiltinAssets::Pipelines::ParticleGPUImpactDecal);
 		if (!paint || !decal) throw std::runtime_error("GPU表面の更新Shaderを生成できません");
-		environment.feedback.EndUpdate(graphics, world, assets, *paint, *decal, environment.deltaTime);
+		// 生成済みデカールの寿命へ別Emitterのローカル倍率を伝播させない
+		environment.feedback.EndUpdate(graphics, world, assets, *paint, *decal, (std::max)(inputs.deltaTime, 0.0f));
 		++feedbackRevision_;
 	} else {
 		bool paintReceivers = false;

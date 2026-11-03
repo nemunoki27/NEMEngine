@@ -11,11 +11,15 @@ namespace Engine {
 	//	TimeScaleComponent struct
 	//============================================================================
 	
-	// プレイ中のデルタタイムスケール
+	// 自身と子階層に適用するローカル時間倍率
 	struct TimeScaleComponent {
 
 		// 1.0fで等速、0.0fで停止
 		float timeScale = 1.0f;
+		bool enabled = true;
+		bool applyToChildren = true;
+		bool inheritParentScale = true;
+		uint32_t channels = 127;
 	};
 
 	// json変換

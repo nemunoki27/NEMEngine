@@ -81,7 +81,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(
 	// 登録されたBehaviorがなければ選択欄を出さない
 	const auto& registry = BehaviorTypeRegistry::GetInstance();
 	if (registry.GetBehaviorTypeCount() == 0) {
-		ImGui::TextDisabled("登録済みビヘイビアなし");
+		Engine::MyGUI::Text("登録済みビヘイビアなし");
 		MyGUI::EndPropertyRow();
 		return result;
 	}

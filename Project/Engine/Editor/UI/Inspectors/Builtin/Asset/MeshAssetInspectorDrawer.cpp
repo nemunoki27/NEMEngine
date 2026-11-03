@@ -56,7 +56,7 @@ void Engine::MeshAssetInspectorDrawer::Draw(
 	}
 	ImGui::EndDisabled();
 	if (!statusMessage_.empty()) {
-		ImGui::TextDisabled("%s", statusMessage_.c_str());
+		MyGUI::Text("状態", statusMessage_);
 	}
 }
 

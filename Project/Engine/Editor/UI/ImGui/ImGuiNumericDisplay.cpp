@@ -7,134 +7,131 @@
 #include <algorithm>
 #include <format>
 
-namespace {
+namespace Engine {
 
-	constexpr float kAxisLabelWidth = 14.0f;
+	// 各成分を同じ幅で表示する
+	void DrawTextFields(const char* label, const std::array<char, 4>& axes,
+		const float* values, uint32_t count, uint32_t precision) {
 
-	//============================================================================
-	//	レイアウトヘルパー
-	//============================================================================
-	// フィールドの幅を計算する
-	float CalcFieldWidth(int fieldCount) {
-
-		const float avail = (std::max)(1.0f, ImGui::GetContentRegionAvail().x);
-		const float spacing = ImGui::GetStyle().ItemSpacing.x;
-		const float fieldArea = (std::max)(1.0f, avail - spacing * static_cast<float>((std::max)(0, fieldCount - 1)));
-		return fieldArea / static_cast<float>(fieldCount);
-	}
-
-	//============================================================================
-	//	描画ヘルパー
-	//============================================================================
-	// 軸ラベルを描画する
-	void DrawAxisLabel(char axis) {
-
-		const Engine::AxisDisplayInfo info = Engine::GetAxisDisplayInfo(axis, Engine::AxisLabelPalette::Copyable);
-		ImGui::PushStyleColor(ImGuiCol_Text, info.color);
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(info.name);
-		ImGui::PopStyleColor();
-	}
-	// コピー可能な値ボックスを描画する
-	void DrawCopyableValueBox(const char* id, char axis, const std::string& valueText, float width) {
-
-		ImGui::PushID(id);
-
-		ImGui::BeginGroup();
-
-		// 軸がない表示では余白も確保しない
-		const bool hasAxis = Engine::GetAxisDisplayInfo(axis).name[0] != '\0';
-		if (hasAxis) {
-			DrawAxisLabel(axis);
+		if (!Engine::MyGUI::BeginPropertyRow(label)) return;
+		const float width = Engine::MyGUI::CalcEqualItemWidth(count);
+		for (uint32_t i = 0; i < count; ++i) {
+			if (i > 0) ImGui::SameLine();
+			ImGui::PushID(static_cast<int>(i));
+			ImGui::BeginGroup();
+			const Engine::AxisDisplayInfo axis = Engine::GetAxisDisplayInfo(axes[i], Engine::AxisLabelPalette::Copyable);
+			ImGui::PushStyleColor(ImGuiCol_Text, axis.color);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextUnformatted(axis.name);
+			ImGui::PopStyleColor();
 			ImGui::SameLine(0.0f, 6.0f);
-		}
-
-		const ImVec2 buttonSize((std::max)(1.0f, width - (hasAxis ? kAxisLabelWidth + 6.0f : 0.0f)), ImGui::GetFrameHeight());
-		if (ImGui::Button(valueText.c_str(), buttonSize)) {
-			ImGui::SetClipboardText(valueText.c_str());
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("クリックでコピー");
-		}
-		ImGui::EndGroup();
-		ImGui::PopID();
-	}
-	// 複数のコピー可能な値フィールドを描画する
-	void DrawCopyableTextFields(
-		const char* label, const std::array<char, 4>& axes, const float* values, int count, uint32_t precision) {
-
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return;
-		}
-
-		const float fieldWidth = CalcFieldWidth(count);
-		for (int i = 0; i < count; ++i) {
-
-			if (i > 0) {
-				ImGui::SameLine();
-			}
-			const std::string text = Engine::FormatFloat(values[i], precision);
-			const std::string id = std::format("{}_{}", label, i);
-			DrawCopyableValueBox(id.c_str(), axes[i], text, fieldWidth);
+			Engine::DrawCopyableValue("##Value", Engine::FormatFloat(values[i], precision), (std::max)(1.0f, width - 20.0f));
+			ImGui::EndGroup();
+			ImGui::PopID();
 		}
 		Engine::MyGUI::EndPropertyRow();
 	}
-	// 単一のコピー可能な値フィールドを描画する
-	void DrawScalarTextField(const char* label, float value, uint32_t precision) {
+}
 
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return;
-		}
+void Engine::DrawCopyableValue(const char* id, const std::string& value, float width) {
 
-		const std::string text = Engine::FormatFloat(value, precision);
-		if (ImGui::Button(text.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
-			ImGui::SetClipboardText(text.c_str());
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Click to copy");
-		}
-		Engine::MyGUI::EndPropertyRow();
+	const ImVec2 padding = ImGui::GetStyle().FramePadding;
+	width = (std::max)(1.0f, width);
+	const float textWidth = (std::max)(1.0f, width - padding.x * 2.0f);
+	const ImVec2 textSize = ImGui::CalcTextSize(value.data(), value.data() + value.size(), false, textWidth);
+	const ImVec2 size(width, (std::max)(ImGui::GetFrameHeight(), textSize.y + padding.y * 2.0f));
+	const ImVec2 position = ImGui::GetCursorScreenPos();
+	if (ImGui::Button(id, size)) ImGui::SetClipboardText(value.c_str());
+	// 表示文字列をIDへ含めず、値の変化中もクリック先を保持する
+	ImGui::GetWindowDrawList()->AddText(nullptr, 0.0f, ImVec2(position.x + padding.x, position.y + padding.y),
+		ImGui::GetColorU32(ImGuiCol_Text), value.data(), value.data() + value.size(), textWidth);
+	if (ImGui::BeginPopupContextItem()) {
+		if (ImGui::MenuItem("コピー")) ImGui::SetClipboardText(value.c_str());
+		ImGui::EndPopup();
 	}
+}
 
+void Engine::MyGUI::Text(const char* text) {
+
+	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
+	ImGui::TextUnformatted(text);
+	ImGui::PopTextWrapPos();
 }
 
 void Engine::MyGUI::Text(const char* label, const std::string& value) {
 
-	if (!BeginPropertyRow(label)) {
-		return;
-	}
-	// 長いパスも欄内で折り返す
-	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
-	ImGui::TextUnformatted(value.c_str());
-	ImGui::PopTextWrapPos();
-	if (ImGui::BeginPopupContextItem("##TextContextMenu")) {
-		if (ImGui::MenuItem("コピー")) {
-			ImGui::SetClipboardText(value.c_str());
-		}
-		ImGui::EndPopup();
-	}
+	if (!BeginPropertyRow(label)) return;
+	DrawCopyableValue("##Value", value, ImGui::GetContentRegionAvail().x);
 	EndPropertyRow();
+}
+
+void Engine::MyGUI::TextInt(const char* label, int32_t value) {
+
+	TextInt64(label, value);
+}
+
+void Engine::MyGUI::TextUInt(const char* label, uint32_t value) {
+
+	TextUInt64(label, value);
+}
+
+void Engine::MyGUI::TextInt64(const char* label, int64_t value) {
+
+	Text(label, std::to_string(value));
+}
+
+void Engine::MyGUI::TextUInt64(const char* label, uint64_t value) {
+
+	Text(label, std::to_string(value));
 }
 
 void Engine::MyGUI::TextFloat(const char* label, float value, uint32_t precision) {
 
-	DrawScalarTextField(label, value, precision);
+	Text(label, FormatFloat(value, precision));
+}
+
+void Engine::MyGUI::TextDouble(const char* label, double value, uint32_t precision) {
+
+	Text(label, std::format("{:.{}f}", value, precision));
+}
+
+void Engine::MyGUI::TextBool(const char* label, bool value) {
+
+	Text(label, value ? "true" : "false");
 }
 
 void Engine::MyGUI::TextVector2(const char* label, const Vector2& value, uint32_t precision) {
 
 	const float values[2] = {value.x, value.y};
-	DrawCopyableTextFields(label, {'X', 'Y', '\0', '\0'}, values, 2, precision);
+	DrawTextFields(label, {'X', 'Y', '\0', '\0'}, values, 2, precision);
 }
 
 void Engine::MyGUI::TextVector3(const char* label, const Vector3& value, uint32_t precision) {
 
 	const float values[3] = {value.x, value.y, value.z};
-	DrawCopyableTextFields(label, {'X', 'Y', 'Z', '\0'}, values, 3, precision);
+	DrawTextFields(label, {'X', 'Y', 'Z', '\0'}, values, 3, precision);
+}
+
+void Engine::MyGUI::TextVector4(const char* label, const Vector4& value, uint32_t precision) {
+
+	const float values[4] = {value.x, value.y, value.z, value.w};
+	DrawTextFields(label, {'X', 'Y', 'Z', 'W'}, values, 4, precision);
 }
 
 void Engine::MyGUI::TextQuaternion(const char* label, const Quaternion& value, uint32_t precision) {
 
 	const float values[4] = {value.x, value.y, value.z, value.w};
-	DrawCopyableTextFields(label, {'X', 'Y', 'Z', 'W'}, values, 4, precision);
+	DrawTextFields(label, {'X', 'Y', 'Z', 'W'}, values, 4, precision);
+}
+
+void Engine::MyGUI::TextColor3(const char* label, const Color3& value, uint32_t precision) {
+
+	const float values[3] = {value.r, value.g, value.b};
+	DrawTextFields(label, {'R', 'G', 'B', '\0'}, values, 3, precision);
+}
+
+void Engine::MyGUI::TextColor4(const char* label, const Color4& value, uint32_t precision) {
+
+	const float values[4] = {value.r, value.g, value.b, value.a};
+	DrawTextFields(label, {'R', 'G', 'B', 'A'}, values, 4, precision);
 }
