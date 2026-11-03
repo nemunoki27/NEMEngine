@@ -41,7 +41,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 		DrawPendingEdits(context);
 		return;
 	}
-	if (!ImGui::Begin(MakeWindowName("アニメーションクリップ作成ツール").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("アニメーションクリップ作成ツール").c_str(), &openWindow_)) {
 		ImGui::End();
 		// 折りたたみ中も未保存編集の確認を残す
 		session_.EndPreviewAndRestore(context);

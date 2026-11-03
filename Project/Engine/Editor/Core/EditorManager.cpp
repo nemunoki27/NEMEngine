@@ -12,6 +12,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
+#include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
@@ -221,6 +222,12 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	editorState_.ValidateSelection(context.activeWorld);
 
 	ImGuizmo::BeginFrame();
+
+	// 固定バーの領域を確保してからドッキングスペースを描く
+	editorCommandPanelKind_ = EditorCommandPanelKind::None;
+	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
+	panelContext.viewportRenderService = nullptr;
+	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreDockSpace);
 	DrawDockSpace();
 
 	// 3D対象へのフォーカス要求を取り出す
@@ -250,10 +257,6 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	UpdateSceneViewManualCamera();
 
 	// 各パネルの描画
-	editorCommandPanelKind_ = EditorCommandPanelKind::None;
-	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
-	panelContext.viewportRenderService = nullptr;
-
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	requests_.DrawUnsavedScenePopup();
 	requests_.DrawCloseUnsavedScenePopup();
@@ -369,15 +372,18 @@ void Engine::EditorManager::RenderPlatformWindows() {
 
 void Engine::EditorManager::DrawDockSpace() {
 
-	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	EditorWindowPresentation::PrepareDockNodes();
+	const EditorWindowPresentation::HeaderScope header;
+	const auto* viewport = static_cast<ImGuiViewportP*>(ImGui::GetMainViewport());
+	const ImRect workRect = viewport->GetBuildWorkRect();
 
 	// ドッキングスペースのホストウィンドウのフラグ
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
 								   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
 								   ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-	ImGui::SetNextWindowPos(viewport->WorkPos);
-	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowPos(workRect.Min);
+	ImGui::SetNextWindowSize(workRect.GetSize());
 	ImGui::SetNextWindowViewport(viewport->ID);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -390,7 +396,7 @@ void Engine::EditorManager::DrawDockSpace() {
 
 	const ImGuiID dockSpaceID = ImGui::GetID(kDockSpaceID);
 	if (requestBuildDefaultDockLayout_) {
-		BuildDefaultDockLayout(dockSpaceID, viewport->WorkSize);
+		BuildDefaultDockLayout(dockSpaceID, workRect.GetSize());
 		requestBuildDefaultDockLayout_ = false;
 	}
 	ImGui::DockSpace(dockSpaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
@@ -404,8 +410,6 @@ void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const Im
 	ImGui::DockBuilderSetNodeSize(dockSpaceID, dockSpaceSize);
 
 	ImGuiID mainDockID = dockSpaceID;
-	ImGuiID toolbarDockID = 0;
-	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Up, 0.035f, &toolbarDockID, &mainDockID);
 
 	ImGuiID inspectorDockID = 0;
 	ImGui::DockBuilderSplitNode(mainDockID, ImGuiDir_Right, 0.44f, &inspectorDockID, &mainDockID);
@@ -419,13 +423,15 @@ void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const Im
 	ImGuiID consoleDockID = 0;
 	ImGui::DockBuilderSplitNode(bottomDockID, ImGuiDir_Left, 0.24f, &consoleDockID, &bottomDockID);
 
-	ImGui::DockBuilderDockWindow("Toolbar", toolbarDockID);
-	ImGui::DockBuilderDockWindow("Hierarchy", hierarchyDockID);
-	ImGui::DockBuilderDockWindow("Inspector###Inspector:inspector.primary", inspectorDockID);
-	ImGui::DockBuilderDockWindow("Project###Project:project.primary", bottomDockID);
-	ImGui::DockBuilderDockWindow("Console", consoleDockID);
-	ImGui::DockBuilderDockWindow("SceneView", mainDockID);
-	ImGui::DockBuilderDockWindow("GameView", mainDockID);
+	const auto dockWindow = [](const char* name, const char* identity, ImGuiID dockID) {
+		ImGui::DockBuilderDockWindow(EditorWindowPresentation::MakeWindowName(name, identity, name).c_str(), dockID);
+	};
+	dockWindow("Hierarchy", "Hierarchy", hierarchyDockID);
+	dockWindow("Inspector", "Inspector:inspector.primary", inspectorDockID);
+	dockWindow("Project", "Project:project.primary", bottomDockID);
+	dockWindow("Console", "Console", consoleDockID);
+	dockWindow("SceneView", "SceneView", mainDockID);
+	dockWindow("GameView", "GameView", mainDockID);
 	ImGui::DockBuilderFinish(dockSpaceID);
 }
 

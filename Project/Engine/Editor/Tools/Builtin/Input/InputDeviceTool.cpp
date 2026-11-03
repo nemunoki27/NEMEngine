@@ -68,7 +68,7 @@ void Engine::InputDeviceTool::DrawWindow() {
 		return;
 	}
 
-	if (ImGui::Begin(MakeWindowName("入力デバイス").c_str(), &openWindow_)) {
+	if (Engine::EditorWindowPresentation::Begin(MakeWindowName("入力デバイス").c_str(), &openWindow_)) {
 
 		// 設定の保存と読込
 		const float buttonWidth = MyGUI::CalcEqualItemWidth(2);

@@ -39,7 +39,7 @@ void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& conte
 
 void Engine::CollisionManagerTool::DrawWindow([[maybe_unused]] const EditorToolContext& context) {
 
-	if (!ImGui::Begin(MakeWindowName("衝突設定").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("衝突設定").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <optional>
-#include <string_view>
 
 //============================================================================
 //	EditorManager layout methods
@@ -316,15 +315,11 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 		return;
 	}
 
-	// ツールウィンドウ等がシーンビューの上に重なっている場合はカメラを更新しない
-	// HoveredWindowが前フレームのマウス下ウィンドウを示すため、SceneView以外はスキップする
-	ImGuiContext* ctx = ImGui::GetCurrentContext();
-	if (ctx && ctx->HoveredWindow) {
-		const char* name = ctx->HoveredWindow->RootWindow->Name;
-		if (!std::string_view(name).starts_with("SceneView")) {
-			stopNavigation();
-			return;
-		}
+	// アイコンや表示名に依存せず操作先のパネルを内部IDで判定する
+	const ImGuiContext& imguiContext = *ImGui::GetCurrentContext();
+	if (imguiContext.HoveredWindow && imguiContext.HoveredWindow->RootWindow->ID != ImHashStr("SceneView")) {
+		stopNavigation();
+		return;
 	}
 
 	// カメラの状態を更新する

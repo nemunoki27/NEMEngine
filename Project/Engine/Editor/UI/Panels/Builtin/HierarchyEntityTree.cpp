@@ -34,6 +34,7 @@ namespace {
 
 	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
 	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
+	constexpr float kActiveIconScale = 0.92f;
 	constexpr float kEntityNodeFontScale = 0.88f;
 }
 
@@ -78,7 +79,7 @@ void Engine::HierarchyEntityTree::DrawActiveToggleIcon(const EditorPanelContext&
 	const char* textureKey = activeSelf ? kActiveEyeTextureKey : kInactiveEyeTextureKey;
 	const ImTextureID textureID = EditorTextureHelper::GetImTextureID(textureUploadService_, textureKey);
 
-	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
+	const float iconSize = ImGui::GetTextLineHeight() * kActiveIconScale;
 	const ImVec2 buttonSize(iconSize, iconSize);
 
 	bool toggled = false;
@@ -168,6 +169,13 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 	const char* displayName = "Entity";
 	if (const NameComponent* name = world.TryGetComponent<NameComponent>(entity); name && !name->name.empty()) {
 		displayName = name->name.c_str();
+	}
+
+	// 階層全体の左側にアクティブ切り替えの固定列を確保する
+	const bool isRootNode = ImGui::GetCurrentWindow()->DC.TreeDepth == 0;
+	const float activeColumnWidth = ImGui::GetTextLineHeight() * kActiveIconScale + ImGui::GetStyle().ItemSpacing.x;
+	if (isRootNode) {
+		ImGui::Indent(activeColumnWidth);
 	}
 
 	ImGui::PushID(static_cast<int>(entity.index));
@@ -310,9 +318,9 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 		ImGui::EndDragDropTarget();
 	}
 
-	// Blenderと同じく、アクティブ切り替えを行の右端へ固定する
-	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
-	ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - iconSize);
+	// 子階層でも目アイコンをパネルの左端へ固定する
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMin().x);
 	bool checkboxLeftClicked = false;
 	bool checkboxRightClicked = false;
 	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
@@ -377,6 +385,9 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 
 	ImGui::PopID();
 	ImGui::PopID();
+	if (isRootNode) {
+		ImGui::Unindent(activeColumnWidth);
+	}
 }
 
 bool Engine::HierarchyEntityTree::EntityMatchesSearch(ECSWorld& world, const Entity& entity) const {

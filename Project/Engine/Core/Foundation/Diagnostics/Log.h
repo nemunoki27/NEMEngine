@@ -139,7 +139,7 @@ namespace Engine {
 		static inline std::filesystem::path logDir_ = "./Log";
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };
-		static inline std::size_t recentLogLimit_ = 30;
+		static inline std::size_t recentLogLimit_ = 100;
 		static inline std::deque<LogEntry> recentLogs_;
 		static inline uint64_t nextLogSequence_ = 0;
 	};

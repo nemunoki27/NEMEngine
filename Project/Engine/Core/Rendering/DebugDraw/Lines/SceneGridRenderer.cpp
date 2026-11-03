@@ -156,8 +156,15 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 		return (std::max)(endDistance, startDistance + 1.0f);
 	};
 
-	constants.inverseViewProjectionMatrix = camera.matrices.inverseProjectionMatrix * camera.matrices.inverseViewMatrix;
-	constants.viewProjectionMatrix = camera.matrices.viewProjectionMatrix;
+	// カメラからの相対座標で交点と深度を計算して遠方の桁落ちを防ぐ
+	Matrix4x4 relativeInverseView = camera.matrices.inverseViewMatrix;
+	Matrix4x4 relativeView = camera.matrices.viewMatrix;
+	for (uint32_t axis = 0; axis < 3; ++axis) {
+		relativeInverseView.m[3][axis] = 0.0f;
+		relativeView.m[3][axis] = 0.0f;
+	}
+	constants.inverseRelativeViewProjectionMatrix = camera.matrices.inverseProjectionMatrix * relativeInverseView;
+	constants.relativeViewProjectionMatrix = relativeView * camera.matrices.projectionMatrix;
 
 	constants.cameraPositionAndPlaneY = Vector4(camera.cameraPos.x, camera.cameraPos.y, camera.cameraPos.z, gridPlaneY_);
 

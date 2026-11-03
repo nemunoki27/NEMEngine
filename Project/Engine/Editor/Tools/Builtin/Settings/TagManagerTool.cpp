@@ -30,7 +30,7 @@ void Engine::TagManagerTool::DrawEditorTool(const EditorToolContext& context) {
 
 void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin(MakeWindowName("タグ・描画レイヤー").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("タグ・描画レイヤー").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

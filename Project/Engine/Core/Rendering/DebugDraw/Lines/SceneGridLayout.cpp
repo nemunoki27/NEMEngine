@@ -132,10 +132,10 @@ namespace {
 	}
 
 	// 視線とグリッド平面の交点を求める
-	bool IntersectGroundRay(const Engine::Vector3& cameraPos, const Engine::Vector3& nearP, const Engine::Vector3& farP,
+	bool IntersectGroundRay(const Engine::Vector3& cameraPos, const Engine::Vector3& nearP, const Engine::Vector3& middleP,
 		float planeY, float maxGroundRayDistance, GridPoint2D& outPoint) {
 
-		Engine::Vector3 direction = farP - nearP;
+		Engine::Vector3 direction = middleP - nearP;
 		float length = direction.Length();
 		if (length < kEpsilon) {
 			return false;
@@ -174,10 +174,10 @@ namespace {
 		float ndcY, float planeY, float maxGroundRayDistance, Engine::Vector3& outPoint) {
 
 		Engine::Vector3 nearP = UnprojectNDC(invViewProj, ndcX, ndcY, 0.0f);
-		Engine::Vector3 farP = UnprojectNDC(invViewProj, ndcX, ndcY, 1.0f);
+		Engine::Vector3 middleP = UnprojectNDC(invViewProj, ndcX, ndcY, 0.5f);
 
 		GridPoint2D hit2D{};
-		if (!IntersectGroundRay(camera.cameraPos, nearP, farP, planeY, maxGroundRayDistance, hit2D)) {
+		if (!IntersectGroundRay(camera.cameraPos, nearP, middleP, planeY, maxGroundRayDistance, hit2D)) {
 			return false;
 		}
 
@@ -270,10 +270,10 @@ bool Engine::SceneGridLayout::BuildVisibleGroundPolygon(const Engine::ResolvedCa
 
 	auto addSample = [&](float ndcX, float ndcY) {
 		Engine::Vector3 nearP = UnprojectNDC(invVP, ndcX, ndcY, 0.0f);
-		Engine::Vector3 farP = UnprojectNDC(invVP, ndcX, ndcY, 1.0f);
+		Engine::Vector3 middleP = UnprojectNDC(invVP, ndcX, ndcY, 0.5f);
 
 		GridPoint2D hit{};
-		if (IntersectGroundRay(camera.cameraPos, nearP, farP, planeY, maxGroundRayDistance, hit)) {
+		if (IntersectGroundRay(camera.cameraPos, nearP, middleP, planeY, maxGroundRayDistance, hit)) {
 			AddUniquePoint(outPolygon, hit);
 		}
 	};

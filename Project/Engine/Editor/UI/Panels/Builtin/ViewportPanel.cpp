@@ -90,7 +90,9 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	const bool drawContents = ImGui::Begin(windowName_.c_str(), visible);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(2.0f, 2.0f));
+	const bool drawContents = Engine::EditorWindowPresentation::Begin(MakeWindowName(windowName_).c_str(), visible);
+	ImGui::PopStyleVar();
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}
@@ -127,7 +129,8 @@ void Engine::ViewportPanel::UpdateVisibility(const EditorPanelContext& context, 
 
 void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size) {
 
-	ImGui::BeginChild(id, size, true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	ImGui::BeginChild(id, size, ImGuiChildFlags_None,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
 	// 次の描画要求へ実際の表示先を渡す
 	ImGuiViewport* viewport = ImGui::GetWindowViewport();
@@ -189,7 +192,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			toolbar_.Draw(context);
-			ImGui::SameLine();
+			ImGui::SameLine(0.0f, 2.0f);
 
 			// ツール列の幅を除いた画像領域を取得する
 			avail = ImGui::GetContentRegionAvail();

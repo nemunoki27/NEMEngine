@@ -62,7 +62,7 @@ void Engine::SceneViewCameraController::DrawNavigationControls() {
 void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
 	if (!openWindow_) { return; }
-	if (!ImGui::Begin(MakeWindowName("SceneViewCamera").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("SceneViewCamera").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

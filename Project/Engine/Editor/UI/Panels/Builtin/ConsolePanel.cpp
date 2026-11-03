@@ -4,11 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Utility/EditorShell.h>
-
-// c++
-#include <algorithm>
 
 namespace {
 
@@ -63,16 +59,8 @@ namespace {
 
 	void DrawLogs(const char* childID) {
 
-		// 表示件数に合わせてログの保持数を変更する
-		int32_t displayCount = static_cast<int32_t>(Engine::Logger::GetRecentLogLimit());
-		if (Engine::MyGUI::DragInt("ログ表示数", displayCount,
-			{ .dragSpeed = 1.0f, .minValue = 1, .maxValue = 10000 }).valueChanged) {
-			displayCount = std::clamp(displayCount, 1, 10000);
-			Engine::Logger::SetRecentLogLimit(static_cast<std::size_t>(displayCount));
-		}
 		const auto logs = Engine::Logger::GetRecentLogs();
 
-		ImGui::Separator();
 		ImGui::BeginChild(childID, ImVec2(0.0f, 0.0f), false);
 		ImGui::SetWindowFontScale(0.74f);
 
@@ -112,7 +100,7 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin("Console", &context.layoutState->showConsole)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("Console").c_str(), &context.layoutState->showConsole)) {
 		ImGui::End();
 		return;
 	}

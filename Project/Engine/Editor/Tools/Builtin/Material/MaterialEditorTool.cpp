@@ -43,7 +43,7 @@ void Engine::MaterialEditorTool::DrawEditorTool(const EditorToolContext& context
 
 void Engine::MaterialEditorTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin(MakeWindowName("Material").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("Material").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

@@ -1,4 +1,5 @@
 #include "ImGuiManager.h"
+#include "EditorWindowPresentation.h"
 #include "ImGuiAppearance.h"
 
 //============================================================================
@@ -90,6 +91,8 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 		throw std::runtime_error("ImGuiのWindow初期化に失敗しました");
 	}
 	WinApp::SetMessageHandler(ForwardWindowMessage);
+	platformWindowTitle_ = ImGui::GetPlatformIO().Platform_SetWindowTitle;
+	ImGui::GetPlatformIO().Platform_SetWindowTitle = &SetPlatformWindowTitle;
 
 	// DX12初期化
 	ImGui_ImplDX12_InitInfo dxInitInfo = {};
@@ -191,6 +194,7 @@ void ImGuiManager::Finalize() {
 			rendererInitialized_ = false;
 		}
 		if (platformInitialized_) {
+			ImGui::GetPlatformIO().Platform_SetWindowTitle = platformWindowTitle_;
 			ImGui_ImplWin32_Shutdown();
 			platformInitialized_ = false;
 		}
@@ -203,6 +207,7 @@ void ImGuiManager::Finalize() {
 	// 初期化前の失敗でも借用を解除
 	imguiSRVIndices_.clear();
 	platformWindowProcedures_.clear();
+	platformWindowTitle_ = nullptr;
 	srvDescriptor_ = nullptr;
 	if (instance_ == this) {
 		instance_ = nullptr;
@@ -300,6 +305,11 @@ void ImGuiManager::RegisterPlatformWindows() {
 			platformWindowProcedures_.emplace(hwnd, previous);
 		}
 	}
+}
+
+void ImGuiManager::SetPlatformWindowTitle(ImGuiViewport* viewport, const char* title) {
+
+	instance_->platformWindowTitle_(viewport, EditorWindowPresentation::GetPlainTitle(title));
 }
 
 void ImGuiManager::RestorePlatformWindowProcedures() {

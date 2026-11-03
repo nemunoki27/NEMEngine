@@ -24,6 +24,10 @@ namespace Engine {
 		// 操作と設定のメニューを表示する
 		void Draw(const EditorPanelContext& context) override;
 
+		//--------- accessor -----------------------------------------------------
+
+		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PreDockSpace; }
+
 	private:
 		//============================================================================
 		//	private Methods

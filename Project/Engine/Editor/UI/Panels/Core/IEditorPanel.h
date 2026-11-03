@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
+#include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
@@ -23,6 +24,7 @@ namespace Engine {
 	// パネルの表示フェーズ
 	enum class EditorPanelPhase {
 
+		PreDockSpace,
 		PreScene,
 		PostScene,
 	};

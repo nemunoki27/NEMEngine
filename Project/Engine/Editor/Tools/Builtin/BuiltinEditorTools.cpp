@@ -9,7 +9,6 @@
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDebugDraw.h>
-#include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Input/InputDeviceTool.h>
@@ -57,7 +56,6 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
-	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
 	RegisterBuiltinEditorTool<PerformanceCheckTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();

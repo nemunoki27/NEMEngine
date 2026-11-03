@@ -49,7 +49,7 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	const bool visible = ImGui::Begin("Hierarchy", &context.layoutState->showHierarchy);
+	const bool visible = Engine::EditorWindowPresentation::Begin(MakeWindowName("Hierarchy").c_str(), &context.layoutState->showHierarchy);
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}

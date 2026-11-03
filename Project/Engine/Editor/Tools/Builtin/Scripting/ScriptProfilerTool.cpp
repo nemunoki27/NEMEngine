@@ -88,7 +88,7 @@ namespace Engine {
 			return;
 		}
 		const std::string windowName = MakeWindowName("Script Profiler", "スクリプトプロファイラー");
-		if (!ImGui::Begin(windowName.c_str(), &openWindow_)) {
+		if (!Engine::EditorWindowPresentation::Begin(windowName.c_str(), &openWindow_)) {
 			ImGui::End();
 			return;
 		}

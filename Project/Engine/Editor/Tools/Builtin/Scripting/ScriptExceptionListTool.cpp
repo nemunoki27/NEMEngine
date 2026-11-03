@@ -40,7 +40,7 @@ void Engine::ScriptExceptionListTool::DrawEditorTool(const EditorToolContext& co
 
 void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin(MakeWindowName("Script Exception List").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("Script Exception List").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

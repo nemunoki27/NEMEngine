@@ -17,8 +17,8 @@ struct PSOutput {
 //============================================================================
 cbuffer GridPassConstants : register(b0) {
 
-	float4x4 inverseViewProjectionMatrix;
-	float4x4 viewProjectionMatrix;
+	float4x4 inverseRelativeViewProjectionMatrix;
+	float4x4 relativeViewProjectionMatrix;
 
 	float4 cameraPositionAndPlaneY;
 	float4 viewportSize;
@@ -83,75 +83,41 @@ float ComputeEffectivePixelWidth(float baseHalfThickness,
 	return halfThickness * 2.0f;
 }
 
-float ComputeCellPixels(float2 worldXZ, float step) {
+float ComputePixelCoverage(float distancePixels, float pixelWidth) {
 
-	float safeStep = max(step, 1e-6f);
-	float2 coord = worldXZ / safeStep;
-	float2 deriv = max(fwidth(coord), float2(1e-6f, 1e-6f));
-
-	return 1.0f / max(max(deriv.x, deriv.y), 1e-6f);
+	float width = max(pixelWidth, 1.0f);
+	return saturate(min(width * 0.5f + 0.75f - distancePixels, width) / 1.5f);
 }
 
-float ComputeRepeatingGridCoverageRaw(float2 worldXZ, float step, float pixelWidth, float aaScale) {
+float ComputeRepeatingGridCoverage(float2 relativeXZ, float2 worldDerivative, float step, float pixelWidth) {
 
 	float safeStep = max(step, 1e-6f);
-
-	float2 coord = worldXZ / safeStep;
-	float2 deriv = max(fwidth(coord), float2(1e-6f, 1e-6f));
-	float2 dist = abs(frac(coord - 0.5f) - 0.5f);
-
-	float halfWidthPx = max(pixelWidth * 0.5f, 0.5f);
-	float2 halfWidthCoord = deriv * halfWidthPx;
-	float2 aa = deriv * aaScale;
-
-	float lineX = 1.0f - SmootherStep(halfWidthCoord.x, halfWidthCoord.x + aa.x, dist.x);
-	float lineZ = 1.0f - SmootherStep(halfWidthCoord.y, halfWidthCoord.y + aa.y, dist.y);
-
+	float2 deriv = max(worldDerivative / safeStep, float2(1e-6f, 1e-6f));
+	// 原点からの位相を保ちながら小さい相対座標で周期を計算する
+	float2 coord = relativeXZ / safeStep + frac(cameraPositionAndPlaneY.xz / safeStep);
+	float2 distancePixels = abs(frac(coord + 0.5f) - 0.5f) / deriv;
+	float2 cellPixels = 1.0f / deriv;
+	float lineX = ComputePixelCoverage(distancePixels.x, pixelWidth) * SmootherStep(2.0f, 8.0f, cellPixels.x);
+	float lineZ = ComputePixelCoverage(distancePixels.y, pixelWidth) * SmootherStep(2.0f, 8.0f, cellPixels.y);
 	return lineX + lineZ - lineX * lineZ;
 }
 
-float ComputeGridDensityFade(float cellPixels) {
+float ComputeCleanCrossFadedCoverage(float2 relativeXZ, float2 worldDerivative,
+	float step0, float step1, float blend, float pixelWidth) {
 
-	return SmootherStep(1.25f, 7.0f, cellPixels);
+	float coverage0 = ComputeRepeatingGridCoverage(relativeXZ, worldDerivative, step0, pixelWidth);
+	float coverage1 = ComputeRepeatingGridCoverage(relativeXZ, worldDerivative, step1, pixelWidth);
+	return lerp(coverage0, coverage1, Smoother01(blend));
 }
 
-float ComputeAdaptiveAAScale(float cellPixels) {
+float ComputeAxisCoverage(float coord, float deriv, float pixelWidth) {
 
-	float t = SmootherStep(1.0f, 10.0f, cellPixels);
-	return lerp(3.25f, 1.75f, t);
+	return ComputePixelCoverage(abs(coord) / max(deriv, 1e-6f), pixelWidth);
 }
 
-float ComputeCleanCrossFadedCoverage(float2 worldXZ, float step0, float step1, float blend, float pixelWidth) {
+float SafeReciprocal(float value) {
 
-	float safeBlend = Smoother01(saturate(blend));
-
-	float cellPixels0 = ComputeCellPixels(worldXZ, step0);
-	float cellPixels1 = ComputeCellPixels(worldXZ, step1);
-
-	float density0 = ComputeGridDensityFade(cellPixels0);
-	float density1 = ComputeGridDensityFade(cellPixels1);
-
-	float aaScale0 = ComputeAdaptiveAAScale(cellPixels0);
-	float aaScale1 = ComputeAdaptiveAAScale(cellPixels1);
-
-	float coverage0 = ComputeRepeatingGridCoverageRaw(worldXZ, step0, pixelWidth, aaScale0);
-	float coverage1 = ComputeRepeatingGridCoverageRaw(worldXZ, step1, pixelWidth, aaScale1);
-
-	float weighted0 = coverage0 * density0 * (1.0f - safeBlend);
-	float weighted1 = coverage1 * density1 * safeBlend;
-
-	return max(weighted0, weighted1);
-}
-
-float ComputeAxisCoverage(float coord, float pixelWidth) {
-
-	float deriv = max(fwidth(coord), 1e-6f);
-
-	float halfWidthPx = max(pixelWidth * 0.5f, 0.5f);
-	float halfWidthCoord = deriv * halfWidthPx;
-	float aa = deriv * 1.75f;
-
-	return 1.0f - SmootherStep(halfWidthCoord, halfWidthCoord + aa, abs(coord));
+	return (value < 0.0f ? -1.0f : 1.0f) / max(abs(value), 1e-6f);
 }
 
 void BlendLayer(inout float4 accumPremul, float3 rgb, float alpha) {
@@ -177,46 +143,33 @@ PSOutput main(VSOutput input) {
 	float2 uv = input.position.xy / safeViewport;
 	float2 ndc = float2(uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f);
 
-	float4 nearWorld = mul(float4(ndc, 0.0f, 1.0f), inverseViewProjectionMatrix);
-	float4 farWorld = mul(float4(ndc, 1.0f, 1.0f), inverseViewProjectionMatrix);
-
-	if (abs(nearWorld.w) < 1e-6f || abs(farWorld.w) < 1e-6f) {
-		discard;
-	}
-
-	nearWorld /= nearWorld.w;
-	farWorld /= farWorld.w;
+	float4 nearRelative = mul(float4(ndc, 0.0f, 1.0f), inverseRelativeViewProjectionMatrix);
+	float4 middleRelative = mul(float4(ndc, 0.5f, 1.0f), inverseRelativeViewProjectionMatrix);
+	nearRelative.xyz *= SafeReciprocal(nearRelative.w);
+	middleRelative.xyz *= SafeReciprocal(middleRelative.w);
 
 	float3 cameraPosition = cameraPositionAndPlaneY.xyz;
-	float gridPlaneY = cameraPositionAndPlaneY.w;
+	float gridPlaneY = cameraPositionAndPlaneY.w - cameraPosition.y;
 
-	float3 rayDirection = normalize(farWorld.xyz - nearWorld.xyz);
+	float3 ray = middleRelative.xyz - nearRelative.xyz;
+	float3 rayDirection = ray / max(length(ray), 1e-6f);
 	float denom = rayDirection.y;
 
-	// 地平線付近でplaneとほぼ平行
-	if (abs(denom) < 1e-6f) {
-		discard;
-	}
-
 	// 平行投影でも画面位置ごとに視線を分ける
-	float t = (gridPlaneY - nearWorld.y) / denom;
-	if (t <= 0.0f) {
+	float t = (gridPlaneY - nearRelative.y) * SafeReciprocal(denom);
+	float3 relativePosition = nearRelative.xyz + rayDirection * t;
+
+	// 全画素で先に微分を求めて破棄画素の境界でも線幅を安定させる
+	float2 worldDDX = ddx_fine(relativePosition.xz);
+	float2 worldDDY = ddy_fine(relativePosition.xz);
+	float2 worldDerivative = sqrt(worldDDX * worldDDX + worldDDY * worldDDY);
+	float4 gridClip = mul(float4(relativePosition, 1.0f), relativeViewProjectionMatrix);
+	float gridDepth = gridClip.z * SafeReciprocal(gridClip.w);
+	if (abs(denom) < 1e-6f || t <= 0.0f || gridClip.w <= 1e-6f || gridDepth < 0.0f || 1.0f < gridDepth) {
 		discard;
 	}
 
-	float3 worldPos = nearWorld.xyz + rayDirection * t;
-
-	float4 gridClip = mul(float4(worldPos, 1.0f), viewProjectionMatrix);
-	if (gridClip.w <= 1e-6f) {
-		discard;
-	}
-
-	float gridDepth = gridClip.z / gridClip.w;
-	if (gridDepth < 0.0f || 1.0f < gridDepth) {
-		discard;
-	}
-
-	float distanceXZ = length(worldPos.xz - cameraPosition.xz);
+	float distanceXZ = length(relativePosition.xz);
 
 	float horizonFade = SmootherStep(
 	thicknessFadeAndHorizon.z,
@@ -240,7 +193,8 @@ PSOutput main(VSOutput input) {
 			thicknessFadeAndHorizon.y);
 
 		float coverage = ComputeCleanCrossFadedCoverage(
-			worldPos.xz,
+			relativePosition.xz,
+			worldDerivative,
 			stepData0.x,
 			stepData1.x,
 			stepBlend,
@@ -263,7 +217,8 @@ PSOutput main(VSOutput input) {
 			thicknessFadeAndHorizon.y);
 
 		float coverage = ComputeCleanCrossFadedCoverage(
-			worldPos.xz,
+			relativePosition.xz,
+			worldDerivative,
 			stepData0.y,
 			stepData1.y,
 			stepBlend,
@@ -286,7 +241,8 @@ PSOutput main(VSOutput input) {
 			thicknessFadeAndHorizon.y);
 
 		float coverage = ComputeCleanCrossFadedCoverage(
-			worldPos.xz,
+			relativePosition.xz,
+			worldDerivative,
 			stepData0.z,
 			stepData1.z,
 			stepBlend,
@@ -305,17 +261,17 @@ PSOutput main(VSOutput input) {
 		float axisPixelWidth = max(axisParams.x * 2.0f, thicknessFadeAndHorizon.y * 2.0f);
 
 		// z = 0 が X axis
-		float axisXCoverage = ComputeAxisCoverage(worldPos.z, axisPixelWidth);
+		float axisXCoverage = ComputeAxisCoverage(relativePosition.z + cameraPosition.z, worldDerivative.y, axisPixelWidth);
 		float axisXAlpha = axisXColor.a * axisFade * axisXCoverage;
 		BlendLayer(accumPremul, axisXColor.rgb, axisXAlpha);
 
 		// x = 0 が Z axis
-		float axisZCoverage = ComputeAxisCoverage(worldPos.x, axisPixelWidth);
+		float axisZCoverage = ComputeAxisCoverage(relativePosition.x + cameraPosition.x, worldDerivative.x, axisPixelWidth);
 		float axisZAlpha = axisZColor.a * axisFade * axisZCoverage;
 		BlendLayer(accumPremul, axisZColor.rgb, axisZAlpha);
 	}
 
-	if (accumPremul.a <= (1.0f / 255.0f)) {
+	if (accumPremul.a <= 1e-6f) {
 		discard;
 	}
 

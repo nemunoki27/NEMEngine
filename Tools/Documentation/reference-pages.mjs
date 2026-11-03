@@ -18,7 +18,6 @@ const toolGuides = {
 	RenderFeatureProfileTool: ['post-process', 'ツール → レンダリング → レンダーパス', 'CameraのRenderPassesと同じプロファイルを開き、Passと入力・出力・Parameterを編集します。'],
 	MaterialEditorTool: ['materials', 'ツール → レンダリング → マテリアル作成', '用途に合う既定を選び、保存先と名前を指定してMaterialを作成します。'],
 	ShaderGraphEditorTool: ['shader-graph', 'ツール → レンダリング → シェーダーグラフ', 'GraphのNodeを接続し、型と出力を確認してコンパイル・保存します。'],
-	SceneCompositionTool: ['scene', 'ツール → シーン → シーン構成', 'Sceneの追加・解放・Active指定を行います。Scene AssetとInstanceを区別します。'],
 	TagManagerTool: ['project-settings', 'プロジェクト設定 → タグ・描画レイヤー', 'タグと描画Layerを定義します。削除や名前変更は参照先へ影響するため内容を確認して保存します。'],
 	PerformanceCheckTool: ['performance', 'ツール → デバッグ → パフォーマンスチェック', '描画条件を揃えて負荷を比較します。読込中と安定状態、表示Viewの数を区別します。'],
 	ScriptExecutionOrderTool: ['scripting', 'プロジェクト設定 → スクリプト実行順', 'Script型ごとの実行順を指定し、保存します。値の小さい側と同値の扱いはゲームの依存を作りすぎないようにします。'],

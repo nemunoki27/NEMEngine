@@ -125,7 +125,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawEditorTool(const EditorToolContext&
 
 void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin(MakeWindowName("Compiler Error List").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("Compiler Error List").c_str(), &openWindow_)) {
 		ImGui::End();
 		return;
 	}

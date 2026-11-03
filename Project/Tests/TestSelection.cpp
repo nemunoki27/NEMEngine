@@ -1,4 +1,5 @@
 #include "TestSelection.h"
+#include "EditorWindowTests.h"
 #include "InspectorPresentationTests.h"
 #include "TimerTests.h"
 #include "LocalTimeTests.h"
@@ -44,6 +45,10 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--editor-windows") {
+		return RunTest("TestEditorWindows", TestEditorWindows) ? 0 : 85;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--local-time") {
 		return RunTest("TestLocalTime", TestLocalTime) ? 0 : 83;

@@ -76,7 +76,7 @@ void Engine::RenderFeatureProfileTool::DrawEditorTool(const EditorToolContext& c
 void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& context) {
 
 	const bool wasOpen = openWindow_;
-	if (!ImGui::Begin(MakeWindowName("Render Passes").c_str(), &openWindow_)) {
+	if (!Engine::EditorWindowPresentation::Begin(MakeWindowName("Render Passes").c_str(), &openWindow_)) {
 		if (wasOpen && !openWindow_ && RenderFeatureProfileService::GetInstance().IsDirty()) {
 			openWindow_ = true;
 			pendingClose_ = true;

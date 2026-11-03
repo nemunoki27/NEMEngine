@@ -197,7 +197,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	const std::string windowName = MakeWindowName(displayName_);
 	ApplyInitialDock();
-	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	const bool visible = Engine::EditorWindowPresentation::Begin(windowName.c_str(), open);
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Project);
 	}
@@ -237,6 +237,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
+	ImGui::SameLine();
 	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
@@ -340,7 +341,6 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 	drawSourceButton(ProjectAssetSource::Engine, "Engine");
 	ImGui::SameLine();
 	drawSourceButton(ProjectAssetSource::Game, "Game");
-	ImGui::Separator();
 }
 
 bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& context, AssetDatabase& database,

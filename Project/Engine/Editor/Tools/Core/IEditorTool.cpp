@@ -19,7 +19,7 @@ void Engine::IEditorTool::EndEditorToolFrame() {
 
 std::string Engine::IEditorTool::MakeWindowName(const char* identity, const char* previousName) const {
 
-	const std::string name = GetDescriptor().name + "###" + identity;
+	const std::string name = EditorWindowPresentation::MakeWindowName(GetDescriptor().name, identity, GetDescriptor().id);
 	const ImGuiID windowID = ImHashStr(name.c_str());
 	if (!ImGui::FindWindowByID(windowID) && !ImGui::FindWindowSettingsByID(windowID)) {
 		// 日本語化前の位置とドッキング先を新しい表示名へ移す

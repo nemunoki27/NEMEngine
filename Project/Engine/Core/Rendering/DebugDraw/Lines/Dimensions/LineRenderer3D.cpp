@@ -36,6 +36,11 @@ void Engine::LineRenderer3D::DrawGrid(float minorStep) {
 void Engine::LineRenderer3D::RenderDefaultGrid(GraphicsCore& graphicsCore,
 	const ResolvedRenderView& view, MultiRenderTarget& surface, DepthTexture2D* occlusionDepth) {
 
+	// スナップ用のグリッドがある場合は通常グリッドを重ねない
+	if (gridDrawCount_ != 0) {
+		return;
+	}
+
 	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective);
 	if (!camera) {
 		return;
@@ -241,7 +246,7 @@ void Engine::LineRenderer3D::DrawLineImpl(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	for (uint32_t i = 0; i < gridDrawCount_; ++i) {
+	if (gridDrawCount_ != 0) {
 
 		// スナップグリッド描画、固定間隔とシーン深度を渡してメッシュに隠れるようにする
 		gridRenderer_->Render(graphicsCore, *camera, surface, gridMinorStep_, snapGridOcclusionDepth_);

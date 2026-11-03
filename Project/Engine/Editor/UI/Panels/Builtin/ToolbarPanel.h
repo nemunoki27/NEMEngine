@@ -27,6 +27,10 @@ namespace Engine {
 		~ToolbarPanel() = default;
 
 		void Draw(const EditorPanelContext& context) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PreDockSpace; }
 	private:
 		//============================================================================
 		//	private Methods

@@ -1,4 +1,5 @@
 #include "ImGuiAppearance.h"
+#include "EditorWindowPresentation.h"
 
 //============================================================================
 //	include
@@ -14,14 +15,17 @@ void Engine::ImGuiAppearance::ConfigureFont(ImGuiIO& io) {
 	// ImGuiのフォント設定
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
+	static constexpr ImWchar iconRange[] = { 0xf000, 0xf8ff, 0 };
+	cfg.GlyphExcludeRanges = iconRange;
 
 	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";
 	if (std::filesystem::exists(fontPath)) {
 		io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
 	} else {
 		// 日本語フォントがなければ既定フォントを使う
-		io.Fonts->AddFontDefault();
+		io.FontDefault = io.Fonts->AddFontDefault(&cfg);
 	}
+	EditorWindowPresentation::ConfigureFont(io);
 }
 
 void Engine::ImGuiAppearance::ApplyTheme(ImGuiStyle& style, bool platformWindows) {
@@ -32,7 +36,6 @@ void Engine::ImGuiAppearance::ApplyTheme(ImGuiStyle& style, bool platformWindows
 
 	// 背景と境界の色を揃える
 	const ImVec4 bg0 = C(0, 0, 0);			  // WindowBg
-	const ImVec4 topbar = C(3, 3, 3);		  // Title/Menu
 	const ImVec4 panel = C(6, 6, 6);		  // Frame/Button/Header
 	const ImVec4 border = C(28, 28, 28, 130); // Border
 
@@ -60,8 +63,8 @@ void Engine::ImGuiAppearance::ApplyTheme(ImGuiStyle& style, bool platformWindows
 	colors[ImGuiCol_FrameBgActive] = C(0, 13, 85, 255);
 
 	// タイトルとメニューの背景を設定する
-	colors[ImGuiCol_TitleBg] = topbar;
-	colors[ImGuiCol_TitleBgActive] = C(5, 5, 5);
+	colors[ImGuiCol_TitleBg] = C(0, 0, 0);
+	colors[ImGuiCol_TitleBgActive] = C(2, 2, 2);
 	colors[ImGuiCol_TitleBgCollapsed] = C(0, 0, 0);
 	colors[ImGuiCol_MenuBarBg] = C(4, 4, 4);
 
@@ -97,13 +100,13 @@ void Engine::ImGuiAppearance::ApplyTheme(ImGuiStyle& style, bool platformWindows
 	colors[ImGuiCol_ResizeGripActive] = C(0, 7, 45, 255);
 
 	// タブの操作状態ごとの色を設定する
-	colors[ImGuiCol_Tab] = topbar;
-	colors[ImGuiCol_TabHovered] = C(0, 13, 85, 255);
-	colors[ImGuiCol_TabSelected] = C(8, 8, 8);
-	colors[ImGuiCol_TabSelectedOverline] = accentA;
-	colors[ImGuiCol_TabDimmed] = C(1, 1, 1);
-	colors[ImGuiCol_TabDimmedSelected] = C(5, 5, 5);
-	colors[ImGuiCol_TabDimmedSelectedOverline] = C(18, 62, 150, 145);
+	colors[ImGuiCol_Tab] = C(0, 0, 0);
+	colors[ImGuiCol_TabHovered] = C(4, 4, 4);
+	colors[ImGuiCol_TabSelected] = C(2, 2, 2);
+	colors[ImGuiCol_TabSelectedOverline] = C(0, 0, 0, 0);
+	colors[ImGuiCol_TabDimmed] = colors[ImGuiCol_Tab];
+	colors[ImGuiCol_TabDimmedSelected] = colors[ImGuiCol_TabSelected];
+	colors[ImGuiCol_TabDimmedSelectedOverline] = C(0, 0, 0, 0);
 
 	// ドッキング先の色を設定する
 	colors[ImGuiCol_DockingPreview] = C(12, 45, 115, 65);
@@ -137,7 +140,15 @@ void Engine::ImGuiAppearance::ApplyTheme(ImGuiStyle& style, bool platformWindows
 	style.FramePadding = ImVec2(2.0f, 2.0f);
 	style.ScrollbarRounding = 2.0f;
 	style.GrabRounding = 2.0f;
-	style.TabRounding = 2.0f;
+	style.TabRounding = 0.0f;
+	style.TabBorderSize = 0.0f;
+	style.TabBarBorderSize = 0.0f;
+	style.TabBarOverlineSize = 0.0f;
+	style.TabCloseButtonMinWidthSelected = -1.0f;
+	style.TabCloseButtonMinWidthUnselected = 0.0f;
+	style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
+	style.WindowMenuButtonPosition = ImGuiDir_None;
+	style.DockingNodeHasCloseButton = false;
 
 	style.WindowBorderSize = 1.0f;
 	style.FrameBorderSize = 0.0f;

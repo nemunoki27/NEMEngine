@@ -17,6 +17,7 @@
 #include <Windows.h>
 
 struct ImGui_ImplDX12_InitInfo;
+struct ImGuiViewport;
 
 namespace Engine {
 
@@ -86,6 +87,7 @@ namespace Engine {
 		std::unordered_map<uint64_t, uint32_t> imguiSRVIndices_;
 		// 外部Windowの差替え前の処理
 		std::unordered_map<HWND, WNDPROC> platformWindowProcedures_;
+		void (*platformWindowTitle_)(ImGuiViewport*, const char*) = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
@@ -109,6 +111,8 @@ namespace Engine {
 		void FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
 		// 新しく生成された外部ウィンドウへエディター処理を接続する
 		void RegisterPlatformWindows();
+		// 外部ウィンドウのタイトルへ通常の表示名を渡す
+		static void SetPlatformWindowTitle(ImGuiViewport* viewport, const char* title);
 		// 外部ウィンドウの元のプロシージャを復元する
 		void RestorePlatformWindowProcedures();
 		// 指定ウィンドウがエディターの管理対象か

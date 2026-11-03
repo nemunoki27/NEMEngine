@@ -22,30 +22,44 @@ Engine::ToolbarPanel::ToolbarPanel(TextureUploadService& textureUploadService) :
 
 void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
+	// 以前のレイアウトからツールバーのドッキング設定を取り除く
+	if (ImGui::FindWindowSettingsByID(ImHashStr("Toolbar"))) {
+		ImGui::DockBuilderDockWindow("Toolbar", 0);
+		ImGui::ClearWindowSettings("Toolbar");
+	}
+
 	// ツールバーパネルの表示状態を確認
 	if (!context.layoutState->showToolbar) {
 		return;
 	}
 	RequestIcons();
 
-	// ツールバーウィンドウのフラグ
-	ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse |
+	// メニューバーの下に固定して表示領域を確保する
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoNavFocus |
 		ImGuiWindowFlags_NoScrollbar |
 		ImGuiWindowFlags_NoScrollWithMouse;
+	const float fontScale = 0.85f;
+	const ImVec2 playbackButtonSize(54.0f, 20.0f);
+	const float contentHeight = ImMax(ImGui::GetFontSize() * fontScale, playbackButtonSize.y);
+	const float height = contentHeight + ImGui::GetStyle().WindowPadding.y * 2.0f;
+	ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
 
-	if (!ImGui::Begin("Toolbar", &context.layoutState->showToolbar, flags)) {
+	if (!ImGui::BeginViewportSideBar("Toolbar", ImGui::GetMainViewport(), ImGuiDir_Up, height, flags)) {
 		ImGui::End();
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.85f);
+	ImGui::SetWindowFontScale(fontScale);
 
 	//============================================================================
 	//	現在のシーン名、モード、Undo/Redoの状態を表示
 	//============================================================================
-	const float toolbarY = ImGui::GetCursorPosY();
+	const float toolbarY = (ImGui::GetWindowHeight() - contentHeight) * 0.5f;
+	const float textY = toolbarY + (contentHeight - ImGui::GetFontSize()) * 0.5f;
 	const float toolbarStartX = ImGui::GetCursorPosX();
 	const float toolbarWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::SetCursorPosY(textY);
 
 	if (context.editorContext && context.editorContext->activeSceneHeader) {
 
@@ -70,13 +84,13 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	シーンのプレイ/ストップ切り替え
 	//============================================================================
-	const ImVec2 playbackButtonSize(54.0f, 20.0f);
 	const bool isPlaying = context.IsPlaying();
 	const bool isPaused = context.IsPlayPaused();
 	const float playbackButtonSpacing = isPlaying ? 6.0f : 0.0f;
 	const float playbackGroupWidth = playbackButtonSize.x + (isPlaying ? playbackButtonSpacing + playbackButtonSize.x : 0.0f);
 
-	ImGui::SetCursorPos(ImVec2(toolbarStartX + (toolbarWidth - playbackGroupWidth) * 0.5f, toolbarY));
+	const float playbackY = toolbarY + (contentHeight - playbackButtonSize.y) * 0.5f;
+	ImGui::SetCursorPos(ImVec2(toolbarStartX + (toolbarWidth - playbackGroupWidth) * 0.5f, playbackY));
 
 	if (!isPlaying) {
 
@@ -95,12 +109,12 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		if (playBuildResult == ManagedScriptBuildService::PlayBuildResult::Pending) {
 
 			ImGui::SameLine(0.0f, 8.0f);
-			ImGui::AlignTextToFramePadding();
+			ImGui::SetCursorPosY(textY);
 			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "ビルド中...");
 		} else if (playBuildResult == ManagedScriptBuildService::PlayBuildResult::Failed) {
 
 			ImGui::SameLine(0.0f, 8.0f);
-			ImGui::AlignTextToFramePadding();
+			ImGui::SetCursorPosY(textY);
 			ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ビルドに失敗しました");
 		}
 	} else {

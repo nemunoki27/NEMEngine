@@ -132,7 +132,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 	const std::string windowName = MakeWindowName(displayName);
 	ApplyInitialDock();
-	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	const bool visible = Engine::EditorWindowPresentation::Begin(windowName.c_str(), open);
 	assetEditSession_.KeepPanelOpen(*open);
 	if (assetEditSession_.ResolvePanelClose(context, *open)) {
 		ImGui::End();

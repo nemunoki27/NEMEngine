@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Engine/Core/Tools/Core/ITool.h>
+#include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include "EditorToolRenderResources.h"
 
 namespace Engine {

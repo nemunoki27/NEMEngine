@@ -57,8 +57,8 @@ namespace Engine {
 
 		struct GridPassConstants {
 
-			Matrix4x4 inverseViewProjectionMatrix = Matrix4x4::Identity();
-			Matrix4x4 viewProjectionMatrix = Matrix4x4::Identity();
+			Matrix4x4 inverseRelativeViewProjectionMatrix = Matrix4x4::Identity();
+			Matrix4x4 relativeViewProjectionMatrix = Matrix4x4::Identity();
 
 			// xyz: Camera位置、w: グリッド高さ
 			Vector4 cameraPositionAndPlaneY = Vector4(0.0f, 0.0f, 0.0f, 0.0f);

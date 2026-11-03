@@ -20,9 +20,9 @@ void Engine::IEditorPanel::ConfigureInstance(const std::string& panelTypeID,
 std::string Engine::IEditorPanel::MakeWindowName(const std::string& displayName) const {
 
 	if (instanceID_.empty()) {
-		return displayName;
+		return EditorWindowPresentation::MakeWindowName(displayName, displayName, displayName);
 	}
-	return displayName + "###" + panelTypeID_ + ":" + instanceID_;
+	return EditorWindowPresentation::MakeWindowName(displayName, panelTypeID_ + ":" + instanceID_, panelTypeID_);
 }
 
 void Engine::IEditorPanel::DrawTitleBarContextMenu(const EditorPanelContext& context) {
@@ -33,7 +33,7 @@ void Engine::IEditorPanel::DrawTitleBarContextMenu(const EditorPanelContext& con
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
 	currentDockID_ = window->DockId;
-	const ImRect titleBar = window->TitleBarRect();
+	const ImRect titleBar = window->DockIsActive ? window->DC.DockTabItemRect : window->TitleBarRect();
 	const std::string popupID = "##PanelTitleContext:" + instanceID_;
 	if (titleBar.Contains(ImGui::GetMousePos()) && ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
 		ImGui::OpenPopup(popupID.c_str());
