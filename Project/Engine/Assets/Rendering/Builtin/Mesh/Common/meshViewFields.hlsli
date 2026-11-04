@@ -13,7 +13,3 @@
 	float2 _viewPad0;
 	float3 renderCameraPos;
 	uint frameSerial;
-	float4x4 lodView;
-	float2 lodProjectionScale;
-	float lodNearClip;
-	uint lodOrthographic;

@@ -42,7 +42,6 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 
 		DepthVSOutput output;
 		output.position = mul(worldPos, viewProjection);
-		output.lodCoverage = payload.lodCoverages[groupID.x];
 
 		outVerts[groupThreadID] = output;
 	}

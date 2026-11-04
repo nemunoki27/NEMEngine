@@ -50,7 +50,6 @@ namespace Engine::ShaderGraphStageSource {
 
 		if (!transparent) {
 			source += "GBufferOutput main(VSOutput input) {\n\n"
-					  "\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "\tMeshSurface surface;\n"
@@ -70,7 +69,6 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tfloat4 color : SV_TARGET0;\n"
 					  "};\n\n"
 					  "TransparentPSOutput mainTransparent(VSOutput input) {\n\n"
-					  "\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 					  "\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
 					  "\tclip(alpha - graph.alphaClip);\n"
@@ -132,7 +130,6 @@ namespace Engine::ShaderGraphStageSource {
 					  "}\n";
 		} else {
 			source += "void main(VSOutput input) {\n\n"
-					  "\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "}\n";
@@ -236,7 +233,6 @@ namespace Engine::ShaderGraphStageSource {
 				  "\toutput.subMeshIndex = localSubMeshIndex;\n"
 				  "\toutput.tangentSign = vertex.tangentSign;\n"
 				  "\toutput.orientationSign = GetInstanceSubMeshOrientationSign(instanceID, localSubMeshIndex);\n"
-				  "\toutput.lodCoverage = GetMeshInstanceLODCoverage(instanceID);\n"
 				  "\tApplyMeshRenderGroupVisibility(output);\n"
 				  "\treturn output;\n"
 				  "}\n";
@@ -290,7 +286,6 @@ namespace Engine::ShaderGraphStageSource {
 				  "\t\toutput.subMeshIndex = localSubMeshIndex;\n"
 				  "\t\toutput.tangentSign = vertex.tangentSign;\n"
 				  "\t\toutput.orientationSign = gGraphOrientationSign;\n"
-				  "\t\toutput.lodCoverage = payload.lodCoverages[groupID.x];\n"
 				  "\t\toutVerts[groupThreadID] = output;\n"
 				  "\t}\n"
 				  "}\n";

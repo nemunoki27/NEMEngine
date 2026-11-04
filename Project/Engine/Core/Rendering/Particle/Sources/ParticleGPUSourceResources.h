@@ -87,7 +87,7 @@ namespace Engine {
 		std::string diagnostic_;
 		GraphicsFrameResourceRegistration frameRegistration_;
 
-		// MeshのLOD0とサブメッシュ姿勢から分布を用意する
+		// Meshとサブメッシュ姿勢から分布を用意する
 		bool PrepareMesh(GraphicsCore& graphics, ECSWorld& world, Entity owner, const ParticleGPUSimulationStep& step,
 			RenderAssetLibrary& assets, PipelineStateCache& pipelines, const ParticleGPUFrameInputs& inputs);
 		// 画像とCameraの同一世代の入力を接続する

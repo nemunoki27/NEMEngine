@@ -85,31 +85,19 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 
 	const auto& prepared = *context.prepared;
 
-	uint32_t meshletCount = 0;
-	const std::array<MeshLODRange, kMeshLODCount>& lods =
-		prepared.subMeshIndex != kAllMeshSubMeshes ?
-		prepared.gpuMesh->subMeshes[prepared.subMeshIndex].lods :
-		prepared.gpuMesh->lods;
-	for (const MeshLODRange& lod : lods) {
-		meshletCount = (std::max)(meshletCount, lod.meshletCount);
-	}
+	const uint32_t meshletCount = prepared.subMeshIndex != kAllMeshSubMeshes ?
+		prepared.gpuMesh->subMeshes[prepared.subMeshIndex].meshletCount : prepared.gpuMesh->meshletCount;
 	// MeshletやInstanceがない場合はDispatchMeshしない
 	if (meshletCount == 0 || prepared.instanceCount == 0) {
 		return;
 	}
 
 	Assert::Call(meshletCount <= 65535, "Meshlet数が現在の上限65535を超えています");
-	const bool usesLODDither =
-		context.drawContext->runtimeFeatures.useMeshLOD &&
-		context.drawContext->passKind != MaterialPassKind::Transparent &&
-		prepared.gpuMesh->ditherLODTransitions;
-	const uint32_t lodInstanceMultiplier = usesLODDither ? 2u : 1u;
-	Assert::Call(prepared.instanceCount <= 65535u / lodInstanceMultiplier,
-		"Instance数が現在のLOD描画上限を超えています");
+	Assert::Call(prepared.instanceCount <= 65535u, "Instance数が現在の描画上限を超えています");
 
 	// X方向は32メッシュレット単位、Y方向はインスタンス単位でASを起動する
 	const uint32_t meshletGroupCount = DxUtils::RoundUp(meshletCount, 32);
 	context.commandList->DispatchMesh(
 		meshletGroupCount,
-		prepared.instanceCount * lodInstanceMultiplier, 1);
+		prepared.instanceCount, 1);
 }

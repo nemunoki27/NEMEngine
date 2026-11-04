@@ -12,7 +12,6 @@
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
-#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 
 // c++
@@ -32,27 +31,6 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 	const std::filesystem::path fullPath = database.ResolveAssetPath(meta.assetPath);
 	if (fullPath.empty()) {
 		return dependencies;
-	}
-	if (meta.type == AssetType::Mesh) {
-		const MeshImportSettings settings =
-			ParseMeshImportSettings(meta.importerSettings);
-		for (AssetID lod : settings.manualLODMeshes) {
-			if (!lod || !collected.insert(lod).second) {
-				continue;
-			}
-			const AssetMeta* referenced = database.Find(lod);
-			if (!referenced) {
-				issues.push_back({ AssetDatabaseIssueType::MissingReference,
-					meta.guid, lod, AssetType::Mesh, AssetType::Unknown,
-					meta.assetPath, {}, "missing manual LOD mesh" });
-			} else if (referenced->type != AssetType::Mesh) {
-				issues.push_back({ AssetDatabaseIssueType::ReferenceTypeMismatch,
-					meta.guid, lod, AssetType::Mesh, referenced->type,
-					meta.assetPath, referenced->assetPath,
-					"manual LOD type mismatch" });
-			}
-			dependencies.emplace_back(lod);
-		}
 	}
 	// 独自拡張子のJSONも解析し、Font本体やShaderソースは除く
 	if (!AssetTypeResolver::IsJsonAssetFile(meta.type, fullPath)) {

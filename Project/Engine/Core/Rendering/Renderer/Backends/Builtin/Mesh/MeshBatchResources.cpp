@@ -59,7 +59,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	// 背面法アウトラインのインスタンス別GPUデータ
 	outlineData_.Init(device, srvDescriptor, uploadService);
 	DxUtils::CreateUavBufferResource(device, indexedIndirectArgs_,
-		sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) * kMeshLODCount);
+		sizeof(D3D12_DRAW_INDEXED_ARGUMENTS));
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 
 	// 初期値を大きめにして、カメラ移動時の細かい再確保を減らす
@@ -226,9 +226,9 @@ bool Engine::MeshBatchResources::FindSkinnedVertexOffset(
 }
 
 void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view,
-	const ResolvedRenderView* cullingView, const ResolvedRenderView* lodView) {
+	const ResolvedRenderView* cullingView, const ResolvedRenderView* historyView) {
 
-	viewResources_.UpdateView(view, cullingView, lodView);
+	viewResources_.UpdateView(view, cullingView, historyView);
 }
 
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,

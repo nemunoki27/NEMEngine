@@ -74,7 +74,7 @@ namespace {
 	// 元の配置を消しても通常Importerから頂点を取得する
 	bool CheckImportedGeometry(const std::filesystem::path& model) {
 
-		const auto imported = Engine::MeshFileImporter::ImportFile({}, model, {}, {}, false);
+		const auto imported = Engine::MeshFileImporter::ImportFile({}, model, false);
 		return imported.vertices.size() == 3 && imported.indices.size() == 3 && imported.subMeshes.size() == 1;
 	}
 

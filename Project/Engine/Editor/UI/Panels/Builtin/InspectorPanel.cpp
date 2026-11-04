@@ -15,7 +15,6 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Asset/MeshAssetInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/RenderTextureAssetInspectorDrawer.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -37,7 +36,6 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 
 	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
-	assetInspectorRegistry_.Register(std::make_unique<MeshAssetInspectorDrawer>());
 	assetInspectorRegistry_.Register(std::make_unique<RenderTextureAssetInspectorDrawer>());
 }
 

@@ -4,6 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshFileImporter.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 
 // c++
@@ -192,6 +195,64 @@ namespace {
 		return true;
 	}
 
+	bool TestRaytracingCullFlags() {
+
+		using namespace Engine::RaytracingSceneGeometryUtility;
+		struct TestCase {
+
+			D3D12_CULL_MODE cullMode;
+			BOOL frontCounterClockwise;
+			bool reverseWinding;
+			D3D12_RAYTRACING_INSTANCE_FLAGS expected;
+		};
+		const TestCase cases[] = {
+			{D3D12_CULL_MODE_NONE, FALSE, false, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE},
+			{D3D12_CULL_MODE_NONE, TRUE, false, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE |
+				D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE},
+			{D3D12_CULL_MODE_BACK, FALSE, false, D3D12_RAYTRACING_INSTANCE_FLAG_NONE},
+			{D3D12_CULL_MODE_BACK, TRUE, false, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE},
+			{D3D12_CULL_MODE_FRONT, FALSE, false, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE},
+			{D3D12_CULL_MODE_FRONT, TRUE, false, D3D12_RAYTRACING_INSTANCE_FLAG_NONE},
+			{D3D12_CULL_MODE_NONE, FALSE, true, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE |
+				D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE},
+			{D3D12_CULL_MODE_NONE, TRUE, true, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE},
+			{D3D12_CULL_MODE_BACK, FALSE, true, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE},
+			{D3D12_CULL_MODE_BACK, TRUE, true, D3D12_RAYTRACING_INSTANCE_FLAG_NONE},
+			{D3D12_CULL_MODE_FRONT, FALSE, true, D3D12_RAYTRACING_INSTANCE_FLAG_NONE},
+			{D3D12_CULL_MODE_FRONT, TRUE, true, D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE}
+		};
+		for (const auto& test : cases) {
+
+			D3D12_RASTERIZER_DESC rasterizer{};
+			rasterizer.CullMode = test.cullMode;
+			rasterizer.FrontCounterClockwise = test.frontCounterClockwise;
+			if (ToRaytracingCullFlags(rasterizer, test.reverseWinding) != test.expected) return false;
+		}
+		return true;
+	}
+
+	bool TestImportedMeshWinding() {
+
+		using namespace Engine;
+		const auto path = RuntimePaths::GetEngineProjectRoot() / "Tests/Fixtures/Decals/GameAssets/Models/Common/cube.obj";
+		const auto mesh = MeshFileImporter::ImportFile({}, path, false);
+		if (mesh.vertices.empty() || mesh.indices.empty()) return false;
+		bool foundFace = false;
+		for (size_t index = 0; index < mesh.indices.size(); index += 3) {
+
+			const auto& a = mesh.vertices[mesh.indices[index + 0]];
+			const auto& b = mesh.vertices[mesh.indices[index + 1]];
+			const auto& c = mesh.vertices[mesh.indices[index + 2]];
+			const Vector3 edge0(b.position.x - a.position.x, b.position.y - a.position.y, b.position.z - a.position.z);
+			const Vector3 edge1(c.position.x - a.position.x, c.position.y - a.position.y, c.position.z - a.position.z);
+			const auto face = Vector3::Cross(edge0, edge1);
+			if (face.Length() <= 1e-6f) continue;
+			if (Vector3::Dot(face, a.normal + b.normal + c.normal) <= 0.0f) return false;
+			foundFace = true;
+		}
+		return foundFace;
+	}
+
 	bool TestTriangleWinding() {
 
 		using namespace Engine;
@@ -254,5 +315,5 @@ bool NEMTests::TestPrimitiveTangents() {
 			std::fabs(vertex.tangent.Length() - 1.0f) > 0.001f) return false;
 	}
 	return TestNormalizedGeometryKeys() && TestFiniteParameters() && TestGeometryKeyCollision() &&
-		TestGeometryCapacity() && TestTriangleWinding();
+		TestGeometryCapacity() && TestTriangleWinding() && TestRaytracingCullFlags() && TestImportedMeshWinding();
 }

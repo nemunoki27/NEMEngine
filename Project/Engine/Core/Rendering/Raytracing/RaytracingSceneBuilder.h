@@ -18,7 +18,6 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
-#include <array>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -69,12 +68,12 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		ID3D12Resource* GetTLASResource() const { return tlasState_.GetResource(); }
+		ID3D12Resource* GetTLASResource() const { return scene_.tlasState.GetResource(); }
 		uint64_t GetStaticBLASOriginalBytes() const { return blasCache_.GetOriginalBytes(); }
 		uint64_t GetStaticBLASPublishedBytes() const { return blasCache_.GetPublishedBytes(); }
 
-		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return result_.scenePickRecords_; }
-		const std::vector<uint32_t>& GetPickRecordOffsets() const { return result_.scenePickRecordOffsets_; }
+		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return scene_.result.scenePickRecords_; }
+		const std::vector<uint32_t>& GetPickRecordOffsets() const { return scene_.result.scenePickRecordOffsets_; }
 
 	private:
 		//============================================================================
@@ -92,23 +91,14 @@ namespace Engine {
 		using DynamicBLASKeyHash = RaytracingBLASCache::DynamicBLASKeyHash;
 		using DynamicBLASEntry = RaytracingBLASCache::DynamicBLASEntry;
 
-		// 静的メッシュのLOD差分更新に必要なインスタンス情報
-		struct CachedMeshLODInstance {
+		// 静的Meshの固有BLASを保持するための情報
+		struct CachedMeshInstance {
 
 			AssetID meshAssetID{};
 			ECSWorld* world = nullptr;
 			Entity entity = Entity::Null();
 			uint32_t reloadGeneration = 0;
-			uint64_t geometryLayoutHash = 0;
 			bool tracksInstanceLayout = false;
-			bool usesInstanceBLAS = false;
-			uint32_t tlasInstanceIndex = 0;
-			uint32_t geometryDataOffset = 0;
-			// 可視Geometryに対応するモデル側のSubMesh番号
-			std::vector<uint32_t> geometrySubMeshIndices;
-			uint32_t lodIndex = 0;
-			Vector3 worldBoundsCenter = Vector3::AnyInit(0.0f);
-			float worldBoundsRadius = 0.0f;
 		};
 		// MeshのBLAS構築に使う描画情報
 		struct CollectedMeshInstance {
@@ -139,82 +129,72 @@ namespace Engine {
 		using SceneEntityKey = WorldEntityKey;
 		using SceneEntityKeyHash = WorldEntityKeyHash;
 
+		// TLASと転送結果の再利用条件を保持する
+		struct SceneState {
+
+			RaytracingTLASState tlasState{};
+			RaytracingSceneResult result{};
+			std::vector<std::shared_ptr<const uint8_t>> buildingMeshOwnerships;
+			std::vector<std::shared_ptr<const uint8_t>> publishedMeshOwnerships;
+			std::vector<BLASKey> publishedBLASKeys;
+			std::unordered_set<AssetID> renderTextureInputs;
+			RaytracingMaterialResolver materialResolver{};
+			uint64_t sceneMaterialGeneration = 0;
+			uint64_t cachedSceneMaterialHash = 0;
+			std::vector<RaytracingTLASInstance> cachedTLASInstances;
+			std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices;
+			std::vector<CachedMeshInstance> cachedMeshInstances;
+			bool builtThisFrame = false;
+			const ECSWorld* builtWorld = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> builtWorldLifetime;
+			uint64_t builtRenderRevision = 0;
+			uint64_t builtMeshResourceRevision = 0;
+			const ResolvedRenderView* builtView = nullptr;
+			UUID builtSceneInstanceID{};
+			bool cachedStaticScene = false;
+			const ECSWorld* cachedWorld = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> cachedWorldLifetime;
+			std::shared_ptr<const RegistryRevision> cachedExtractorRevision;
+			UUID cachedSceneInstanceID{};
+			uint64_t cachedRenderRevision = 0;
+			uint64_t cachedTransformRevision = 0;
+			uint64_t cachedMeshResourceRevision = 0;
+			uint64_t cachedGeometryContentHash = 0;
+			uint64_t textureRevision = 0;
+			std::shared_ptr<const uint64_t> materialRevision;
+			uint32_t cachedBLASGeometryCount = 0;
+			uint32_t cachedTLASInstanceCount = 0;
+		};
+
 		// Scene構築中だけ借用する処理対象と出力
 		struct SceneBuildWork {
 
 			GraphicsCore& graphicsCore;
+			SceneState& scene;
+			const GraphicsRuntimeFeatures& runtimeFeatures;
 			AssetDatabase& assetDatabase;
 			RenderAssetLibrary& assetLibrary;
 			MaterialResolver& materialResolver;
 			MeshRenderBackend* meshBackend;
 			PrimitiveGeometryManager* primitiveGeometryManager;
-			const GraphicsRuntimeFeatures& runtimeFeatures;
-			const ResolvedRenderView* lodView;
 			ID3D12Device8* device;
 			ID3D12GraphicsCommandList6* commandList;
 			std::vector<RaytracingTLASInstance>& tlasInstances;
 			std::vector<SceneEntityKey>& tlasEntityKeys;
-			std::vector<CachedMeshLODInstance>& meshLODInstances;
-			std::vector<uint32_t>& meshLODRecordIndices;
+			std::vector<CachedMeshInstance>& meshInstances;
 			bool& requireTLASRebuild;
 			bool& blasContentsChanged;
+			uint64_t& geometryContentHash;
 			bool& staticScene;
 			uint32_t& blasGeometryCount;
 		};
 
 		//--------- variables ----------------------------------------------------
 
-		// BLAS
+		// Sceneの共有形状と描画結果
 		RaytracingBLASCache blasCache_{};
-		// TLAS
-		RaytracingTLASState tlasState_{};
-
-		RaytracingSceneResult result_{};
-
-		// 公開中のTLASが参照するMeshと共有BLAS
-		std::vector<std::shared_ptr<const uint8_t>> buildingMeshOwnerships_;
-		std::vector<std::shared_ptr<const uint8_t>> publishedMeshOwnerships_;
-		std::vector<BLASKey> publishedBLASKeys_;
-		// 静的Sceneでも読み取り状態へ戻すCamera出力
-		std::unordered_set<AssetID> renderTextureInputs_;
-
-		// テクスチャ解決キャッシュ
-		RaytracingMaterialResolver materialResolver_{};
-		// 反射履歴の無効化に使うマテリアル内容の世代
-		uint64_t sceneMaterialGeneration_ = 0;
-		uint64_t cachedSceneMaterialHash_ = 0;
-
-		// 初期化済みか
+		SceneState scene_{};
 		bool initialized_ = false;
-		// 静的シーンのTransform差分更新に使うTLAS配置
-		std::vector<RaytracingTLASInstance> cachedTLASInstances_{};
-		std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices_{};
-		std::vector<CachedMeshLODInstance> cachedMeshLODInstances_{};
-		// TLAS配置ごとのLODキャッシュ番号
-		std::vector<uint32_t> cachedMeshLODRecordIndices_{};
-
-		// 同じframeと描画条件での重複構築を避ける
-		bool builtThisFrame_ = false;
-		const ECSWorld* builtWorld_ = nullptr;
-		std::shared_ptr<const ECSWorldLifetime> builtWorldLifetime_;
-		uint64_t builtRenderRevision_ = 0;
-		uint64_t builtMeshResourceRevision_ = 0;
-		uint64_t builtLODViewHash_ = 0;
-		UUID builtSceneInstanceID_{};
-		// 静的Sceneの再構築を判定する世代
-		bool cachedStaticScene_ = false;
-		const ECSWorld* cachedWorld_ = nullptr;
-		std::shared_ptr<const ECSWorldLifetime> cachedWorldLifetime_;
-		std::shared_ptr<const RegistryRevision> cachedExtractorRevision_;
-		UUID cachedSceneInstanceID_{};
-		uint64_t cachedRenderRevision_ = 0;
-		uint64_t cachedTransformRevision_ = 0;
-		uint64_t cachedMeshResourceRevision_ = 0;
-		uint64_t textureRevision_ = 0;
-		std::shared_ptr<const uint64_t> materialRevision_;
-		uint64_t cachedLODViewHash_ = 0;
-		uint32_t cachedBLASGeometryCount_ = 0;
-		uint32_t cachedTLASInstanceCount_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
@@ -230,11 +210,7 @@ namespace Engine {
 		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch, const SceneInstance& scene,
 			const ResolvedRenderView* view, std::vector<CollectedPrimitiveInstance>& outInstances);
 
-		// 構築済みMeshのLODとGeometry番号を更新
-		uint32_t UpdateCachedLODSelections(MeshRenderBackend* meshBackend, const GraphicsRuntimeFeatures& runtimeFeatures,
-			const ResolvedRenderView* lodView, bool& lodResourceMissing);
-
 		// 構築結果をViewへ渡す
-		void PublishBuiltScene(SceneExecutionContext& context);
+		void PublishBuiltScene(SceneExecutionContext& context, SceneState& state);
 	};
 }

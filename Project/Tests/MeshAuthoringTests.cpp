@@ -277,7 +277,7 @@ namespace {
 		importer.WaitAll();
 		ImportedMeshAsset imported;
 		if (!importer.TakeImported(mesh, imported) || imported.subMeshes.size() != 1 ||
-			imported.subMeshes[0].name != layout[0].name || imported.vertices.size() != 3 || imported.lods[0].indexCount != 3 ||
+			imported.subMeshes[0].name != layout[0].name || imported.vertices.size() != 3 || imported.indices.size() != 3 ||
 			imported.vertexSubMeshIndices != std::vector<uint32_t>(3, 0)) {
 			return false;
 		}

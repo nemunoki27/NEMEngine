@@ -46,6 +46,14 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--mesh-rendering") {
+		return RunTest("TestBuiltinShaderSources", TestBuiltinShaderSources) &&
+			RunTest("TestMeshShaderConstantLayout", TestMeshShaderConstantLayout) &&
+			RunTest("TestMeshletGeneration", TestMeshletGeneration) &&
+			RunTest("TestGraphicsFeatureSelection", TestGraphicsFeatureSelection) &&
+			RunTest("TestAssetDatabaseTransactions", TestAssetDatabaseTransactions) &&
+			RunTest("TestAssetDependencyCandidates", TestAssetDependencyCandidates) ? 0 : 86;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor-windows") {
 		return RunTest("TestEditorWindows", TestEditorWindows) ? 0 : 85;
 	}

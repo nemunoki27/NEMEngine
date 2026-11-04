@@ -49,7 +49,7 @@ namespace NEMTests {
 	bool TestEditCollisionState();
 	bool TestCapsuleCollisions();
 	bool TestPhysicsQueryTriggers();
-	bool TestMeshLODGeneration();
+	bool TestMeshletGeneration();
 	bool TestGraphicsFeatureSelection();
 	bool TestBlendStates();
 	bool TestMeshBatchInvalidation();

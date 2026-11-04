@@ -65,7 +65,7 @@ namespace Engine {
 
 		// 描画に使用するビューを更新する
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView,
-			const ResolvedRenderView* lodView = nullptr);
+			const ResolvedRenderView* historyView = nullptr);
 		// 描画対象のCPUデータを構築して転送
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh);

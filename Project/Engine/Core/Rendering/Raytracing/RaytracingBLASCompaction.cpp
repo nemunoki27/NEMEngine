@@ -13,7 +13,7 @@ bool Engine::RaytracingBLASCache::ProcessCompactions(GraphicsCore& graphicsCore)
 	bool pending = false;
 	for (const auto& [key, blas] : blases_) pending |= blas.HasPendingCompaction();
 	for (const auto& [key, entry] : staticInstanceBLASes_) {
-		for (const auto& blas : entry.lodBLASes) pending |= blas.HasPendingCompaction();
+		pending |= entry.blas.HasPendingCompaction();
 	}
 	if (pending && !adapter_) adapter_ = DxUtils::FindDeviceAdapter(graphicsCore.GetDXObject().GetDevice());
 	DXGI_QUERY_VIDEO_MEMORY_INFO info{};
@@ -35,7 +35,7 @@ bool Engine::RaytracingBLASCache::ProcessCompactions(GraphicsCore& graphicsCore)
 	};
 	for (auto& [key, blas] : blases_) process(blas);
 	for (auto& [key, entry] : staticInstanceBLASes_) {
-		for (auto& blas : entry.lodBLASes) process(blas);
+		process(entry.blas);
 	}
 	return changed;
 }

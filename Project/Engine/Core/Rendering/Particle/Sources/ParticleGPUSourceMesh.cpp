@@ -89,15 +89,14 @@ bool ParticleGPUSourceResources::PrepareMesh(GraphicsCore& graphics, ECSWorld& w
 		pose = skinning.poseGeneration;
 		buffer = skinning.bufferGeneration;
 	}
-	const auto& lod = mesh->lods[0];
 	ParticleMeshSamplingInput input;
 	input.vertices = currentVertices_->GetGPUVirtualAddress() + currentVertexOffset_;
 	input.indices = mesh->indexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	input.vertexSubMeshes = mesh->vertexSubMeshIndexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	input.subMeshes = subMeshes_.GetGPUAddress();
 	input.vertexCount = mesh->vertexCount;
-	input.indexOffset = lod.indexOffset;
-	input.indexCount = lod.indexCount ? lod.indexCount : mesh->indexCount;
+	input.indexOffset = 0;
+	input.indexCount = mesh->indexCount;
 	input.subMeshCount = static_cast<uint32_t>(transforms.size());
 	input.kind = source.kind;
 	const uint32_t count = source.kind == ParticleSourceKind::MeshVertex ? mesh->vertexCount :

@@ -40,7 +40,6 @@ struct OutlineVertexOutput {
 
 	float4 position : SV_Position;
 	nointerpolation float4 color : COLOR0;
-	nointerpolation float lodCoverage : LODCOVERAGE0;
 	float2 uv : TEXCOORD0;
 	nointerpolation float baseAlpha : TEXCOORD1;
 	nointerpolation uint baseColorTextureIndex : TEXCOORD2;
@@ -179,7 +178,6 @@ OutlineVertexOutput BuildOutlineVertex(uint instanceID, uint localSubMeshIndex,
 		output.position = mul(float4(worldPos, 1.0f), viewProjection);
 	}
 	output.color = outline.color;
-	output.lodCoverage = GetMeshInstanceLODCoverage(instanceID);
 	const MeshMaterialParameters material =
 		GetInstanceMeshMaterialParameters(instanceID, localSubMeshIndex);
 	output.uv = mul(float4(vertex.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;

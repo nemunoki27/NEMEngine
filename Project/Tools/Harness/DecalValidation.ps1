@@ -46,7 +46,7 @@ try {
     if ($Showcase) { $paths = @('GameAssets/Scenes/DecalValidation.scene.json') }
     ConvertTo-Json -InputObject $paths | Set-Content -LiteralPath (Join-Path $outputRoot 'Scenes.json') -Encoding utf8
     @{ allowMeshShader = $Mode -ne 'Vertex'; allowInlineRayTracing = $Mode -eq 'DXR';
-       allowDispatchRays = $Mode -eq 'DXR'; frameContextCount = 2; allowMeshLOD = $false } |
+       allowDispatchRays = $Mode -eq 'DXR'; frameContextCount = 2 } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/GraphicsFeatures.json') -Encoding utf8
     @{ activeScene = 'd3ca1000000000000000000000000028' } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Editor/ActiveScene.json') -Encoding utf8

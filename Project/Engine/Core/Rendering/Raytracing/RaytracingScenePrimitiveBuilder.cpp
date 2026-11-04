@@ -72,9 +72,9 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 			continue;
 		}
 		// 反射で参照するCamera出力を保持する
-		CollectRenderTextureParameters(material->parameters, work.assetDatabase, renderTextureInputs_);
+		CollectRenderTextureParameters(material->parameters, work.assetDatabase, work.scene.renderTextureInputs);
 		if (src.materialInstance) {
-			CollectRenderTextureParameters(*src.materialInstance, work.assetDatabase, renderTextureInputs_);
+			CollectRenderTextureParameters(*src.materialInstance, work.assetDatabase, work.scene.renderTextureInputs);
 		}
 		++work.blasGeometryCount;
 
@@ -95,9 +95,9 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 			FrameProfiler::GetInstance().AddBLASSkip(1);
 		}
 
-		const uint32_t subMeshDataIndex = static_cast<uint32_t>(result_.sceneSubMeshScratch_.size());
+		const uint32_t subMeshDataIndex = static_cast<uint32_t>(work.scene.result.sceneSubMeshScratch_.size());
 
-		MeshSubMeshShaderData subMeshData = materialResolver_.BuildPrimitiveSubMeshData(
+		MeshSubMeshShaderData subMeshData = work.scene.materialResolver.BuildPrimitiveSubMeshData(
 			work.graphicsCore, work.assetDatabase, *material,
 			src.materialInstance, src.uvMatrix);
 		const MaterialParameterValue* alphaClip = src.materialInstance ? src.materialInstance->Find(MaterialParameterIDs::AlphaClip) : nullptr;
@@ -105,7 +105,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		const float threshold = alphaClip && std::holds_alternative<float>(alphaClip->value) ? std::get<float>(alphaClip->value) : 0.5f;
 		subMeshData._materialPad = (static_cast<uint32_t>(src.surfaceMode) << 16u) |
 			static_cast<uint32_t>(std::clamp(threshold, 0.0f, 1.0f) * 65535.0f);
-		result_.sceneSubMeshScratch_.emplace_back(subMeshData);
+		work.scene.result.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
 		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
@@ -114,25 +114,25 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instanceShaderData.entityIndex = src.entity.index;
 		instanceShaderData.entityGeneration = src.entity.generation;
 		instanceShaderData.geometryDataOffset =
-			static_cast<uint32_t>(result_.sceneGeometryScratch_.size());
+			static_cast<uint32_t>(work.scene.result.sceneGeometryScratch_.size());
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
 			renderer.renderFlags, renderer.renderingLayerMask);
-		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
-		result_.sceneInstanceScratch_.emplace_back(instanceShaderData);
+		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
+		work.scene.result.sceneInstanceScratch_.emplace_back(instanceShaderData);
 
 		const uint32_t pickRecordIndex =
-			static_cast<uint32_t>(result_.scenePickRecords_.size());
+			static_cast<uint32_t>(work.scene.result.scenePickRecords_.size());
 		MeshSubMeshPickRecord pickRecord{};
 		pickRecord.entity = src.entity;
 		pickRecord.subMeshIndex = 0;
-		result_.scenePickRecords_.emplace_back(pickRecord);
-		result_.scenePickRecordOffsets_.emplace_back(pickRecordIndex);
+		work.scene.result.scenePickRecords_.emplace_back(pickRecord);
+		work.scene.result.scenePickRecordOffsets_.emplace_back(pickRecordIndex);
 
 		RaytracingGeometryShaderData geometryData{};
 		geometryData.subMeshDataIndex = subMeshDataIndex;
 		geometryData.pickRecordIndex = pickRecordIndex;
-		result_.sceneGeometryScratch_.emplace_back(geometryData);
-		result_.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
+		work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
+		work.scene.result.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
 			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent});
 
 		RaytracingTLASInstance instance{};
@@ -147,7 +147,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastReflection)) {
 			instance.mask |= kRaytracingMaskReflectionCaster;
 		}
-		instance.flags = ToRaytracingCullFlags(pipelineVariant->rasterizer);
+		instance.flags = ToRaytracingCullFlags(pipelineVariant->rasterizer, true);
 		// 共有形状でも切り抜きと半透明はInstanceごとに候補判定する
 		if (!MaterialRenderPolicy::IsOpaqueGeometry(material, src.surfaceMode)) {
 			instance.flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
@@ -155,6 +155,5 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instance.worldMatrix = src.worldMatrix;
 		work.tlasInstances.emplace_back(instance);
 		work.tlasEntityKeys.emplace_back(SceneEntityKey{ .world = src.world, .entity = src.entity, });
-		work.meshLODRecordIndices.emplace_back(UINT32_MAX);
 	}
 }

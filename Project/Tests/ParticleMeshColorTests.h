@@ -2,6 +2,6 @@
 
 namespace NEMTests {
 
-	// 頂点色の省略と手動LODの混在を確認する
+	// 頂点色の省略と転送を確認する
 	bool TestParticleMeshVertexColors();
 }

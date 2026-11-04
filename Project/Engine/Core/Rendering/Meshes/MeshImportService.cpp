@@ -60,17 +60,6 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
 		return false;
 	}
-	const AssetMeta* meta = assetDatabase.Find(meshAssetID);
-	const MeshImportSettings settings = meta ? ParseMeshImportSettings(meta->importerSettings) : MeshImportSettings{};
-	std::array<std::filesystem::path, 3> manualLODPaths{};
-	for (size_t index = 0; index < settings.manualLODMeshes.size(); ++index) {
-		const AssetID manualAsset = settings.manualLODMeshes[index];
-		const AssetMeta* manualMeta = manualAsset ? assetDatabase.Find(manualAsset) : nullptr;
-		if (manualMeta && manualMeta->type == AssetType::Mesh && manualAsset != meshAssetID) {
-
-			manualLODPaths[index] = assetDatabase.ResolveFullPath(manualAsset);
-		}
-	}
 
 	{
 		std::scoped_lock lock(mutex_);
@@ -85,8 +74,6 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 	if (!workerPool_.Enqueue(MeshLoadJob{
 			.assetID = meshAssetID,
 			.fullPath = std::move(fullPath),
-			.settings = settings,
-			.manualLODPaths = std::move(manualLODPaths),
 		})) {
 		// 受付を断った要求を待機中として残さない
 		std::scoped_lock lock(mutex_);
@@ -145,7 +132,7 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job) {
 	ImportedMeshAsset imported{};
 	bool succeeded = false;
 	try {
-		imported = MeshFileImporter::ImportFile(job.assetID, job.fullPath, job.settings, job.manualLODPaths);
+		imported = MeshFileImporter::ImportFile(job.assetID, job.fullPath);
 		succeeded = !imported.vertices.empty() && !imported.indices.empty();
 		if (succeeded) {
 			// 圧縮頂点やIndex変換もworkerで完了する

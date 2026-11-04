@@ -180,6 +180,28 @@ namespace NEMTests {
 			metaDocument["custom"] == metaSource["custom"] && metaDocument["guid"] == ToString(duplicate.guid) &&
 			!metaDocument.contains("version") && metaSource.contains("version");
 
+		// 旧Mesh設定を移行してもGUIDと他の設定を失わない
+		AssetMeta legacyMesh = duplicate;
+		legacyMesh.type = AssetType::Mesh;
+		legacyMesh.importer = "MeshImporter";
+		legacyMesh.importerSettings = {
+			{ "generateAutomaticLODs", true }, { "lodTargetErrors", { 0.1f, 0.2f, 0.3f } },
+			{ "manualLODMeshes", { ToString(atlasID) } }, { "lodTransition", "Dither" }, { "custom", true },
+		};
+		passed &= AssetMetaStorage::BuildMetaDocument(legacyMesh, metaSource, metaDocument) &&
+			metaDocument["settings"] == nlohmann::json{ { "custom", true } } &&
+			metaDocument["guid"] == ToString(legacyMesh.guid) && metaDocument["importerVersion"] == 4u &&
+			metaDocument["custom"] == metaSource["custom"] && legacyMesh.importerSettings.size() == 5u;
+		const auto legacyMeshPath = root / "legacy.obj.meta";
+		metaDocument["settings"] = legacyMesh.importerSettings;
+		metaDocument["importerVersion"] = 3u;
+		AssetMeta migratedMesh;
+		passed &= JsonFile::Save(legacyMeshPath, metaDocument) &&
+			AssetDatabase::ReadMetaFile(legacyMeshPath, migratedMesh) && migratedMesh.guid == legacyMesh.guid &&
+			migratedMesh.importerSettings == nlohmann::json{ { "custom", true } } &&
+			JsonFile::TryLoad(legacyMeshPath, data) && data["settings"] == migratedMesh.importerSettings &&
+			data["importerVersion"] == 4u;
+
 		const auto invalidPath = root / "invalid.png.meta";
 		passed &= JsonFile::Save(invalidPath, nlohmann::json{ { "schemaVersion", "bad" } });
 		AssetMeta unchanged = duplicate;

@@ -27,10 +27,6 @@ public sealed class GraphicsSettingsData {
 	public bool occlusionCulling { get => Read<bool>("allowOcclusionCulling"); set => Write("allowOcclusionCulling", value); }
 	public bool contributionCulling { get => Read<bool>("allowContributionCulling"); set => Write("allowContributionCulling", value); }
 	public bool normalConeCulling { get => Read<bool>("allowNormalConeCulling"); set => Write("allowNormalConeCulling", value); }
-	public bool meshLOD { get => Read<bool>("allowMeshLOD"); set => Write("allowMeshLOD", value); }
-	public float meshLOD0PixelThreshold { get => Read<float>("meshLOD0PixelThreshold"); set => Write("meshLOD0PixelThreshold", value); }
-	public float meshLOD1PixelThreshold { get => Read<float>("meshLOD1PixelThreshold"); set => Write("meshLOD1PixelThreshold", value); }
-	public float meshLOD2PixelThreshold { get => Read<float>("meshLOD2PixelThreshold"); set => Write("meshLOD2PixelThreshold", value); }
 	public bool doubleBuffering { get => Read<uint>("frameContextCount") == 2; set => Write("frameContextCount", value ? 2u : 1u); }
 	public DisplayOutputMode displayOutput { get => Enum.Parse<DisplayOutputMode>(Read<string>("displayOutputMode")); set => Write("displayOutputMode", value.ToString()); }
 	public float paperWhiteNits { get => Read<float>("paperWhiteNits"); set => Write("paperWhiteNits", value); }

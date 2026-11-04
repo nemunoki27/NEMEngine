@@ -23,6 +23,7 @@
 // c++
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <span>
 #include <variant>
 
@@ -52,7 +53,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			continue;
 		}
 		// TLASが参照する頂点とIndexの所有を保持する
-		buildingMeshOwnerships_.push_back(meshResource->ownership);
+		work.scene.buildingMeshOwnerships.push_back(meshResource->ownership);
 		const std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) : std::span<const SubMeshMaterial>{};
 		uint32_t visibleSubMeshCount = 0;
@@ -75,12 +76,6 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		StaticInstanceBLASKey staticInstanceKey{};
 		StaticInstanceBLASEntry* staticInstanceEntry = nullptr;
 		bool usesInstanceBLAS = false;
-		Vector3 worldBoundsCenter{};
-		float worldBoundsRadius = 0.0f;
-		CalculateMeshWorldBounds(*meshResource, subMeshes, src.worldMatrix, worldBoundsCenter, worldBoundsRadius);
-		const uint32_t selectedLOD =
-			meshResource->isSkinned ? 0
-									: ResolveMeshLOD(work.runtimeFeatures, work.lodView, worldBoundsCenter, worldBoundsRadius);
 
 		SkinnedVertexSource skinnedSource{};
 
@@ -108,11 +103,9 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		// 1メッシュの全サブメッシュを1つのBLASへまとめる
 		std::vector<RaytracingBLASGeometryInput> geometries{};
 		geometries.reserve(visibleSubMeshCount);
-		std::vector<uint32_t> geometrySubMeshIndices{};
-		geometrySubMeshIndices.reserve(visibleSubMeshCount);
 
-		const uint32_t geometryDataOffset = static_cast<uint32_t>(result_.sceneGeometryScratch_.size());
-		const uint32_t pickRecordOffset = static_cast<uint32_t>(result_.scenePickRecords_.size());
+		const uint32_t geometryDataOffset = static_cast<uint32_t>(work.scene.result.sceneGeometryScratch_.size());
+		const uint32_t pickRecordOffset = static_cast<uint32_t>(work.scene.result.scenePickRecords_.size());
 
 		const uint32_t vertexDescriptorIndex = hasSkinnedSource ? skinnedSource.srvIndex : meshResource->vertexSRV.srvIndex;
 		const uint32_t vertexOffset = hasSkinnedSource ? skinnedSource.vertexOffset : 0;
@@ -139,15 +132,13 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			geometry.vertexAddress = vertexAddress;
 			geometry.vertexStride = sizeof(MeshVertex);
 			geometry.vertexCount = meshResource->vertexCount;
-			const MeshLODRange& selectedRange = ResolveRaytracingLODRange(importedSubMesh, selectedLOD);
-			geometry.indexAddress = indexAddress + static_cast<uint64_t>(indexSize) * selectedRange.indexOffset;
-			geometry.indexCount = selectedRange.indexCount;
+			geometry.indexAddress = indexAddress + static_cast<uint64_t>(indexSize) * importedSubMesh.indexOffset;
+			geometry.indexCount = importedSubMesh.indexCount;
 			geometry.indexFormat = meshResource->indexBuffer.GetFormat();
 			geometry.localMatrix = localMatrix;
 			geometries.emplace_back(geometry);
-			geometrySubMeshIndices.emplace_back(subMeshIndex);
 
-			const uint32_t subMeshDataIndex = static_cast<uint32_t>(result_.sceneSubMeshScratch_.size());
+			const uint32_t subMeshDataIndex = static_cast<uint32_t>(work.scene.result.sceneSubMeshScratch_.size());
 
 			// サブメッシュデータを構築
 			MeshSubMeshShaderData subMeshData{};
@@ -156,13 +147,13 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(*meshResource, subMeshes, subMeshIndex);
 			if (baseColorTextureAsset) {
 
-				subMeshData.baseColorTextureIndex = materialResolver_.ResolveTextureDescriptorIndex(
+				subMeshData.baseColorTextureIndex = work.scene.materialResolver.ResolveTextureDescriptorIndex(
 					work.graphicsCore, work.assetDatabase, baseColorTextureAsset, true);
 			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, subMeshes, subMeshIndex)) {
 
 				// 宣言はあるが見つからない:エラーテクスチャ
 				subMeshData.baseColorTextureIndex =
-					materialResolver_.ResolveTextureDescriptorIndex(work.graphicsCore, work.assetDatabase, AssetID{}, true);
+					work.scene.materialResolver.ResolveTextureDescriptorIndex(work.graphicsCore, work.assetDatabase, AssetID{}, true);
 			} else {
 
 				// Texture未指定時はモデルの色を使う
@@ -185,31 +176,31 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				MeshDrawPathCommon::ResolveSubMeshOpacityTextureAssetID(*meshResource, subMeshes, subMeshIndex);
 			AssetID specularAsset =
 				MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			subMeshData.normalTextureIndex = normalAsset ? materialResolver_.ResolveTextureDescriptorIndex(
+			subMeshData.normalTextureIndex = normalAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 															   work.graphicsCore, work.assetDatabase, normalAsset, false, true)
 														 : UINT32_MAX;
 			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset
-															? materialResolver_.ResolveTextureDescriptorIndex(work.graphicsCore,
+															? work.scene.materialResolver.ResolveTextureDescriptorIndex(work.graphicsCore,
 																  work.assetDatabase, metallicRoughnessAsset, false)
 															: UINT32_MAX;
-			subMeshData.metallicTextureIndex = metallicAsset ? materialResolver_.ResolveTextureDescriptorIndex(
+			subMeshData.metallicTextureIndex = metallicAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 																   work.graphicsCore, work.assetDatabase, metallicAsset, false)
 															 : UINT32_MAX;
 			subMeshData.roughnessTextureIndex = roughnessAsset
-													? materialResolver_.ResolveTextureDescriptorIndex(
+													? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 														  work.graphicsCore, work.assetDatabase, roughnessAsset, false)
 													: UINT32_MAX;
-			subMeshData.emissiveTextureIndex = emissiveAsset ? materialResolver_.ResolveTextureDescriptorIndex(
+			subMeshData.emissiveTextureIndex = emissiveAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 																   work.graphicsCore, work.assetDatabase, emissiveAsset, true)
 															 : UINT32_MAX;
 			subMeshData.occlusionTextureIndex = occlusionAsset
-													? materialResolver_.ResolveTextureDescriptorIndex(
+													? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 														  work.graphicsCore, work.assetDatabase, occlusionAsset, false)
 													: UINT32_MAX;
-			subMeshData.opacityTextureIndex = opacityAsset ? materialResolver_.ResolveTextureDescriptorIndex(
+			subMeshData.opacityTextureIndex = opacityAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 																 work.graphicsCore, work.assetDatabase, opacityAsset, false)
 														   : UINT32_MAX;
-			subMeshData.specularTextureIndex = specularAsset ? materialResolver_.ResolveTextureDescriptorIndex(
+			subMeshData.specularTextureIndex = specularAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
 																   work.graphicsCore, work.assetDatabase, specularAsset, false)
 															 : UINT32_MAX;
 
@@ -224,7 +215,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				const auto& authoring = subMeshes[subMeshIndex];
 				// 標準Parameterから反射用のMaterial値を設定
 				const auto& params = authoring.materialInstance;
-				CollectRenderTextureParameters(params, work.assetDatabase, renderTextureInputs_);
+				CollectRenderTextureParameters(params, work.assetDatabase, work.scene.renderTextureInputs);
 				auto findColor = [&](MaterialParameterID id, const Color4& fallback) -> Color4 {
 					const MaterialParameterValue* value = params.Find(id);
 					return value && std::holds_alternative<Color4>(value->value) ? std::get<Color4>(value->value) : fallback;
@@ -268,7 +259,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 			Algorithm::HashCombine(geometryLayoutHash, static_cast<uint32_t>(geometries.back().flags));
 			// サブメッシュデータを追加
-			result_.sceneSubMeshScratch_.emplace_back(subMeshData);
+			work.scene.result.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 			// メッシュピック用のサブメッシュ情報を追加
 			MeshSubMeshPickRecord pickRecord{};
@@ -278,21 +269,21 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 				pickRecord.subMeshStableID = subMeshes[subMeshIndex].stableID;
 			}
-			result_.scenePickRecords_.emplace_back(pickRecord);
+			work.scene.result.scenePickRecords_.emplace_back(pickRecord);
 
 			RaytracingGeometryShaderData geometryData{};
 			geometryData.subMeshDataIndex = subMeshDataIndex;
-			geometryData.indexOffset = selectedRange.indexOffset;
-			geometryData.pickRecordIndex = static_cast<uint32_t>(result_.scenePickRecords_.size() - 1);
-			result_.sceneGeometryScratch_.emplace_back(geometryData);
+			geometryData.indexOffset = importedSubMesh.indexOffset;
+			geometryData.pickRecordIndex = static_cast<uint32_t>(work.scene.result.scenePickRecords_.size() - 1);
+			work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 			RaytracingGeometryBounds bounds;
 			bounds.center = importedSubMesh.boundsCenter;
 			bounds.radius = importedSubMesh.boundsRadius;
 			MeshBoundsUtility::TransformSphere(localMatrix, bounds.center, bounds.radius);
-			bounds.instanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
+			bounds.instanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
 			bounds.receiveDecals = src.renderer && src.renderer->receiveDecals && !meshResource->isSkinned &&
 				renderState.surfaceMode != MaterialSurfaceMode::Transparent;
-			result_.sceneGeometryBounds_.push_back(bounds);
+			work.scene.result.sceneGeometryBounds_.push_back(bounds);
 		}
 
 		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
@@ -312,6 +303,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			}
 			staticInstanceEntry = &entry;
 			usesInstanceBLAS = entry.dedicated;
+		}
+		Algorithm::HashCombine(work.geometryContentHash, std::hash<AssetID>{}(src.meshAssetID));
+		Algorithm::HashCombine(work.geometryContentHash, reloadGeneration);
+		Algorithm::HashCombine(work.geometryContentHash, geometryLayoutHash);
+		Algorithm::HashCombine(work.geometryContentHash, vertexAddress);
+		if (hasSkinnedSource) {
+			Algorithm::HashCombine(work.geometryContentHash, skinnedSource.poseGeneration);
+			Algorithm::HashCombine(work.geometryContentHash, skinnedSource.bufferGeneration);
 		}
 		RaytracingBLASInput input{};
 		input.geometries = geometries;
@@ -365,70 +364,50 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		} else if (usesInstanceBLAS) {
 
 			StaticInstanceBLASEntry& entry = *staticInstanceEntry;
-			std::vector<RaytracingBLASGeometryInput> lodGeometries = BuildLODGeometries(*meshResource, geometries, geometrySubMeshIndices, selectedLOD);
-			RaytracingBLASInput lodInput{};
-			lodInput.geometries = lodGeometries;
-			lodInput.allowUpdate = true;
+			RaytracingBLASInput instanceInput = input;
+			instanceInput.allowUpdate = true;
 
-			BottomLevelAccelerationStructure& blas = entry.lodBLASes[selectedLOD];
-			const bool geometryChanged = entry.lodGeometryLayoutHashes[selectedLOD] != geometryLayoutHash;
+			BottomLevelAccelerationStructure& blas = entry.blas;
+			const bool geometryChanged = entry.publishedGeometryLayoutHash != geometryLayoutHash;
 			if (!blas.IsBuilt()) {
 
 				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
-				blas.Build(work.device, work.commandList, lodInput);
-				FrameProfiler::GetInstance().AddBLASBuild(static_cast<uint32_t>(lodGeometries.size()));
+				blas.Build(work.device, work.commandList, instanceInput);
+				FrameProfiler::GetInstance().AddBLASBuild(static_cast<uint32_t>(geometries.size()));
 				work.requireTLASRebuild = true;
 			} else if (geometryChanged) {
 
-				blas.Update(work.commandList, lodInput);
+				blas.Update(work.commandList, instanceInput);
 				work.blasContentsChanged = true;
-				FrameProfiler::GetInstance().AddBLASRefit(static_cast<uint32_t>(lodGeometries.size()));
+				FrameProfiler::GetInstance().AddBLASRefit(static_cast<uint32_t>(geometries.size()));
 			} else {
 
-				FrameProfiler::GetInstance().AddBLASSkip(static_cast<uint32_t>(lodGeometries.size()));
+				FrameProfiler::GetInstance().AddBLASSkip(static_cast<uint32_t>(geometries.size()));
 			}
-			entry.lodGeometryLayoutHashes[selectedLOD] = geometryLayoutHash;
+			entry.publishedGeometryLayoutHash = geometryLayoutHash;
 			blasResource = blas.GetResource();
 			entry.geometryLayoutHash = geometryTransformHash;
 		} else {
 
-			const uint32_t blasLODCount = meshResource->isSkinned ? 1 : kMeshLODCount;
-			for (uint32_t lodIndex = 0; lodIndex < blasLODCount; ++lodIndex) {
+			BLASKey key{};
+			key.meshAssetID = src.meshAssetID;
+			key.reloadGeneration = reloadGeneration;
+			key.geometryLayoutHash = geometryLayoutHash;
+			blasCache_.sharedBLASFrames_[key] = GraphicsFrameState::GetFrameSerial();
+			work.scene.publishedBLASKeys.push_back(key);
 
-				BLASKey key{};
-				key.meshAssetID = src.meshAssetID;
-				key.reloadGeneration = reloadGeneration;
-				key.lodIndex = lodIndex;
-				key.geometryLayoutHash = geometryLayoutHash;
-				blasCache_.sharedBLASFrames_[key] = GraphicsFrameState::GetFrameSerial();
-				publishedBLASKeys_.push_back(key);
+			BottomLevelAccelerationStructure& blas = blasCache_.blases_[key];
+			if (!blas.IsBuilt()) {
 
-				auto blasIt = blasCache_.blases_.find(key);
-				if (blasIt != blasCache_.blases_.end() && blasIt->second.IsBuilt()) {
-
-					FrameProfiler::GetInstance().AddBLASSkip(static_cast<uint32_t>(geometries.size()));
-					if (lodIndex == selectedLOD) {
-						blasResource = blasIt->second.GetResource();
-					}
-					continue;
-				}
-
-				std::vector<RaytracingBLASGeometryInput> lodGeometries = BuildLODGeometries(*meshResource, geometries, geometrySubMeshIndices, lodIndex);
-
-				RaytracingBLASInput lodInput{};
-				lodInput.geometries = lodGeometries;
-				lodInput.allowUpdate = false;
-				lodInput.submission = input.submission;
-
-				BottomLevelAccelerationStructure& blas = blasCache_.blases_[key];
 				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
-				blas.Build(work.device, work.commandList, lodInput);
-				FrameProfiler::GetInstance().AddBLASBuild(static_cast<uint32_t>(lodGeometries.size()));
+				blas.Build(work.device, work.commandList, input);
+				FrameProfiler::GetInstance().AddBLASBuild(static_cast<uint32_t>(geometries.size()));
 				work.requireTLASRebuild = true;
-				if (lodIndex == selectedLOD) {
-					blasResource = blas.GetResource();
-				}
+			} else {
+
+				FrameProfiler::GetInstance().AddBLASSkip(static_cast<uint32_t>(geometries.size()));
 			}
+			blasResource = blas.GetResource();
 		}
 		if (!blasResource) {
 			continue;
@@ -444,9 +423,9 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		const MeshRenderFlags renderFlags = src.renderer ? src.renderer->renderFlags : MeshRenderFlags::Default;
 		const uint32_t renderingLayerMask = src.renderer ? src.renderer->renderingLayerMask : kRenderingLayerMaskBits;
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(renderFlags, renderingLayerMask);
-		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
-		result_.sceneInstanceScratch_.emplace_back(instanceShaderData);
-		result_.scenePickRecordOffsets_.emplace_back(pickRecordOffset);
+		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
+		work.scene.result.sceneInstanceScratch_.emplace_back(instanceShaderData);
+		work.scene.result.scenePickRecordOffsets_.emplace_back(pickRecordOffset);
 
 		RaytracingTLASInstance instance{};
 		instance.blas = blasResource;
@@ -466,29 +445,17 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		}
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
-		const uint32_t tlasInstanceIndex = static_cast<uint32_t>(work.tlasInstances.size());
 		work.tlasInstances.emplace_back(instance);
 		work.tlasEntityKeys.emplace_back(SceneEntityKey{ .world = src.world, .entity = src.entity, });
-		if (!meshResource->isSkinned) {
+		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
 
-			CachedMeshLODInstance lodInstance{};
-			lodInstance.meshAssetID = src.meshAssetID;
-			lodInstance.world = src.world;
-			lodInstance.entity = src.entity;
-			lodInstance.reloadGeneration = reloadGeneration;
-			lodInstance.geometryLayoutHash = geometryLayoutHash;
-			lodInstance.tracksInstanceLayout = hasCustomGeometryTransforms;
-			lodInstance.usesInstanceBLAS = usesInstanceBLAS;
-			lodInstance.tlasInstanceIndex = tlasInstanceIndex;
-			lodInstance.geometryDataOffset = geometryDataOffset;
-			lodInstance.geometrySubMeshIndices = std::move(geometrySubMeshIndices);
-			lodInstance.lodIndex = selectedLOD;
-			lodInstance.worldBoundsCenter = worldBoundsCenter;
-			lodInstance.worldBoundsRadius = worldBoundsRadius;
-			work.meshLODRecordIndices.emplace_back(static_cast<uint32_t>(work.meshLODInstances.size()));
-			work.meshLODInstances.emplace_back(lodInstance);
-		} else {
-			work.meshLODRecordIndices.emplace_back(UINT32_MAX);
+			CachedMeshInstance instanceRecord{};
+			instanceRecord.meshAssetID = src.meshAssetID;
+			instanceRecord.world = src.world;
+			instanceRecord.entity = src.entity;
+			instanceRecord.reloadGeneration = reloadGeneration;
+			instanceRecord.tracksInstanceLayout = true;
+			work.meshInstances.emplace_back(instanceRecord);
 		}
 	}
 }

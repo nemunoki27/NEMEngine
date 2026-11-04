@@ -62,7 +62,7 @@ bool NEMTests::CheckFBXTransforms() {
 		if (!scene || !scene->mRootNode) return false;
 		auto expected = empty;
 		CollectBounds(scene, scene->mRootNode, {}, expected);
-		const auto mesh = MeshFileImporter::ImportFile({}, path, {}, {});
+		const auto mesh = MeshFileImporter::ImportFile({}, path);
 		auto actual = empty;
 		for (const auto& vertex : mesh.vertices) {
 			Include(actual, {vertex.position.x, vertex.position.y, vertex.position.z});

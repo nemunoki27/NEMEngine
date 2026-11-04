@@ -26,6 +26,14 @@ namespace {
 	uint64_t BuildViewHash(const Engine::PerViewLightSet& lightSet) {
 
 		uint64_t hash = 1469598103934665603ull;
+		hash = HashBytes(hash, &lightSet.sourceWorld,
+			sizeof(lightSet.sourceWorld));
+		const Engine::ECSWorldLifetime* sourceLifetime =
+			lightSet.sourceWorldLifetime.get();
+		hash = HashBytes(hash, &sourceLifetime,
+			sizeof(sourceLifetime));
+		hash = HashBytes(hash, &lightSet.sceneInstanceID,
+			sizeof(lightSet.sceneInstanceID));
 		if (!lightSet.view || !lightSet.camera) {
 			return hash;
 		}
@@ -35,12 +43,6 @@ namespace {
 			sizeof(lightSet.view->width));
 		hash = HashBytes(hash, &lightSet.view->height,
 			sizeof(lightSet.view->height));
-		hash = HashBytes(hash, &lightSet.sourceWorld,
-			sizeof(lightSet.sourceWorld));
-		const Engine::ECSWorldLifetime* sourceLifetime =
-			lightSet.sourceWorldLifetime.get();
-		hash = HashBytes(hash, &sourceLifetime,
-			sizeof(sourceLifetime));
 		hash = HashBytes(hash, &lightSet.camera->matrices.viewMatrix,
 			sizeof(lightSet.camera->matrices.viewMatrix));
 		hash = HashBytes(hash, &lightSet.camera->matrices.projectionMatrix,
@@ -51,8 +53,6 @@ namespace {
 			sizeof(lightSet.camera->farClip));
 		hash = HashBytes(hash, &lightSet.camera->cullingMask,
 			sizeof(lightSet.camera->cullingMask));
-		hash = HashBytes(hash, &lightSet.sceneInstanceID,
-			sizeof(lightSet.sceneInstanceID));
 		return hash;
 	}
 

@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
-#include <Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
@@ -145,15 +144,16 @@ namespace NEMTests {
 					shader.diagnostics << '\n';
 				return false;
 			}
+			const auto* draw = Engine::FindConstantBuffer(shader.reflection, "MeshDrawConstants");
+			if (!draw || draw->size != sizeof(Engine::MeshDrawConstants)) {
+				return false;
+			}
 			const std::pair<const char*, size_t> offsets[]{
 				{ "previousViewProjection", offsetof(Engine::MeshViewConstants, previousViewProjection) },
 				{ "cullingViewProjection", offsetof(Engine::MeshViewConstants, cullingViewProjection) },
 				{ "cullingCameraPos", offsetof(Engine::MeshViewConstants, cullingCameraPos) },
 				{ "viewSize", offsetof(Engine::MeshViewConstants, viewSize) },
 				{ "renderCameraPos", offsetof(Engine::MeshViewConstants, renderCameraPos) },
-				{ "lodView", offsetof(Engine::MeshViewConstants, lodView) },
-				{ "lodNearClip", offsetof(Engine::MeshViewConstants, lodNearClip) },
-				{ "lodOrthographic", offsetof(Engine::MeshViewConstants, lodOrthographic) },
 			};
 			for (const auto& [name, offset] : offsets) {
 				const auto found = std::find_if(view->variables.begin(), view->variables.end(),
@@ -240,58 +240,8 @@ namespace NEMTests {
 		return true;
 	}
 
-	bool TestMeshLODGeneration() {
+	bool TestMeshletGeneration() {
 
-		// 非表示SubMeshを除いてもLODの対応を崩さない
-		std::array<Engine::SubMeshDesc, 3> sparseSubMeshes{};
-		sparseSubMeshes[0].lods[2] = { .indexOffset = 10, .indexCount = 3 };
-		sparseSubMeshes[1].lods[2] = { .indexOffset = 20, .indexCount = 3 };
-		sparseSubMeshes[2].lods[2] = { .indexOffset = 30, .indexCount = 3 };
-		const std::array<uint32_t, 2> visibleIndices{ 1, 2 };
-		std::array<Engine::RaytracingGeometryShaderData, 3> geometryData{};
-		geometryData[0] = { .subMeshDataIndex = 7, .indexOffset = 1, .pickRecordIndex = 8 };
-		geometryData[1] = { .subMeshDataIndex = 9, .indexOffset = 2, .pickRecordIndex = 10 };
-		geometryData[2].indexOffset = 1234;
-		const auto firstMesh = std::span<Engine::RaytracingGeometryShaderData>(geometryData).first(2);
-		using Engine::RaytracingSceneGeometryUtility::UpdateGeometryLODOffsets;
-		if (!UpdateGeometryLODOffsets(sparseSubMeshes, visibleIndices, 2, firstMesh) ||
-			geometryData[0].indexOffset != 20 || geometryData[1].indexOffset != 30 || geometryData[2].indexOffset != 1234 ||
-			geometryData[0].subMeshDataIndex != 7 || geometryData[0].pickRecordIndex != 8 ||
-			geometryData[1].subMeshDataIndex != 9 || geometryData[1].pickRecordIndex != 10) return false;
-		// 不正な対応番号は適用済みのGeometryも変更しない
-		const std::array<uint32_t, 2> invalidIndices{ 0, 3 };
-		if (UpdateGeometryLODOffsets(sparseSubMeshes, invalidIndices, 2, firstMesh) ||
-			UpdateGeometryLODOffsets(sparseSubMeshes, visibleIndices, 2, firstMesh.first(1)) ||
-			geometryData[0].indexOffset != 20 || geometryData[1].indexOffset != 30 || geometryData[2].indexOffset != 1234) return false;
-
-		// 同じ形状でも描画Cameraの距離に応じてLODを選ぶ
-		Engine::GraphicsRuntimeFeatures features;
-		features.useMeshLOD = true;
-		features.meshLOD0PixelThreshold = 100.0f;
-		features.meshLOD1PixelThreshold = 40.0f;
-		features.meshLOD2PixelThreshold = 10.0f;
-		Engine::ResolvedRenderView nearView;
-		nearView.width = nearView.height = 1000;
-		nearView.perspective.valid = true;
-		Engine::ResolvedRenderView farView = nearView;
-		farView.perspective.matrices.viewMatrix.m[3][2] = 1000.0f;
-		const Engine::Vector3 center(0.0f, 0.0f, 10.0f);
-		using namespace Engine::RaytracingSceneGeometryUtility;
-		if (ResolveMeshLOD(features, &nearView, center, 1.0f) != 1 ||
-			ResolveMeshLOD(features, &farView, center, 1.0f) != 3 ||
-			ComputeLODViewHash(features, &nearView) == ComputeLODViewHash(features, &farView)) return false;
-		// 平行投影のLODは距離で変わらず、投影倍率に応じて切り替わる
-		Engine::ResolvedRenderView orthoView = nearView;
-		orthoView.perspective.projectionMode = Engine::ResolvedProjectionMode::Orthographic;
-		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 0 ||
-			ComputeLODViewHash(features, &orthoView) == ComputeLODViewHash(features, &nearView)) return false;
-		orthoView.perspective.matrices.projectionMatrix.m[0][0] = 0.1f;
-		orthoView.perspective.matrices.projectionMatrix.m[1][1] = 0.1f;
-		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 1) return false;
-		orthoView.perspective.matrices.viewMatrix.m[3][2] = 1000.0f;
-		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 1) return false;
-		features.useMeshLOD = false;
-		if (ResolveMeshLOD(features, &farView, center, 1.0f) != 0) return false;
 		constexpr uint32_t gridSize = 32;
 		Engine::ImportedMeshAsset mesh{};
 		mesh.vertices.reserve(
@@ -345,68 +295,28 @@ namespace NEMTests {
 			halfIndexCount;
 		mesh.subMeshes.emplace_back(secondSubMesh);
 
+		const auto originalIndices = mesh.indices;
 		Engine::MeshletBuilder builder{};
-		Engine::ImportedMeshAsset defaultMesh = mesh;
-		builder.Build(defaultMesh);
-		if (defaultMesh.indices.size() != mesh.indices.size()) {
-			return false;
+		builder.Build(mesh);
+		uint32_t triangleCount = 0;
+		for (const auto& meshlet : mesh.meshlets) {
+
+			triangleCount += meshlet.primitiveCount;
+			if (meshlet.subMeshIndex >= mesh.subMeshes.size()) return false;
 		}
-		for (uint32_t lodIndex = 1;
-			lodIndex < Engine::kMeshLODCount; ++lodIndex) {
+		if (triangleCount * 3u != originalIndices.size() || mesh.indices != originalIndices) return false;
+		uint32_t meshletCount = 0;
+		for (const auto& subMesh : mesh.subMeshes) {
 
-			if (defaultMesh.lods[lodIndex].indexOffset != 0 ||
-				defaultMesh.lods[lodIndex].indexCount !=
-					defaultMesh.lods[0].indexCount) {
-				return false;
-			}
+			if (subMesh.meshletOffset != meshletCount || subMesh.meshletCount == 0u) return false;
+			meshletCount += subMesh.meshletCount;
 		}
-		Engine::MeshImportSettings lodSettings{};
-		lodSettings.generateAutomaticLODs = true;
-		builder.Build(mesh, lodSettings);
-
-		uint32_t previousIndexCount =
-			mesh.lods[0].indexCount;
-		uint32_t previousMeshletCount =
-			mesh.lods[0].meshletCount;
-		if (previousIndexCount != gridSize * gridSize * 6 ||
-			previousMeshletCount == 0) {
-			return false;
-		}
-
-		for (uint32_t lodIndex = 1;
-			lodIndex < Engine::kMeshLODCount;
-			++lodIndex) {
-
-			const Engine::MeshLODRange& lod =
-				mesh.lods[lodIndex];
-			if (lod.indexCount == 0 ||
-				lod.indexCount % 3 != 0 ||
-				lod.indexCount >= previousIndexCount ||
-				lod.meshletCount == 0 ||
-				lod.meshletCount > previousMeshletCount) {
-				std::cerr << "LOD" << lodIndex <<
-					" indices=" << lod.indexCount <<
-					" meshlets=" << lod.meshletCount <<
-					" previousIndices=" << previousIndexCount <<
-					" previousMeshlets=" << previousMeshletCount <<
-					'\n';
-				return false;
-			}
-			previousIndexCount = lod.indexCount;
-			previousMeshletCount = lod.meshletCount;
-		}
-
-		// 最低LODでも全SubMeshを残す
-		for (const Engine::SubMeshDesc& subMesh : mesh.subMeshes) {
-			if (subMesh.lods[Engine::kMeshLODCount - 1].indexCount == 0) {
-				return false;
-			}
-		}
-
-		return Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
-			160.0f, 80.0f, 32.0f) &&
-			!Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
-				534.1f, 0.1f, 0.1f);
+		if (meshletCount != mesh.meshlets.size()) return false;
+		const auto vertexIndices = mesh.meshletVertexIndices;
+		const auto primitiveIndices = mesh.meshletPrimitiveIndices;
+		builder.Build(mesh);
+		return mesh.meshlets.size() == meshletCount && mesh.indices == originalIndices &&
+			mesh.meshletVertexIndices == vertexIndices && mesh.meshletPrimitiveIndices == primitiveIndices;
 	}
 
 	bool TestGraphicsFeatureSelection() {

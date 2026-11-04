@@ -211,43 +211,6 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			ImGui::EndMenu();
 		}
 
-		// 投影サイズによるLODの切替条件を設定
-		if (ImGui::BeginMenu("LOD")) {
-			bool allowMeshLOD = preferences.allowMeshLOD;
-			if (ImGui::Checkbox("LODを使用", &allowMeshLOD)) {
-				featureController.SetAllowMeshLOD(allowMeshLOD);
-			}
-			DrawGraphicsTooltip("無効時は常にLOD0を描画します");
-
-			float lod0 = preferences.meshLOD0PixelThreshold;
-			float lod1 = preferences.meshLOD1PixelThreshold;
-			float lod2 = preferences.meshLOD2PixelThreshold;
-			ImGui::BeginDisabled(!allowMeshLOD);
-			if (ImGui::DragFloat("LOD0からLOD1", &lod0, 1.0f, lod1 + GraphicsMeshLOD::kPixelThresholdGap,
-					GraphicsMeshLOD::kMaximumPixelThreshold, "%.1f px")) {
-				featureController.SetMeshLODThresholds(lod0, lod1, lod2);
-			}
-			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD1へ切り替えます");
-			if (ImGui::DragFloat("LOD1からLOD2", &lod1, 1.0f, lod2 + GraphicsMeshLOD::kPixelThresholdGap,
-					lod0 - GraphicsMeshLOD::kPixelThresholdGap, "%.1f px")) {
-				featureController.SetMeshLODThresholds(lod0, lod1, lod2);
-			}
-			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD2へ切り替えます");
-			if (ImGui::DragFloat("LOD2からLOD3", &lod2, 1.0f, GraphicsMeshLOD::kMinimumPixelThreshold,
-					lod1 - GraphicsMeshLOD::kPixelThresholdGap, "%.1f px")) {
-				featureController.SetMeshLODThresholds(lod0, lod1, lod2);
-			}
-			DrawGraphicsTooltip("投影半径がこのピクセル数未満になるとLOD3へ切り替えます");
-			ImGui::EndDisabled();
-			if (ImGui::Button("既定値に戻す")) {
-
-				featureController.SetMeshLODThresholds(GraphicsMeshLOD::kDefaultPixelThresholds[0],
-					GraphicsMeshLOD::kDefaultPixelThresholds[1], GraphicsMeshLOD::kDefaultPixelThresholds[2]);
-			}
-			DrawGraphicsTooltip("LOD切り替え閾値を160 / 80 / 32 pxへ戻します");
-			ImGui::EndMenu();
-		}
-
 		// レイトレーシングの影と反射を設定
 		if (ImGui::BeginMenu("レイトレーシング")) {
 			bool allowInlineRayTracing = preferences.allowInlineRayTracing;

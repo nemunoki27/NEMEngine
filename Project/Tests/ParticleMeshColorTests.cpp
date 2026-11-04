@@ -46,28 +46,14 @@ bool NEMTests::TestParticleMeshVertexColors() {
 	const auto plainPath = directory.GetPath() / "plain.gltf";
 	const auto coloredPath = directory.GetPath() / "colored.gltf";
 	if (!WriteMesh(plainPath, false) || !WriteMesh(coloredPath, true)) return false;
-	MeshImportSettings settings;
-	settings.generateAutomaticLODs = true;
-	const auto plain = MeshFileImporter::ImportFile({}, plainPath, settings, {});
+	const auto plain = MeshFileImporter::ImportFile({}, plainPath);
 	if (plain.vertices.size() != 6 || !plain.vertexColors.empty()) return false;
 	const auto upload = MeshUploadPreparation::Build(plain);
 	if (upload.hasVertexColors || upload.vertexColors.size() != 1 || upload.vertexColors[0] != Vector4(1, 1, 1, 1)) return false;
-	const auto colored = MeshFileImporter::ImportFile({}, coloredPath, settings, {});
+	const auto colored = MeshFileImporter::ImportFile({}, coloredPath);
 	if (colored.vertexColors.size() != colored.vertices.size()) return false;
 	if (std::count(colored.vertexColors.begin(), colored.vertexColors.end(), Vector4(1, 0, 0, 1)) != 3 ||
 		std::count(colored.vertexColors.begin(), colored.vertexColors.end(), Vector4(1, 1, 1, 1)) != 3) return false;
-	for (bool reverse : {false, true}) {
-		const std::array<std::filesystem::path, 3> lods{reverse ? plainPath : coloredPath, {}, {}};
-		const auto imported = MeshFileImporter::ImportFile({}, reverse ? coloredPath : plainPath, settings, lods);
-		if (imported.vertices.size() != 12 || imported.vertexColors.size() != 12 || !imported.authoredLODs[1]) return false;
-		if (std::count(imported.vertexColors.begin(), imported.vertexColors.end(), Vector4(1, 0, 0, 1)) != 3 ||
-			std::count(imported.vertexColors.begin(), imported.vertexColors.end(), Vector4(1, 1, 1, 1)) != 9) return false;
-		const auto& lod = imported.lods[1];
-		for (uint32_t index = lod.indexOffset; index < lod.indexOffset + lod.indexCount; ++index) {
-			if (imported.indices[index] < 6 || imported.indices[index] >= 12) return false;
-		}
-		const auto prepared = MeshUploadPreparation::Build(imported);
-		if (!prepared.hasVertexColors || prepared.vertexColors != imported.vertexColors) return false;
-	}
-	return true;
+	const auto prepared = MeshUploadPreparation::Build(colored);
+	return prepared.hasVertexColors && prepared.vertexColors == colored.vertexColors;
 }

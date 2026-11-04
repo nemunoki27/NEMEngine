@@ -368,13 +368,12 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 																  });
 
 		// 描画に失敗しても元のCameraと描画設定へ戻す
-		ScopedValue lodView(context.lodView, context.view);
+		ScopedValue historyView(context.historyView, context.view);
 		ScopedValue renderView(context.view, &shadowView);
 		ScopedValue cullingView(context.cullingView, &shadowView);
 		ScopedValue viewport(context.useViewportRect, false);
 		ScopedValue disableCulling(context.disableMeshCulling, true);
 		ScopedValue twoSided(context.forceTwoSidedRasterizer, true);
-		ScopedValue disableLODDither(context.disableLODDither, true);
 		RenderPassExecutionHelper::Execute(
 			graphicsCore, context, shadowItems, deps, target, MaterialPassKind::ZPrepass, false, true);
 	}

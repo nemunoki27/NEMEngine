@@ -335,7 +335,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	const uint32_t prevVisibleCapacity = visibleMeshData_.GetCapacity();
 	// カリング前のInstance数に合わせて容量を確保
 	const size_t visibleCapacity =
-		(std::max)(meshScratch_.size(), size_t(1)) * kMeshLODCount;
+		(std::max)(meshScratch_.size(), size_t(1));
 	visibleMeshData_.EnsureCapacity(static_cast<uint32_t>(visibleCapacity));
 	if (prevVisibleCapacity != visibleMeshData_.GetCapacity()) {
 

@@ -75,7 +75,7 @@ void ParticleMeshSourcePreparation::Prepare(GraphicsCore& graphics, ECSWorld& wo
 	std::sort(items_.begin(), items_.end(), [&](const auto* a, const auto* b) {
 		return lessMesh(batch_.GetPayload<MeshRenderPayload>(*a)->mesh, batch_.GetPayload<MeshRenderPayload>(*b)->mesh);
 	});
-	// SkinningはCameraの可視判定とLODに依存しない入力を使う
+	// SkinningはCameraの可視判定に依存しない入力を使う
 	ResolvedRenderView view;
 	view.valid = view.perspective.valid = true;
 	view.width = view.height = 1;
@@ -89,7 +89,6 @@ void ParticleMeshSourcePreparation::Prepare(GraphicsCore& graphics, ECSWorld& wo
 	context.assetLibrary = &assets;
 	context.pipelineCache = &pipelines;
 	context.runtimeFeatures = graphics.GetDXObject().GetFeatureController().GetRuntimeFeatures();
-	context.runtimeFeatures.useMeshLOD = false;
 	context.runtimeFeatures.useFrustumCulling = false;
 	context.runtimeFeatures.useOcclusionCulling = false;
 	context.runtimeFeatures.useContributionCulling = false;

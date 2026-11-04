@@ -16,7 +16,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 
 	using namespace Engine;
 	constexpr uint32_t count = 513;
-	constexpr uint32_t argsBytes = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) * kMeshLODCount;
+	constexpr uint32_t argsBytes = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
 	constexpr uint32_t instanceBytes = sizeof(MeshInstanceData) * count;
 	constexpr uint32_t resultBytes = argsBytes + instanceBytes;
 	DxShaderCompiler compiler;
@@ -27,7 +27,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 
 	// 製品と同じComputeへ既知のInstance配列を渡す
 	CD3DX12_DESCRIPTOR_RANGE depthRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-	CD3DX12_ROOT_PARAMETER parameters[7];
+	CD3DX12_ROOT_PARAMETER parameters[8];
 	parameters[0].InitAsConstantBufferView(1);
 	parameters[1].InitAsConstantBufferView(2);
 	parameters[2].InitAsShaderResourceView(0);
@@ -35,7 +35,8 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	parameters[4].InitAsUnorderedAccessView(0);
 	parameters[5].InitAsUnorderedAccessView(1);
 	parameters[6].InitAsDescriptorTable(1, &depthRange);
-	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(7, parameters);
+	parameters[7].InitAsConstantBufferView(0);
+	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(8, parameters);
 	ComPtr<ID3DBlob> signature, errors;
 	ComPtr<ID3D12RootSignature> root;
 	ComPtr<ID3D12PipelineState> pipeline;
@@ -56,11 +57,12 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	nullDepth.Texture2D.MipLevels = 1;
 	device->CreateShaderResourceView(nullptr, &nullDepth, heap->GetCPUDescriptorHandleForHeapStart());
 
-	ComPtr<ID3D12Resource> input, draws, subMeshes, visible, args, readback;
+	ComPtr<ID3D12Resource> input, draws, indices, subMeshes, visible, args, readback;
 	DxUtils::CreateUploadBufferResource(device, input, instanceBytes);
 	DxUtils::CreateUploadBufferResource(device, draws, 256);
+	DxUtils::CreateUploadBufferResource(device, indices, 256);
 	DxUtils::CreateUploadBufferResource(device, subMeshes, sizeof(MeshSubMeshShaderData));
-	DxUtils::CreateUavBufferResource(device, visible, instanceBytes * kMeshLODCount);
+	DxUtils::CreateUavBufferResource(device, visible, instanceBytes);
 	DxUtils::CreateUavBufferResource(device, args, argsBytes);
 	DxUtils::CreateReadbackBufferResource(device, readback, resultBytes * 2);
 	std::array<MeshInstanceData, count> instances{};
@@ -80,9 +82,9 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	MeshDrawConstants draw{};
 	draw.instanceCount = count;
 	draw.meshBoundsRadius = 1.0f;
-	draw.lodPixelThresholds = Vector3(100.0f, 40.0f, 10.0f);
-	draw.lodIndexOffsets = { 0, 300, 420, 480 };
-	draw.lodIndexCounts = { 300, 120, 60, 30 };
+	draw.meshIndexOffset = 9u;
+	const MeshIndirectArgsConstants indexConstants{ .indexCount = 300u };
+	if (!upload(indices.Get(), &indexConstants, sizeof(indexConstants))) return false;
 	GraphicsResourceRetirement retirement;
 	MeshBatchViewResources views;
 	views.Init(retirement, device);
@@ -95,6 +97,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 		view.valid = view.perspective.valid = true;
 		// カリングCameraを固定したまま描画Cameraだけ離す
 		view.perspective.matrices.viewMatrix.m[3][2] = viewIndex == 0 ? 0.0f : 1000.0f;
+		view.perspective.cameraPos.z = viewIndex == 0 ? 0.0f : -1000.0f;
 		views.UpdateView(view, &cullingView);
 		viewAddresses[viewIndex] = views.GetViewGPUAddress(view.kind);
 	}
@@ -115,6 +118,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	commands->SetComputeRootUnorderedAccessView(4, visible->GetGPUVirtualAddress());
 	commands->SetComputeRootUnorderedAccessView(5, args->GetGPUVirtualAddress());
 	commands->SetComputeRootDescriptorTable(6, heap->GetGPUDescriptorHandleForHeapStart());
+	commands->SetComputeRootConstantBufferView(7, indices->GetGPUVirtualAddress());
 	for (uint32_t viewIndex = 0; viewIndex < 2; ++viewIndex) {
 		const auto before = viewIndex == 0 ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_COPY_SOURCE;
 		const D3D12_RESOURCE_BARRIER toWrite[]{
@@ -128,8 +132,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 			CD3DX12_RESOURCE_BARRIER::Transition(visible.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE) };
 		commands->ResourceBarrier(2, toRead);
 		commands->CopyBufferRegion(readback.Get(), resultBytes * viewIndex, args.Get(), 0, argsBytes);
-		const uint32_t lod = viewIndex == 0 ? 1 : 3;
-		commands->CopyBufferRegion(readback.Get(), resultBytes * viewIndex + argsBytes, visible.Get(), instanceBytes * lod, instanceBytes);
+		commands->CopyBufferRegion(readback.Get(), resultBytes * viewIndex + argsBytes, visible.Get(), 0, instanceBytes);
 	}
 	if (FAILED(commands->Close())) return false;
 	ID3D12CommandList* lists[]{ commands.Get() };
@@ -142,7 +145,7 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	CloseHandle(completed);
 	if (result != WAIT_OBJECT_0) return false;
 
-	// 数とLODとInstanceの内容を順序に依存せず確認する
+	// 数とInstanceの内容を順序に依存せず確認する
 	void* mapped = nullptr;
 	const D3D12_RANGE range{ 0, resultBytes * 2 };
 	if (FAILED(readback->Map(0, &range, &mapped))) return false;
@@ -150,12 +153,8 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	for (uint32_t viewIndex = 0; viewIndex < 2; ++viewIndex) {
 		const auto* bytes = static_cast<const std::byte*>(mapped) + resultBytes * viewIndex;
 		const auto* output = reinterpret_cast<const D3D12_DRAW_INDEXED_ARGUMENTS*>(bytes);
-		const uint32_t selectedLOD = viewIndex == 0 ? 1 : 3;
-		for (uint32_t lod = 0; lod < kMeshLODCount; ++lod) {
-			valid &= output[lod].InstanceCount == (lod == selectedLOD ? count : 0) &&
-				output[lod].IndexCountPerInstance == draw.lodIndexCounts[lod] &&
-				output[lod].StartIndexLocation == draw.lodIndexOffsets[lod];
-		}
+		valid &= output->InstanceCount == count && output->IndexCountPerInstance == indexConstants.indexCount &&
+			output->StartIndexLocation == draw.meshIndexOffset;
 		std::array<bool, count> seen{};
 		const auto* copied = reinterpret_cast<const MeshInstanceData*>(bytes + argsBytes);
 		for (uint32_t index = 0; index < count; ++index) {
@@ -167,6 +166,6 @@ bool NEMTests::CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQue
 	}
 	const D3D12_RANGE empty{ 0, 0 };
 	readback->Unmap(0, &empty);
-	if (!valid) std::cerr << "Mesh indirect counts, LOD or instance data mismatch\n";
+	if (!valid) std::cerr << "Mesh indirect counts or instance data mismatch\n";
 	return valid;
 }

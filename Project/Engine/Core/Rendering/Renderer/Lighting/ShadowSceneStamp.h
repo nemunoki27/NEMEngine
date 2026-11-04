@@ -31,7 +31,6 @@ namespace Engine {
 		float nearClip = 0.0f;
 		float farClip = 0.0f;
 		bool meshShader = false;
-		bool meshLOD = false;
 		bool reusable = false;
 		std::vector<uint64_t> skinningGenerations;
 

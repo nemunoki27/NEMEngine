@@ -182,7 +182,7 @@ Engine::MeshUploadData Engine::MeshUploadPreparation::Build(const ImportedMeshAs
 	data.packedVertices = BuildPackedVertices(imported.vertices);
 	data.useIndex16 = CanPackMeshletVertexIndices(imported.indices);
 	if (data.useIndex16) { data.indices16 = BuildIndex16(imported.indices); }
-	data.primitiveSubMeshIndices = BuildPrimitiveSubMeshTable(imported.subMeshes, imported.lods[0].indexCount);
+	data.primitiveSubMeshIndices = BuildPrimitiveSubMeshTable(imported.subMeshes, static_cast<uint32_t>(imported.indices.size()));
 	data.meshletDraws = BuildMeshletDrawDescs(imported.meshlets);
 	data.meshletBounds = BuildMeshletBounds(imported.meshlets);
 	data.usePackedMeshletIndices = CanPackMeshletVertexIndices(imported.meshletVertexIndices);

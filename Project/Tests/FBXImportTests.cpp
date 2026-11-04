@@ -37,7 +37,7 @@ namespace {
 	bool CheckGeometry(const Engine::ImportedMeshAsset& mesh) {
 
 		if (mesh.vertices.empty() || mesh.indices.empty() || mesh.subMeshes.empty() || mesh.meshlets.empty() ||
-			mesh.indices.size() % 3 != 0 || mesh.lods[0].indexCount != mesh.indices.size()) {
+			mesh.indices.size() % 3 != 0) {
 			return false;
 		}
 		return std::ranges::all_of(mesh.indices, [&](uint32_t index) { return index < mesh.vertices.size(); }) &&
@@ -96,7 +96,7 @@ namespace {
 			return false;
 		}
 		const auto binary = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, binaryModel);
-		if (!binary.success || !CheckGeometry(MeshFileImporter::ImportFile({}, binary.fullPath, {}, {})) ||
+		if (!binary.success || !CheckGeometry(MeshFileImporter::ImportFile({}, binary.fullPath)) ||
 			!ModelFileDependencyCollector::Collect(binary.fullPath, files, diagnostic) || files.size() <= 1) {
 			std::cerr << "Binary FBX texture import failed: " << binary.message << " " << diagnostic << '\n';
 			return false;
@@ -117,7 +117,7 @@ namespace {
 		AssetDatabase database;
 		database.Init();
 		const auto asset = database.ImportOrGet(imported.assetPath, AssetType::Mesh);
-		const auto mesh = MeshFileImporter::ImportFile(asset, imported.fullPath, {}, {});
+		const auto mesh = MeshFileImporter::ImportFile(asset, imported.fullPath);
 		std::vector<MeshSubMeshLayoutItem> layout;
 		if (!asset || !CheckGeometry(mesh) || !MeshSubMeshAuthoring::TryBuildLayout(&database, asset, layout) ||
 			layout.size() != mesh.subMeshes.size() || !layout.front().defaultTextureAssets.baseColorTexture ||
@@ -199,7 +199,7 @@ bool NEMTests::TestFBXImport() {
 			std::cerr << "FBX import failed: " << name << " " << imported.message << '\n';
 			return false;
 		}
-		const auto mesh = MeshFileImporter::ImportFile({}, imported.fullPath, {}, {});
+		const auto mesh = MeshFileImporter::ImportFile({}, imported.fullPath);
 		if (!CheckGeometry(mesh)) {
 			std::cerr << "FBX geometry failed: " << name << '\n';
 			return false;

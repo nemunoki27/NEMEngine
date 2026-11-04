@@ -282,7 +282,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// Cameraごとに前frameの行列を保持する
 		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
 		viewConstants.previousViewProjection = cameraHistory_.Update(
-			context.lodView ? *context.lodView : *context.view, item->cameraDomain, frameSerial);
+			context.historyView ? *context.historyView : *context.view, item->cameraDomain, frameSerial);
 		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}

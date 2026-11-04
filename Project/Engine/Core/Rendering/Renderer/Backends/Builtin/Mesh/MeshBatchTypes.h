@@ -15,7 +15,7 @@ namespace Engine {
 
 	//============================================================================
 	//	MeshViewConstants struct
-	//	描画とカリングとLODのCamera転送型
+	//	描画とカリングのCamera転送型
 	//============================================================================
 	struct MeshViewConstants {
 
@@ -43,13 +43,9 @@ namespace Engine {
 		// 照明計算に使う描画Camera位置
 		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
 		uint32_t frameSerial = 0;
-		// LODは各描画先のカメラで判定する
-		Matrix4x4 lodView = Matrix4x4::Identity();
-		Vector2 lodProjectionScale = Vector2::AnyInit(1.0f);
-		float lodNearClip = 0.001f;
-		uint32_t lodOrthographic = 0;
+
 	};
-	static_assert(sizeof(MeshViewConstants) % 16 == 0);
+	static_assert(sizeof(MeshViewConstants) == 336);
 
 	//============================================================================
 	//	MeshIndirectArgsConstants struct
@@ -106,6 +102,5 @@ namespace Engine {
 	static constexpr uint32_t kMeshInstanceFlagReceiveShadow = 1u << 2;
 	static constexpr uint32_t kMeshInstanceFlagReceiveIBL = 1u << 3;
 	static constexpr uint32_t kMeshInstanceFlagReceiveReflection = 1u << 4;
-	static constexpr uint32_t kMeshInstanceFlagLODDither = 1u << 5;
 	static constexpr uint32_t kMeshInstanceFlagReceiveDecal = 1u << 6;
 }

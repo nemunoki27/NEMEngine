@@ -33,13 +33,11 @@ GBufferOutput EncodeMeshPBRGBuffer(
 //============================================================================
 GBufferOutput main(VSOutput input) {
 
-	ApplyMeshLODDither(input.position.xy, input.lodCoverage);
 	return EncodeMeshPBRGBuffer(input, ResolvePBRMaterial(input));
 }
 
 GBufferOutput mainMasked(VSOutput input) {
 
-	ApplyMeshLODDither(input.position.xy, input.lodCoverage);
 	ResolvedPBRMaterial material = ResolvePBRMaterial(input);
 	clip(material.baseColor.a - ResolveMeshPBRAlphaClip(input));
 	return EncodeMeshPBRGBuffer(input, material);
@@ -47,7 +45,6 @@ GBufferOutput mainMasked(VSOutput input) {
 
 void mainDepth(VSOutput input) {
 
-	ApplyMeshLODDither(input.position.xy, input.lodCoverage);
 	ResolvedPBRMaterial material = ResolvePBRMaterial(input);
 	clip(material.baseColor.a - ResolveMeshPBRAlphaClip(input));
 }

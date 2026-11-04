@@ -19,20 +19,6 @@
 //============================================================================
 namespace Engine::RaytracingSceneGeometryUtility {
 
-	std::vector<RaytracingBLASGeometryInput> BuildLODGeometries(const MeshGPUResource& mesh,
-		std::vector<RaytracingBLASGeometryInput> geometries, std::span<const uint32_t> subMeshIndices, uint32_t lodIndex) {
-
-		const auto address = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress();
-		const auto stride = mesh.indexBuffer.GetIndexSizeInBytes();
-		// 表面方式とローカル変換は全LODで引き継ぐ
-		for (size_t index = 0; index < geometries.size(); ++index) {
-			const auto& range = ResolveRaytracingLODRange(mesh.subMeshes[subMeshIndices[index]], lodIndex);
-			geometries[index].indexAddress = address + uint64_t(stride) * range.indexOffset;
-			geometries[index].indexCount = range.indexCount;
-		}
-		return geometries;
-	}
-
 	void CollectRenderTextureParameters(const MaterialParameterSet& parameters, const AssetDatabase& database,
 		std::unordered_set<AssetID>& inputs) {
 
@@ -84,17 +70,19 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			kRaytracingRenderingLayerMaskShift);
 	}
 
-	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(const D3D12_RASTERIZER_DESC& rasterizer) {
+	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
+		const D3D12_RASTERIZER_DESC& rasterizer, bool reverseWinding) {
 
 		D3D12_RAYTRACING_INSTANCE_FLAGS flags =
 			D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		if (rasterizer.CullMode == D3D12_CULL_MODE_NONE) {
 
-			return D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
+			flags |= D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
 		}
 
+		// 生成元が持つ頂点順の違いをDXRの表裏へ反映する
+		bool frontCounterClockwise = (rasterizer.FrontCounterClockwise != FALSE) != reverseWinding;
 		// 反射レイは背面を除外するため、前面カリングは表裏定義を反転して再現する
-		bool frontCounterClockwise = rasterizer.FrontCounterClockwise != FALSE;
 		if (rasterizer.CullMode == D3D12_CULL_MODE_FRONT) {
 			frontCounterClockwise = !frontCounterClockwise;
 		}
@@ -285,120 +273,4 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		}
 	}
 
-	const Engine::MeshLODRange& ResolveRaytracingLODRange(const Engine::SubMeshDesc& subMesh, uint32_t lodIndex) {
-
-		uint32_t resolvedLOD = (std::min)(lodIndex, Engine::kMeshLODCount - 1);
-		while (0 < resolvedLOD &&
-			subMesh.lods[resolvedLOD].indexCount < 3) {
-			--resolvedLOD;
-		}
-		return subMesh.lods[resolvedLOD];
-	}
-
-	bool UpdateGeometryLODOffsets(std::span<const Engine::SubMeshDesc> subMeshes,
-		std::span<const uint32_t> subMeshIndices, uint32_t lodIndex,
-		std::span<Engine::RaytracingGeometryShaderData> geometries) {
-
-		// 対応が壊れている場合は更新前に中止
-		if (subMeshIndices.size() != geometries.size() ||
-			std::any_of(subMeshIndices.begin(), subMeshIndices.end(), [&](uint32_t index) {
-				return subMeshes.size() <= index;
-			})) {
-			return false;
-		}
-		// 非表示SubMeshを飛ばした配列順に揃える
-		for (size_t index = 0; index < geometries.size(); ++index) {
-			geometries[index].indexOffset = ResolveRaytracingLODRange(subMeshes[subMeshIndices[index]], lodIndex).indexOffset;
-		}
-		return true;
-	}
-
-	uint32_t ResolveMeshLOD(
-		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* lodView,
-		const Engine::Vector3& center, float radius) {
-
-		if (!features.useMeshLOD || !lodView) {
-			return 0;
-		}
-		const Engine::ResolvedCameraView* camera =
-			lodView->FindCamera(
-				Engine::RenderCameraDomain::Perspective);
-		if (!camera || !camera->valid) {
-			return 0;
-		}
-
-		const Engine::Vector3 viewCenter =
-			Engine::Vector3::Transform(center, camera->matrices.viewMatrix);
-		const float nearZ = viewCenter.z - radius;
-		if (nearZ <= (std::max)(camera->nearClip, 0.00001f)) {
-			return 0;
-		}
-
-		const float projectionX = std::abs(camera->matrices.projectionMatrix.m[0][0]);
-		const float projectionY = std::abs(camera->matrices.projectionMatrix.m[1][1]);
-		// 平行投影では距離による縮小を適用しない
-		const float projectionDepth = camera->projectionMode ==
-			Engine::ResolvedProjectionMode::Orthographic ? 1.0f : nearZ;
-		const float pixelRadiusX =
-			std::abs(radius * projectionX / projectionDepth) *
-			static_cast<float>((std::max)(lodView->width, 1u)) *
-			0.5f;
-		const float pixelRadiusY =
-			std::abs(radius * projectionY / projectionDepth) *
-			static_cast<float>((std::max)(lodView->height, 1u)) *
-			0.5f;
-		const float pixelRadius =
-			(std::max)(pixelRadiusX, pixelRadiusY);
-		if (features.meshLOD0PixelThreshold <= pixelRadius) {
-			return 0;
-		}
-		if (features.meshLOD1PixelThreshold <= pixelRadius) {
-			return 1;
-		}
-		if (features.meshLOD2PixelThreshold <= pixelRadius) {
-			return 2;
-		}
-		return Engine::kMeshLODCount - 1;
-	}
-
-	uint64_t ComputeLODViewHash(
-		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* lodView) {
-
-		uint64_t hash = features.useMeshLOD ? 1ull : 0ull;
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(features.meshLOD0PixelThreshold));
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(features.meshLOD1PixelThreshold));
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(features.meshLOD2PixelThreshold));
-		if (!lodView) {
-			return hash;
-		}
-
-		Engine::Algorithm::HashCombine(hash, lodView->width);
-		Engine::Algorithm::HashCombine(hash, lodView->height);
-		const Engine::ResolvedCameraView* camera =
-			lodView->FindCamera(
-				Engine::RenderCameraDomain::Perspective);
-		if (!camera || !camera->valid) {
-			return hash;
-		}
-		Engine::Algorithm::HashCombine(hash, static_cast<uint32_t>(camera->projectionMode));
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(camera->nearClip));
-		for (uint32_t row = 0; row < 4; ++row) {
-			for (uint32_t column = 0; column < 4; ++column) {
-
-				Engine::Algorithm::HashCombine(hash,
-					std::bit_cast<uint32_t>(camera->matrices.viewMatrix.m[row][column]));
-			}
-		}
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(camera->matrices.projectionMatrix.m[0][0]));
-		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(camera->matrices.projectionMatrix.m[1][1]));
-		return hash;
-	}
 }

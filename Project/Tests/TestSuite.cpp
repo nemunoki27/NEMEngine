@@ -185,8 +185,8 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Serialization clone failed\n";
 		return 15;
 	}
-	if (!RunTest("TestMeshLODGeneration", TestMeshLODGeneration)) {
-		std::cerr << "Mesh LOD generation failed\n";
+	if (!RunTest("TestMeshletGeneration", TestMeshletGeneration)) {
+		std::cerr << "Meshlet generation failed\n";
 		return 16;
 	}
 	if (!RunTest("TestGraphicsFeatureSelection", TestGraphicsFeatureSelection)) {

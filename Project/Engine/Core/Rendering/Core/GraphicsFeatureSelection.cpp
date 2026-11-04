@@ -17,12 +17,5 @@ Engine::GraphicsRuntimeFeatures Engine::GraphicsFeatureSelection::Resolve(
 	features.useOcclusionCulling = preferences.allowOcclusionCulling;
 	features.useContributionCulling = preferences.allowContributionCulling;
 	features.useNormalConeCulling = preferences.allowNormalConeCulling;
-	features.useMeshLOD = preferences.allowMeshLOD;
-	features.meshLOD0PixelThreshold =
-		preferences.meshLOD0PixelThreshold;
-	features.meshLOD1PixelThreshold =
-		preferences.meshLOD1PixelThreshold;
-	features.meshLOD2PixelThreshold =
-		preferences.meshLOD2PixelThreshold;
 	return features;
 }

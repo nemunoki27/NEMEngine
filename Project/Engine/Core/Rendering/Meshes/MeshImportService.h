@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
-#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 
 // c++
 #include <unordered_map>
@@ -64,8 +63,6 @@ namespace Engine {
 
 			AssetID assetID{};
 			std::filesystem::path fullPath;
-			MeshImportSettings settings{};
-			std::array<std::filesystem::path, 3> manualLODPaths{};
 		};
 
 		//--------- variables ----------------------------------------------------

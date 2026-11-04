@@ -203,17 +203,6 @@ namespace Engine {
 		float coneCutoff = -1.0f;
 	};
 
-	static constexpr uint32_t kMeshLODCount = 4;
-
-	// 連結Index/Meshletバッファ内のLOD範囲
-	struct MeshLODRange {
-
-		uint32_t indexOffset = 0;
-		uint32_t indexCount = 0;
-		uint32_t meshletOffset = 0;
-		uint32_t meshletCount = 0;
-	};
-
 	// サブメッシュの情報
 	struct SubMeshDesc {
 
@@ -223,7 +212,6 @@ namespace Engine {
 		// subMesh -> meshlet範囲
 		uint32_t meshletOffset = 0;
 		uint32_t meshletCount = 0;
-		std::array<MeshLODRange, kMeshLODCount> lods{};
 
 		// 表示/識別用
 		std::string name;
@@ -286,20 +274,12 @@ namespace Engine {
 		std::vector<uint32_t> meshletVertexIndices;
 		// メッシュレット内の三角形を構成するPrimitiveIndex配列
 		std::vector<uint32_t> meshletPrimitiveIndices;
-		std::array<MeshLODRange, kMeshLODCount> lods{};
-		// LOD0または手動指定した形状かを保持する
-		std::array<bool, kMeshLODCount> authoredLODs = {
-			true, false, false, false,
-		};
-		bool ditherLODTransitions = false;
 
 		MeshNode rootNode{};
 
 		// スキニング情報
 		bool isSkinned = false;
 		uint32_t boneCount = 0;
-		// 手動LODのスケルトン対応を検証する
-		std::vector<std::string> skeletonJointPaths{};
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
 	// 静的メッシュのBufferとSRV番号を所有する
@@ -411,8 +391,6 @@ namespace Engine {
 		bool hasVertexColors = false;
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
-		std::array<MeshLODRange, kMeshLODCount> lods{};
-		bool ditherLODTransitions = false;
 		// packedMeshletVertexIndexSRVを使える場合だけtrueにする
 		bool usePackedMeshletVertexIndices = false;
 		std::vector<SubMeshDesc> subMeshes;

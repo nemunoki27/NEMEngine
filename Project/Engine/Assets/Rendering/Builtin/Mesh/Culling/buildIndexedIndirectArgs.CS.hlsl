@@ -142,34 +142,11 @@ bool IsInstanceVisible(MeshInstance instance) {
 	return true;
 }
 
-#include "../Common/meshLODSelection.hlsli"
-
 void AppendVisibleInstance(MeshInstance instance) {
 
-	MeshLODSelection selection = ResolveMeshLODSelection(instance);
-	MeshInstance firstInstance = instance;
-	if (selection.secondLOD != 0xFFFFFFFFu) {
-		firstInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
-		firstInstance._motionPad.x = asuint(selection.firstCoverage);
-	}
-	uint firstVisibleIndex = 0;
-	gIndexedIndirectArgs.InterlockedAdd(
-		selection.firstLOD * 20u + 4u, 1u, firstVisibleIndex);
-	gVisibleMeshInstances[
-		selection.firstLOD * instanceCount + firstVisibleIndex] = firstInstance;
-
-	if (selection.secondLOD != 0xFFFFFFFFu &&
-		selection.secondCoverage > 0.0f) {
-
-		MeshInstance secondInstance = instance;
-		secondInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
-		secondInstance._motionPad.x = asuint(selection.secondCoverage);
-		uint secondVisibleIndex = 0;
-		gIndexedIndirectArgs.InterlockedAdd(
-			selection.secondLOD * 20u + 4u, 1u, secondVisibleIndex);
-		gVisibleMeshInstances[
-			selection.secondLOD * instanceCount + secondVisibleIndex] = secondInstance;
-	}
+	uint visibleIndex = 0u;
+	gIndexedIndirectArgs.InterlockedAdd(4u, 1u, visibleIndex);
+	gVisibleMeshInstances[visibleIndex] = instance;
 }
 
 //============================================================================
@@ -180,16 +157,11 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 
 	if (groupThreadID == 0) {
 
-		for (uint lodIndex = 0; lodIndex < 4u; ++lodIndex) {
-
-			const uint argsOffset = lodIndex * 20u;
-			gIndexedIndirectArgs.Store(argsOffset + 0u, lodIndexCounts[lodIndex]);
-			gIndexedIndirectArgs.Store(argsOffset + 4u, 0u);
-			gIndexedIndirectArgs.Store(argsOffset + 8u, lodIndexOffsets[lodIndex]);
-			gIndexedIndirectArgs.Store(argsOffset + 12u, 0u);
-			// SV_InstanceIDにはStartInstanceLocationが加算されないため常に0
-			gIndexedIndirectArgs.Store(argsOffset + 16u, 0u);
-		}
+		gIndexedIndirectArgs.Store(0u, indexCount);
+		gIndexedIndirectArgs.Store(4u, 0u);
+		gIndexedIndirectArgs.Store(8u, meshIndexOffset);
+		gIndexedIndirectArgs.Store(12u, 0u);
+		gIndexedIndirectArgs.Store(16u, 0u);
 	}
 	// UAVの初期化を全スレッドへ反映してから加算する
 	DeviceMemoryBarrierWithGroupSync();

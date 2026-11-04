@@ -69,7 +69,7 @@ bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::Graph
 	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	const DXGI_FORMAT formats[]{ DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
 		DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R11G11B10_FLOAT,
-		DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R16G16_FLOAT };
+		DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R16G16_FLOAT, DXGI_FORMAT_R16G16_FLOAT };
 	desc.numRenderTargets = static_cast<UINT>(std::size(formats));
 	std::copy(std::begin(formats), std::end(formats), desc.rtvFormats);
 	// 個別コンパイルだけでなくVSとPSの接続まで検証する

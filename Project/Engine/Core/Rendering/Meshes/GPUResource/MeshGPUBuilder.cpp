@@ -69,10 +69,8 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	mesh.assetID = imported.assetID;
 	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
 	mesh.hasVertexColors = upload.hasVertexColors;
-	mesh.lods = imported.lods;
-	mesh.ditherLODTransitions = imported.ditherLODTransitions;
-	mesh.indexCount = mesh.lods[0].indexCount;
-	mesh.meshletCount = mesh.lods[0].meshletCount;
+	mesh.indexCount = static_cast<uint32_t>(imported.indices.size());
+	mesh.meshletCount = static_cast<uint32_t>(imported.meshlets.size());
 	mesh.isSkinned = imported.isSkinned;
 	mesh.boneCount = imported.boneCount;
 	// インスタンス単位カリングで使用するメッシュ全体Boundsを作る

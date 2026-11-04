@@ -20,7 +20,6 @@ struct TransparentPSOutput {
 //============================================================================
 TransparentPSOutput mainTransparent(VSOutput input) {
 
-	ApplyMeshLODDither(input.position.xy, input.lodCoverage);
 	ResolvedPBRMaterial m = ResolvePBRMaterial(input);
 	// フォワードレンダリングでPBR処理
 	float3 finalColor = EvaluateMeshSurfaceLighting(input, m);

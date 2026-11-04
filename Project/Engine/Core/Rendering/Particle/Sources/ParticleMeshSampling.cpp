@@ -74,7 +74,7 @@ void ParticleMeshSampling::Record(ID3D12Device* device, DxCommand& commands, Gra
 		commands.UAVBarrier(usedVertices_.GetResource());
 	};
 	if (input.kind == ParticleSourceKind::MeshVertex) {
-		// LOD0のIndexが参照する頂点だけを発生候補へ残す
+		// Indexが参照する頂点だけを発生候補へ残す
 		dispatch(0, input.vertexCount);
 		dispatch(1, input.indexCount);
 	}

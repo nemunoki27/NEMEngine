@@ -75,20 +75,16 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 			prepared.items.front()->blendMode);
 	context.commandList->SetPipelineState(graphicsPipeline);
 
-	// Pickingはクリック時だけ実行するため、LOD0の全インスタンスを直接描画する
+	// Pickingはクリック時だけ全インスタンスを直接描画する
 	// Indirectカリング用バッファを介さず元のEntity IDをそのままPSへ渡す
 	if (context.drawContext->passKind ==
 		MaterialPassKind::EditorPicking) {
 
-		const MeshLODRange& lod =
-			prepared.subMeshIndex != kAllMeshSubMeshes ?
-			prepared.gpuMesh->subMeshes[prepared.subMeshIndex].lods[0] :
-			prepared.gpuMesh->lods[0];
+		const bool singleSubMesh = prepared.subMeshIndex != kAllMeshSubMeshes;
 		context.commandList->DrawIndexedInstanced(
-			lod.indexCount,
+			singleSubMesh ? prepared.gpuMesh->subMeshes[prepared.subMeshIndex].indexCount : prepared.gpuMesh->indexCount,
 			prepared.instanceCount,
-			lod.indexOffset,
-			0, 0);
+			singleSubMesh ? prepared.gpuMesh->subMeshes[prepared.subMeshIndex].indexOffset : 0u, 0, 0);
 		return;
 	}
 
@@ -106,7 +102,7 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 	// Indirect引数生成でCompute PSOへ切り替わるため描画前にGraphics PSOへ戻す
 	context.commandList->SetPipelineState(graphicsPipeline);
 
-	// VS側はLOD領域ごとにカリング済みインスタンス配列をgMeshInstancesとして読む
+	// カリング済みインスタンス配列をgMeshInstancesとして読む
 	drawBindCache_.Sync(*prepared.pipelineState);
 	if (!drawBindCache_.Has(drawMeshInstSRVSlot_)) {
 		return;
@@ -123,28 +119,10 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 		return;
 	}
 
-	// SV_InstanceIDはStartInstanceLocationを含まないため、
-	// LODごとにStructuredBufferの先頭GPUアドレスを切り替える
-	const D3D12_GPU_VIRTUAL_ADDRESS visibleBaseAddress =
-		prepared.resources->GetVisibleInstanceMeshGPUAddress();
-	const uint64_t lodInstanceBytes =
-		static_cast<uint64_t>(prepared.instanceCount) *
-		sizeof(MeshInstanceData);
-	ID3D12Resource* indirectArgs =
-		prepared.resources->GetIndexedIndirectArgsResource();
-	for (uint32_t lodIndex = 0;
-		lodIndex < kMeshLODCount; ++lodIndex) {
-
-		RootBindingCommand::SetGraphicsSRV(
-			context.commandList, instanceBinding,
-			visibleBaseAddress +
-			lodInstanceBytes * lodIndex);
-		context.commandList->ExecuteIndirect(
-			commandSignature_.Get(), 1,
-			indirectArgs,
-			sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) *
-			lodIndex, nullptr, 0);
-	}
+	RootBindingCommand::SetGraphicsSRV(context.commandList, instanceBinding,
+		prepared.resources->GetVisibleInstanceMeshGPUAddress());
+	context.commandList->ExecuteIndirect(commandSignature_.Get(), 1,
+		prepared.resources->GetIndexedIndirectArgsResource(), 0, nullptr, 0);
 }
 
 bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawContext& context) {

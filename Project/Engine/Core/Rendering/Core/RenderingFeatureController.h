@@ -39,10 +39,6 @@ namespace Engine {
 		void SetUseGameViewCameraForSceneCulling(bool enabled);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
-		// メッシュLODと切り替え閾値を設定する
-		void SetAllowMeshLOD(bool enabled);
-		void SetMeshLODThresholds(
-			float lod0, float lod1, float lod2);
 		// 切替に成功したフレームコンテキスト数を保存する
 		void SetFrameContextCount(uint32_t count);
 		// 製品ランタイムで使用するDisplay出力設定を保存する

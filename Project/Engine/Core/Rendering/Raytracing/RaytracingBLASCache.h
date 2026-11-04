@@ -45,18 +45,16 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// 共有Meshの形状世代とLODを区別するキー
+		// 共有Meshの形状世代と配置を区別するキー
 		struct BLASKey {
 
 			AssetID meshAssetID{};
 			// 再読み込み後は別のBLASとして構築
 			uint32_t reloadGeneration = 0;
-			// 共有するLOD番号
-			uint32_t lodIndex = 0;
 			// サブメッシュローカル行列を含むジオメトリ配置
 			uint64_t geometryLayoutHash = 0;
 
-			// 形状世代とLODと配置が一致するか
+			// 形状世代と配置が一致するか
 			bool operator==(const BLASKey& rhs) const noexcept;
 		};
 
@@ -86,13 +84,11 @@ namespace Engine {
 			size_t operator()(const StaticInstanceBLASKey& key) const noexcept;
 		};
 
-		// 固有変換を反映したLOD別BLAS
+		// 固有変換を反映したBLAS
 		struct StaticInstanceBLASEntry {
 
-			std::array<BottomLevelAccelerationStructure,
-				kMeshLODCount> lodBLASes{};
-			std::array<uint64_t, kMeshLODCount>
-				lodGeometryLayoutHashes{};
+			BottomLevelAccelerationStructure blas{};
+			uint64_t publishedGeometryLayoutHash = 0;
 			uint64_t geometryLayoutHash = 0;
 			uint64_t lastUsedFrame = 0;
 			bool layoutInitialized = false;

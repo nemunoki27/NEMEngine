@@ -136,7 +136,7 @@ bool NEMTests::RecordFBXDraw(ID3D12Device* device, ID3D12CommandQueue* queue, ID
 	commands->SetGraphicsRoot32BitConstants(1, 4, projection, 0);
 	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commands->IASetIndexBuffer(&mesh->indexBuffer.GetIndexBufferView());
-	commands->DrawIndexedInstanced(mesh->lods[0].indexCount, 1, mesh->lods[0].indexOffset, 0, 0);
+	commands->DrawIndexedInstanced(mesh->indexCount, 1, 0u, 0, 0);
 	// 描画完了後の画素を読戻し用Bufferへ記録する
 	const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(target.Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);

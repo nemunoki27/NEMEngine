@@ -23,7 +23,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.cullingView = sceneContext.cullingView;
 	// ビルボード計算も同様にGameViewを優先するための参照を渡す
 	drawContext.billboardView = sceneContext.billboardView;
-	drawContext.lodView = sceneContext.lodView;
+	drawContext.historyView = sceneContext.historyView;
 	drawContext.systemContext = sceneContext.systemContext;
 	drawContext.batch = &renderBatch;
 	// View共通リソースを各Backendへ渡す
@@ -35,7 +35,6 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.passKind = passKind;
 	drawContext.depthOnly = depthOnly;
 	drawContext.forceTwoSidedRasterizer = sceneContext.forceTwoSidedRasterizer;
-	drawContext.disableLODDither = sceneContext.disableLODDither;
 	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
 	// ScreenSpaceOutline Mask描画のper-draw値を引き継ぐ
 	drawContext.screenSpaceOutlineMaskStyleID = sceneContext.screenSpaceOutlineMaskStyleID;

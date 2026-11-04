@@ -103,20 +103,6 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	drawConstants.maxDisplacement = maxDisplacement;
 	// 小さい形状の省略によるちらつきを抑える
 	drawConstants.contributionPixelThreshold = 0.5f;
-	drawConstants.lodPixelThresholds = Vector3(
-		drawContext.runtimeFeatures.
-			meshLOD0PixelThreshold,
-		drawContext.runtimeFeatures.
-			meshLOD1PixelThreshold,
-		drawContext.runtimeFeatures.
-			meshLOD2PixelThreshold);
-	drawConstants.lodCount =
-		drawContext.runtimeFeatures.useMeshLOD &&
-		drawContext.passKind != MaterialPassKind::Transparent ?
-		kMeshLODCount : 1u;
-	drawConstants.lodDitherEnabled =
-		drawConstants.lodCount > 1u && gpuMesh.ditherLODTransitions &&
-		!drawContext.disableLODDither ? 1u : 0u;
 	drawConstants.preserveInstanceOrder =
 		drawContext.passKind == MaterialPassKind::Transparent ? 1u : 0u;
 
@@ -127,17 +113,9 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	const bool drawSingleSubMesh =
 		subMeshIndex != kAllMeshSubMeshes &&
 		subMeshIndex < gpuMesh.subMeshes.size();
-	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
-
-		const MeshLODRange& lod = drawSingleSubMesh ?
-			gpuMesh.subMeshes[subMeshIndex].lods[lodIndex] :
-			gpuMesh.lods[lodIndex];
-		drawConstants.lodIndexOffsets[lodIndex] = lod.indexOffset;
-		drawConstants.lodIndexCounts[lodIndex] = lod.indexCount;
-		drawConstants.lodMeshletOffsets[lodIndex] = lod.meshletOffset;
-		drawConstants.lodMeshletCounts[lodIndex] = lod.meshletCount;
-		drawConstants.meshletCount = (std::max)(drawConstants.meshletCount, lod.meshletCount);
-	}
+	drawConstants.meshIndexOffset = drawSingleSubMesh ? gpuMesh.subMeshes[subMeshIndex].indexOffset : 0u;
+	drawConstants.meshletOffset = drawSingleSubMesh ? gpuMesh.subMeshes[subMeshIndex].meshletOffset : 0u;
+	drawConstants.meshletCount = drawSingleSubMesh ? gpuMesh.subMeshes[subMeshIndex].meshletCount : gpuMesh.meshletCount;
 
 	BeginDynamicConstantsFrame();
 	drawGPUAddress_ =
@@ -169,7 +147,7 @@ void Engine::MeshBatchViewResources::UpdateIndexedIndirectArgsConstants(uint32_t
 }
 
 void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
-	const ResolvedRenderView* cullingView, const ResolvedRenderView* lodView) {
+	const ResolvedRenderView* cullingView, const ResolvedRenderView* historyView) {
 
 	const size_t viewIndex = ToViewIndex(view.kind);
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
@@ -182,20 +160,8 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
 		// 補助描画では画面Cameraの履歴を使う
 		constants.previousViewProjection = cameraHistory_.Update(
-			lodView ? *lodView : view, RenderCameraDomain::Perspective, frameSerial);
+			historyView ? *historyView : view, RenderCameraDomain::Perspective, frameSerial);
 		constants.renderCameraPos = camera->cameraPos;
-	}
-	// Shadow Mapなどの補助描画は画面CameraのLODを維持する
-	const ResolvedRenderView* resolvedLODView = lodView ? lodView : &view;
-	if (const ResolvedCameraView* camera =
-		resolvedLODView->FindCamera(RenderCameraDomain::Perspective)) {
-
-		constants.lodView = camera->matrices.viewMatrix;
-		constants.lodNearClip = camera->nearClip;
-		constants.lodOrthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic ? 1u : 0u;
-		constants.lodProjectionScale = Vector2(
-			std::abs(camera->matrices.projectionMatrix.m[0][0]),
-			std::abs(camera->matrices.projectionMatrix.m[1][1]));
 	}
 	constants.frameSerial = static_cast<uint32_t>(frameSerial);
 	constants.viewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),

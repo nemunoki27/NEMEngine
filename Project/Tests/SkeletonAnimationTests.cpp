@@ -88,7 +88,7 @@ namespace {
 		manager.RequestLoadAsync(database, id);
 		manager.WaitAll();
 		const auto animation = manager.Find(id);
-		const auto mesh = MeshFileImporter::ImportFile(id, path, {}, {}, false);
+		const auto mesh = MeshFileImporter::ImportFile(id, path, false);
 		if (!animation || !animation->valid || !mesh.isSkinned || mesh.boneCount != animation->skeleton.joints.size()) {
 			std::cerr << "Model definition mismatch: animation=" << bool(animation) << " skinned=" << mesh.isSkinned << " bones=" << mesh.boneCount << '\n';
 			return false;

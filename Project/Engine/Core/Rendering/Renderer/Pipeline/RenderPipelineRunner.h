@@ -92,8 +92,8 @@ namespace Engine {
 		// SceneViewのエディター表示で参照するGameView
 		const ResolvedRenderView* gameView = nullptr;
 		const ResolvedRenderView* cullingView = nullptr;
-		// 補助描画でもLOD判定に使う元のCamera
-		const ResolvedRenderView* lodView = nullptr;
+		// 補助描画の履歴に使う元のCamera
+		const ResolvedRenderView* historyView = nullptr;
 		// 最終出力へ適用するCameraの画面設定
 		ResolvedCameraView postProcessCamera{};
 		RenderTexture2D* ambientOcclusion = nullptr;
@@ -135,8 +135,6 @@ namespace Engine {
 		bool disableMeshCulling = false;
 		// Shadow Mapでは片面形状も遮蔽物として描く
 		bool forceTwoSidedRasterizer = false;
-		// 補助描画では画面座標に依存するLODディザを使わない
-		bool disableLODDither = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;

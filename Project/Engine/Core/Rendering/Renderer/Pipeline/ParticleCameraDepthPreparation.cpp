@@ -185,7 +185,6 @@ ParticleGPUFrameInputs ParticleCameraDepthPreparation::Prepare(GraphicsCore& gra
 		context.systemContext = request.systemContext;
 		context.disableInlineRayTracing = true;
 		context.forceVertexMeshVariant = true;
-		context.disableLODDither = true;
 		context.disableMeshCulling = true;
 		RenderPassItemCollector::BuildBucketsForViewAndScene(*deps.renderBatch, camera->view, scene->instanceID, data_->buckets);
 		data_->meshes.clear();

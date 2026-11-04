@@ -338,7 +338,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			GPUFrameProfiler::GetInstance().EndPass(commandList);
 
 			// 描画で使う実行ContextへTLASとBufferを登録する
-			// 描画先のCameraでLODとBillboardを解決する
+			// 描画先のCameraでBillboardを解決する
 			PrimitiveGeometryManager* primitiveGeometryManager =
 				primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
 			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/RaytracingSceneBuild");

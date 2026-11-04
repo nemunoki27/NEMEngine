@@ -56,22 +56,6 @@ namespace Engine {
 		bool SupportsRayTracingTier1_1() const { return D3D12_RAYTRACING_TIER_1_1 <= raytracingTier; }
 	};
 
-	// メッシュLODの切り替え閾値
-	namespace GraphicsMeshLOD {
-
-		inline constexpr std::array<float, 3> kDefaultPixelThresholds = {
-			160.0f, 80.0f, 32.0f
-		};
-		inline constexpr float kMinimumPixelThreshold = 1.0f;
-		inline constexpr float kPixelThresholdGap = 4.0f;
-		inline constexpr float kMaximumPixelThreshold = 4096.0f;
-
-		bool ArePixelThresholdsValid(
-			float lod0, float lod1, float lod2);
-		std::array<float, 3> ClampPixelThresholds(
-			float lod0, float lod1, float lod2);
-	}
-
 	// ユーザー参照設定
 	enum class DisplayOutputMode :
 		uint8_t {
@@ -111,16 +95,6 @@ namespace Engine {
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;
-		// メッシュLODを使用するか
-		// LODは明示的に有効化したときだけ使用する
-		bool allowMeshLOD = false;
-		// 投影半径が閾値を下回ったとき次のLODへ移る
-		float meshLOD0PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[0];
-		float meshLOD1PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[1];
-		float meshLOD2PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 		// 起動時に使用するフレームコンテキスト数
 		uint32_t frameContextCount = 2;
 		// Editorと製品で共通の表示出力
@@ -141,13 +115,6 @@ namespace Engine {
 		bool useOcclusionCulling = false;
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
-		bool useMeshLOD = true;
-		float meshLOD0PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[0];
-		float meshLOD1PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[1];
-		float meshLOD2PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 
 		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
 	};

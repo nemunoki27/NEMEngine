@@ -40,7 +40,7 @@ namespace Engine {
 		void Release();
 		// Viewの行列と履歴を更新する
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView,
-			const ResolvedRenderView* lodView = nullptr);
+			const ResolvedRenderView* historyView = nullptr);
 		// Draw用の定数を確定する
 		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh,
 			uint32_t subMeshIndex, uint32_t subMeshGroupIndex, ID3D12Device* device, uint32_t instanceCount,

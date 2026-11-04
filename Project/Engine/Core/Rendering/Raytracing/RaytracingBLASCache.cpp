@@ -49,7 +49,6 @@ namespace Engine {
 
 		return meshAssetID == rhs.meshAssetID &&
 			reloadGeneration == rhs.reloadGeneration &&
-			lodIndex == rhs.lodIndex &&
 			geometryLayoutHash == rhs.geometryLayoutHash;
 	}
 
@@ -57,11 +56,9 @@ namespace Engine {
 
 		const size_t h0 = std::hash<AssetID>{}(key.meshAssetID);
 		const size_t h1 = std::hash<uint32_t>{}(key.reloadGeneration);
-		const size_t h2 = std::hash<uint32_t>{}(key.lodIndex);
-		const size_t h3 = std::hash<uint64_t>{}(key.geometryLayoutHash);
+		const size_t h2 = std::hash<uint64_t>{}(key.geometryLayoutHash);
 		size_t h = h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
-		h ^= h2 + 0x9e3779b9u + (h << 6) + (h >> 2);
-		return h ^ (h3 + 0x9e3779b9u + (h << 6) + (h >> 2));
+		return h ^ (h2 + 0x9e3779b9u + (h << 6) + (h >> 2));
 	}
 
 	bool RaytracingBLASCache::StaticInstanceBLASKey::operator==(const StaticInstanceBLASKey& rhs) const noexcept {

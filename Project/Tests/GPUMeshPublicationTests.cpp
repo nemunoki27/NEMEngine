@@ -6,7 +6,6 @@
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
-#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -24,7 +23,6 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	using namespace Engine;
 	TestDirectory directory("MeshPublication", RuntimePaths::GetGameAssetsRoot());
 	const auto path = directory.GetPath() / "reload.obj";
-	const auto lodPath = directory.GetPath() / "reload_lod1.obj";
 	auto save = [&](int height) {
 		std::ofstream file(path);
 		file << "o mesh" << height << "\nv 0 0 " << height << "\nv 1 0 " << height <<
@@ -37,21 +35,10 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 		return !file.fail();
 	};
 	if (!save(3)) return false;
-	{
-		std::ofstream file(lodPath);
-		file << "o mesh3\nv 0 0 3\nv 1 0 3\nv 0 1 3\nv 1 1 3\n"
-			"f 1 2 3\nf 2 4 3\n";
-		if (file.fail()) return false;
-	}
 	AssetDatabase database;
 	database.Init();
 	const AssetID asset = database.ImportOrGet(RuntimePaths::ToAssetPath(path), AssetType::Mesh);
-	const AssetID lodAsset = database.ImportOrGet(
-		RuntimePaths::ToAssetPath(lodPath), AssetType::Mesh);
-	MeshImportSettings settings{};
-	settings.manualLODMeshes[0] = lodAsset;
-	if (!asset || !lodAsset || !database.UpdateImporterSettings(
-		asset, ToJson(settings), kMeshImporterVersion)) return false;
+	if (!asset) return false;
 	std::vector<MeshSubMeshLayoutItem> initialLayout;
 	const auto assetCount = database.GetAssets().size();
 	// Workerへは索引の寿命と確定した入力だけを渡す
@@ -78,8 +65,8 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	meshes.RequestReload(asset);
 	meshes.WaitAll();
 	const auto* first = meshes.Find(asset);
-	if (!first || !first->IsValid() || first->vertexCount != 7 ||
-		first->lods[1].indexCount != 6) return false;
+	if (!first || !first->IsValid() || first->vertexCount != 3 ||
+		first->indexCount != 3) return false;
 	std::vector<MeshSubMeshLayoutItem> publishedLayout;
 	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, publishedLayout) || publishedLayout.empty()) return false;
 	const size_t publishedSubMeshCount = publishedLayout.size();

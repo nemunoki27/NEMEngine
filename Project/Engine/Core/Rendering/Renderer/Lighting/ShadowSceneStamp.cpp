@@ -77,7 +77,6 @@ Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& grap
 	result.worldRevision = context.view->historyWorldRevision;
 	const auto& features = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	result.meshShader = features.useMeshShader;
-	result.meshLOD = features.useMeshLOD;
 	const auto* meshBackend = deps.backendRegistry ?
 		dynamic_cast<const MeshRenderBackend*>(deps.backendRegistry->Find(RenderBackendID::Mesh)) : nullptr;
 	result.meshRevision = meshBackend ? meshBackend->GetMeshResourceRevision() : 0;

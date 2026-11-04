@@ -47,8 +47,8 @@ namespace Engine {
 		const ResolvedRenderView* cullingView = nullptr;
 		// ビルボード計算に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* billboardView = nullptr;
-		// 補助描画でLOD判定に使用する元のビュー
-		const ResolvedRenderView* lodView = nullptr;
+		// 補助描画で履歴を参照する元のビュー
+		const ResolvedRenderView* historyView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
 		// ライトなど、描画パス共通で使うGPUバッファの参照先
@@ -74,7 +74,6 @@ namespace Engine {
 		MaterialPassKind passKind = MaterialPassKind::Draw;
 		bool depthOnly = false;
 		bool forceTwoSidedRasterizer = false;
-		bool disableLODDither = false;
 
 		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限
 		// 0なら描画せずMask以外のパスでは未使用

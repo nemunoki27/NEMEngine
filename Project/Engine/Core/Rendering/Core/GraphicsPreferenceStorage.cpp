@@ -88,12 +88,19 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 		return;
 	}
 
-	const nlohmann::json data = JsonAdapter::Load(path);
+	nlohmann::json data = JsonAdapter::Load(path);
 	if (!data.is_object()) {
 		return;
 	}
 
 	Read(data, preferences);
+	bool changed = false;
+	for (const char* key : { "allowMeshLOD", "meshLOD0PixelThreshold", "meshLOD1PixelThreshold", "meshLOD2PixelThreshold" }) {
+		changed |= data.erase(key) != 0;
+	}
+	if (changed) {
+		JsonAdapter::Save(path, data);
+	}
 }
 
 void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, GraphicsFeaturePreferences& preferences) {
@@ -122,34 +129,6 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 		"allowContributionCulling", preferences.allowContributionCulling);
 	preferences.allowNormalConeCulling = ReadBoolSetting(data,
 		"allowNormalConeCulling", preferences.allowNormalConeCulling);
-	preferences.allowMeshLOD = ReadBoolSetting(data,
-		"allowMeshLOD", preferences.allowMeshLOD);
-	const float lod0 = ReadFloatSetting(data,
-		"meshLOD0PixelThreshold",
-		preferences.meshLOD0PixelThreshold);
-	const float lod1 = ReadFloatSetting(data,
-		"meshLOD1PixelThreshold",
-		preferences.meshLOD1PixelThreshold);
-	const float lod2 = ReadFloatSetting(data,
-		"meshLOD2PixelThreshold",
-		preferences.meshLOD2PixelThreshold);
-	if (GraphicsMeshLOD::ArePixelThresholdsValid(
-		lod0, lod1, lod2)) {
-
-		preferences.meshLOD0PixelThreshold = lod0;
-		preferences.meshLOD1PixelThreshold = lod1;
-		preferences.meshLOD2PixelThreshold = lod2;
-	} else {
-
-		preferences.meshLOD0PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[0];
-		preferences.meshLOD1PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[1];
-		preferences.meshLOD2PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[2];
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"メッシュLODの閾値が不正なため既定値へ戻しました");
-	}
 	const uint32_t savedFrameCount = ReadUIntSetting(data, "frameContextCount", preferences.frameContextCount);
 	preferences.frameContextCount = std::clamp(savedFrameCount, 1u, 2u);
 	preferences.displayOutput.mode =
@@ -183,13 +162,6 @@ nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePre
 	data["useGameViewCameraForSceneCulling"] = preferences.useGameViewCameraForSceneCulling;
 	data["allowContributionCulling"] = preferences.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences.allowNormalConeCulling;
-	data["allowMeshLOD"] = preferences.allowMeshLOD;
-	data["meshLOD0PixelThreshold"] =
-		preferences.meshLOD0PixelThreshold;
-	data["meshLOD1PixelThreshold"] =
-		preferences.meshLOD1PixelThreshold;
-	data["meshLOD2PixelThreshold"] =
-		preferences.meshLOD2PixelThreshold;
 	data["frameContextCount"] =
 		preferences.frameContextCount;
 	data["displayOutputMode"] = EnumAdapter<DisplayOutputMode>::ToString(

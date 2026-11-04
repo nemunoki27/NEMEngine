@@ -185,43 +185,6 @@ void Engine::GraphicsFeatureController::SetAllowNormalConeCulling(bool enabled) 
 		GetEnabledText(runtimeFeatures_.useNormalConeCulling));
 }
 
-void Engine::GraphicsFeatureController::SetAllowMeshLOD(
-	bool enabled) {
-
-	if (preferences_.allowMeshLOD == enabled) {
-		return;
-	}
-
-	preferences_.allowMeshLOD = enabled;
-	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
-
-	Logger::Output(LogType::Engine, "メッシュLOD: {}",
-		GetEnabledText(runtimeFeatures_.useMeshLOD));
-}
-
-void Engine::GraphicsFeatureController::SetMeshLODThresholds(
-	float lod0, float lod1, float lod2) {
-
-	const std::array<float, 3> thresholds =
-		GraphicsMeshLOD::ClampPixelThresholds(
-			lod0, lod1, lod2);
-	lod0 = thresholds[0];
-	lod1 = thresholds[1];
-	lod2 = thresholds[2];
-	if (preferences_.meshLOD0PixelThreshold == lod0 &&
-		preferences_.meshLOD1PixelThreshold == lod1 &&
-		preferences_.meshLOD2PixelThreshold == lod2) {
-		return;
-	}
-
-	preferences_.meshLOD0PixelThreshold = lod0;
-	preferences_.meshLOD1PixelThreshold = lod1;
-	preferences_.meshLOD2PixelThreshold = lod2;
-	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
-}
-
 void Engine::GraphicsFeatureController::SetFrameContextCount(
 	uint32_t count) {
 
@@ -297,11 +260,6 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 		preferences_.useGameViewCameraForSceneCulling ? "GameView" : "SceneView");
 	Logger::Output(LogType::Engine, "実行時寄与度カリング: {}", GetEnabledText(runtimeFeatures_.useContributionCulling));
 	Logger::Output(LogType::Engine, "実行時法線コーンカリング: {}", GetEnabledText(runtimeFeatures_.useNormalConeCulling));
-	Logger::Output(LogType::Engine, "実行時メッシュLOD: {} ({:.1f}, {:.1f}, {:.1f})",
-		GetEnabledText(runtimeFeatures_.useMeshLOD),
-		runtimeFeatures_.meshLOD0PixelThreshold,
-		runtimeFeatures_.meshLOD1PixelThreshold,
-		runtimeFeatures_.meshLOD2PixelThreshold);
 	Logger::Output(LogType::Engine, "Frame Context数: {}",
 		preferences_.frameContextCount);
 	Logger::Output(LogType::Engine, "表示出力: {} ({:.0f}/{:.0f} nits)",

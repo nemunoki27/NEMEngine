@@ -9,7 +9,6 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 
 // c++
-#include <array>
 #include <cstdint>
 
 namespace Engine {
@@ -63,19 +62,12 @@ namespace Engine {
 		// Displacementによるモデル空間最大変位量
 		float maxDisplacement = 0.0f;
 
-		// 連結Index/Meshletバッファ内の4段階LOD範囲
-		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};
-		std::array<uint32_t, kMeshLODCount> lodIndexCounts{};
-		std::array<uint32_t, kMeshLODCount> lodMeshletOffsets{};
-		std::array<uint32_t, kMeshLODCount> lodMeshletCounts{};
-		// 投影半径が閾値以上ならLOD0/1/2を選び、それ未満はLOD3にする
-		Vector3 lodPixelThresholds = Vector3(160.0f, 80.0f, 32.0f);
-		uint32_t lodCount = kMeshLODCount;
-		uint32_t lodDitherEnabled = 0;
+		uint32_t meshIndexOffset = 0;
+		uint32_t meshletOffset = 0;
 		uint32_t preserveInstanceOrder = 0;
-		uint32_t _lodDrawPad[2] = { 0, 0 };
+		uint32_t _drawPad = 0;
 	};
-	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
+	static_assert(sizeof(MeshDrawConstants) == 96);
 
 	// 背面法アウトラインのGPUデータ
 	struct MeshOutlineGPUData {

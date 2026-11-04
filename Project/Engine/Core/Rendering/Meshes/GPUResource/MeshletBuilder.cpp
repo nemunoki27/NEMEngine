@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <algorithm>
-#include <array>
 #include <vector>
 
 //============================================================================
@@ -104,9 +103,7 @@ uint32_t Engine::MeshletBuilder::PackPrimitive(uint32_t i0, uint32_t i1, uint32_
 	return (i0 & 0x3FFu) | ((i1 & 0x3FFu) << 10u) | ((i2 & 0x3FFu) << 20u);
 }
 
-void Engine::MeshletBuilder::Build(
-	ImportedMeshAsset& mesh,
-	const MeshImportSettings& settings) const {
+void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
 
 	mesh.meshlets.clear();
 	mesh.meshletVertexIndices.clear();
@@ -114,165 +111,24 @@ void Engine::MeshletBuilder::Build(
 	if (mesh.vertices.empty() || mesh.indices.empty() || mesh.subMeshes.empty()) {
 		return;
 	}
+	for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size()); ++subMeshIndex) {
 
-	BuildLODs(mesh, settings);
-	// LODごとに連続したメッシュレット範囲を構築する
-	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
-
-		MeshLODRange& lod = mesh.lods[lodIndex];
-		lod.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
-		for (uint32_t subMeshIndex = 0;
-			subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size());
-			++subMeshIndex) {
-
-			BuildSubMeshMeshlets(mesh, subMeshIndex, lodIndex);
-		}
-		lod.meshletCount =
-			static_cast<uint32_t>(mesh.meshlets.size()) - lod.meshletOffset;
-	}
-
-	// 既存参照はLOD0を指す
-	for (SubMeshDesc& subMesh : mesh.subMeshes) {
-		subMesh.meshletOffset = subMesh.lods[0].meshletOffset;
-		subMesh.meshletCount = subMesh.lods[0].meshletCount;
-	}
-}
-
-void Engine::MeshletBuilder::BuildLODs(
-	ImportedMeshAsset& mesh,
-	const MeshImportSettings& settings) const {
-
-	static constexpr std::array<float, kMeshLODCount> kTriangleRatios = {
-		1.0f, 0.35f, 0.08f, 0.04f
-	};
-	const uint32_t lod0IndexCount = mesh.lods[0].indexCount != 0 ?
-		mesh.lods[0].indexCount :
-		static_cast<uint32_t>(mesh.indices.size());
-	mesh.lods[0].indexOffset = 0;
-	mesh.lods[0].indexCount = lod0IndexCount;
-	for (SubMeshDesc& subMesh : mesh.subMeshes) {
-
-		subMesh.lods[0].indexOffset = subMesh.indexOffset;
-		subMesh.lods[0].indexCount = subMesh.indexCount;
-	}
-
-	// 法線とUVを簡略化誤差へ含め、形状だけでなく見た目の境界も保つ
-	const bool hasVertexColors = mesh.vertexColors.size() == mesh.vertices.size();
-	const uint32_t attributeCount = hasVertexColors ? 9u : 5u;
-	std::vector<float> attributes(mesh.vertices.size() * attributeCount);
-	for (size_t index = 0; index < mesh.vertices.size(); ++index) {
-
-		const MeshVertex& vertex = mesh.vertices[index];
-		const size_t offset = index * attributeCount;
-		attributes[offset + 0] = vertex.normal.x;
-		attributes[offset + 1] = vertex.normal.y;
-		attributes[offset + 2] = vertex.normal.z;
-		attributes[offset + 3] = vertex.uv.x;
-		attributes[offset + 4] = vertex.uv.y;
-		if (hasVertexColors) {
-			const Vector4& color = mesh.vertexColors[index];
-			attributes[offset + 5] = color.x;
-			attributes[offset + 6] = color.y;
-			attributes[offset + 7] = color.z;
-			attributes[offset + 8] = color.w;
-		}
-	}
-	static constexpr float kAttributeWeights[9] = {
-		0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f
-	};
-
-	for (uint32_t lodIndex = 1; lodIndex < kMeshLODCount; ++lodIndex) {
-
-		MeshLODRange& lod = mesh.lods[lodIndex];
-		if (mesh.authoredLODs[lodIndex]) {
-			continue;
-		}
-		if (!settings.generateAutomaticLODs) {
-			lod = mesh.lods[0];
-			for (SubMeshDesc& subMesh : mesh.subMeshes) {
-				subMesh.lods[lodIndex] = subMesh.lods[0];
-			}
-			continue;
-		}
-		lod.indexOffset = static_cast<uint32_t>(mesh.indices.size());
-		for (uint32_t subMeshIndex = 0;
-			subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size());
-			++subMeshIndex) {
-
-			SubMeshDesc& subMesh =
-				mesh.subMeshes[subMeshIndex];
-			const MeshLODRange& sourceRange = subMesh.lods[0];
-			MeshLODRange& destinationRange = subMesh.lods[lodIndex];
-			destinationRange.indexOffset = static_cast<uint32_t>(mesh.indices.size());
-			if (sourceRange.indexCount == 0) {
-				continue;
-			}
-			const uint32_t* sourceBegin =
-				mesh.indices.data() + sourceRange.indexOffset;
-			std::vector<uint32_t> sourceIndices(
-				sourceBegin, sourceBegin + sourceRange.indexCount);
-			std::vector<uint32_t> simplified(sourceRange.indexCount);
-
-			size_t simplifiedCount = sourceRange.indexCount;
-			const uint32_t triangleCount = sourceRange.indexCount / 3;
-			// SubMesh単位の最小三角形数でLOD生成を固定しない
-			uint32_t targetTriangleCount = static_cast<uint32_t>(
-				static_cast<float>(triangleCount) * kTriangleRatios[lodIndex]);
-			targetTriangleCount = (std::max)(1u, targetTriangleCount);
-			if (targetTriangleCount < triangleCount) {
-
-				size_t targetCount =
-					static_cast<size_t>(targetTriangleCount) * 3;
-				targetCount = (std::max)(size_t(3), targetCount - targetCount % 3);
-				simplifiedCount = meshopt_simplifyWithAttributes(
-					simplified.data(), sourceIndices.data(), sourceIndices.size(),
-					reinterpret_cast<const float*>(&mesh.vertices[0].position.x),
-					mesh.vertices.size(), sizeof(MeshVertex),
-					attributes.data(), sizeof(float) * attributeCount,
-					kAttributeWeights, attributeCount, nullptr,
-					targetCount,
-					settings.lodTargetErrors[lodIndex - 1],
-					meshopt_SimplifyLockBorder |
-					meshopt_SimplifyRegularize, nullptr);
-
-			} else {
-
-				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());
-			}
-			if (simplifiedCount < 3) {
-
-				std::copy(sourceIndices.begin(), sourceIndices.end(), simplified.begin());
-				simplifiedCount = sourceIndices.size();
-			}
-			simplified.resize(simplifiedCount);
-
-			std::vector<uint32_t> optimized(simplified.size());
-			meshopt_optimizeVertexCache(
-				optimized.data(), simplified.data(),
-				simplified.size(), mesh.vertices.size());
-			mesh.indices.insert(
-				mesh.indices.end(), optimized.begin(), optimized.end());
-			destinationRange.indexCount =
-				static_cast<uint32_t>(optimized.size());
-		}
-		lod.indexCount =
-			static_cast<uint32_t>(mesh.indices.size()) - lod.indexOffset;
+		BuildSubMeshMeshlets(mesh, subMeshIndex);
 	}
 }
 
 void Engine::MeshletBuilder::BuildSubMeshMeshlets(
-	ImportedMeshAsset& mesh, uint32_t subMeshIndex, uint32_t lodIndex) const {
+	ImportedMeshAsset& mesh, uint32_t subMeshIndex) const {
 
 	SubMeshDesc& subMesh = mesh.subMeshes[subMeshIndex];
-	MeshLODRange& lod = subMesh.lods[lodIndex];
-	lod.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
-	lod.meshletCount = 0;
-	if (lod.indexCount == 0) {
+	subMesh.meshletOffset = static_cast<uint32_t>(mesh.meshlets.size());
+	subMesh.meshletCount = 0;
+	if (subMesh.indexCount == 0) {
 		return;
 	}
 
 	// メッシュレットの最大数
-	const size_t maxMeshlets = meshopt_buildMeshletsBound(lod.indexCount,
+	const size_t maxMeshlets = meshopt_buildMeshletsBound(subMesh.indexCount,
 		kMaxMeshletVertices, kMaxMeshletPrimitives);
 
 	// meshoptimizerへ渡す一時バッファを最大数で確保する
@@ -282,8 +138,8 @@ void Engine::MeshletBuilder::BuildSubMeshMeshlets(
 	const float* vertexPositions = reinterpret_cast<const float*>(&mesh.vertices[0].position.x);
 	// メッシュレットを構築
 	const size_t builtMeshletCount = meshopt_buildMeshlets(tempMeshlets.data(),
-		tempVertices.data(), tempTriangles.data(), mesh.indices.data() + lod.indexOffset,
-		lod.indexCount, vertexPositions, mesh.vertices.size(),
+		tempVertices.data(), tempTriangles.data(), mesh.indices.data() + subMesh.indexOffset,
+		subMesh.indexCount, vertexPositions, mesh.vertices.size(),
 		sizeof(MeshVertex), kMaxMeshletVertices, kMaxMeshletPrimitives, 0.0f);
 
 	tempMeshlets.resize(builtMeshletCount);
@@ -319,6 +175,6 @@ void Engine::MeshletBuilder::BuildSubMeshMeshlets(
 			mesh.meshletPrimitiveIndices.emplace_back(PackPrimitive(i0, i1, i2));
 		}
 		mesh.meshlets.emplace_back(dstMeshlet);
-		++lod.meshletCount;
+		++subMesh.meshletCount;
 	}
 }

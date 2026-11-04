@@ -17,6 +17,25 @@ namespace Engine::AssetMetaStorage {
 	constexpr uint32_t kAssetMetaSchemaVersion = 2;
 	using AssetFileUtility::LoadJsonFileNoThrow;
 
+	namespace {
+
+		bool NormalizeMeshImporter(AssetMeta& meta) {
+
+			if (meta.type != AssetType::Mesh) {
+				return false;
+			}
+			bool changed = false;
+			for (const char* key : { "generateAutomaticLODs", "lodTargetErrors", "manualLODMeshes", "lodTransition" }) {
+				changed |= meta.importerSettings.erase(key) != 0;
+			}
+			if (changed && meta.importerVersion < 4u) {
+				meta.importerVersion = 4u;
+				changed = true;
+			}
+			return changed;
+		}
+	}
+
 	std::string_view ResolveImporterName(Engine::AssetType type) {
 
 		switch (type) {
@@ -95,6 +114,10 @@ namespace Engine::AssetMetaStorage {
 			if (loaded.assetPath.empty()) {
 				return false;
 			}
+			// 廃止した設定だけを除去し、参照GUIDと未知の設定を保持する
+			if (NormalizeMeshImporter(loaded) && RuntimePaths::CanWritePath(metaFullPath)) {
+				WriteMetaFile(metaFullPath, loaded);
+			}
 			out = std::move(loaded);
 			return true;
 		} catch (const nlohmann::json::exception&) {
@@ -108,13 +131,15 @@ namespace Engine::AssetMetaStorage {
 			return false;
 		}
 		// 呼出し元の文書を変更せず保存値を揃える
+		AssetMeta normalized = meta;
+		NormalizeMeshImporter(normalized);
 		nlohmann::json data = source;
 		data["schemaVersion"] = kAssetMetaSchemaVersion;
 		data["guid"] = ToString(meta.guid);
 		data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));
 		data["importer"] = meta.importer.empty() ? std::string(ResolveImporterName(meta.type)) : meta.importer;
-		data["importerVersion"] = meta.importerVersion;
-		data["settings"] = meta.importerSettings;
+		data["importerVersion"] = normalized.importerVersion;
+		data["settings"] = normalized.importerSettings;
 		data.erase("version");
 		out = std::move(data);
 		return true;

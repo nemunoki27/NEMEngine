@@ -135,7 +135,7 @@ export const names = {
 	rayTracingDownsampling: 'Ray Tracingの低解像度計算を使います。', softShadowSampleCount: 'ソフトシャドウのサンプル数です。画質とGPU負荷が変わります。',
 	frustumCulling: 'Cameraの視錐台外の描画を省きます。', occlusionCulling: '他の物体に隠れた描画を省きます。',
 	contributionCulling: '画面上への寄与が小さい描画を省きます。', normalConeCulling: '法線の向きから見えないMeshletを省きます。',
-	meshLOD: '画面上の大きさに応じたMeshのLODを使用します。', doubleBuffering: 'GPU frame contextを2つ使い、CPUとGPUの進行を重ねます。',
+	doubleBuffering: 'GPU frame contextを2つ使い、CPUとGPUの進行を重ねます。',
 	displayOutput: 'SDR、HDR10、scRGBの表示出力方式です。対応ディスプレイとOS設定が必要です。',
 	paperWhiteNits: '基準の白を何nitで表示するかを指定します。', maximumLuminanceNits: '表示先の最大輝度です。単位はnitです。',
 	clearColor: 'Skyboxがない背景の色です。C#からの変更は実行中だけに反映します。',
@@ -385,7 +385,6 @@ export function memberDescription(type, member, binding) {
 	const module = /^(Add|Get)(.+)$/.exec(member.name);
 	if (module && moduleNames[module[2]]) return module[1] === 'Add' ? `${moduleNames[module[2]]}ModuleをPhaseへ追加します。` : `${moduleNames[module[2]]}Moduleの編集用設定を取得します。`;
 	if (/^TryGet/.test(member.name)) return `${member.name.slice(6)}型で取得できるかを調べます。成功した場合だけout引数を使用してください。`;
-	if (/meshLOD\dPixelThreshold/.test(member.name)) return '次のLODへ切り替える画面上の大きさです。単位はpixelです。';
 	if (/^(face|edge)(Pos|Neg)[XYZ]$/.test(member.name)) return `${/Pos/.test(member.name) ? '正' : '負'}の${member.name.at(-1)}方向の${/^face/.test(member.name) ? '面' : '辺'}から発生させます。`;
 	if (type.kind === 'Enum') return `${type.name}の選択値「${member.name}」です。設定へは数値ではなく列挙名で指定できます。`;
 	return null;

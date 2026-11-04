@@ -29,7 +29,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		uint32_t renderingLayerMask = 0xFFFFFFFFu);
 	// Cull設定を変換する
 	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
-		const D3D12_RASTERIZER_DESC& rasterizer);
+		const D3D12_RASTERIZER_DESC& rasterizer, bool reverseWinding = false);
 	// PrimitiveのPipelineを選択する
 	const Engine::PipelineVariantDesc* ResolvePrimitivePipelineVariant(
 		Engine::RenderAssetLibrary& assetLibrary,
@@ -60,24 +60,4 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		std::span<const Engine::SubMeshMaterial> subMeshes,
 		const Engine::Matrix4x4& worldMatrix,
 		Engine::Vector3& outCenter, float& outRadius);
-	// LOD範囲を選択する
-	const Engine::MeshLODRange& ResolveRaytracingLODRange(
-		const Engine::SubMeshDesc& subMesh, uint32_t lodIndex);
-	// 元のGeometry配置を保ってLODのIndex範囲だけを差し替える
-	std::vector<RaytracingBLASGeometryInput> BuildLODGeometries(const MeshGPUResource& mesh,
-		std::vector<RaytracingBLASGeometryInput> geometries, std::span<const uint32_t> subMeshIndices, uint32_t lodIndex);
-	// 可視SubMeshの対応番号でGeometryのLODを更新
-	bool UpdateGeometryLODOffsets(std::span<const Engine::SubMeshDesc> subMeshes,
-		std::span<const uint32_t> subMeshIndices, uint32_t lodIndex,
-		std::span<Engine::RaytracingGeometryShaderData> geometries);
-
-	// 画面上の大きさからLODを選択する
-	uint32_t ResolveMeshLOD(
-		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* lodView,
-		const Engine::Vector3& center, float radius);
-	// LODのView条件を識別する
-	uint64_t ComputeLODViewHash(
-		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* lodView);
 }
