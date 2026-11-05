@@ -10,7 +10,7 @@ cbuffer PostProcessFrameConstants : register(b0) {
 	float _framePad0;
 	float cameraNear;
 	float cameraFar;
-	float2 _framePad1;
+	float2 framePadding;
 	float3 cameraWorldPos;
 	float _framePad2;
 	float4x4 cameraView;

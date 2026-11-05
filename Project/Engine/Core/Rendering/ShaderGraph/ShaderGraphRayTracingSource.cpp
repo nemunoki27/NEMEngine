@@ -14,6 +14,7 @@ namespace Engine::ShaderGraphStageSource {
 
 		std::string source = "// Shader Graph generated Ray Tracing library\n"
 							 "#define NEM_REFLECTION_CUSTOM_HIT\n"
+							 "#define NEM_SHADER_GRAPH_EXPLICIT_LOD 1\n"
 							 "#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n"
 							 "#include \"" +
 							 std::string(surfaceIncludeFile) + "\"\n\n";

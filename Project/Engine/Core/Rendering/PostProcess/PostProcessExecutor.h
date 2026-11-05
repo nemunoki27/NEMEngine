@@ -44,8 +44,7 @@ namespace Engine {
 		// 近/遠クリップ距離
 		float cameraNear;
 		float cameraFar;
-		float _pad1;
-		float _pad2;
+		Vector2 framePadding;
 
 		// ワールド座標
 		Vector3 cameraWorldPos;

@@ -93,17 +93,43 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 		return;
 	}
 
+	const bool changed = Migrate(data);
 	Read(data, preferences);
-	bool changed = false;
-	for (const char* key : { "allowMeshLOD", "meshLOD0PixelThreshold", "meshLOD1PixelThreshold", "meshLOD2PixelThreshold" }) {
-		changed |= data.erase(key) != 0;
-	}
 	if (changed) {
 		JsonAdapter::Save(path, data);
 	}
 }
 
+bool Engine::GraphicsPreferenceStorage::Migrate(nlohmann::json& data) {
+
+	if (!data.is_object()) return false;
+	GraphicsFeaturePreferences preferences{};
+	Read(data, preferences);
+	const auto method = EnumAdapter<AntialiasingMethod>::ToString(preferences.antialiasing);
+	bool changed = data.contains("antialiasing") &&
+		ReadStringSetting(data, "antialiasing", std::string{}) != method;
+	if (changed) data["antialiasing"] = method;
+	for (const char* key : { "dlssQuality", "rayReconstruction", "allowMeshLOD",
+		"meshLOD0PixelThreshold", "meshLOD1PixelThreshold", "meshLOD2PixelThreshold" }) {
+		changed |= data.erase(key) != 0;
+	}
+	return changed;
+}
+
 void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, GraphicsFeaturePreferences& preferences) {
+
+	const auto antialiasing =
+		ReadStringSetting(data, "antialiasing", EnumAdapter<AntialiasingMethod>::ToString(preferences.antialiasing));
+	preferences.antialiasing = antialiasing == "DLSSSuperResolution" || antialiasing == "DLAA" ? AntialiasingMethod::None :
+		EnumAdapter<AntialiasingMethod>::FromString(antialiasing).value_or(preferences.antialiasing);
+	preferences.fxaa.strength = std::clamp(ReadFloatSetting(data, "fxaaStrength", preferences.fxaa.strength), 0.0f, 1.0f);
+	preferences.fxaa.edgeThreshold = std::clamp(
+		ReadFloatSetting(data, "fxaaEdgeThreshold", preferences.fxaa.edgeThreshold), 0.0f, 1.0f);
+	preferences.fxaa.minimumThreshold = std::clamp(
+		ReadFloatSetting(data, "fxaaMinimumThreshold", preferences.fxaa.minimumThreshold), 0.0f, 1.0f);
+	preferences.fxaa.subpixelStrength = std::clamp(
+		ReadFloatSetting(data, "fxaaSubpixelStrength", preferences.fxaa.subpixelStrength), 0.0f, 1.0f);
+	preferences.fxaaSettingsMigrated = ReadBoolSetting(data, "fxaaSettingsMigrated", preferences.fxaaSettingsMigrated);
 
 	preferences.allowMeshShader = ReadBoolSetting(data,
 		"allowMeshShader", preferences.allowMeshShader);
@@ -150,6 +176,12 @@ void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& p
 nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePreferences& preferences) {
 
 	nlohmann::json data{};
+	data["antialiasing"] = EnumAdapter<AntialiasingMethod>::ToString(preferences.antialiasing);
+	data["fxaaStrength"] = preferences.fxaa.strength;
+	data["fxaaEdgeThreshold"] = preferences.fxaa.edgeThreshold;
+	data["fxaaMinimumThreshold"] = preferences.fxaa.minimumThreshold;
+	data["fxaaSubpixelStrength"] = preferences.fxaa.subpixelStrength;
+	data["fxaaSettingsMigrated"] = preferences.fxaaSettingsMigrated;
 	data["allowMeshShader"] = preferences.allowMeshShader;
 	data["allowInlineRayTracing"] = preferences.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences.allowDispatchRays;

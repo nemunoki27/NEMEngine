@@ -60,9 +60,12 @@ namespace {
 	struct PrimitiveViewConstants {
 
 		Engine::Matrix4x4 viewProjection = Engine::Matrix4x4::Identity();
+		Engine::Matrix4x4 unjitteredViewProjection = Engine::Matrix4x4::Identity();
 		Engine::Matrix4x4 previousViewProjection = Engine::Matrix4x4::Identity();
 		Engine::Vector3 cameraPosition = Engine::Vector3::AnyInit(0.0f);
 		uint32_t frameSerial = 0;
+		float materialPadding = 0.0f;
+		float _viewPad[3]{};
 	};
 	// MeshShader経路でインデックス数を渡す定数バッファ
 	struct PrimitiveMeshConstants {
@@ -279,6 +282,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	PrimitiveViewConstants viewConstants{};
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
+		viewConstants.unjitteredViewProjection = camera->matrices.unjitteredViewProjectionMatrix;
 		// Cameraごとに前frameの行列を保持する
 		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
 		viewConstants.previousViewProjection = cameraHistory_.Update(

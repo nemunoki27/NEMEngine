@@ -22,6 +22,8 @@ groupshared float4 sharedPosition[144];
 groupshared float3 sharedNormal[144];
 groupshared float2 sharedRaw[144];
 
+[numthreads(8, 8, 1)]
+
 float3 GetSharedSurfaceDerivative(uint index, int axis, float3 position) {
 
 	float4 forward = sharedPosition[int(index) + axis];

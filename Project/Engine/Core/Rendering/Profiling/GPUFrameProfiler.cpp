@@ -230,3 +230,16 @@ void Engine::GPUFrameProfiler::Finalize() {
 	frequency_ = 0;
 	initialized_ = false;
 }
+
+//============================================================================
+//	ScopedGPUProfile classMethods
+//============================================================================
+Engine::ScopedGPUProfile::ScopedGPUProfile(ID3D12GraphicsCommandList* commandList, const std::string& name) : commandList_(commandList) {
+
+	GPUFrameProfiler::GetInstance().BeginPass(commandList_, name);
+}
+
+Engine::ScopedGPUProfile::~ScopedGPUProfile() {
+
+	GPUFrameProfiler::GetInstance().EndPass(commandList_);
+}

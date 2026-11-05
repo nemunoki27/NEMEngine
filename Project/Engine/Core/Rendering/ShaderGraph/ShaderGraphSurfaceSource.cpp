@@ -50,7 +50,12 @@ namespace Engine::ShaderGraphStageSource {
 		// 各描画経路で使う表面入力を宣言する
 		std::string source = "#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n"
 							 "#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n"
-							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n";
+							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n"
+							 "#ifdef NEM_SHADER_GRAPH_EXPLICIT_LOD\n"
+							 "#define NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv) texture.SampleLevel(sampler, uv, 0.0f)\n"
+							 "#else\n"
+							 "#define NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv) texture.Sample(sampler, uv)\n"
+							 "#endif\n\n";
 		source += "Texture2D<float4> gShaderGraphSceneColor : register(t0, space4);\n"
 				  "Texture2D<float> gShaderGraphSceneDepth : register(t1, space4);\n"
 				  "Texture2D<float4> gShaderGraphSceneNormal : register(t2, space4);\n"
@@ -131,8 +136,8 @@ namespace Engine::ShaderGraphStageSource {
 				}
 				source +=
 					"\tif (textureIndex == " + std::to_string(textureIndex++) + "u) return " +
-					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
-					".SampleLevel(sampler, uv, 0.0f);\n";
+					"NEM_SAMPLE_GRAPH_TEXTURE(" + MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
+					", sampler, uv);\n";
 			}
 			source += "\treturn fallbackValue;\n}\n\n";
 		} else {
@@ -142,7 +147,7 @@ namespace Engine::ShaderGraphStageSource {
 				"\t\treturn fallbackValue;\n"
 				"\t}\n"
 				"\tTexture2D<float4> texture = NEM_TEXTURE2D(textureIndex);\n"
-				"\treturn texture.SampleLevel(sampler, uv, 0.0f);\n"
+				"\treturn NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv);\n"
 				"}\n\n";
 		}
 		source += "float ShaderGraphHash(float2 value) {\n\n"

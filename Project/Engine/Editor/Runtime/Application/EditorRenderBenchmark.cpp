@@ -105,6 +105,9 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 	bool gpuValidation = false;
 #if defined(_DEBUG)
 	gpuValidation = quick[0] == L'1';
+#elif defined(_DEVELOPBUILD)
+	wchar_t validation[2]{};
+	gpuValidation = quick[0] == L'1' && GetEnvironmentVariableW(L"NEM_D3D12_VALIDATION", validation, 2) == 1 && validation[0] == L'1';
 #endif
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
@@ -125,6 +128,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 
 	BeginDisplayOutputPhase(graphicsCore);
+	BeginAntialiasingPhase(graphicsCore);
 
 	// 通常の切替要求を使って再起動なしの描画を比較する
 	if (report_.contains("frameContextSequence")) {
@@ -147,7 +151,8 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 	// 同じSceneで機能の切替前後を計測
 	features_->SetAllowMeshShader(sceneSequence_.empty() && !report_.contains("ambientOcclusionSequence") &&
 		!report_.contains("shadowSequence") && !report_.contains("transformSequence") &&
-		!report_.contains("frameContextSequence") && !report_.contains("displayOutputSequence") ? phase_ != 1 : originalMeshShader_);
+		!report_.contains("frameContextSequence") && !report_.contains("displayOutputSequence") &&
+		!report_.contains("antialiasingSequence") ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
 	capturedIntervalCount_ = 0;
@@ -165,6 +170,8 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 }
 
 void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float deltaTime) {
+
+	ApplyAntialiasingCameraSettings();
 
 	if (report_.contains("shadowSequence") && phase_ < phaseCount_) {
 
@@ -215,7 +222,8 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 				auto& origins = report_["cameraMotionOrigins"];
 				if (!origins.contains(key)) origins[key] = transform.localPos.x;
 				const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - phaseStarted_).count();
-				const float position = origins[key].get<float>() + (phase_ == 1u ? 0.5f * std::sin(float(seconds) * 1.5f) : 0.0f);
+				const float position = origins[key].get<float>() + (phase_ == 1u || report_.contains("antialiasingSequence") ?
+					0.5f * std::sin(float(seconds) * 1.5f) : 0.0f);
 				if (transform.localPos.x != position) {
 					transform.localPos.x = position;
 					MarkTransformSubtreeDirty(*world, entity);
@@ -435,6 +443,7 @@ void Engine::EditorRenderBenchmark::FinishPhase(GraphicsCore& graphicsCore) {
 			{"maxLuminanceNits", graphicsCore.GetDisplayOutputSettings().maxLuminanceNits},
 			{"uiWhiteNits", graphicsCore.GetDisplayOutputState().GetUIWhiteNits()}} },
 		{ "frames", std::move(frames_) } });
+	if (report_.contains("antialiasingSequence")) report_["phases"].back()["antialiasing"] = CaptureAntialiasingState();
 	if (continuousCapture_) report_["intervalCount"] = capturedIntervalCount_;
 	report_.erase("continuousFrames");
 	if (sceneSequence_.empty() || phase_ == 0u || phase_ + 1u == phaseCount_) CaptureViews(graphicsCore);
@@ -471,6 +480,7 @@ void Engine::EditorRenderBenchmark::Finalize() {
 		features_->SetAllowMeshShader(originalMeshShader_);
 	}
 	RestoreDisplayOutput();
+	RestoreAntialiasing();
 	application_->Finalize();
 	if (diagnostics_) diagnostics_->UnregisterMessageCallback(diagnosticsCookie_);
 	diagnostics_.Reset();

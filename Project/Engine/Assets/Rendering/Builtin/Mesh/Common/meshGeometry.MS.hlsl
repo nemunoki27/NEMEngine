@@ -47,14 +47,12 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 		// 頂点が属するサブメッシュのローカル行列を親行列に掛ける
 		float4 worldPos = mul(vertex.position, gMeshletWorldMatrix);
 		float4 previousWorldPos = mul(
-			vertex.position, gMeshletPreviousWorldMatrix);
+			LoadMeshVertex(instanceIndex, vertexIndex).position, gMeshletPreviousWorldMatrix);
 
 		VSOutput output;
 		output.position = mul(worldPos, viewProjection);
-		output.currentClipPosition = output.position;
-		output.previousClipPosition =
-			(gMeshInstances[instanceIndex].flags & MESH_INSTANCE_FLAG_SKINNED) != 0u ?
-			output.position : mul(previousWorldPos, previousViewProjection);
+		output.currentClipPosition = mul(worldPos, unjitteredViewProjection);
+		output.previousClipPosition = mul(previousWorldPos, previousViewProjection);
 		output.worldPos = worldPos.xyz;
 		// VS経路と同じく、法線はnormalMatrix、接線はworldMatrixで変換する
 		output.normal = TransformMeshNormalToWorld(vertex.normal, gMeshletNormalMatrix);

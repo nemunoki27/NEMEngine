@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/QuadGeometry.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
@@ -42,19 +43,22 @@ void Engine::SpriteBatchResources::CreateQuadBuffers(
 	QuadGeometry::CreateBuffers(device, uploadService, vertexBuffer_, indexBuffer_);
 }
 
-void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {
+void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain,
+	const Matrix4x4& previousViewProjection) {
 
 	// 定数バッファにビュー行列を転送する
 	SpriteViewConstants constants{};
 	if (const ResolvedCameraView* camera = view.FindCamera(cameraDomain)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
+		constants.unjitteredViewProjection = camera->matrices.unjitteredViewProjectionMatrix;
+		constants.previousViewProjection = previousViewProjection;
 	}
 	view_.Upload(constants);
 }
 
 void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& view,
-	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items) {
+	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, RenderTransformHistory& history) {
 
 	// 描画アイテムからインスタンスデータを構築する
 	vsScratch_.clear();
@@ -76,6 +80,8 @@ void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& vie
 		{
 			SpriteVSInstanceData instance{};
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, view);
+			instance.previousWorldMatrix = history.Update(view.GetHistoryKey(), {item->world, item->entity},
+				0, GraphicsFrameState::GetFrameSerial(), instance.worldMatrix);
 			instance.size = payload->size;
 			instance.pivot = payload->pivot;
 			// インスタンスデータを追加する

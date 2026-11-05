@@ -65,7 +65,7 @@ namespace Engine {
 		uint32_t meshIndexOffset = 0;
 		uint32_t meshletOffset = 0;
 		uint32_t preserveInstanceOrder = 0;
-		uint32_t _drawPad = 0;
+		uint32_t padding = 0;
 	};
 	static_assert(sizeof(MeshDrawConstants) == 96);
 

@@ -6,6 +6,7 @@
 //============================================================================
 #include "defaultMesh.hlsli"
 #include "pbrShading.hlsli"
+#include "../../Common/temporalMotion.hlsli"
 
 //============================================================================
 //	Mesh surface lighting

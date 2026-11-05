@@ -23,6 +23,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
+#include "Passes/AntialiasingPass.h"
 
 // c++
 #include <array>
@@ -66,6 +67,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		deps_, RuntimeScreenSpaceOutlinePass::Scope::PostProcessUI));
 	fixedPasses.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<BlitToViewPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<AntialiasingPass>(deps_));
 	// UI通常描画と描画順アウトラインは同じパスで処理する
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(
 		deps_, RuntimeScreenSpaceOutlinePass::Scope::ScreenUI));
@@ -85,7 +87,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		{ RenderFeatureAnchor::AfterPostProcessUI,
 			RenderPathPassKind::PostProcessUI },
 		{ RenderFeatureAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
-		{ RenderFeatureAnchor::AfterToneMap, RenderPathPassKind::BlitToView },
+		{ RenderFeatureAnchor::AfterToneMap, RenderPathPassKind::Antialiasing },
 	} };
 
 	// 固定パスを順に積みつつ、対応する位置へ共通Feature実行パスを挿入する

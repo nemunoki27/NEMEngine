@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureHierarchyEditing.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
@@ -92,6 +93,10 @@ void Engine::RenderFeatureProfileTool::DrawPassList(const EditorToolContext& con
 	const auto addMaterialPass = [&](AssetID sourceAsset, AssetType assetType = AssetType::Material,
 									 std::string_view assetPath = {}) {
 		const AssetID materialID = editSession_.ResolvePassMaterial(context, sourceAsset, assetType, assetPath);
+		if (materialID == BuiltinAssets::Materials::FXAA) {
+			editSession_.SetStatusMessage("FXAAはグラフィックス設定のアンチエイリアスで設定してください", true);
+			return;
+		}
 		if (!context.panelContext || !context.panelContext->renderPipeline || !materialID) {
 
 			if (materialID) {

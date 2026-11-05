@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 namespace NEMEngine;
 
 public enum DisplayOutputMode { SDR, HDR10, ScRGB }
+public enum AntialiasingMethod { None, FXAA }
 
 //============================================================================
 //	GraphicsSettingsData class
@@ -19,6 +20,14 @@ public sealed class GraphicsSettingsData {
 			"playerGamepads", "playerKeyboardMouse", "audioPlayInBackground", "queriesHitTriggers", "collisionPairs" }) values.Remove(key);
 	}
 	public bool useMeshShader { get => Read<bool>("allowMeshShader"); set => Write("allowMeshShader", value); }
+	public AntialiasingMethod antialiasing {
+		get => Enum.Parse<AntialiasingMethod>(Read<string>("antialiasing"));
+		set => Write("antialiasing", value.ToString());
+	}
+	public float fxaaStrength { get => Read<float>("fxaaStrength"); set => Write("fxaaStrength", value); }
+	public float fxaaEdgeThreshold { get => Read<float>("fxaaEdgeThreshold"); set => Write("fxaaEdgeThreshold", value); }
+	public float fxaaMinimumThreshold { get => Read<float>("fxaaMinimumThreshold"); set => Write("fxaaMinimumThreshold", value); }
+	public float fxaaSubpixelStrength { get => Read<float>("fxaaSubpixelStrength"); set => Write("fxaaSubpixelStrength", value); }
 	public bool rayTracingShadows { get => Read<bool>("allowInlineRayTracing"); set => Write("allowInlineRayTracing", value); }
 	public bool rayTracingReflections { get => Read<bool>("allowDispatchRays"); set => Write("allowDispatchRays", value); }
 	public bool rayTracingDownsampling { get => Read<bool>("allowRaytracingDownsampling"); set => Write("allowRaytracingDownsampling", value); }
@@ -51,6 +60,11 @@ public sealed class GraphicsRuntimeState {
 	private readonly JsonObject values;
 	internal GraphicsRuntimeState(JsonObject values) { this.values = values; }
 	public bool meshShaderSupported => Read<bool>("meshShaderSupported");
+	public AntialiasingMethod antialiasing => Enum.Parse<AntialiasingMethod>(Read<string>("antialiasing"));
+	public uint renderWidth => Read<uint>("renderWidth");
+	public uint renderHeight => Read<uint>("renderHeight");
+	public uint outputWidth => Read<uint>("outputWidth");
+	public uint outputHeight => Read<uint>("outputHeight");
 	public bool rayTracingSupported => Read<bool>("rayTracingSupported");
 	public bool inlineRayTracingSupported => Read<bool>("inlineRayTracingSupported");
 	public bool meshShaderEnabled => Read<bool>("meshShaderEnabled");

@@ -146,8 +146,10 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 
 	// GPUリソースの更新
-	resources.UpdateView(*context.view, items.front()->cameraDomain);
-	resources.UploadInstances(*context.view, *context.batch, items);
+	const auto previousViewProjection = cameraHistory_.Update(context.historyView ? *context.historyView : *context.view,
+		items.front()->cameraDomain, GraphicsFrameState::GetFrameSerial());
+	resources.UpdateView(*context.view, items.front()->cameraDomain, previousViewProjection);
+	resources.UploadInstances(*context.view, *context.batch, items, transformHistory_);
 
 	// パイプラインを設定
 	ID3D12GraphicsCommandList* commandList = BackendDrawCommon::SetupGraphicsPipeline(

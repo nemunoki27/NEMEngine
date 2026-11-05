@@ -19,6 +19,8 @@ cbuffer InlineShadowParameters : register(b3) {
 
 	float4x4 shadowViewMatrix;
 	float4x4 shadowPreviousViewProjection;
+	float2 shadowPadding;
+	float2 _shadowMotionPad;
 };
 
 uint GetShadowOffset(uint2 pixel, uint slot) {

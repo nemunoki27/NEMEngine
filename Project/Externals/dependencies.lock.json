@@ -13,7 +13,7 @@
       "licenseFiles": [
         "LICENSE.txt"
       ],
-      "treeSHA256": "1fe1955d400f0a3bc044502bf8f704b18ed18556ed3bc4a23be76e3760507f96",
+      "treeSHA256": "071c7cc98bdf4922476f9b3e9f06a48c863ce59fcc7f58df9d4860acc8effba0",
       "files": [
         {
           "path": "imconfig.h",
@@ -32,13 +32,13 @@
         },
         {
           "path": "imgui_impl_dx12.cpp",
-          "size": 70911,
-          "sha256": "90e45ff66f9d6f2e5fb8917797e72e1cccfb08572ff0ddc35b91b0d8bc7a792c"
+          "size": 83492,
+          "sha256": "2e9309733ff70a97a654e19c5984074817c153c5e0bce2f788b3e0178f46a004"
         },
         {
           "path": "imgui_impl_dx12.h",
-          "size": 5808,
-          "sha256": "5707018d027fbf83adfff7db5bcbd91a79c7886fcd3c3a679a9f8f1c85bf53de"
+          "size": 7308,
+          "sha256": "74d2bbef7f7a3a1b975d3b677eceaacd7f5ddae0645fc9160f064e33d3185084"
         },
         {
           "path": "imgui_impl_win32.cpp",

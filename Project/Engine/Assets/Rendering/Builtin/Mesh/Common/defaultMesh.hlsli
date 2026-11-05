@@ -141,6 +141,21 @@ float3 TransformMeshNormalToWorld(float3 localNormal, float4x4 normalMatrix) {
 	return normalize(mul(localNormal, (float3x3) normalMatrix));
 }
 
+float4x4 BuildPreviousMeshNormalMatrix(float4x4 worldMatrix) {
+
+	const float3x3 basis = (float3x3)worldMatrix;
+	const float3 row0 = cross(basis[1], basis[2]);
+	const float3 row1 = cross(basis[2], basis[0]);
+	const float3 row2 = cross(basis[0], basis[1]);
+	const float determinant = dot(basis[0], row0);
+	if (abs(determinant) <= 0.00000001f) {
+		return float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+	}
+	const float scale = rcp(determinant);
+	return float4x4(float4(row0 * scale, 0.0f), float4(row1 * scale, 0.0f),
+		float4(row2 * scale, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
+}
+
 // 接線をワールドへ変換する、位置と同じworldMatrixの線形部を使う
 float3 TransformMeshTangentToWorld(float3 localTangent, float4x4 worldMatrix) {
 
@@ -275,6 +290,7 @@ MeshVertex LoadMeshVertex(uint instanceID, uint vertexIndex) {
 #endif
 }
 
+
 float CalcProjectedPixelRadius(float3 center, float radius) {
 
 	float2 radiusXY = CalcProjectedPixelRadiusXY(
@@ -385,15 +401,13 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	float4 worldPos = mul(vertex.position, worldMatrix);
 	float4x4 previousWorldMatrix = GetInstanceSubMeshPreviousWorldMatrix(
 		instanceID, localSubMeshIndex);
-	float4 previousWorldPos = mul(vertex.position, previousWorldMatrix);
+	float4 previousWorldPos = mul(LoadMeshVertex(instanceID, vertexID).position, previousWorldMatrix);
 
 	VSOutput output;
 
 	output.position = mul(worldPos, viewProjection);
-	output.currentClipPosition = output.position;
-	output.previousClipPosition =
-		(gMeshInstances[instanceID].flags & MESH_INSTANCE_FLAG_SKINNED) != 0u ?
-		output.position : mul(previousWorldPos, previousViewProjection);
+	output.currentClipPosition = mul(worldPos, unjitteredViewProjection);
+	output.previousClipPosition = mul(previousWorldPos, previousViewProjection);
 	output.worldPos = worldPos.xyz;
 	// 法線はnormalMatrix、接線は位置と同じworldMatrixで変換する
 	output.normal = TransformMeshNormalToWorld(vertex.normal, normalMatrix);

@@ -4,24 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
-#include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 
 using namespace Engine;
 
 Engine::EditorRenderRequestBuilder::EditorRenderRequestBuilder(SystemContext& systemContext,
 	AssetDatabase& assetDatabase,
-	EditorManager& editorManager,
-	WorldManager& worldManager) :
+	EditorManager& editorManager) :
 	systemContext_(systemContext),
 	assetDatabase_(assetDatabase),
-	editorManager_(editorManager),
-	worldManager_(worldManager) {}
+	editorManager_(editorManager) {}
 
 Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameRequest(
 	GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header, SceneInstanceManager& scenes) {
@@ -48,8 +43,6 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	// エディタの状態に応じて描画ビューの要求を構築する
 	bool showGameView = true;
 	bool showSceneView = false;
-	bool renderGameView = true;
-	bool renderSceneView = false;
 	SceneViewCameraSelection sceneViewCameraSelection{};
 	ManualRenderCameraState manualSceneCamera{};
 
@@ -75,21 +68,6 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			request.drawSceneView2DCameraBounds = showSceneView &&
 				editorManager_.ShouldDrawSceneView2DCameraBounds();
 		}
-
-		// 操作対象は毎frame、副Viewは負荷に応じて更新する
-		renderGameView = showGameView;
-		renderSceneView = showSceneView;
-		if (renderGameView && renderSceneView && !layout.hidePanels) {
-
-			const bool renderSecondaryView = ShouldRenderSecondaryView();
-			const bool gameViewPrimary = editorState.gameViewportHovered ||
-				(worldManager_.IsPlaying() && !editorState.sceneViewportHovered);
-			if (gameViewPrimary) {
-				renderSceneView = renderSecondaryView;
-			} else {
-				renderGameView = renderSecondaryView;
-			}
-		}
 	}
 	DisplayOutputSettings gameOutput = graphicsCore.GetDisplayOutputSettings();
 	DisplayOutputSettings sceneOutput = gameOutput;
@@ -99,18 +77,6 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			sceneOutput = editorManager_.GetViewDisplayOutput(RenderViewKind::Scene);
 		}
 	}
-	// 出力変更時は副Viewもそのフレームで更新する
-	if (gameOutput != previousGameOutput_) renderGameView = showGameView;
-	if (sceneOutput != previousSceneOutput_) renderSceneView = showSceneView;
-	// 背景色の変更は副Viewにも即時反映する
-	const Color4 clearColor = EngineContext::GetGraphicsSetting().sceneClearColor;
-	if (clearColor != previousClearColor_) {
-		renderGameView = showGameView;
-		renderSceneView = showSceneView;
-	}
-	previousClearColor_ = clearColor;
-	previousGameOutput_ = gameOutput;
-	previousSceneOutput_ = sceneOutput;
 
 	// ゲームビューの要求を構築
 	{
@@ -120,7 +86,7 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		// Camera情報とRenderTexture出力はPanel非表示中も維持する
 		viewRequest.enabled = true;
 		viewRequest.renderThisFrame = true;
-		viewRequest.renderDefaultSurfaceThisFrame = renderGameView;
+		viewRequest.renderDefaultSurfaceThisFrame = showGameView;
 		viewRequest.width = fixedRenderWidth;
 		viewRequest.height = fixedRenderHeight;
 		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
@@ -133,8 +99,8 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		viewRequest.kind = RenderViewKind::Scene;
 		viewRequest.displayOutput = sceneOutput;
 		viewRequest.enabled = BuildConfig::kEditorEnabled;
-		viewRequest.renderThisFrame = renderSceneView;
-		viewRequest.renderDefaultSurfaceThisFrame = renderSceneView;
+		viewRequest.renderThisFrame = showSceneView;
+		viewRequest.renderDefaultSurfaceThisFrame = showSceneView;
 		viewRequest.width = viewRequest.enabled ? fixedRenderWidth : 0;
 		viewRequest.height = viewRequest.enabled ? fixedRenderHeight : 0;
 		viewRequest.manualCamera = manualSceneCamera;
@@ -155,43 +121,4 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		}
 	}
 	return request;
-}
-
-bool Engine::EditorRenderRequestBuilder::ShouldRenderSecondaryView() {
-
-	const auto now = std::chrono::steady_clock::now();
-	const auto& profiler = FrameProfiler::GetInstance();
-	if (profiler.HasGPUData() && profiler.GetGPUFrameID() != lastGPUFrameID_) {
-
-		// 同じ計測結果を重複して平均へ入れない
-		lastGPUFrameID_ = profiler.GetGPUFrameID();
-		const float gpuTime = profiler.GetGPUTotalMs();
-		averagedGPUTime_ = averagedGPUTime_ > 0.0f ? averagedGPUTime_ + (gpuTime - averagedGPUTime_) * 0.05f : gpuTime;
-		const uint32_t targetFPS = FrameRateSettings::GetInstance().GetPresentTargetFps();
-		const float frameBudget = 1000.0f / (targetFPS > 0 ? targetFPS : 60u);
-		if (averagedGPUTime_ > frameBudget * 0.85f) {
-
-			// 描画が重い間は副Viewを15Hzへ落とす
-			secondaryViewThrottled_ = true;
-			secondaryRecoveryStarted_ = {};
-		} else if (secondaryViewThrottled_ && averagedGPUTime_ < frameBudget * 0.5f) {
-
-			// 余裕が続いてから30Hzへ戻す
-			if (secondaryRecoveryStarted_ == std::chrono::steady_clock::time_point{}) secondaryRecoveryStarted_ = now;
-			if (now - secondaryRecoveryStarted_ >= std::chrono::seconds(5)) secondaryViewThrottled_ = false;
-		} else {
-			secondaryRecoveryStarted_ = {};
-		}
-	}
-	if (now < nextSecondaryViewUpdate_) return false;
-
-	// 遅れた更新をまとめて実行しない
-	const auto interval = std::chrono::duration<double>(1.0 / (secondaryViewThrottled_ ? 15.0 : 30.0));
-	const auto updateInterval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(interval);
-	if (nextSecondaryViewUpdate_ == std::chrono::steady_clock::time_point{} || now - nextSecondaryViewUpdate_ >= updateInterval) {
-		nextSecondaryViewUpdate_ = now + updateInterval;
-	} else {
-		nextSecondaryViewUpdate_ += updateInterval;
-	}
-	return true;
 }

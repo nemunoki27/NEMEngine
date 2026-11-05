@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "meshShaderSharedTypes.hlsli"
+#include "../../Common/temporalMotion.hlsli"
 
 //============================================================================
 //	Deferred GBuffer hlsli
@@ -102,13 +103,6 @@ GBufferOutput EncodeGBuffer(MeshSurface surface) {
 
 float2 ComputeGBufferMotion(float4 currentClip, float4 previousClip) {
 
-	if (currentClip.w <= 0.0f || previousClip.w <= 0.0f) {
-		return 0.0f.xx;
-	}
-	float2 currentNDC = currentClip.xy / currentClip.w;
-	float2 previousNDC = previousClip.xy / previousClip.w;
-	float2 currentUV = currentNDC * float2(0.5f, -0.5f) + 0.5f;
-	float2 previousUV = previousNDC * float2(0.5f, -0.5f) + 0.5f;
-	return currentUV - previousUV;
+	return ComputeScreenMotion(currentClip, previousClip);
 }
 #endif // NEM_DEFERRED_GBUFFER_HLSLI

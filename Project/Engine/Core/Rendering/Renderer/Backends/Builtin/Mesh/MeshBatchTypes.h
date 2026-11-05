@@ -21,6 +21,7 @@ namespace Engine {
 
 		// 実際に描画するビューの行列
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
+		Matrix4x4 unjitteredViewProjection = Matrix4x4::Identity();
 		Matrix4x4 previousViewProjection = Matrix4x4::Identity();
 		// カリング対象のView行列
 		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
@@ -39,13 +40,14 @@ namespace Engine {
 		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
 		// 投影行列のXY倍率
 		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
-		Vector2 _pad0 = Vector2::AnyInit(0.0f);
+		float materialPadding = 0.0f;
+		float _pad0 = 0.0f;
 		// 照明計算に使う描画Camera位置
 		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
 		uint32_t frameSerial = 0;
 
 	};
-	static_assert(sizeof(MeshViewConstants) == 336);
+	static_assert(sizeof(MeshViewConstants) == 400);
 
 	//============================================================================
 	//	MeshIndirectArgsConstants struct

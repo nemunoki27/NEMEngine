@@ -158,6 +158,7 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
+		constants.unjitteredViewProjection = camera->matrices.unjitteredViewProjectionMatrix;
 		// 補助描画では画面Cameraの履歴を使う
 		constants.previousViewProjection = cameraHistory_.Update(
 			historyView ? *historyView : view, RenderCameraDomain::Perspective, frameSerial);

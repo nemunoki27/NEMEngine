@@ -50,10 +50,27 @@ internal static class RuntimeDataTests {
 		Check(restored.count == 5 && restored.values.Count == 3);
 		CheckParticleSettings();
 		CheckCameraSettings();
+		CheckGraphicsSettings();
 		var graphics = new GraphicsSettingsData(new JsonObject { ["allowMeshShader"] = true,
 			["targetFrameRate"] = 60, ["width"] = 1280, ["playerGamepads"] = new JsonArray(0, 1, 2, 3) });
 		Check(graphics.useMeshShader && !graphics.values.ContainsKey("targetFrameRate") &&
 			!graphics.values.ContainsKey("width") && !graphics.values.ContainsKey("playerGamepads"));
+	}
+
+	// 希望する方式とFXAAの調整値を保存して復元する
+	private static void CheckGraphicsSettings() {
+		var data = new JsonObject { ["antialiasing"] = "None", ["fxaaStrength"] = 1.0f,
+			["fxaaEdgeThreshold"] = 0.245f, ["fxaaMinimumThreshold"] = 0.0312f, ["fxaaSubpixelStrength"] = 1.0f };
+		var settings = new GraphicsSettingsData(data);
+		Check(settings.antialiasing == AntialiasingMethod.None);
+		settings.antialiasing = AntialiasingMethod.FXAA;
+		settings.fxaaStrength = 0.5f;
+		var restored = new GraphicsSettingsData(JsonNode.Parse(data.ToJsonString())!.AsObject());
+		Check(restored.antialiasing == AntialiasingMethod.FXAA && restored.fxaaStrength == 0.5f &&
+			restored.fxaaEdgeThreshold == 0.245f);
+		var effective = new GraphicsRuntimeState(new JsonObject { ["antialiasing"] = "FXAA",
+			["renderWidth"] = 1280u, ["renderHeight"] = 720u, ["outputWidth"] = 1280u, ["outputHeight"] = 720u });
+		Check(effective.antialiasing == AntialiasingMethod.FXAA && effective.renderWidth == effective.outputWidth);
 	}
 
 	// Module本体と有効フラグ、Curveとランダム値を別々に保持する

@@ -1,4 +1,5 @@
 #include "RenderFeatureProfileRuntime.h"
+#include "RenderFeatureAntialiasingMigration.h"
 
 //============================================================================
 //	include
@@ -90,6 +91,7 @@ namespace {
 void Engine::RenderFeatureProfileRuntime::Rebuild(const RenderFeatureProfileAsset& profile) {
 
 	auto snapshot = std::make_shared<RenderFeatureProfileAsset>(profile);
+	MigrateRenderFeatureAntialiasing(*snapshot);
 	ApplyRenderFeatureHierarchy(*snapshot);
 	// 参照表と診断を同じsnapshotから作成する
 	decltype(selectionGroupsByPass_) groups;

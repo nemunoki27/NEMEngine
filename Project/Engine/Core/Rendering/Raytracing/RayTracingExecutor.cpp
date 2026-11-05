@@ -149,6 +149,30 @@ bool Engine::RayTracingExecutor::Execute(
 
 			continue;
 		}
+		if (binding.kind == ShaderBindingKind::CBV && context.raytracingViewConstants &&
+			(binding.name == "RaytracingViewConstants" || binding.name == "gRaytracingViewConstants")) {
+			auto constants = *context.raytracingViewConstants;
+			// 解像度の復元後も実行中のViewに合わせる
+			if (context.view) {
+				constants.renderSize = Vector2(static_cast<float>((std::max)(context.view->width, 1u)),
+					static_cast<float>((std::max)(context.view->height, 1u)));
+				constants.invRenderSize = Vector2(1.0f / constants.renderSize.x, 1.0f / constants.renderSize.y);
+				if (const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective)) {
+					constants.view = camera->matrices.viewMatrix;
+					constants.projection = camera->matrices.projectionMatrix;
+					constants.inverseView = camera->matrices.inverseViewMatrix;
+					constants.inverseProjection = camera->matrices.inverseProjectionMatrix;
+					constants.inverseViewProjection = Matrix4x4::Inverse(camera->matrices.viewProjectionMatrix);
+					constants.cameraPos = camera->cameraPos;
+					constants.nearClip = camera->nearClip;
+					constants.farClip = camera->farClip;
+				}
+			}
+			const auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+				graphicsCore.GetDXObject().GetDevice(), constants);
+			RootBindingCommand::SetComputeCBV(commandList, location, allocation.gpuAddress);
+			continue;
+		}
 		if (binding.kind == ShaderBindingKind::AccelStruct ||
 			binding.kind == ShaderBindingKind::CBV ||
 			(binding.kind == ShaderBindingKind::SRV &&

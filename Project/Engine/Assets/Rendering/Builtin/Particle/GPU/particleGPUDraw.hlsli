@@ -16,6 +16,10 @@ struct ParticleGPUVertexOutput {
 	nointerpolation float4 particleColor : TEXCOORD9;
 };
 
+struct ParticleGPUPixelOutput {
+	float4 color : SV_TARGET0;
+};
+
 float4 PrepareParticleGPUBlend(float4 color, uint mode) {
 	float alpha = saturate(color.a);
 	if (mode == 3u) color.rgb = lerp(1.0f.xxx, color.rgb, alpha);

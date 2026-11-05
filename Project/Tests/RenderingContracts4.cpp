@@ -1,5 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include "AntialiasingTests.h"
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
@@ -46,6 +47,8 @@
 namespace NEMTests {
 
 	bool TestRenderFeatureProfile() {
+
+		if (!TestAntialiasingSettings()) return false;
 
 		// 描画を省いたViewの履歴を進めず、他Cameraの履歴と分ける
 		Engine::RenderFeatureTemporalState temporalState;

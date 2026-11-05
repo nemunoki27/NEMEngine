@@ -23,6 +23,7 @@ Generated/
 x64/
 x86/
 
+
 # Debug名のエンジンソースフォルダはビルド出力から除外する
 !Project/Engine/Core/Rendering/Renderer/Debug/
 !Project/Engine/Core/Rendering/Renderer/Debug/**

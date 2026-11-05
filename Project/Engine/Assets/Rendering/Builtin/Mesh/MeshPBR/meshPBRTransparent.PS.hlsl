@@ -6,6 +6,7 @@
 #include "../Common/meshPBRMaterial.hlsli"
 #include "../Common/meshPBR.hlsli"
 #include "../Common/meshSurfaceLighting.hlsli"
+#include "../../Common/temporalMotion.hlsli"
 
 //============================================================================
 //	output

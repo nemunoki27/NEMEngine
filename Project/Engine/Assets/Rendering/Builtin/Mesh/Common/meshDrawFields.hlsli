@@ -20,4 +20,4 @@ uint meshletCount;
 	uint meshIndexOffset;
 	uint meshletOffset;
 	uint preserveInstanceOrder;
-	uint _drawPad;
+	uint padding;

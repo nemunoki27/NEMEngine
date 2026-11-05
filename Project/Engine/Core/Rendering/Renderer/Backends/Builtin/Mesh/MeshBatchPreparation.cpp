@@ -310,11 +310,7 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 		}
 	}
 	// 両面描画やShader差替えに元の背面判定を流用しない
-	const bool normalConeAllowed = outPrepared.variant->rasterizer.CullMode == D3D12_CULL_MODE_BACK &&
+	outPrepared.normalConeAllowed = outPrepared.variant->rasterizer.CullMode == D3D12_CULL_MODE_BACK &&
 		!outPrepared.variant->rasterizer.FrontCounterClockwise && !resolvedPass.pass->shaderOverride;
-	// パスごとの変位と背面設定を描画定数へ渡す
-	outPrepared.resources->UpdateDrawConstants(
-		context, *outPrepared.gpuMesh, outPrepared.subMeshIndex,
-		outPrepared.subMeshGroupIndex, outPrepared.material, normalConeAllowed);
 	return true;
 }

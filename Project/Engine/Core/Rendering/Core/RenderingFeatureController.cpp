@@ -43,6 +43,34 @@ void Engine::GraphicsFeatureController::ApplyDetectedSupport(
 	LogCurrentState();
 }
 
+void Engine::GraphicsFeatureController::SetAntialiasing(AntialiasingMethod method) {
+
+	if (method > AntialiasingMethod::FXAA || preferences_.antialiasing == method) return;
+	preferences_.antialiasing = method;
+	SavePreferencesToConfig();
+}
+
+void Engine::GraphicsFeatureController::SetFXAASettings(const FXAASettings& settings) {
+
+	const auto normalized = [](float value, float fallback) {
+		return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
+	};
+	FXAASettings validated{};
+	validated.strength = normalized(settings.strength, preferences_.fxaa.strength);
+	validated.edgeThreshold = normalized(settings.edgeThreshold, preferences_.fxaa.edgeThreshold);
+	validated.minimumThreshold = normalized(settings.minimumThreshold, preferences_.fxaa.minimumThreshold);
+	validated.subpixelStrength = normalized(settings.subpixelStrength, preferences_.fxaa.subpixelStrength);
+	if (preferences_.fxaa == validated && preferences_.fxaaSettingsMigrated) return;
+	preferences_.fxaa = validated;
+	preferences_.fxaaSettingsMigrated = true;
+	SavePreferencesToConfig();
+}
+
+void Engine::GraphicsFeatureController::ImportLegacyFXAASettings(const FXAASettings& settings) {
+
+	if (!preferences_.fxaaSettingsMigrated) SetFXAASettings(settings);
+}
+
 void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 
 	if (preferences_.allowMeshShader == enabled) {

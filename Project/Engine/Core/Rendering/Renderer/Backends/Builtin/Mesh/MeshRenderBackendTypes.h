@@ -42,6 +42,7 @@ namespace Engine {
 		const MaterialAsset* material = nullptr;
 
 		uint32_t instanceCount = 0;
+		bool normalConeAllowed = false;
 	};
 	// メッシュ描画のセットアップのためのコンテキスト
 	struct MeshPathSetupContext {

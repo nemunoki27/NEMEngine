@@ -125,6 +125,12 @@ namespace {
 		valid &= replacement != original && replacement->GetWidth() == 8 &&
 			registry.FindColorByName("OriginalColor") == nullptr &&
 			registry.FindColorByName("ReplacementColor") == replacement->GetColorTexture(0);
+		Engine::SceneRenderTargetDesc resolvedDesc = desc;
+		resolvedDesc.name = "Resolved";
+		auto* resolved = registry.ResizeTransient(context, resolvedDesc, 16, 8);
+		registry.Register("SceneMain", replacement, {}, "SceneDepth");
+		registry.Register("ResolvedDepth", resolved, {}, "SceneDepth");
+		valid &= registry.FindDepthByName("SceneDepth") == resolved->GetDepthTexture();
 		registry.BeginFrame();
 		valid &= registry.Find(desc.name) == nullptr && registry.ResizeTransient(context, desc, 8, 4) == replacement &&
 			registry.Find(desc.name) == replacement;

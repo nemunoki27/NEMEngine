@@ -11,7 +11,7 @@ export function guideFor(type) {
 	if (/^Particle|^Curve|Easing|GeometrySettings/.test(name)) return 'particles';
 	if (/Camera|Exposure/.test(name)) return 'camera';
 	if (/RenderPass/.test(name)) return 'post-process';
-	if (/Graphics|DisplayOutput|Screen/.test(name)) return 'project-settings';
+	if (/Graphics|DisplayOutput|Screen|Antialiasing/.test(name)) return 'project-settings';
 	if (/Input|KeyCode|Gamepad|MouseButton/.test(name)) return 'input';
 	if (/Audio/.test(name)) return 'audio';
 	if (/Animation|Animator|Skinned/.test(name)) return 'animation';
@@ -306,6 +306,29 @@ export const names = {
 const moduleNames = { AlphaReference: 'AlphaClip閾値', ColorOverLifetime: '寿命による色', ColorUV: '色UV', CurlNoise: 'Curl Noise', CustomData: 'Shader用データ', CustomShaderParameter: 'Shader Parameter', Emissive: '発光', Flipbook: 'Flipbook', Gravity: '重力', GravityForce: '重力', LookToVelocity: '移動方向への向き合わせ', NoiseForce: 'ノイズ力', NoiseUV: 'UVノイズ', PendulumMovement: '振り子運動', Rotation: '回転', ScaleOverLifetime: '拡縮', ShapeOverLifetime: '形状変化', SizeOverLifetime: '大きさ', SpiralMovement: 'らせん運動', ForceField: '力場', VectorField: 'Vector Field', SplineMovement: 'Spline移動', Collision: '衝突' };
 
 export function memberDescription(type, member, binding) {
+	if (type.name === 'GraphicsSettingsData') {
+		const description = {
+			antialiasing: 'なし・FXAAから選ぶアンチエイリアス方式です。',
+			fxaaStrength: 'FXAAを元の画像へ混ぜる強度です。範囲は0〜1です。',
+			fxaaEdgeThreshold: 'FXAAで輪郭と判断する相対輝度差の閾値です。範囲は0〜1です。',
+			fxaaMinimumThreshold: '暗い領域でFXAAを省略する最小輝度差です。範囲は0〜1です。',
+			fxaaSubpixelStrength: 'FXAAのサブピクセル補正強度です。範囲は0〜1です。',
+		}[member.name];
+		if (description) return description;
+	}
+	if (type.name === 'GraphicsRuntimeState') {
+		const description = {
+			antialiasing: '実行中のアンチエイリアス方式です。なし・FXAAのいずれかです。',
+			renderWidth: 'GameViewに設定された描画幅です。単位はピクセルです。',
+			renderHeight: 'GameViewに設定された描画高さです。単位はピクセルです。',
+			outputWidth: 'GameViewに設定された出力幅です。内部描画幅と同じ値です。',
+			outputHeight: 'GameViewに設定された出力高さです。内部描画高さと同じ値です。',
+		}[member.name];
+		if (description) return description;
+	}
+	if (type.name === 'AntialiasingMethod') {
+		return {None: 'アンチエイリアスを使用しません。', FXAA: '出力画像の輪郭へFXAAを適用します。'}[member.name];
+	}
 	if (type.name === 'AnimationClipPlayer') {
 		const description = { Play: '指定済み、または引数のClipを先頭から再生します。', Pause: '現在値と時刻を保って一時停止します。', Resume: '一時停止した再生を再開します。終了済みの場合はPlayを使用します。', Stop: '現在値を保持して停止します。', Reset: '再生前の値に戻して停止します。', Seek: 'Clip内の時刻を秒で指定します。イベントは発火しません。' }[member.name];
 		if (description) return description;

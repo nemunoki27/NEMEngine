@@ -8,6 +8,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
@@ -32,14 +33,32 @@ namespace {
 #endif
 }
 
+GraphicsPlatform::~GraphicsPlatform() {
+
+	// 初期化途中でも記録済みGPU処理を終えてからDeviceを破棄する
+	if (dxDevice_) {
+		try {
+			WaitForGPU();
+		} catch (const std::exception& error) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "描画終了時のGPU待機を完了できません {}", error.what());
+		}
+	}
+	Finalize(nullptr);
+}
+
 void GraphicsPlatform::InitDXDevice() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	DxDREDDiagnostics::EnableBeforeDeviceCreation();
 #endif
 
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	bool enableDebugLayer = true;
+#if !defined(_DEBUG)
+	wchar_t validation[2]{};
+	enableDebugLayer = GetEnvironmentVariableW(L"NEM_D3D12_VALIDATION", validation, 2) == 1 && validation[0] == L'1';
+#endif
 	ComPtr<ID3D12Debug1> debugController = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+	if (enableDebugLayer && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
 
 		// デバッグレイヤーを有効化する
 		debugController->EnableDebugLayer();
@@ -165,7 +184,7 @@ void GraphicsPlatform::Finalize(HWND hwnd) {
 	dxDevice_.reset();
 
 	// ウィンドウを閉じる
-	CloseWindow(hwnd);
+	if (hwnd) CloseWindow(hwnd);
 }
 
 void GraphicsPlatform::SubmitFrame() {

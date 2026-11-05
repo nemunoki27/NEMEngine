@@ -19,6 +19,7 @@ namespace Engine {
 		bool sceneView = true;
 		std::vector<RenderFeaturePassSettings> passes{};
 		std::vector<RenderFeatureHierarchyItem> hierarchy{};
+		std::optional<FXAASettings> legacyFXAASettings{};
 	};
 
 	// JSONからRender Passesを読み込む

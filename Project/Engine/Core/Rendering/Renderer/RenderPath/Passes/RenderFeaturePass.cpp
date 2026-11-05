@@ -40,21 +40,6 @@ using namespace Engine::RenderFeatureResourceUtility;
 
 namespace {
 
-	class ScopedRenderFeatureGPUProfile {
-	public:
-		ScopedRenderFeatureGPUProfile(ID3D12GraphicsCommandList* commandList, std::string name) : commandList_(commandList) {
-
-			Engine::GPUFrameProfiler::GetInstance().BeginPass(commandList_, name);
-		}
-		~ScopedRenderFeatureGPUProfile() { Engine::GPUFrameProfiler::GetInstance().EndPass(commandList_); }
-
-		ScopedRenderFeatureGPUProfile(const ScopedRenderFeatureGPUProfile&) = delete;
-		ScopedRenderFeatureGPUProfile& operator=(const ScopedRenderFeatureGPUProfile&) = delete;
-
-	private:
-		ID3D12GraphicsCommandList* commandList_ = nullptr;
-	};
-
 	std::string MakePassProfileName(Engine::RenderViewKind kind, std::string_view passName) {
 
 		return std::string(Engine::EnumAdapter<Engine::RenderViewKind>::ToStringView(kind)) + "/RenderFeature/" +
@@ -66,42 +51,6 @@ namespace {
 		return "RenderFeatureSelectionEffect_" + std::to_string(groupID.value);
 	}
 
-	bool CopySceneOutput(Engine::GraphicsCore& graphicsCore, Engine::SceneExecutionContext& context,
-		const Engine::RenderPipelineDeps& deps, const Engine::RenderFeatureOutputReference& output,
-		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* destination, const std::string& destinationAlias) {
-
-		if (CanCopyColor(source, destination)) {
-			return Engine::MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, destination);
-		}
-		// αを保持して最終出力の解像度と形式へ変換
-		const auto sourceAlias = MakeOutputAlias(output);
-		Engine::PostProcessTemporaryTargetDesc targetDescription{};
-		targetDescription.name = "RenderFeatureSceneCopy_" + destinationAlias;
-		targetDescription.format = destination->GetColorTexture(0)->GetFormat();
-		auto* temporary =
-			deps.postProcessTargetPool->Acquire(graphicsCore, *context.targetRegistry, targetDescription, *destination);
-		if (!temporary || !temporary->GetColorTexture(0)) {
-			return false;
-		}
-		Engine::PostProcessExecutionDesc copy{};
-		copy.material = Engine::BuiltinAssets::Materials::PostProcessMaskComposite;
-		copy.passKind = Engine::MaterialPassKind::PostProcess;
-		copy.source.colors = {sourceAlias};
-		copy.dest.colors = {targetDescription.name};
-		copy.extraSources[Engine::PostProcessBindingNames::kEffectColor] = sourceAlias;
-		copy.extraSources[Engine::PostProcessBindingNames::kSelectionMask] = sourceAlias;
-		copy.extraSources[Engine::PostProcessBindingNames::kSourceFlags] = Engine::RenderTargetNames::kSceneFlagsMain;
-		Engine::MaterialParameterValue mode{};
-		mode.value = 4u;
-		copy.parameterOverrides.Set(Engine::MaterialParameterIDs::CompositeMode, Engine::MaterialParameterNames::CompositeMode,
-			Engine::MaterialParameterSemantic::None, mode);
-		if (!deps.postProcessExecutor->Execute(
-				graphicsCore, Engine::RenderFrameRequest{}, context, *deps.assetLibrary, *deps.pipelineCache, copy)) {
-			return false;
-		}
-		// UAVを持たないViewにも変換済みカラーを転送
-		return Engine::MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, temporary, destination);
-	}
 
 }
 
@@ -185,7 +134,7 @@ void Engine::RenderFeaturePass::Execute(
 		}
 		raytracingChains[pass.id.value] = raytracingChain;
 		const std::string profileName = MakePassProfileName(context.kind, pass.name);
-		ScopedRenderFeatureGPUProfile gpuProfile{graphicsCore.GetDXObject().GetDxCommand()->GetCommandList(), profileName};
+		ScopedGPUProfile gpuProfile{graphicsCore.GetDXObject().GetDxCommand()->GetCommandList(), profileName};
 
 		float dependencyScale = 1.0f;
 		if (node.source.pass) {

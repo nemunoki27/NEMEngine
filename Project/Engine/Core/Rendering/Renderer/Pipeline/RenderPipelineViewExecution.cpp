@@ -381,12 +381,14 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// ビューごとの中間レンダーターゲットを確保してコンテキストに設定
 	RenderPathResources& resources = cameraState.resources;
 	const auto* profile = context.renderPassesRuntime ? &context.renderPassesRuntime->GetProfile() : nullptr;
+	auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
+	if (profile && profile->legacyFXAASettings) featureController.ImportLegacyFXAASettings(*profile->legacyFXAASettings);
 	const bool boundedOutputs = !profile || std::none_of(profile->passes.begin(), profile->passes.end(), [](const auto& pass) {
 		return pass.anchor == RenderFeatureAnchor::BeforeLighting;
 	});
 	const auto albedoFormat = colorPrecision_.Resolve(graphicsCore, renderAssetLibrary_,
 		scenePreparation_.renderBatch_, request.assetDatabase, request.world, boundedOutputs);
-	resources.Resize(graphicsCore, view.width, view.height, albedoFormat);
+	resources.Resize(graphicsCore, context.view->width, context.view->height, albedoFormat);
 	if (!resources.IsValid()) {
 
 		Logger::Output(LogType::Engine,
@@ -476,7 +478,8 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// 反射定数を転送してから、この描画のGPUアドレスを登録する
 	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
 		graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
-	cameraState.raytracingBuffers.Upload(view, skyboxInfo, context.postProcessCamera.surfaceSettings);
+	cameraState.raytracingBuffers.Upload(*context.view, skyboxInfo, context.postProcessCamera.surfaceSettings);
+	context.raytracingViewConstants = &cameraState.raytracingBuffers.GetData();
 	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
 	return context;
 }

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "EditorMeasurementDisplay.h"
+#include "EditorAntialiasingMenu.h"
 #include <Engine/Editor/Core/ViewportPanelSettings.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
@@ -210,6 +211,8 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 			ImGui::EndMenu();
 		}
+
+		EditorAntialiasingMenu::Draw(context);
 
 		// レイトレーシングの影と反射を設定
 		if (ImGui::BeginMenu("レイトレーシング")) {

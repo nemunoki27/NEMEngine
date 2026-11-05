@@ -100,4 +100,15 @@ namespace Engine {
 		// 解決済みデータを読み出してFrameProfilerへ反映する
 		void CollectResolved(FrameQueryState& state);
 	};
+
+	// GPU計測の終了を早期returnや例外でも揃える
+	class ScopedGPUProfile {
+	public:
+		ScopedGPUProfile(ID3D12GraphicsCommandList* commandList, const std::string& name);
+		~ScopedGPUProfile();
+		ScopedGPUProfile(const ScopedGPUProfile&) = delete;
+		ScopedGPUProfile& operator=(const ScopedGPUProfile&) = delete;
+	private:
+		ID3D12GraphicsCommandList* commandList_ = nullptr;
+	};
 } // Engine

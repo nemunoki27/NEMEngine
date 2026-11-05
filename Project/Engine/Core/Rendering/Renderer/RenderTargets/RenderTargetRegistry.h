@@ -62,6 +62,8 @@ namespace Engine {
 		// レンダーターゲットセットを登録する
 		void Register(const std::string& alias, MultiRenderTarget* surface,
 			const std::vector<std::string>& colorNames, const std::optional<std::string>& depthName);
+		// 単独の色画像を現在の実行結果として公開する
+		void RegisterColor(const std::string& name, RenderTexture2D* texture);
 
 		// フレーム開始処理
 		void BeginFrame();
@@ -110,6 +112,7 @@ namespace Engine {
 		std::vector<RegisteredRenderTargetSet> entries_;
 		// エントリーのインデックステーブル
 		std::unordered_map<std::string, size_t> aliasTable_;
+		std::unordered_map<std::string, RenderTexture2D*> colorAliases_;
 		// 一時的に使用するレンダーターゲットセットのエントリー
 		std::unordered_map<std::string, TransientEntry> transients_;
 

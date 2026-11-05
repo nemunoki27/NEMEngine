@@ -64,6 +64,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::Execute(
 	if (scope_ == Scope::Scene && context.resources->GetSceneMain()) {
 		depthOverride = context.resources->GetSceneMain()->GetDepthTexture();
 	}
+	if (context.outputDepth) depthOverride = context.outputDepth;
 
 	// 集めた要求を専用rendererへ渡してruntime用のScreenSpaceOutlineへ描く
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_, context.resources->PrepareScreenSpaceOutline(graphicsCore, false),

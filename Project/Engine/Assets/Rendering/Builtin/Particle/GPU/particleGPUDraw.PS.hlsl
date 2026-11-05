@@ -3,7 +3,7 @@
 
 Texture2D<float4> baseColorTexture : register(t0, space2);
 
-float4 main(ParticleGPUVertexOutput input) : SV_TARGET0 {
+ParticleGPUPixelOutput main(ParticleGPUVertexOutput input) {
 	float4 color = baseColorTexture.Sample(gSampler, input.uv) * input.color;
 	clip(color.a - input.alphaReference);
 	color.a *= ParticleSoftFade(input.position, input.worldPosition);
@@ -11,5 +11,7 @@ float4 main(ParticleGPUVertexOutput input) : SV_TARGET0 {
 	color.rgb = ParticleSurfaceLighting(color.rgb, input.worldPosition, N,
 		particleSurfaceParameters.z, particleSurfaceParameters.w);
 	color.rgb += input.emissive.rgb * input.emissive.w;
-	return PrepareParticleGPUBlend(color, input.blendMode);
+	ParticleGPUPixelOutput output;
+	output.color = PrepareParticleGPUBlend(color, input.blendMode);
+	return output;
 }

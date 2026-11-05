@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "../ReflectionFilter/reflectionFilterCommon.hlsli"
+#include "../../PostProcess/Common/postProcessFrame.hlsli"
 
 cbuffer PostProcessParameters : register(b1) {
 

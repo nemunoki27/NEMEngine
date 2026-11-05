@@ -26,12 +26,13 @@ Engine::Matrix4x4 Engine::RenderCameraHistory::Update(
 	const std::string key = view.GetHistoryKey() + "|" + std::to_string(static_cast<uint32_t>(domain)) +
 		"|" + std::to_string(camera->sourceCamera.index) + "|" + std::to_string(camera->sourceCamera.generation);
 	State& state = states_[key];
+	if (state.width != 0 && state.frameSerial == frameSerial) return state.previous;
 	const bool reset = state.width != view.width || state.height != view.height ||
 		state.projectionMode != camera->projectionMode || state.frameSerial + 1 < frameSerial;
 	if (reset || state.frameSerial != frameSerial) {
 		// 初回と条件変更時は現在の行列から履歴を始める
-		state.previous = reset ? camera->matrices.viewProjectionMatrix : state.current;
-		state.current = camera->matrices.viewProjectionMatrix;
+		state.previous = reset ? camera->matrices.unjitteredViewProjectionMatrix : state.current;
+		state.current = camera->matrices.unjitteredViewProjectionMatrix;
 		state.frameSerial = frameSerial;
 		state.width = view.width;
 		state.height = view.height;

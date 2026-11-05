@@ -4,6 +4,8 @@
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
 #include "../Particle/GPU/particlePaintRead.hlsli"
+#include "../Particle/GPU/particleGPUShared.hlsli"
+#include "../Lighting/environmentSampling.hlsli"
 
 // RTライブラリ内で固定SRVとライトバッファが衝突しないようレジスタを差し替える
 #define NEM_LIGHT_COUNTS_REGISTER b1
@@ -50,7 +52,7 @@ cbuffer RaytracingViewConstants : register(b0) {
 	float gReflectionRoughnessFade;
 	float gSkyIntensity;
 	float gFresnelMin;
-	float gPad0;
+	float gReflectionPadding;
 
 	float4 gSkyboxColor;
 	uint gSkyboxCubemapIndex;
@@ -165,6 +167,11 @@ float3 ClampReflectionSample(float3 radiance) {
 		float3(0.2126f, 0.7152f, 0.0722f));
 	return radiance * min(1.0f,
 		kMaxReflectionSampleLuminance / max(luminance, 1e-4f));
+}
+
+float3 ResolveReflectionSampleRadiance(float3 radiance) {
+
+	return ClampReflectionSample(radiance);
 }
 
 float3 ReconstructWorldPosition(float2 uv, float depthValue) {
@@ -839,7 +846,6 @@ void ReflectionRayGen() {
 		acceptedSampleCount < sampleCount;
 		++sampleIndex) {
 
-		// 低サンプル数では粗さ乱数が高輝度ちらつきになるため法線反射を安定入力にする
 		float3 H = worldNormal;
 		float VdotH = saturate(dot(V, H));
 		float NdotH = saturate(dot(worldNormal, H));
@@ -886,15 +892,14 @@ void ReflectionRayGen() {
 			incomingRadiance =
 				EvaluateReflectionEnvironment(reflectionDirection, roughness);
 		}
-		accumulatedHitDistance += payload.hit != 0u ?
-			payload.hitDistance : gMaxReflectionDistance;
+		accumulatedHitDistance += payload.hit != 0u ? payload.hitDistance : gMaxReflectionDistance;
 		float3 sampleWeight = FresnelSchlick(VdotH, F0);
 		if (gPhysicalEnvironmentEnabled != 0u && gEnvironmentBRDFIndex != kNoTexture) {
 			Texture2D<float4> brdf = NEM_TEXTURE2D(gEnvironmentBRDFIndex);
 			float2 integral = brdf.SampleLevel(gEnvironmentSampler, float2(NdotV, roughness), 0.0f).rg;
 			sampleWeight = F0 * integral.x + integral.y;
 		}
-		reflectedRadiance += ClampReflectionSample(
+		reflectedRadiance += ResolveReflectionSampleRadiance(
 			incomingRadiance * sampleWeight);
 		++acceptedSampleCount;
 	}

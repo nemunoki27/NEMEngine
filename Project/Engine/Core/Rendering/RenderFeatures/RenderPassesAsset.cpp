@@ -22,6 +22,7 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPassesAsset& outAsset) {
 	loaded.sceneView = source.sceneView;
 	loaded.passes = source.passes;
 	loaded.hierarchy = source.hierarchy;
+	loaded.legacyFXAASettings = source.legacyFXAASettings;
 	outAsset = std::move(loaded);
 	return true;
 }
@@ -46,5 +47,6 @@ Engine::RenderFeatureProfileAsset Engine::ToRuntimeProfile(const RenderPassesAss
 	profile.sceneView = asset.sceneView;
 	profile.passes = asset.passes;
 	profile.hierarchy = asset.hierarchy;
+	profile.legacyFXAASettings = asset.legacyFXAASettings;
 	return profile;
 }

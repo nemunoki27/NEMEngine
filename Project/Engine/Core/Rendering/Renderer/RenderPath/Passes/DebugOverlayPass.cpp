@@ -52,6 +52,7 @@ void Engine::DebugOverlayPass::Execute([[maybe_unused]] GraphicsCore& graphicsCo
 		// スナップグリッドだけは不透明メッシュに隠れるよう、シーン深度を渡して深度テストさせる
 		DepthTexture2D* sceneDepth = (context.resources && context.resources->GetSceneMain()) ?
 			context.resources->GetSceneMain()->GetDepthTexture() : nullptr;
+		if (context.outputDepth) sceneDepth = context.outputDepth;
 		LineRenderer::GetInstance()->RenderSceneView(
 			graphicsCore, *context.view, *context.defaultSurface, context.drawSceneViewDefaultGrid, true, sceneDepth);
 	}

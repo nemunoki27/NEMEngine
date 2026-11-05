@@ -25,6 +25,10 @@ namespace Engine {
 			const GraphicsFeatureSupport& support);
 
 		// ユーザー設定変更
+		void SetAntialiasing(AntialiasingMethod method);
+		void SetFXAASettings(const FXAASettings& settings);
+		// 旧Profileの調整値を未移行時だけ保存する
+		void ImportLegacyFXAASettings(const FXAASettings& settings);
 		void SetAllowMeshShader(bool enabled);
 		// 実行中の変更は設定ファイルへ保存しない
 		void ApplyRuntimePreferences(const GraphicsFeaturePreferences& preferences);

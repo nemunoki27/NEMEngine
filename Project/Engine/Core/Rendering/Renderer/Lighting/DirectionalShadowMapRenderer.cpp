@@ -350,6 +350,8 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 		shadowView.perspective.matrices.viewMatrix = lightView;
 		shadowView.perspective.matrices.projectionMatrix = projection;
 		shadowView.perspective.matrices.viewProjectionMatrix = state_.viewProjections[cascade];
+		shadowView.perspective.matrices.unjitteredProjectionMatrix = projection;
+		shadowView.perspective.matrices.unjitteredViewProjectionMatrix = state_.viewProjections[cascade];
 		shadowView.perspective.matrices.inverseViewMatrix = Matrix4x4::Inverse(lightView);
 		shadowView.perspective.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(projection);
 		shadowView.perspective.cameraPos = shadowView.perspective.matrices.inverseViewMatrix.GetTranslationValue();

@@ -1,5 +1,6 @@
 // VSとMSとカリングComputeで同じ定数配置を使う
 	float4x4 viewProjection;
+	float4x4 unjitteredViewProjection;
 	float4x4 previousViewProjection;
 	float4x4 cullingViewProjection;
 	float4x4 cullingView;
@@ -10,6 +11,7 @@
 	float2 viewSize;
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
-	float2 _viewPad0;
+	float materialPadding;
+	float _viewPad0;
 	float3 renderCameraPos;
 	uint frameSerial;

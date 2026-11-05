@@ -27,7 +27,7 @@ namespace Engine {
 		//============================================================================
 
 		GraphicsPlatform() = default;
-		~GraphicsPlatform() = default;
+		~GraphicsPlatform();
 
 		// DxDevice/Command/Queue/Presenter/DxShaderCompilerの生成と初期化を行う
 		void Init();

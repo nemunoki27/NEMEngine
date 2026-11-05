@@ -85,6 +85,17 @@ bool NEMTests::TestRenderTargetSizing() {
 		return false;
 	}
 	Engine::RenderTargetRegistry registry;
+	Engine::RenderTexture2D preview;
+	registry.RegisterColor("Preview", &preview);
+	if (registry.FindColorByName("Preview") != &preview) return false;
+	registry.RegisterColor("Preview", nullptr);
+	if (registry.FindColorByName("Preview")) return false;
+	registry.RegisterColor("Preview", &preview);
+	registry.BeginFrame();
+	if (registry.FindColorByName("Preview")) return false;
+	registry.RegisterColor("Preview", &preview);
+	registry.Clear();
+	if (registry.FindColorByName("Preview")) return false;
 	registry.Register("Guarded", &surface, {"Color"}, std::nullopt);
 	Engine::SceneRenderTargetDesc desc{};
 	desc.name = "Guarded";

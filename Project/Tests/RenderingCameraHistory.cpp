@@ -41,14 +41,22 @@ namespace NEMTests {
 		right.perspective.sourceCamera = Entity{2, 1};
 		RenderCameraHistory history{};
 		const auto update = [&](ResolvedRenderView& view, float position, uint64_t frame) {
-			view.perspective.matrices.viewProjectionMatrix.m[3][0] = position;
+			view.perspective.matrices.unjitteredViewProjectionMatrix.m[3][0] = position;
+			view.perspective.matrices.viewProjectionMatrix.m[3][0] = position + 0.25f;
 			return history.Update(view, RenderCameraDomain::Perspective, frame).m[3][0];
 		};
 
-		// 描画順が変わっても別Cameraの履歴を参照しない
+		// 描画順が変わってもCameraごとにJitterを除いた履歴を保持する
 		if (left.GetHistoryKey() == right.GetHistoryKey() || update(left, 1.0f, 1) != 1.0f ||
 			update(right, 10.0f, 1) != 10.0f || update(right, 20.0f, 2) != 10.0f || update(left, 2.0f, 2) != 1.0f ||
 			update(left, 2.0f, 2) != 1.0f) {
+			return false;
+		}
+		// 同じフレームの出力解像度Overlayは履歴と内部解像度を上書きしない
+		ResolvedRenderView overlay = right;
+		overlay.width = 1280;
+		overlay.height = 1440;
+		if (update(overlay, 200.0f, 2) != 10.0f) {
 			return false;
 		}
 		// サイズ変更は対象Cameraの履歴だけを初期化する

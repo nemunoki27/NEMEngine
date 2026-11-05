@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
 
 // c++
@@ -33,7 +34,11 @@ void Engine::CameraSurfacePass::RetainViews(const std::unordered_set<std::string
 void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	if (ambientOcclusion_) context.ambientOcclusion = nullptr;
+	if (ambientOcclusion_) {
+		context.ambientOcclusion = nullptr;
+	}
+	if (!context.targetRegistry) return;
+	if (ambientOcclusion_) context.targetRegistry->RegisterColor(RenderTargetNames::kAmbientOcclusion, nullptr);
 	if (!context.view || !context.view->FindCamera(RenderCameraDomain::Perspective) || context.disableInlineRayTracing) return;
 	const auto& controller = graphicsCore.GetDXObject().GetFeatureController();
 	const auto& settings = context.postProcessCamera.surfaceSettings;
@@ -58,15 +63,16 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 		state.settings.reflectionMaxDistance != settings.reflectionMaxDistance ||
 		state.settings.reflectionParameters != settings.reflectionParameters;
 	if (state.generation == 0 || state.opaqueGeometryAllowed != opaqueGeometryAllowed || parametersChanged || state.settings.cullingMask != cullingMask ||
-		state.projectionMatrix != camera->matrices.projectionMatrix) {
+		state.projectionMatrix != camera->matrices.unjitteredProjectionMatrix) {
 
 		// 可変設定のコピーは計画を作り直すときだけ行う
 		CameraCommon runtimeSettings = settings;
 		runtimeSettings.cullingMask = cullingMask;
-		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(runtimeSettings, opaqueGeometryAllowed) : BuildCameraReflectionProfile(runtimeSettings));
+		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(runtimeSettings, opaqueGeometryAllowed) :
+			BuildCameraReflectionProfile(runtimeSettings));
 		state.settings = std::move(runtimeSettings);
 		state.opaqueGeometryAllowed = opaqueGeometryAllowed;
-		state.projectionMatrix = camera->matrices.projectionMatrix;
+		state.projectionMatrix = camera->matrices.unjitteredProjectionMatrix;
 		++state.generation;
 	}
 
@@ -75,7 +81,9 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 	const ScopedValue generation(context.renderPassesGeneration, state.generation);
 	executor_.Execute(graphicsCore, passBuckets, context);
 	if (ambientOcclusion_ && executor_.HasExecutionSucceeded()) {
-		const auto alias = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
+		const auto alias = RenderFeatureResourceUtility::MakeOutputAlias(
+			{CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
 		context.ambientOcclusion = context.targetRegistry->FindColorByName(alias);
+		context.targetRegistry->RegisterColor(RenderTargetNames::kAmbientOcclusion, context.ambientOcclusion);
 	}
 }

@@ -73,6 +73,8 @@ namespace Engine {
 		Matrix4x4 viewMatrix = Matrix4x4::Identity();
 		Matrix4x4 projectionMatrix = Matrix4x4::Identity();
 		Matrix4x4 viewProjectionMatrix = Matrix4x4::Identity();
+		Matrix4x4 unjitteredProjectionMatrix = Matrix4x4::Identity();
+		Matrix4x4 unjitteredViewProjectionMatrix = Matrix4x4::Identity();
 		Matrix4x4 inverseViewMatrix = Matrix4x4::Identity();
 		Matrix4x4 inverseProjectionMatrix = Matrix4x4::Identity();
 	};

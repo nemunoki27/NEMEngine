@@ -137,7 +137,10 @@ Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::PrepareScr
 	const RenderTargetCreationContext& context, bool editorSelection) {
 
 	auto& outline = editorSelection ? editorSelectionOutline_ : runtimeOutline_;
-	if (outline.IsValid() || !IsValid()) return outline;
+	if (!IsValid()) return outline;
+	const uint32_t width = GetSceneFinal()->GetWidth();
+	const uint32_t height = GetSceneFinal()->GetHeight();
+	if (outline.IsValid() && outline.mask_->GetWidth() == width && outline.mask_->GetHeight() == height) return outline;
 	const std::string prefix = editorSelection ? "SSOutline.EditorSelection" : "SSOutline.Runtime";
 	// 全Maskの生成が成功してから所有を渡す
 	ScreenSpaceOutlineViewResources candidate;
@@ -145,7 +148,7 @@ Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::PrepareScr
 
 		auto surface = std::make_unique<MultiRenderTarget>();
 		surface->Create(context.device, &context.targets, &context.depths, &context.shaders,
-			BuildScreenSpaceOutlineMaskDesc(currentWidth_, currentHeight_, prefix + suffix, createUAV));
+			BuildScreenSpaceOutlineMaskDesc(width, height, prefix + suffix, createUAV));
 		return surface;
 	};
 	candidate.mask_ = createMask(".Mask", false);

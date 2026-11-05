@@ -62,6 +62,8 @@ namespace {
 		}
 		return desc;
 	}
+	// 透明色の合成方式に関係なく移動量を被覆率で合成する
+
 	// CompiledShaderの配列からconst CompiledShader*の配列を生成する
 
 }

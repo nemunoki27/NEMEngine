@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Audio/AudioSystem.h>
@@ -65,18 +66,25 @@ nlohmann::json Engine::RuntimeProjectSettings::ReadEffective() const {
 	const auto& controller = graphics_.GetDXObject().GetFeatureController();
 	const auto& support = controller.GetSupport();
 	const auto& features = controller.GetRuntimeFeatures();
+	const auto& size = graphics_.GetContext().GetWindowSetting().gameSize;
 	return {{"meshShaderSupported", support.SupportsMeshShaderPath()}, {"rayTracingSupported", support.SupportsRayTracingPath()},
 		{"inlineRayTracingSupported", support.SupportsInlineRayTracingPath()}, {"meshShaderEnabled", features.useMeshShader},
 		{"rayTracingShadowsEnabled", features.useInlineRayTracing}, {"rayTracingReflectionsEnabled", features.useDispatchRays},
 		{"doubleBufferingEnabled", GraphicsFrameState::GetActiveCount() == 2},
 		{"displayOutputMode", static_cast<int>(graphics_.GetDisplayOutputSettings().mode)},
-		{"presentTargetFrameRate", FrameRateSettings::GetInstance().GetPresentTargetFps()}};
+		{"presentTargetFrameRate", FrameRateSettings::GetInstance().GetPresentTargetFps()},
+		{"antialiasing", EnumAdapter<AntialiasingMethod>::ToString(controller.GetPreferences().antialiasing)},
+		{"renderWidth", size.x}, {"renderHeight", size.y}, {"outputWidth", size.x}, {"outputHeight", size.y}};
 }
 
 bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 
 	if (!settings.is_object()) return false;
 	auto candidate = Read();
+	bool changesFXAA = false;
+	for (const char* key : {"fxaaStrength", "fxaaEdgeThreshold", "fxaaMinimumThreshold", "fxaaSubpixelStrength"}) {
+		changesFXAA |= settings.contains(key) && settings.at(key) != candidate.at(key);
+	}
 	// 型の違う入力と未知の設定は公開前に拒否する
 	for (auto it = settings.begin(); it != settings.end(); ++it) {
 		if (!candidate.contains(it.key())) return false;
@@ -86,6 +94,7 @@ bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 			(old.is_number() && (!it->is_number() || !std::isfinite(it->get<double>())))) return false;
 		candidate[it.key()] = it.value();
 	}
+	if (changesFXAA) candidate["fxaaSettingsMigrated"] = true;
 	const auto& clearColor = candidate["sceneClearColor"];
 	if (!clearColor.is_object()) return false;
 	for (const auto* channel : {"r", "g", "b"}) {
@@ -119,6 +128,7 @@ bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 		(candidate["width"].get<int>() > maximum.x || candidate["height"].get<int>() > maximum.y))) return false;
 	const auto mode = candidate["displayOutputMode"].get<std::string>();
 	if (mode != "SDR" && mode != "HDR10" && mode != "ScRGB") return false;
+	if (!EnumAdapter<AntialiasingMethod>::FromString(candidate["antialiasing"].get<std::string>())) return false;
 	GraphicsFeaturePreferences preferences = graphics_.GetDXObject().GetFeatureController().GetPreferences();
 	GraphicsPreferenceStorage::Read(candidate, preferences);
 	// 表示形式と閾値を既存の検証結果へ揃える
@@ -198,6 +208,9 @@ bool Engine::RuntimeProjectSettings::LoadUserSettings() {
 
 	auto settings = JsonFile::Load(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), false);
 	if (settings.is_object()) settings.erase("sceneClearColor");
+	if (GraphicsPreferenceStorage::Migrate(settings)) {
+		StorageFileUtility::WriteBytes(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), settings.dump(2));
+	}
 	return settings.is_object() && Request(settings);
 }
 

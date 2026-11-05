@@ -89,6 +89,7 @@ namespace Engine {
 		// シーンインスタンスの情報
 		const SceneInstance* sceneInstance = nullptr;
 		const ResolvedRenderView* view = nullptr;
+		DepthTexture2D* outputDepth = nullptr;
 		// SceneViewのエディター表示で参照するGameView
 		const ResolvedRenderView* gameView = nullptr;
 		const ResolvedRenderView* cullingView = nullptr;
@@ -118,6 +119,7 @@ namespace Engine {
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
+		const RaytracingViewConstantsGPU* raytracingViewConstants = nullptr;
 		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
 		// 現在のビューに影強度が0より大きいライトが存在するか

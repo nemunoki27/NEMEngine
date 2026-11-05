@@ -228,6 +228,9 @@ void Engine::MeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// スキニング更新フォロースルー
 	prepared.resources->SetSkinningAvailable(skinningDispatcher_.Dispatch(context, prepared));
 	RegisterSkinnedSources(prepared.batchMesh, *prepared.resources, prepared.items);
+	// スキニング履歴の確定後にパスごとの描画定数を転送する
+	prepared.resources->UpdateDrawConstants(context, *prepared.gpuMesh, prepared.subMeshIndex,
+		prepared.subMeshGroupIndex, prepared.material, prepared.normalConeAllowed);
 
 	// パイプラインを設定
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(

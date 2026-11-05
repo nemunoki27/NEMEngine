@@ -1,24 +1,8 @@
 #ifndef NEM_POST_PROCESS_COMMON_HLSLI
 #define NEM_POST_PROCESS_COMMON_HLSLI
 
-cbuffer PostProcessFrameConstants : register(b0) {
+#include "postProcessFrame.hlsli"
 
-	float2 resolution;
-	float2 invResolution;
-	float time;
-	float deltaTime;
-	uint frameIndex;
-	float _framePad;
-	float cameraNear;
-	float cameraFar;
-	float2 _cameraPad;
-	float3 cameraWorldPos;
-	float _positionPad;
-	float4x4 cameraView;
-	float4x4 cameraViewInverse;
-	float4x4 cameraProjection;
-	float4x4 cameraProjectionInverse;
-};
 Texture2D<float4> gSourceColor : register(t0);
 RWTexture2D<float4> gDestColor : register(u0);
 

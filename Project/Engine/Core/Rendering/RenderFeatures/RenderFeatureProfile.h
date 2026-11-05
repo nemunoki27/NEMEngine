@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 
 // c++
 #include <cstdint>
@@ -258,6 +259,8 @@ namespace Engine {
 		ColorPipelineSettings colorPipeline{};
 		std::vector<RenderFeaturePassSettings> passes{};
 		std::vector<RenderFeatureHierarchyItem> hierarchy{};
+		// 旧FXAA設定を初回読込時の共通設定へ引き継ぐ
+		std::optional<FXAASettings> legacyFXAASettings{};
 	};
 
 	// Anchorの固定RenderPath上の順序を取得する

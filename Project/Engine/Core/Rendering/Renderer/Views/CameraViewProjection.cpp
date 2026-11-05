@@ -27,6 +27,8 @@ namespace Engine::CameraViewProjection {
 			static_cast<float>(width), static_cast<float>(height), out.nearClip, out.farClip);
 		out.matrices.inverseProjectionMatrix = Engine::Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredViewProjectionMatrix = out.matrices.viewProjectionMatrix;
 		return out;
 	}
 
@@ -86,6 +88,8 @@ namespace Engine::CameraViewProjection {
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = camera.common.viewProjectionMatrix;
 
+		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredViewProjectionMatrix = out.matrices.viewProjectionMatrix;
 		return out;
 	}
 
@@ -115,6 +119,8 @@ namespace Engine::CameraViewProjection {
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = camera.common.viewProjectionMatrix;
 
+		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredViewProjectionMatrix = out.matrices.viewProjectionMatrix;
 		return out;
 	}
 
@@ -151,6 +157,8 @@ namespace Engine::CameraViewProjection {
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 
+		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredViewProjectionMatrix = out.matrices.viewProjectionMatrix;
 		return out;
 	}
 
@@ -184,6 +192,8 @@ namespace Engine::CameraViewProjection {
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 
+		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
+		out.matrices.unjitteredViewProjectionMatrix = out.matrices.viewProjectionMatrix;
 		return out;
 	}
 }

@@ -103,6 +103,15 @@ void Engine::ColorPipelineProcessor::BeginFrame() {
 	constantBufferAllocator_.BeginFrame();
 }
 
+D3D12_GPU_VIRTUAL_ADDRESS Engine::ColorPipelineProcessor::GetExposureStateAddress(const std::string& key, DxCommand& command) {
+
+	auto found = viewStates_.find(key);
+	if (found == viewStates_.end() || !found->second.bufferInitialized) return 0;
+	auto& buffer = found->second.exposureBuffer;
+	buffer.Transition(command, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	return buffer.GetGPUAddress();
+}
+
 void Engine::ColorPipelineProcessor::Release() {
 
 	for (auto& [key, state] : viewStates_) {

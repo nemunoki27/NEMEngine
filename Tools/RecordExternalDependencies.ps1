@@ -47,7 +47,8 @@ foreach ($library in $libraries) {
     if ($LASTEXITCODE -notin @(0, 1)) { throw "外部依存を列挙できません: $root" }
     foreach ($path in $paths) {
         $relative = $path.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
-        if ($relative -match '(^|/)(\.git|bin|obj|Generated|Intermediate|Output|Outputs|build|\.vs)(/|$)') { continue }
+        if ($relative -match '(^|/)(\.git|obj|Generated|Intermediate|Output|Outputs|build|\.vs)(/|$)' -or
+            ($relative -match '(^|/)bin(/|$)')) { continue }
         $file = Get-Item -LiteralPath $path -Force
         $files += [ordered]@{ path = $relative; size = [long]$file.Length; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
@@ -63,7 +64,7 @@ foreach ($library in $libraries) {
         $changes = @(& git -C $root diff --name-only HEAD --)
         if ($LASTEXITCODE -ne 0) { throw "外部依存の変更を取得できません: $root" }
     }
-    $licenseFiles = @($files | Where-Object { $_.path -match '(^|/)(LICENSE[^/]*|COPYING[^/]*)$' } | ForEach-Object { $_.path })
+    $licenseFiles = @($files | Where-Object { $_.path -match '(^|/)(LICENSE[^/]*|COPYING[^/]*)$|\.license\.txt$' } | ForEach-Object { $_.path })
     $records += [ordered]@{
         name = $library.name; version = $version; versionEvidence = $library.versionFile
         upstreamCommit = $commit; upstreamComparison = $(if ($commit) { 'submodule' } else { 'unknown' })

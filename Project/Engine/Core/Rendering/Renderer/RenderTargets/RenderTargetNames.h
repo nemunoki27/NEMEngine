@@ -30,6 +30,8 @@ namespace Engine {
 		inline constexpr const char* kSceneColorFinal = "SceneColorFinal";
 		// 透明描画開始直前のSceneColorFinalコピー
 		inline constexpr const char* kSceneColorOpaque = "SceneColorOpaque";
+		// 現在のCameraが公開するAOの確認画像
+		inline constexpr const char* kAmbientOcclusion = "AmbientOcclusion";
 
 	} // RenderTargetNames
 } // Engine

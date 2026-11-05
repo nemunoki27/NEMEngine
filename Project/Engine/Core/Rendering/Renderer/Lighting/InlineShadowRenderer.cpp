@@ -50,6 +50,8 @@ namespace {
 		float orthographic = 0.0f;
 		Matrix4x4 view = Matrix4x4::Identity();
 		Matrix4x4 previousViewProjection = Matrix4x4::Identity();
+		Vector2 framePadding = Vector2::AnyInit(0.0f);
+		Vector2 _pad;
 	};
 
 	struct ShadowLightSelection {
@@ -353,7 +355,7 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	parameters.resetHistory = cachedGeometryChanged || samplingChanged || historyInterrupted ||
 		state.selection.signature != selection.signature ||
 		state.selection.indices != selection.indices || state.materialGeneration != context.raytracing.materialGeneration ||
-		state.projection != camera->matrices.projectionMatrix;
+		state.projection != camera->matrices.unjitteredProjectionMatrix;
 	parameters.view = camera->matrices.viewMatrix;
 	parameters.previousViewProjection = state.previousViewProjection;
 	parameters.projectionScale = std::max(std::abs(camera->matrices.projectionMatrix.m[1][1]) * height * 0.5f, 0.001f);
@@ -405,7 +407,7 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	state.lastFrame = serial;
 	state.lastRenderTime = renderTime;
 	state.previousViewProjection = camera->matrices.viewProjectionMatrix;
-	state.projection = camera->matrices.projectionMatrix;
+	state.projection = camera->matrices.unjitteredProjectionMatrix;
 	state.materialGeneration = context.raytracing.materialGeneration;
 	return true;
 }

@@ -48,7 +48,7 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 			" = (" + std::string(keyword.type == ShaderGraphKeywordType::Boolean ? "uint" : "int") + ") " + value + ";\n";
 	}
 	source += "\treturn result;\n}\n\n"
-		"float4 main(ParticleGPUVertexOutput input) : SV_TARGET0 {\n\n"
+		"ParticleGPUPixelOutput main(ParticleGPUVertexOutput input) {\n\n"
 		"\tfloat progress = saturate(input.velocityAge.w / max(input.lifetimeRandom.x, 0.00001f));\n"
 		"\tfloat3 N = ParticleSurfaceNormal(input.uv, input.normal, input.tangent, input.worldPosition);\n"
 		"\tfloat3x3 tangentToWorld = ParticleSurfaceFrame(input.uv, input.normal, input.tangent, input.worldPosition);\n"
@@ -83,6 +83,8 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 		"\tcolor.rgb = ParticleSurfaceLighting(color.rgb, input.worldPosition, graph.normal,\n"
 		"\t\tparticleSurfaceParameters.z, particleSurfaceParameters.w);\n"
 		"\tcolor.rgb += graph.emissive + input.emissive.rgb * input.emissive.w;\n"
-		"\treturn PrepareParticleGPUBlend(color, input.blendMode);\n}\n";
+		"\tParticleGPUPixelOutput output;\n"
+		"\toutput.color = PrepareParticleGPUBlend(color, input.blendMode);\n"
+		"\treturn output;\n}\n";
 	return source;
 }

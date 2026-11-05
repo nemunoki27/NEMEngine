@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <algorithm>
 
 //============================================================================
 //	CameraSurfacePipeline functions

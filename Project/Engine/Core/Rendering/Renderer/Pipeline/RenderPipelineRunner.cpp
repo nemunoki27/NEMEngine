@@ -5,12 +5,11 @@
 //============================================================================
 #include "RuntimeRenderPreloader.h"
 #include "RenderPipelineUtility.h"
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/Views/GameViewCameraSnapshot.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -130,8 +129,7 @@ Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewK
 
 Engine::RenderTexture2D* RenderPipelineRunner::GetViewAmbientOcclusionTexture(RenderViewKind kind) {
 
-	const auto alias = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
-	return FindCameraState(kind).targetRegistry.FindColorByName(alias);
+	return FindCameraState(kind).targetRegistry.FindColorByName(RenderTargetNames::kAmbientOcclusion);
 }
 
 const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflection(const MaterialAsset& material) const {
@@ -179,8 +177,9 @@ bool Engine::RenderPipelineRunner::TryGetMaterialComputeReflection(GraphicsCore&
 
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
-	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
-	RenderPathResources& resources = FindCameraState(kind).resources;
+	auto& state = FindCameraState(kind);
+	if (auto* depth = state.targetRegistry.FindDepthByName(RenderTargetNames::kSceneDepth)) return depth;
+	RenderPathResources& resources = state.resources;
 	MultiRenderTarget* sceneMain = resources.GetSceneMain();
 	return sceneMain ? sceneMain->GetDepthTexture() : nullptr;
 }

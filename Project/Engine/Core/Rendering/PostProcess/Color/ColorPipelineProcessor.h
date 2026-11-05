@@ -27,6 +27,7 @@ namespace Engine {
 	class PipelineStateCache;
 	class RenderAssetLibrary;
 	class ECSWorld;
+	class DxCommand;
 	struct SceneExecutionContext;
 
 	//============================================================================
@@ -48,6 +49,8 @@ namespace Engine {
 		void RetainViews(const std::unordered_set<std::string>& activeViews);
 		// GPUバッファとDescriptorを解放する
 		void Release();
+		// 時間AAへ渡す露出値を読み取り状態で返す
+		D3D12_GPU_VIRTUAL_ADDRESS GetExposureStateAddress(const std::string& key, DxCommand& command);
 
 		// Bloom前の画像からCameraの露出を一度だけ更新する
 		bool PrepareExposure(GraphicsCore& graphicsCore, const SceneExecutionContext& context,

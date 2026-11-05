@@ -9,6 +9,8 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderRequirements.h>
+#include <Engine/Core/Foundation/Utility/ScopedValue.h>
+#include "RenderFeatureResourceUtility.h"
 
 //============================================================================
 //	QueueRenderPass classMethods
@@ -35,7 +37,9 @@ void Engine::QueueRenderPass::Execute(
 	if (!target) {
 		return;
 	}
-	if (desc_.kind == RenderPathPassKind::Transparent && context.resources) {
+	const RenderPassItemList& items = passBuckets.Get(desc_.phase);
+	if (desc_.kind == RenderPathPassKind::Transparent && context.resources &&
+		(!items.IsEmpty() || RenderFeatureResourceUtility::RequiresSceneColorSnapshot(context, passBuckets, deps_))) {
 
 		MultiRenderTargetCopy::CopyColor0Resource(
 			graphicsCore, context.resources->GetSceneFinal(), context.resources->GetSceneColorOpaque());
@@ -46,7 +50,6 @@ void Engine::QueueRenderPass::Execute(
 	if (desc_.reuseSceneDepth && context.resources) {
 		depth = context.resources->GetSceneMain()->GetDepthTexture();
 	}
-	const RenderPassItemList& items = passBuckets.Get(desc_.phase);
 	itemScratch_.clear();
 	itemScratch_.reserve(items.items.size());
 	for (const RenderItem* item : items.items) {

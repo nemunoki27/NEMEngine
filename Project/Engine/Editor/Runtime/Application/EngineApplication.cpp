@@ -443,7 +443,7 @@ Engine::EngineApplication::EngineApplication() {
 		runtimeWorldBaker_, scriptBuildService_, requestFrameDeltaReset_, [this]() { return IsPrefabEditing(); },
 		[this]() { SaveScenesAndContinue({EditorSceneSaveAction::Play, {}}); }, [this]() { RefreshActiveWorldContext(); });
 	renderRequestBuilder_ =
-		std::make_unique<EditorRenderRequestBuilder>(systemContext_, assetDatabase_, editorManager_, worldManager_);
+		std::make_unique<EditorRenderRequestBuilder>(systemContext_, assetDatabase_, editorManager_);
 }
 
 Engine::EngineApplication::~EngineApplication() = default;

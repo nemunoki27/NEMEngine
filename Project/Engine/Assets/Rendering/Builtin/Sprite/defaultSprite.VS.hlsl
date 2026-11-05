@@ -15,17 +15,13 @@ struct VSInput {
 //============================================================================
 //	resources
 //============================================================================
-cbuffer ViewConstants : register(b0) {
-
-	float4x4 viewProjection;
-};
-
 struct VSInstance {
 
 	float2 size;
 	float2 pivot;
 
 	float4x4 worldMatrix;
+	float4x4 previousWorldMatrix;
 };
 StructuredBuffer<VSInstance> gVSInstances : register(t0);
 
@@ -43,6 +39,8 @@ VSOutput main(VSInput input, uint instanceID : SV_InstanceID) {
 	// ピボットとサイズを考慮してローカル座標を計算
 	float2 localPos = (input.position - instance.pivot) * instance.size;
 	output.position = mul(float4(localPos, 0.0f, 1.0f), wvp);
+	output.currentClipPosition = mul(mul(float4(localPos, 0.0f, 1.0f), instance.worldMatrix), unjitteredViewProjection);
+	output.previousClipPosition = mul(mul(float4(localPos, 0.0f, 1.0f), instance.previousWorldMatrix), previousViewProjection);
 	output.texcoord = input.texcoord;
 	output.instanceID = instanceID;
 

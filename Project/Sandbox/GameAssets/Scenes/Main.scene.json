@@ -616,13 +616,13 @@
                             "id": "c65b493a4e9d7f55",
                             "name": "roughness",
                             "semantic": "Roughness",
-                            "value": 0.41999998688697815
+                            "value": 0.07000000029802322
                         },
                         {
                             "id": "df9e0c473a8555c8",
                             "name": "metallic",
                             "semantic": "Metallic",
-                            "value": 0.0
+                            "value": 1.0
                         }
                     ],
                     "order": 0,
@@ -755,7 +755,7 @@
                 "PerspectiveCamera": {
                     "ambientOcclusionEnabled": true,
                     "ambientOcclusionIntensity": 1.0,
-                    "ambientOcclusionQuality": 2,
+                    "ambientOcclusionQuality": 1,
                     "ambientOcclusionRadius": 3.180999994277954,
                     "colorPipeline": {
                         "colorGrading": {
@@ -825,7 +825,7 @@
                     "priority": 0,
                     "projectionMode": "Perspective",
                     "reflectionEnabled": true,
-                    "reflectionIntensity": 1.0,
+                    "reflectionIntensity": 0.2199999988079071,
                     "reflectionMaxDistance": 600.0,
                     "reflectionParameters": {},
                     "reflectionQuality": 1,
@@ -845,7 +845,7 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
+                        "x": 1.359814167022705,
                         "y": 2.0,
                         "z": -4.509407997131348
                     },

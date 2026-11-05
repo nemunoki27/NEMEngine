@@ -1,4 +1,5 @@
 #include "RenderFeatureProfileSerializer.h"
+#include "RenderFeatureAntialiasingMigration.h"
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
@@ -372,9 +373,7 @@ Engine::RenderFeatureProfileAsset Engine::RenderFeatureProfileSerializer::FromJs
 		for (auto it = passInputs.begin(); it != passInputs.end(); ++it) {
 
 			const RenderFeatureOutputReference reference = ParseOutputReference(it.value());
-			if (reference.pass) {
-				pass.passInputs[it.key()] = reference;
-			}
+			pass.passInputs[it.key()] = reference;
 		}
 		const nlohmann::json samplers = passJson.value("samplers", nlohmann::json::object());
 		for (auto it = samplers.begin(); it != samplers.end(); ++it) {
@@ -385,6 +384,7 @@ Engine::RenderFeatureProfileAsset Engine::RenderFeatureProfileSerializer::FromJs
 	}
 	profile.hierarchy = ParseHierarchyItems(data.value("hierarchy", nlohmann::json::array()));
 	SynchronizeRenderFeaturePassOrder(profile);
+	MigrateRenderFeatureAntialiasing(profile);
 	return profile;
 }
 

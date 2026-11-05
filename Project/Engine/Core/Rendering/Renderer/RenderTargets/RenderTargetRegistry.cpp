@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <utility>
 #include <algorithm>
+#include <ranges>
 
 namespace {
 
@@ -115,6 +116,7 @@ void Engine::RenderTargetRegistry::Clear() {
 	}
 	entries_.clear();
 	aliasTable_.clear();
+	colorAliases_.clear();
 	transients_.clear();
 }
 
@@ -124,11 +126,17 @@ void Engine::RenderTargetRegistry::Register(const std::string& alias, MultiRende
 	RegisterOrUpdate(alias, surface, colorNames, depthName);
 }
 
+void Engine::RenderTargetRegistry::RegisterColor(const std::string& name, RenderTexture2D* texture) {
+
+	colorAliases_[name] = texture;
+}
+
 void Engine::RenderTargetRegistry::BeginFrame() {
 
 	// そのフレームでの解決表だけリセットする
 	entries_.clear();
 	aliasTable_.clear();
+	colorAliases_.clear();
 	// 使用されなくなった一時描画先を描画Fenceの回収へ渡す
 	const uint64_t frame = GraphicsFrameState::GetFrameSerial();
 	for (auto it = transients_.begin(); it != transients_.end();) {
@@ -203,6 +211,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Resolve(const RenderTar
 
 Engine::RenderTexture2D* Engine::RenderTargetRegistry::FindColorByName(const std::string& colorName) const {
 
+	if (const auto found = colorAliases_.find(colorName); found != colorAliases_.end()) return found->second;
 	// 登録セットのcolorNamesは色インデックスと並びが一致するので、名前位置の色テクスチャを返す
 	for (const auto& entry : entries_) {
 		if (!entry.surface) {
@@ -219,7 +228,8 @@ Engine::RenderTexture2D* Engine::RenderTargetRegistry::FindColorByName(const std
 
 Engine::DepthTexture2D* Engine::RenderTargetRegistry::FindDepthByName(const std::string& depthName) const {
 
-	for (const auto& entry : entries_) {
+	// 同名の深度は後から公開された出力を優先する
+	for (const auto& entry : entries_ | std::views::reverse) {
 		if (entry.surface && entry.depthName.has_value() && *entry.depthName == depthName) {
 			return entry.surface->GetDepthTexture();
 		}

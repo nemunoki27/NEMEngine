@@ -75,8 +75,31 @@ namespace Engine {
 		bool operator==(const DisplayOutputSettings&) const = default;
 	};
 
+	// シーン描画のアンチエイリアス方式
+	enum class AntialiasingMethod : uint8_t {
+
+		None,
+		FXAA,
+	};
+
+	// グラフィックス設定で共有するFXAAの調整値
+	struct FXAASettings {
+
+		float strength = 1.0f;
+		float edgeThreshold = 0.245f;
+		float minimumThreshold = 0.0312f;
+		float subpixelStrength = 1.0f;
+
+		bool operator==(const FXAASettings&) const = default;
+	};
+
 	// ユーザー参照設定
 	struct GraphicsFeaturePreferences {
+
+		AntialiasingMethod antialiasing = AntialiasingMethod::None;
+		FXAASettings fxaa{};
+		// 使用中Profileから旧FXAAの調整値を取り込んだか
+		bool fxaaSettingsMigrated = false;
 
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;

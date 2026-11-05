@@ -5,6 +5,8 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchViewResources.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderTransformHistory.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
@@ -96,6 +98,21 @@ namespace NEMTests {
 
 	bool TestMeshShaderConstantLayout() {
 
+		// 同一フレームの複数描画と間引き復帰で別インスタンスの姿勢を混ぜない
+		Engine::RenderTransformHistory history;
+		const Engine::WorldEntityKey owner{nullptr, Engine::Entity::Null()};
+		auto first = Engine::Matrix4x4::Identity();
+		first.m[3][0] = 3.0f;
+		auto second = first;
+		second.m[3][0] = 8.0f;
+		if (history.Update("Initial", owner, 1, 0, first).m[3][0] != 3.0f ||
+			history.Update("Game", owner, 1, 1, first).m[3][0] != 3.0f ||
+			history.Update("Game", owner, 1, 2, second).m[3][0] != 3.0f ||
+			history.Update("Game", owner, 1, 2, second).m[3][0] != 3.0f ||
+			history.Update("Scene", owner, 1, 2, second).m[3][0] != 8.0f ||
+			history.Update("Game", owner, 2, 2, second).m[3][0] != 8.0f ||
+			history.Update("Game", owner, 1, 4, second).m[3][0] != 8.0f) return false;
+
 		// 不正なoffsetでもParticleの転送先を変更しない
 		std::vector<uint8_t> customData(8, 0x5a);
 		const auto initialData = customData;
@@ -149,10 +166,12 @@ namespace NEMTests {
 				return false;
 			}
 			const std::pair<const char*, size_t> offsets[]{
+				{ "unjitteredViewProjection", offsetof(Engine::MeshViewConstants, unjitteredViewProjection) },
 				{ "previousViewProjection", offsetof(Engine::MeshViewConstants, previousViewProjection) },
 				{ "cullingViewProjection", offsetof(Engine::MeshViewConstants, cullingViewProjection) },
 				{ "cullingCameraPos", offsetof(Engine::MeshViewConstants, cullingCameraPos) },
 				{ "viewSize", offsetof(Engine::MeshViewConstants, viewSize) },
+				{ "materialPadding", offsetof(Engine::MeshViewConstants, materialPadding) },
 				{ "renderCameraPos", offsetof(Engine::MeshViewConstants, renderCameraPos) },
 			};
 			for (const auto& [name, offset] : offsets) {
@@ -172,15 +191,17 @@ namespace NEMTests {
 		const auto* primitiveView = Engine::FindConstantBuffer(
 			primitive2D.reflection, "ViewConstants");
 		if (!primitive2D.IsValid() || !primitiveView ||
-			primitiveView->size != 144u) {
+			primitiveView->size != 224u) {
 
 			return false;
 		}
 		const std::pair<const char*, size_t> primitiveOffsets[]{
 			{ "viewProjection", 0u },
-			{ "previousViewProjection", 64u },
-			{ "cameraPosition", 128u },
-			{ "frameSerial", 140u },
+			{ "unjitteredViewProjection", 64u },
+			{ "previousViewProjection", 128u },
+			{ "cameraPosition", 192u },
+			{ "frameSerial", 204u },
+			{ "materialPadding", 208u },
 		};
 		for (const auto& [name, offset] : primitiveOffsets) {
 			const auto found = std::find_if(

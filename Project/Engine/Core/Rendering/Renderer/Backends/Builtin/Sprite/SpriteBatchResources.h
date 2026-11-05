@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderTransformHistory.h>
 
 // c++
 #include <memory>
@@ -32,6 +33,10 @@ namespace Engine {
 	struct SpriteViewConstants {
 
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
+		Matrix4x4 unjitteredViewProjection = Matrix4x4::Identity();
+		Matrix4x4 previousViewProjection = Matrix4x4::Identity();
+		float materialPadding = 0.0f;
+		float _viewPad[3]{};
 	};
 	// 頂点シェーダインスタンスデータ
 	struct SpriteVSInstanceData {
@@ -43,6 +48,7 @@ namespace Engine {
 
 		// ワールド行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
 	};
 	// ピクセルシェーダインスタンスデータ
 	struct SpritePSInstanceData {
@@ -68,9 +74,9 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// データ更新
-		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain);
+		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain, const Matrix4x4& previousViewProjection);
 		void UploadInstances(const ResolvedRenderView& view,
-			const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items);
+			const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, RenderTransformHistory& history);
 
 		//--------- accessor -----------------------------------------------------
 

@@ -43,7 +43,6 @@ namespace Engine {
 		bool renderThisFrame = true;
 		// 既定の画面出力をこのフレームに描画するか
 		bool renderDefaultSurfaceThisFrame = true;
-
 		// 表示先の出力設定
 		DisplayOutputSettings displayOutput{};
 

@@ -13,6 +13,8 @@ namespace Engine::BuiltinAssets {
 	//============================================================================
 	namespace Materials {
 
+		inline constexpr AssetID FXAA{ 0xd2827571ebe9ec84ull, 0x33dfde5afde335eaull };
+
 		inline constexpr AssetID BloomPrefilter{ 0x4e454d4153534554ull, 0x424c4f4f4d040001ull };
 		inline constexpr AssetID BloomDownsample{ 0x4e454d4153534554ull, 0x424c4f4f4d040002ull };
 		inline constexpr AssetID BloomUpsample{ 0x4e454d4153534554ull, 0x424c4f4f4d040003ull };
@@ -152,6 +154,7 @@ namespace Engine::BuiltinAssets {
 	namespace Runtime {
 
 		inline constexpr AssetID Assets[] = {
+			Materials::FXAA,
 			Shaders::Decal, Shaders::ParticleGPUImpactDecalDraw,
 			Materials::DefaultDecal, Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
 			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,

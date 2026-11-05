@@ -51,7 +51,7 @@ namespace Engine {
 		float reflectionRoughnessFade = 0.15f;
 		float skyIntensity = 1.0f;
 		float fresnelMin = 0.04f;
-		float _pad0 = 0.0f;
+		float padding = 0.0f;
 
 		// 反射レイのミス時に参照するskybox
 		Color4 skyboxColor = Color4::White();
@@ -95,6 +95,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		bool IsInitialized() const { return initialized_; }
+		const RaytracingViewConstantsGPU& GetData() const { return debugData_; }
 	private:
 		//============================================================================
 		//	private Methods

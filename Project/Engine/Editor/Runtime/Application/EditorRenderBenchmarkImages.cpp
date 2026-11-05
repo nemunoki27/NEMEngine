@@ -33,7 +33,7 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 	for (const auto kind : { RenderViewKind::Game, RenderViewKind::Scene }) {
 		const std::string aoRaw = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionTrace, "Raw"});
 		const std::string aoFiltered = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
-		for (const char* attachment : { "", "InlineShadowRaw", "InlineShadowFiltered", aoRaw.c_str(), aoFiltered.c_str(), RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
+		for (const char* attachment : { "", "InlineShadowRaw", "InlineShadowFiltered", aoRaw.c_str(), aoFiltered.c_str(), RenderTargetNames::kAmbientOcclusion, RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
 			RenderTargetNames::kScenePositionMain, RenderTargetNames::kSceneMaterialMain,
 			RenderTargetNames::kSceneColorFinal, ViewportRenderService::GetPrimaryColorName(kind) }) {
 			// 通常の確認では最終出力だけを保存する
@@ -50,7 +50,7 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 			}
 			DirectX::ScratchImage converted;
 			const DirectX::Image* image = captured.GetImage(0, 0, 0);
-			if (attachment == aoRaw || attachment == aoFiltered) {
+			if (attachment == aoRaw || attachment == aoFiltered || std::string_view(attachment) == RenderTargetNames::kAmbientOcclusion) {
 
 				// AOを浮動小数点で読み戻し、遮蔽率を記録する
 				DirectX::ScratchImage values;
@@ -74,7 +74,8 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 				}
 				const double count = static_cast<double>(data->width * data->height);
 				report_["ambientOcclusionCaptures"].push_back({{"phase", phase_}, {"view", kind == RenderViewKind::Game ? "Game" : "Scene"},
-					{"output", attachment == aoRaw ? "Raw" : "Filtered"}, {"minimum", minimum}, {"mean", sum / count}, {"occludedRatio", occluded / count}});
+					{"output", attachment == aoRaw ? "Raw" : attachment == aoFiltered ? "Filtered" : "Preview"},
+					{"minimum", minimum}, {"mean", sum / count}, {"occludedRatio", occluded / count}});
 			}
 			// 表示用の色だけをPNGの色空間へ合わせる
 			const bool displayColor = !*attachment || std::string_view(attachment) == RenderTargetNames::kSceneColorFinal ||

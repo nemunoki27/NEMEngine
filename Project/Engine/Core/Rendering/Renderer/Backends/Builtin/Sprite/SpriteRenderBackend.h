@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderCameraHistory.h>
 
 namespace Engine {
 
@@ -41,6 +42,8 @@ namespace Engine {
 
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<SpriteBatchResources> resourcePool_;
+		RenderTransformHistory transformHistory_;
+		RenderCameraHistory cameraHistory_;
 
 		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <filesystem>
 #include <chrono>
 #include <fstream>
@@ -20,6 +21,7 @@ namespace Engine {
 
 	class GraphicsFeatureController;
 	class EngineApplication;
+	class ECSWorld;
 
 	//============================================================================
 	//	EditorRenderBenchmark class
@@ -67,6 +69,9 @@ namespace Engine {
 		// 計測終了時に元の描画設定へ戻す
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
+		GraphicsFeaturePreferences originalAntialiasingPreferences_{};
+		ECSWorld* antialiasingWorld_ = nullptr;
+		nlohmann::json originalAntialiasingCameras_ = nlohmann::json::object();
 		// 計測用のFPS上限を終了時に戻す
 		uint32_t originalTargetFps_ = 0;
 		uint32_t originalEditorTargetFps_ = 0;
@@ -112,6 +117,16 @@ namespace Engine {
 		void BeginDisplayOutputPhase(GraphicsCore& graphicsCore);
 		// 検証前の表示設定へ戻す
 		void RestoreDisplayOutput();
+		// アンチエイリアスの比較条件を検証する
+		void InitAntialiasingConditions();
+		// 比較中だけAAと描画機能の希望値を切り替える
+		void BeginAntialiasingPhase(GraphicsCore& graphicsCore);
+		// 保存しないCamera設定を比較条件へ合わせる
+		void ApplyAntialiasingCameraSettings();
+		// 希望値と実行中のView別の状態を記録する
+		nlohmann::json CaptureAntialiasingState() const;
+		// 比較前の設定へ戻して保存の抑止を解除する
+		void RestoreAntialiasing();
 		// 画像と数値の保存範囲を指定する
 		void InitCaptureSettings();
 		// 今回の結果を保存して次の描画経路へ進む

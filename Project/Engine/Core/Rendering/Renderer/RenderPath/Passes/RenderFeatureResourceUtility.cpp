@@ -13,6 +13,7 @@
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Raytracing/RayTracingExecutor.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
@@ -33,6 +34,20 @@
 #include <string_view>
 
 namespace Engine::RenderFeatureResourceUtility {
+
+	bool RequiresSceneColorSnapshot(const SceneExecutionContext& context,
+		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps) {
+
+		if (!passBuckets.Get(RenderPhase::PostProcessUI).IsEmpty() || !passBuckets.Get(RenderPhase::ScreenUI).IsEmpty()) return true;
+		if (deps.postProcessDebugInjector && deps.postProcessDebugInjector->IsEnabled()) return true;
+		if (!context.renderPassesRuntime || context.renderPassesRuntime->GetProfile().passes.empty()) return false;
+		for (const auto anchor : {RenderFeatureAnchor::AfterTransparent, RenderFeatureAnchor::AfterPostProcessUI,
+			RenderFeatureAnchor::BeforeBlit, RenderFeatureAnchor::AfterToneMap}) {
+			// 独自Shaderの暗黙入力も含め、追加Passがある経路は互換性を保つ
+			if (!context.renderPassesRuntime->GetPlan(anchor, context.kind)->nodes.empty()) return true;
+		}
+		return false;
+	}
 
 	constexpr std::string_view kDefaultOutputName = "Color";
 
@@ -163,4 +178,41 @@ namespace Engine::RenderFeatureResourceUtility {
 			source->GetColorTexture(0)->GetFormat() ==
 			destination->GetColorTexture(0)->GetFormat();
 	}
+	bool CopySceneOutput(Engine::GraphicsCore& graphicsCore, Engine::SceneExecutionContext& context,
+		const Engine::RenderPipelineDeps& deps, const Engine::RenderFeatureOutputReference& output,
+		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* destination, const std::string& destinationAlias) {
+
+		if (CanCopyColor(source, destination)) {
+			return Engine::MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, destination);
+		}
+		// αを保持して最終出力の解像度と形式へ変換
+		const auto sourceAlias = MakeOutputAlias(output);
+		Engine::PostProcessTemporaryTargetDesc targetDescription{};
+		targetDescription.name = "RenderFeatureSceneCopy_" + destinationAlias;
+		targetDescription.format = destination->GetColorTexture(0)->GetFormat();
+		auto* temporary =
+			deps.postProcessTargetPool->Acquire(graphicsCore, *context.targetRegistry, targetDescription, *destination);
+		if (!temporary || !temporary->GetColorTexture(0)) {
+			return false;
+		}
+		Engine::PostProcessExecutionDesc copy{};
+		copy.material = Engine::BuiltinAssets::Materials::PostProcessMaskComposite;
+		copy.passKind = Engine::MaterialPassKind::PostProcess;
+		copy.source.colors = {sourceAlias};
+		copy.dest.colors = {targetDescription.name};
+		copy.extraSources[Engine::PostProcessBindingNames::kEffectColor] = sourceAlias;
+		copy.extraSources[Engine::PostProcessBindingNames::kSelectionMask] = sourceAlias;
+		copy.extraSources[Engine::PostProcessBindingNames::kSourceFlags] = Engine::RenderTargetNames::kSceneFlagsMain;
+		Engine::MaterialParameterValue mode{};
+		mode.value = 4u;
+		copy.parameterOverrides.Set(Engine::MaterialParameterIDs::CompositeMode, Engine::MaterialParameterNames::CompositeMode,
+			Engine::MaterialParameterSemantic::None, mode);
+		if (!deps.postProcessExecutor->Execute(
+				graphicsCore, Engine::RenderFrameRequest{}, context, *deps.assetLibrary, *deps.pipelineCache, copy)) {
+			return false;
+		}
+		// UAVを持たないViewにも変換済みカラーを転送
+		return Engine::MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, temporary, destination);
+	}
+
 }

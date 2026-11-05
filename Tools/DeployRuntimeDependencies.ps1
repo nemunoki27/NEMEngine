@@ -91,6 +91,7 @@ function Copy-RequiredFile {
     }
 
     $destination = Join-Path $resolvedTargetDirectory $DestinationName
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($destination)) -Force | Out-Null
     Copy-Item -LiteralPath $Source -Destination $destination -Force
     return $DestinationName
 }
@@ -117,18 +118,36 @@ $deployedFiles.Add((Copy-RequiredFile `
     -Source (Join-Path $engineRoot "Project\Externals\dotnet-hosting\bin\x64\nethost.dll") `
     -DestinationName "nethost.dll"))
 
-if ($Configuration -eq "Debug") {
-    $deployedFiles.Add((Copy-RequiredFile `
-        -Source (Join-Path $engineRoot "Project\Externals\WinPixEventRuntime\bin\x64\WinPixEventRuntime.dll") `
-        -DestinationName "WinPixEventRuntime.dll"))
-}
-
 $manifest = [ordered]@{
     schemaVersion = 1
     configuration = $Configuration
     files = @($deployedFiles)
 }
 $manifestPath = Join-Path $resolvedTargetDirectory "nem.runtime-dependencies.json"
+if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+    $previousManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($previousManifest.schemaVersion -eq 1) {
+        $targetPrefix = $resolvedTargetDirectory.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+        foreach ($relative in $previousManifest.files) {
+            if ($deployedFiles.Contains($relative)) { continue }
+            $obsoletePath = [IO.Path]::GetFullPath((Join-Path $resolvedTargetDirectory $relative))
+            if ([IO.Path]::IsPathRooted($relative) -or
+                -not $obsoletePath.StartsWith($targetPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "依存一覧のパスが配置先の外を指しています: $relative"
+            }
+            if (Test-Path -LiteralPath $obsoletePath -PathType Leaf) {
+                Remove-Item -LiteralPath $obsoletePath -Force
+            }
+            $parent = [IO.Path]::GetDirectoryName($obsoletePath)
+            while ($parent.StartsWith($targetPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+                (Test-Path -LiteralPath $parent -PathType Container)) {
+                if (Get-ChildItem -LiteralPath $parent -Force | Select-Object -First 1) { break }
+                Remove-Item -LiteralPath $parent -Force
+                $parent = [IO.Path]::GetDirectoryName($parent)
+            }
+        }
+    }
+}
 $manifestJson = $manifest | ConvertTo-Json -Depth 4
 [System.IO.File]::WriteAllText(
     $manifestPath,
