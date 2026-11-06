@@ -186,6 +186,7 @@ nlohmann::json Engine::EditorRenderBenchmark::CaptureAntialiasingState() const {
 			{"ambientOcclusionDebug", application_->editorManager_.GetEditorState().gbufferDebugView == GBufferDebugView::AmbientOcclusion},
 			{"antialiasing", EnumAdapter<AntialiasingMethod>::ToString(preferences.antialiasing)},
 			{"renderWidth", view.width}, {"renderHeight", view.height},
+			{"referenceWidth", view.GetReferenceWidth()}, {"referenceHeight", view.GetReferenceHeight()},
 			{"outputWidth", view.width}, {"outputHeight", view.height}});
 	}
 	return result;

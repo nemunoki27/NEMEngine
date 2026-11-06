@@ -113,6 +113,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	composedVariant.pipelineType = geometryVariant->pipelineType;
 	composedVariant.topologyType = geometryVariant->topologyType;
 	composedVariant.requiresMeshShader = geometryVariant->requiresMeshShader;
+	if (shaderOverrideAssetID || !FindShaderStage(*stateShader, ShaderStage::PS)) {
+		composedVariant.disableNormalBlending = false;
+	}
 
 	GraphicsPipelineDesc desc{};
 	if (!BuildGraphicsPipelineDesc(composedVariant, composedShader,
@@ -233,6 +236,10 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		if (!BuildGraphicsPipelineDesc(*variant, *shaderAsset, runtimeRTVFormats,
 			runtimeDSVFormat, samplerOverrides, desc)) {
 			return restoreFallback();
+		}
+		// 差し替えたシェーダーでは不透明出力を保証できない
+		if (shaderOverrideAssetID) {
+			desc.disableNormalBlending = false;
 		}
 		// 次元で深度挙動を変える描画用に、深度テスト+書き込みを強制する
 		// 3DテキストをMeshと同じく前後遮蔽させたいが、2Dと同じパイプラインを使うためここで上書きする

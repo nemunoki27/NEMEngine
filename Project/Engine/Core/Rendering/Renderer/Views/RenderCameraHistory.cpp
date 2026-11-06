@@ -28,6 +28,7 @@ Engine::Matrix4x4 Engine::RenderCameraHistory::Update(
 	State& state = states_[key];
 	if (state.width != 0 && state.frameSerial == frameSerial) return state.previous;
 	const bool reset = state.width != view.width || state.height != view.height ||
+		state.referenceWidth != view.GetReferenceWidth() || state.referenceHeight != view.GetReferenceHeight() ||
 		state.projectionMode != camera->projectionMode || state.frameSerial + 1 < frameSerial;
 	if (reset || state.frameSerial != frameSerial) {
 		// 初回と条件変更時は現在の行列から履歴を始める
@@ -36,6 +37,8 @@ Engine::Matrix4x4 Engine::RenderCameraHistory::Update(
 		state.frameSerial = frameSerial;
 		state.width = view.width;
 		state.height = view.height;
+		state.referenceWidth = view.GetReferenceWidth();
+		state.referenceHeight = view.GetReferenceHeight();
 		state.projectionMode = camera->projectionMode;
 	}
 	return state.previous;

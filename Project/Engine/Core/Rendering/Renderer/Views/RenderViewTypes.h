@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <string>
 
@@ -122,6 +123,9 @@ namespace Engine {
 		// 描画範囲
 		uint32_t width = 0;
 		uint32_t height = 0;
+		// カメラと画面座標の基準サイズ、0なら描画範囲を使う
+		uint32_t referenceWidth = 0;
+		uint32_t referenceHeight = 0;
 		float aspectRatio = 1.0f;
 		// 出力先内の描画範囲
 		uint32_t outputX = 0;
@@ -139,6 +143,11 @@ namespace Engine {
 		ResolvedCameraView perspective{};
 		ResolvedCameraView screen{};
 
+		uint32_t GetReferenceWidth() const { return referenceWidth ? referenceWidth : width; }
+		uint32_t GetReferenceHeight() const { return referenceHeight ? referenceHeight : height; }
+
+		// 基準座標のピクセルを描画先のピクセルへ変換する倍率
+		Vector2 GetReferenceToRenderScale() const;
 		// Cameraと出力先から履歴の識別子を作る
 		std::string GetHistoryKey() const;
 		// 出力Cameraと投影Cameraの描画対象を合わせる

@@ -12,6 +12,8 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticlePaintReceiverComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <cmath>
@@ -34,16 +36,21 @@ namespace {
 		}
 	}
 
+	bool IsBoundedColor(const Engine::Color4& color, float limit, bool unitAlpha) {
+
+		for (const float channel : {color.r, color.g, color.b, color.a}) {
+			if (!std::isfinite(channel) || std::abs(channel) > limit) return false;
+		}
+		return !unitAlpha || (color.a >= 0.0f && color.a <= 1.0f);
+	}
+
 	bool IsBounded(Engine::GraphicsCore& graphics, const Engine::AssetDatabase* database,
-		const Engine::MaterialParameterSet& values) {
+		const Engine::MaterialParameterSet& values, bool unitAlpha = false) {
 
 		using namespace Engine;
 		if (const auto* value = values.Find(MaterialParameterIDs::BaseColor)) {
 			const auto* color = std::get_if<Color4>(&value->value);
-			if (!color) return false;
-			for (const float channel : {color->r, color->g, color->b, color->a}) {
-				if (!std::isfinite(channel) || std::abs(channel) > 16.0f) return false;
-			}
+			if (!color || !IsBoundedColor(*color, 16.0f, unitAlpha)) return false;
 		}
 		if (const auto* value = values.Find(MaterialParameterIDs::BaseColorTexture)) {
 			const auto* id = std::get_if<AssetID>(&value->value);
@@ -57,6 +64,20 @@ namespace {
 		}
 		return true;
 	}
+}
+
+bool Engine::RenderColorPrecisionPolicy::HasBoundedPrimitiveColors(const PrimitiveRendererComponent& renderer) {
+
+	if (IsPrimitiveScreen2D(renderer) || renderer.blendMode != BlendMode::Normal) return false;
+	if (const auto* value = renderer.materialInstance.Find(MaterialParameterIDs::BaseColor)) {
+		const auto* color = std::get_if<Color4>(&value->value);
+		if (!color || !IsBoundedColor(*color, 16.0f, true)) return false;
+	}
+	if (renderer.type != PrimitiveType::Cylinder) return true;
+	// 補間される頂点色を単位範囲に制限してMaterial色の上限を保つ
+	return IsBoundedColor(renderer.cylinder.topColor, 1.0f, true) &&
+		IsBoundedColor(renderer.cylinder.centerColor, 1.0f, true) &&
+		IsBoundedColor(renderer.cylinder.bottomColor, 1.0f, true);
 }
 
 DXGI_FORMAT Engine::RenderColorPrecisionPolicy::Resolve(GraphicsCore& graphics, RenderAssetLibrary& assets,
@@ -74,10 +95,13 @@ DXGI_FORMAT Engine::RenderColorPrecisionPolicy::Resolve(GraphicsCore& graphics, 
 	lifetime_ = lifetime;
 	key_ = key;
 	format_ = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	// デカールは任意の色を書けるため広い範囲を維持する
-	bool hasDecals = false;
-	if (world) world->ForEach<DecalProjectorComponent>([&](const Entity&, const auto&) { hasDecals = true; });
-	if (hasDecals) return format_;
+	// デカールと描き込みは任意の色を書けるため広い範囲を維持する
+	bool hasUnboundedColor = false;
+	if (world) {
+		world->ForEach<DecalProjectorComponent>([&](const Entity&, const auto&) { hasUnboundedColor = true; });
+		world->ForEach<ParticlePaintReceiverComponent>([&](const Entity&, const auto&) { hasUnboundedColor = true; });
+	}
+	if (hasUnboundedColor) return format_;
 	if (!database) return format_;
 	MaterialResolver resolver;
 	// RTとTextureとして使えるDeviceだけ省メモリ形式を選ぶ
@@ -87,10 +111,17 @@ DXGI_FORMAT Engine::RenderColorPrecisionPolicy::Resolve(GraphicsCore& graphics, 
 		(support.Support1 & required) != required) return format_;
 	for (const auto& item : batch.GetItems()) {
 		if (item.renderPhase != RenderPhase::Opaque) continue;
-		// 形状固有の頂点色や独自BackendはFP32へ戻す
-		if (item.backendID != RenderBackendID::Mesh) return format_;
-		const auto* material = assets.LoadMaterial(resolver.ResolveORDefault(*database, item.material, DefaultMaterialSlot::Mesh));
-		if (!material || !MaterialRenderPolicy::IsStandardSurface(*material) || !IsBounded(graphics, database, material->parameters)) return format_;
+		const bool primitive = item.backendID == RenderBackendID::Primitive;
+		if (item.backendID != RenderBackendID::Mesh && !primitive) return format_;
+		const auto slot = primitive ? DefaultMaterialSlot::Primitive : DefaultMaterialSlot::Mesh;
+		const auto* material = assets.LoadMaterial(resolver.ResolveORDefault(*database, item.material, slot));
+		if (!material || !MaterialRenderPolicy::IsStandardSurface(*material) ||
+			!IsBounded(graphics, database, material->parameters, primitive)) return format_;
+		if (primitive) {
+			const auto* payload = batch.GetPayload<PrimitiveRenderPayload>(item);
+			if (item.blendMode != BlendMode::Normal || !payload || !payload->renderer || !HasBoundedPrimitiveColors(*payload->renderer) ||
+				!IsBounded(graphics, database, payload->renderer->materialInstance, true)) return format_;
+		}
 		if (item.backendID == RenderBackendID::Mesh && item.world) {
 			for (const auto& subMesh : GetMeshSubMeshes(*item.world, item.entity)) {
 				if (!IsBounded(graphics, database, subMesh.materialInstance)) return format_;

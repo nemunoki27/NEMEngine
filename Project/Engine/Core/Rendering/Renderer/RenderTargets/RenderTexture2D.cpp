@@ -146,6 +146,10 @@ void Engine::RenderTexture2D::Destroy() {
 
 			srvDescriptor_->Retire(uavIndex_, {});
 		}
+		if (grayscaleSRVIndex_ != UINT32_MAX) {
+
+			srvDescriptor_->Retire(grayscaleSRVIndex_, {});
+		}
 	}
 
 	if (resource_) {
@@ -153,15 +157,31 @@ void Engine::RenderTexture2D::Destroy() {
 	}
 	renderTarget_ = RenderTarget{};
 	srvGPUHandle_ = {};
+	grayscaleSRVGPUHandle_ = {};
 	uavGPUHandle_ = {};
 	currentState_ = D3D12_RESOURCE_STATE_COMMON;
 	format_ = DXGI_FORMAT_UNKNOWN;
 	hasUAV_ = false;
 	rtvIndex_ = UINT32_MAX;
 	srvIndex_ = UINT32_MAX;
+	grayscaleSRVIndex_ = UINT32_MAX;
 	uavIndex_ = UINT32_MAX;
 	rtvDescriptor_ = nullptr;
 	srvDescriptor_ = nullptr;
+}
+
+const D3D12_GPU_DESCRIPTOR_HANDLE& Engine::RenderTexture2D::GetGrayscaleSRVGPUHandle() {
+
+	if (!resource_ || grayscaleSRVIndex_ != UINT32_MAX) return grayscaleSRVGPUHandle_;
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+	desc.Format = format_;
+	desc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(0, 0, 0,
+		D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_1);
+	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipLevels = 1;
+	srvDescriptor_->CreateSRV(grayscaleSRVIndex_, resource_.Get(), desc);
+	grayscaleSRVGPUHandle_ = srvDescriptor_->GetGPUHandle(grayscaleSRVIndex_);
+	return grayscaleSRVGPUHandle_;
 }
 
 void Engine::RenderTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_STATES newState) {
@@ -221,12 +241,14 @@ void Engine::RenderTexture2D::Swap(RenderTexture2D& other) noexcept {
 	std::swap(renderTarget_, other.renderTarget_);
 	std::swap(resource_, other.resource_);
 	std::swap(srvGPUHandle_, other.srvGPUHandle_);
+	std::swap(grayscaleSRVGPUHandle_, other.grayscaleSRVGPUHandle_);
 	std::swap(uavGPUHandle_, other.uavGPUHandle_);
 	std::swap(currentState_, other.currentState_);
 	std::swap(format_, other.format_);
 	std::swap(hasUAV_, other.hasUAV_);
 	std::swap(rtvIndex_, other.rtvIndex_);
 	std::swap(srvIndex_, other.srvIndex_);
+	std::swap(grayscaleSRVIndex_, other.grayscaleSRVIndex_);
 	std::swap(uavIndex_, other.uavIndex_);
 }
 

@@ -5,9 +5,13 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 // c++
 #include <variant>
+#include <cmath>
+#include <tuple>
 
 //============================================================================
 //	MeshDrawPathCommon internal
@@ -53,6 +57,80 @@ namespace {
 //============================================================================
 //	MeshDrawPathCommon classMethods
 //============================================================================
+bool Engine::MeshDrawPathCommon::HasUnclippedDepth(const MaterialParameterSet& defaults,
+	const MaterialParameterSet& overrides) {
+
+	const auto resolve = [&](MaterialParameterID id, MaterialParameterSemantic semantic,
+		std::string_view name) -> const MaterialParameterValue* {
+		if (const auto* value = MaterialParameterLookup::Find(overrides, id, semantic, name, &defaults)) {
+			return value;
+		}
+		return MaterialParameterLookup::Find(defaults, id, semantic, name);
+	};
+	const auto unassigned = [](const MaterialParameterValue* value) {
+		if (!value) return true;
+		const auto* asset = std::get_if<AssetID>(&value->value);
+		return asset && !*asset;
+	};
+	// 未ロードやErrorTextureを未割当の白として扱わない
+	if (!unassigned(resolve(MaterialParameterIDs::BaseColorTexture, MaterialParameterSemantic::BaseColorTexture,
+		MaterialParameterNames::BaseColorTexture)) ||
+		!unassigned(resolve(MaterialParameterIDs::OpacityTexture, MaterialParameterSemantic::OpacityTexture,
+			MaterialParameterNames::OpacityTexture))) {
+		return false;
+	}
+	const auto* color = resolve(MaterialParameterIDs::BaseColor, MaterialParameterSemantic::BaseColor,
+		MaterialParameterNames::BaseColor);
+	if (!color) return false;
+	float alpha = 0.0f;
+	if (const auto* value = std::get_if<Color4>(&color->value)) {
+		alpha = value->a;
+	} else if (const auto* vector = std::get_if<Vector4>(&color->value)) {
+		alpha = vector->w;
+	} else {
+		return false;
+	}
+	float cutoff = 0.0f;
+	if (const auto* clip = resolve(MaterialParameterIDs::AlphaClip, MaterialParameterSemantic::AlphaClip,
+		MaterialParameterNames::AlphaClip)) {
+		const auto* value = std::get_if<float>(&clip->value);
+		if (!value) return false;
+		cutoff = *value;
+	}
+	return std::isfinite(alpha) && std::isfinite(cutoff) && alpha >= cutoff;
+}
+
+bool Engine::MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(const PipelineVariantDesc& source,
+	const PipelineVariantDesc& depth) {
+
+	const auto rasterizerState = [](const D3D12_RASTERIZER_DESC& value) {
+		return std::tie(value.FillMode, value.CullMode, value.FrontCounterClockwise, value.DepthBias,
+			value.DepthBiasClamp, value.SlopeScaledDepthBias, value.DepthClipEnable, value.MultisampleEnable,
+			value.AntialiasedLineEnable, value.ForcedSampleCount, value.ConservativeRaster);
+	};
+	const auto stencilFace = [](const D3D12_DEPTH_STENCILOP_DESC& value) {
+		return std::tie(value.StencilFailOp, value.StencilDepthFailOp, value.StencilPassOp, value.StencilFunc);
+	};
+	const auto depthState = [](const D3D12_DEPTH_STENCIL_DESC& value) {
+		return std::tie(value.DepthEnable, value.DepthWriteMask, value.DepthFunc, value.StencilEnable,
+			value.StencilReadMask, value.StencilWriteMask);
+	};
+	return source.shader == BuiltinAssets::Shaders::DefaultMeshPBRDepth &&
+		depth.shader == BuiltinAssets::Shaders::DefaultMeshZPrepass &&
+		depth.kind == source.kind && depth.pipelineType == source.pipelineType &&
+		depth.requiresMeshShader == source.requiresMeshShader &&
+		depth.requiresInlineRayTracing == source.requiresInlineRayTracing &&
+		depth.requiresDispatchRays == source.requiresDispatchRays &&
+		depth.topologyType == source.topologyType && depth.numRenderTargets == 0 && source.numRenderTargets == 0 &&
+		depth.rtvFormats == source.rtvFormats && depth.dsvFormat == source.dsvFormat &&
+		depth.dynamicRenderTargetFormats == source.dynamicRenderTargetFormats &&
+		rasterizerState(depth.rasterizer) == rasterizerState(source.rasterizer) &&
+		depthState(depth.depthStencil) == depthState(source.depthStencil) &&
+		stencilFace(depth.depthStencil.FrontFace) == stencilFace(source.depthStencil.FrontFace) &&
+		stencilFace(depth.depthStencil.BackFace) == stencilFace(source.depthStencil.BackFace) &&
+		depth.sampleDesc.Count == source.sampleDesc.Count && depth.sampleDesc.Quality == source.sampleDesc.Quality;
+}
+
 void Engine::MeshDrawPathCommon::BuildSubMeshRenderGroups(
 	const MeshRendererComponent& renderer,
 	std::span<const SubMeshMaterial> subMeshes,

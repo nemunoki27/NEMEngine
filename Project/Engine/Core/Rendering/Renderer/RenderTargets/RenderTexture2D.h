@@ -77,6 +77,8 @@ namespace Engine {
 
 		// GPUディスクリプタハンドルの取得
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const { return srvGPUHandle_; }
+		// 赤成分を白黒表示するSRVを必要時だけ作る
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetGrayscaleSRVGPUHandle();
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetUAVGPUHandle() const { return uavGPUHandle_; }
 		uint32_t GetSRVIndex() const { return srvIndex_; }
 
@@ -100,6 +102,7 @@ namespace Engine {
 
 		// GPUディスクリプタハンドル
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle_{};
+		D3D12_GPU_DESCRIPTOR_HANDLE grayscaleSRVGPUHandle_{};
 		D3D12_GPU_DESCRIPTOR_HANDLE uavGPUHandle_{};
 
 		// 現在のリソース状態
@@ -112,6 +115,7 @@ namespace Engine {
 		// デスクリプタヒープのインデックス
 		uint32_t rtvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
+		uint32_t grayscaleSRVIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
 		// 既存の読み取り状態を再利用できるか判定する
 		bool NeedsTransition(D3D12_RESOURCE_STATES newState) const;

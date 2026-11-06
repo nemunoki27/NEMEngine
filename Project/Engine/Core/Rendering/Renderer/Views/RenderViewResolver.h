@@ -11,6 +11,7 @@
 
 // c++
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace Engine {
@@ -33,6 +34,12 @@ namespace Engine {
 		// Game Viewへ出力する各CameraのViewを確定する
 		static std::vector<ResolvedRenderView> ResolveGameCameraViews(
 			const RenderViewRequest& request, ECSWorld& world);
+		// RenderTextureはAssetの指定サイズを画面座標と描画の両方に使う
+		static void ResolveRenderTextureOutput(ResolvedRenderView& view, ECSWorld& world,
+			uint32_t width, uint32_t height);
+		// 出力画素を最後に描いたCameraと、そのCamera内の画素座標を取得する
+		static const ResolvedRenderView* FindOutputViewAtPixel(std::span<const ResolvedRenderView> views,
+			const Vector2& inputPixel, Vector2& viewPixel);
 	private:
 		//============================================================================
 		//	private Methods

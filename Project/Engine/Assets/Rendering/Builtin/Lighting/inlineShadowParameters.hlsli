@@ -1,6 +1,8 @@
 #ifndef NEM_INLINE_SHADOW_PARAMETERS_HLSLI
 #define NEM_INLINE_SHADOW_PARAMETERS_HLSLI
 
+static const float kMinimumShadowFilterRadius = 1.5f;
+
 cbuffer InlineShadowParameters : register(b3) {
 
 	uint2 shadowSize;
@@ -59,6 +61,16 @@ uint EncodeShadowValue(float2 value) {
 float2 DecodeShadowValue(uint value) {
 
 	return float2(float(value & 65535u) / 65535.0f, float(value >> 16u));
+}
+
+float GetPackedShadowRadius(uint value) {
+
+	return float(value >> 21u) / 16.0f;
+}
+
+float GetPackedShadowCount(uint value) {
+
+	return float((value >> 16u) & 31u);
 }
 
 #endif

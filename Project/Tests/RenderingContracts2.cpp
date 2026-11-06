@@ -10,11 +10,17 @@
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Text/TextBatchResources.h>
+#include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineRenderer.h>
 #include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
+#include <Engine/Core/Rendering/Pipelines/PipelineDescriptionBuilder.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
@@ -94,6 +100,34 @@ namespace NEMTests {
 
 	bool TestScreenSpaceOutlineSerialization() {
 
+		using namespace Engine;
+		ResolvedRenderView view{};
+		view.width = 1280;
+		view.height = 720;
+		view.screen.valid = true;
+		ScreenSpaceOutlineStyle style{};
+		style.widthPixels = 2.5f;
+		style.color.a = 0.8f;
+		const auto native = ScreenSpaceOutlineRenderer::BuildStyleForView(style, view.GetReferenceToRenderScale());
+		if (native.widthPixels != 2.5f || native.color.a != 0.8f) return false;
+		const auto nativeText = TextBatchResources::BuildViewConstants(view, RenderCameraDomain::Screen);
+		if (nativeText.referenceToRenderScale.x != 1.0f || nativeText.referenceToRenderScale.y != 1.0f) return false;
+		view.referenceWidth = 1280;
+		view.referenceHeight = 720;
+		view.width = 640;
+		view.height = 360;
+		const auto reduced = ScreenSpaceOutlineRenderer::BuildStyleForView(style, view.GetReferenceToRenderScale());
+		if (reduced.widthPixels != 1.0f || reduced.color.a != 0.8f) return false;
+		// 元の1px線は消さず、縮小後の被覆率を透明度へ反映する
+		style.widthPixels = 1.0f;
+		const auto subpixel = ScreenSpaceOutlineRenderer::BuildStyleForView(style, view.GetReferenceToRenderScale());
+		if (subpixel.widthPixels != 1.0f || subpixel.color.a != 0.4f) return false;
+		style.widthPixels = 0.5f;
+		if (ScreenSpaceOutlineRenderer::BuildStyleForView(style, view.GetReferenceToRenderScale()).widthPixels != 0.0f) return false;
+		const auto reducedText = TextBatchResources::BuildViewConstants(view, RenderCameraDomain::Screen);
+		if (reducedText.referenceToRenderScale.x != 0.5f || reducedText.referenceToRenderScale.y != 0.5f ||
+			std::memcmp(nativeText.viewProjection.m, reducedText.viewProjection.m, sizeof(nativeText.viewProjection.m)) != 0) return false;
+
 		Engine::ScreenSpaceOutlineComponent source{};
 		source.alphaSource =
 			Engine::ScreenSpaceOutlineAlphaSource::TextureColor;
@@ -116,6 +150,20 @@ namespace NEMTests {
 	}
 
 	bool TestTextureImportSettings() {
+
+		// 一覧の論理パスとモデルの絶対パスは同じ縮小画像を使用する
+		const std::string previewPath = "GameAssets/Textures/Preview.png";
+		const auto fullPreviewPath = Engine::RuntimePaths::ResolveAssetPath(previewPath);
+		const auto preview = Engine::RuntimeTextureResolver::MakeThumbnailRequest(previewPath, nullptr);
+		const auto absolutePreview = Engine::RuntimeTextureResolver::MakeThumbnailRequest(
+			Engine::Algorithm::PathToUTF8(fullPreviewPath), nullptr);
+		if (preview.key != absolutePreview.key || preview.assetPath != absolutePreview.assetPath ||
+			!preview.key.starts_with("editor:project:thumbnail:") || preview.key.find(":texture:") != std::string::npos ||
+			preview.previewMaxDimension != 256 || preview.importSettings.generateMipmaps ||
+			preview.requestedColorSpace != Engine::TextureColorSpace::SRGB ||
+			preview.key == Engine::RuntimeTextureResolver::MakeThumbnailKey("GameAssets/Textures/Other.png")) {
+			return false;
+		}
 
 		const Engine::TextureImportSettings color =
 			Engine::MakeTextureImportSettings(Engine::TextureImportPreset::Color);
@@ -369,6 +417,52 @@ namespace NEMTests {
 				desc.BlendOpAlpha != D3D12_BLEND_OP_ADD) {
 
 				return false;
+			}
+			D3D12_RENDER_TARGET_BLEND_DESC opaqueDesc{};
+			Engine::BlendState{}.Create(expected.mode, opaqueDesc, true);
+			if (opaqueDesc.BlendEnable != (expected.mode != Engine::BlendMode::Normal) ||
+				opaqueDesc.SrcBlend != desc.SrcBlend || opaqueDesc.DestBlend != desc.DestBlend ||
+				opaqueDesc.BlendOp != desc.BlendOp || opaqueDesc.SrcBlendAlpha != desc.SrcBlendAlpha ||
+				opaqueDesc.DestBlendAlpha != desc.DestBlendAlpha || opaqueDesc.BlendOpAlpha != desc.BlendOpAlpha ||
+				opaqueDesc.RenderTargetWriteMask != D3D12_COLOR_WRITE_ENABLE_ALL) {
+
+				return false;
+			}
+		}
+		Engine::RenderPipelineAsset pipeline;
+		const nlohmann::json source = {{"variants", nlohmann::json::array({{
+			{"kind", "GraphicsVertex"}, {"shader", "4e454d41535345545cea6ee9e474022f"},
+		}})}};
+		if (!Engine::FromJson(source, pipeline) || pipeline.variants.size() != 1 ||
+			pipeline.variants.front().disableNormalBlending) {
+			return false;
+		}
+		pipeline.variants.front().disableNormalBlending = true;
+		Engine::RenderPipelineAsset restored;
+		if (!Engine::FromJson(Engine::ToJson(pipeline), restored) || restored.variants.size() != 1 ||
+			!restored.variants.front().disableNormalBlending) {
+			return false;
+		}
+		Engine::ShaderAsset shader;
+		for (Engine::ShaderStage stage : {Engine::ShaderStage::VS, Engine::ShaderStage::GS,
+			Engine::ShaderStage::MS, Engine::ShaderStage::PS}) {
+			Engine::ShaderStageEntry entry;
+			entry.stage = stage;
+			entry.file = "BlendStateTest.hlsl";
+			shader.stages.emplace_back(std::move(entry));
+		}
+		for (Engine::PipelineType type : {Engine::PipelineType::Vertex, Engine::PipelineType::Geometry,
+			Engine::PipelineType::Mesh}) {
+			for (bool disableNormalBlending : {false, true}) {
+				Engine::PipelineVariantDesc variant = restored.variants.front();
+				variant.pipelineType = type;
+				variant.disableNormalBlending = disableNormalBlending;
+				Engine::GraphicsPipelineDesc desc;
+				constexpr std::array formats = {DXGI_FORMAT_R16G16B16A16_FLOAT};
+				if (!Engine::PipelineDescriptionBuilder::BuildGraphicsPipelineDesc(variant, shader, formats,
+					DXGI_FORMAT_D32_FLOAT, nullptr, desc) || desc.disableNormalBlending != disableNormalBlending) {
+					return false;
+				}
 			}
 		}
 		return true;

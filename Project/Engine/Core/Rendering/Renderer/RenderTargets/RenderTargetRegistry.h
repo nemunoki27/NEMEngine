@@ -67,6 +67,8 @@ namespace Engine {
 
 		// フレーム開始処理
 		void BeginFrame();
+		// 使用判定後に不要な描画先を回収する
+		void EndFrame();
 
 		// クリア
 		void Clear();

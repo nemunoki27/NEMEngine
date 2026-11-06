@@ -61,6 +61,14 @@ using namespace Engine;
 //	RenderPipelineRunner classMethods
 //============================================================================
 
+const ResolvedRenderView* RenderPipelineRunner::FindPickingView(RenderViewKind kind,
+	const Vector2& inputPixel, Vector2& viewPixel) const {
+
+	const auto views = kind == RenderViewKind::Game && !gameCameraViews_.empty() ?
+		std::span<const ResolvedRenderView>(gameCameraViews_) : std::span<const ResolvedRenderView>(&GetResolvedView(kind), 1);
+	return RenderViewResolver::FindOutputViewAtPixel(views, inputPixel, viewPixel);
+}
+
 bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	RenderViewKind kind, const Vector2& inputPixel,
 	MultiRenderTarget& target, std::optional<Dimension> dimensionFilter) {
@@ -70,24 +78,9 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const ResolvedRenderView* selectedView = &GetResolvedView(kind);
-	Vector2 viewPixel = inputPixel;
-	if (kind == RenderViewKind::Game) {
-		for (auto it = gameCameraViews_.rbegin(); it != gameCameraViews_.rend(); ++it) {
-			const ResolvedRenderView& candidate = *it;
-			if (!candidate.valid || candidate.targetTexture ||
-				inputPixel.x < static_cast<float>(candidate.outputX) ||
-				inputPixel.y < static_cast<float>(candidate.outputY) ||
-				static_cast<float>(candidate.outputX + candidate.outputWidth) <= inputPixel.x ||
-				static_cast<float>(candidate.outputY + candidate.outputHeight) <= inputPixel.y) {
-				continue;
-			}
-			selectedView = &candidate;
-			viewPixel.x -= static_cast<float>(candidate.outputX);
-			viewPixel.y -= static_cast<float>(candidate.outputY);
-			break;
-		}
-	}
+	Vector2 viewPixel;
+	const ResolvedRenderView* selectedView = FindPickingView(kind, inputPixel, viewPixel);
+	if (!selectedView) return false;
 	const ResolvedRenderView& view = *selectedView;
 	const ResolvedCameraView* camera =
 		view.FindCamera(RenderCameraDomain::Perspective);

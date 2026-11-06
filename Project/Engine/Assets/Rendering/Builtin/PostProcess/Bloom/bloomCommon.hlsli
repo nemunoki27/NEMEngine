@@ -16,6 +16,7 @@ cbuffer PostProcessParameters : register(b1) {
 	float intensity;
 	float scatter;
 	float4 tint;
+	float2 bloomReferenceSize;
 };
 Texture2D<float4> gSourceColor : register(t0);
 SamplerState gBloomSampler : register(s0);

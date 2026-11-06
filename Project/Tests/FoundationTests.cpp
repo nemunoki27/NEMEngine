@@ -366,17 +366,34 @@ namespace {
 			entries[0].type == Engine::LogType::GameLogic && entries[1].type == Engine::LogType::Engine &&
 			entries[2].message == "fourth" && entries[0].sequence < entries[1].sequence &&
 			entries[1].sequence < entries[2].sequence && Engine::Logger::GetRecentLogs(Engine::LogType::Engine).size() == 1;
+		uint64_t logRevision = 0;
+		std::vector<Engine::Logger::LogEntry> snapshot;
+		bool snapshotValid = Engine::Logger::RefreshRecentLogs(logRevision, snapshot) && snapshot.size() == 3;
+		if (snapshotValid) {
+			// 変更がない場合はConsole側の表示文字列を上書きしない
+			snapshot.front().message = "formatted";
+			snapshotValid = !Engine::Logger::RefreshRecentLogs(logRevision, snapshot) && snapshot.front().message == "formatted";
+		}
 		Engine::Logger::SetRecentLogLimit(1);
 		const auto reduced = Engine::Logger::GetRecentLogs();
 		const bool trimmed = reduced.size() == 1 && reduced[0].message == "fourth";
+		snapshotValid = snapshotValid && Engine::Logger::RefreshRecentLogs(logRevision, snapshot) &&
+			snapshot.size() == 1 && snapshot.front().message == "fourth";
 		Engine::Logger::SetRecentLogLimit(previousLimit);
 		Engine::Logger::BlankLine(Engine::LogType::Engine);
+		Engine::Logger::Finalize();
+		snapshotValid = snapshotValid && Engine::Logger::RefreshRecentLogs(logRevision, snapshot) && snapshot.empty();
+		// Loggerの再初期化でsequenceが戻っても表示を更新する
+		Engine::Logger::CreateLogFiles(root / "Logs");
+		Engine::Logger::Output(Engine::LogType::Engine, "restarted");
+		snapshotValid = snapshotValid && Engine::Logger::RefreshRecentLogs(logRevision, snapshot) &&
+			snapshot.size() == 1 && snapshot.front().message == "restarted";
 		Engine::Logger::Finalize();
 		Engine::Logger::Output(Engine::LogType::Engine, "after shutdown");
 		const bool stopped = !Engine::Logger::Get(Engine::LogType::Engine);
 		// 借用中だったLoggerを解放してからfixtureを片付ける
 		logger.reset();
-		return stopped && combined && trimmed;
+		return stopped && combined && trimmed && snapshotValid;
 	}
 
 	// descriptor探索とURI変換をglobal状態の更新なしで検証する

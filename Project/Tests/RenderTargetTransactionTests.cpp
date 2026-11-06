@@ -6,6 +6,9 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/AntialiasingPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
@@ -134,6 +137,14 @@ namespace {
 		registry.BeginFrame();
 		valid &= registry.Find(desc.name) == nullptr && registry.ResizeTransient(context, desc, 8, 4) == replacement &&
 			registry.Find(desc.name) == replacement;
+		// 同じ実寸法と形式なら別名やサイズ指定方式で資源を作り直さない
+		desc.sizeMode = Engine::SceneRenderTargetSizeMode::Fixed;
+		desc.fixedWidth = 8;
+		desc.fixedHeight = 4;
+		desc.colors.front().name = "RenamedColor";
+		valid &= registry.ResizeTransient(context, desc, 16, 8) == replacement &&
+			registry.FindColorByName("RenamedColor") == replacement->GetColorTexture(0) &&
+			registry.FindColorByName("ReplacementColor") == nullptr;
 		registry.Clear();
 		fixture.Drain();
 		return valid && fixture.IsEmpty();
@@ -157,11 +168,20 @@ namespace {
 			Engine::GraphicsFrameState::BeginFrame(0);
 			registry.BeginFrame();
 			valid &= registry.ResizeTransient(context, active, 4, 4) != nullptr;
+			registry.EndFrame();
 		}
 		fixture.Drain();
 		valid &= fixture.targets.GetUseDescriptorCount() == 1 && fixture.shaders.GetUseDescriptorCount() == 1 &&
 			registry.FindColorByName("StaleColor") == nullptr &&
 			registry.FindColorByName("ActiveColor") != nullptr;
+		// 長期間非表示だったViewも再使用の判定を済ませてから回収する
+		auto* resumed = registry.Find(active.name);
+		for (uint64_t frame = 0; frame <= Engine::kGraphicsResourceReuseFrames; ++frame) {
+			Engine::GraphicsFrameState::BeginFrame(0);
+		}
+		registry.BeginFrame();
+		valid &= registry.ResizeTransient(context, active, 4, 4) == resumed;
+		registry.EndFrame();
 		registry.Clear();
 		fixture.Drain();
 		return valid && fixture.IsEmpty();
@@ -173,9 +193,30 @@ namespace {
 		Engine::RenderTargetCreationContext context{device, fixture.targets, fixture.depths, fixture.shaders};
 		Engine::RenderPathResources resources;
 		resources.Resize(context, 4, 4);
-		// Outlineを使用するまで描画先を確保しない
+		// 必要になるまでScene入力とOutlineの描画先を確保しない
 		bool valid = resources.IsValid() && !resources.GetRuntimeScreenSpaceOutline().IsValid() &&
-			!resources.GetEditorSelectionScreenSpaceOutline().IsValid();
+			!resources.GetEditorSelectionScreenSpaceOutline().IsValid() &&
+			!resources.GetSceneColorOpaque() && !resources.GetDepthPyramid().IsValid();
+		resources.Resize(context, 4, 4);
+		valid &= !resources.GetSceneColorOpaque() && !resources.GetDepthPyramid().IsValid();
+		{
+			DescriptorOccupancy occupied(fixture.targets, 0);
+			bool rejected = false;
+			try {
+				resources.PrepareSceneColorOpaque(context);
+			} catch (const std::length_error&) {
+				rejected = true;
+			}
+			valid &= rejected && resources.IsValid() && !resources.GetSceneColorOpaque();
+		}
+		fixture.Drain();
+		auto* opaque = resources.PrepareSceneColorOpaque(context);
+		resources.PrepareDepthPyramid(context);
+		valid &= opaque && opaque->IsValid() && resources.GetDepthPyramid().IsValid();
+		const auto descriptors = fixture.shaders.GetUseDescriptorCount();
+		valid &= resources.PrepareSceneColorOpaque(context) == opaque;
+		resources.PrepareDepthPyramid(context);
+		valid &= fixture.shaders.GetUseDescriptorCount() == descriptors;
 		resources.PrepareScreenSpaceOutline(context, false);
 		resources.PrepareScreenSpaceOutline(context, true);
 		const auto original = CaptureResources(resources);
@@ -198,6 +239,13 @@ namespace {
 		// サイズも旧値のままなら同じ指定で再生成しない
 		resources.Resize(context, 4, 4);
 		valid &= CaptureResources(resources) == original;
+		// 色精度だけの変更で深度や履歴用の描画先を再生成しない
+		resources.Resize(context, 4, 4, DXGI_FORMAT_R16G16B16A16_FLOAT);
+		const auto precisionChanged = CaptureResources(resources);
+		valid &= precisionChanged[0] != original[0];
+		for (size_t index = 1; index < original.size(); ++index) {
+			valid &= precisionChanged[index] == original[index];
+		}
 		resources.Resize(context, 8, 4);
 		valid &= resources.IsValid() && CaptureResources(resources) != original &&
 			resources.GetSceneMain()->GetWidth() == 8 && resources.GetSceneFinal()->GetWidth() == 8 &&
@@ -207,10 +255,68 @@ namespace {
 		fixture.Drain();
 		return valid && fixture.IsEmpty();
 	}
+
+	bool CheckAntialiasingTargets(ID3D12Device* device) {
+
+		using namespace Engine;
+		TargetCreationFixture fixture(device);
+		GraphicsFeaturePreferences preferences;
+		preferences.antialiasing = AntialiasingMethod::FXAA;
+		SceneExecutionContext context;
+		RenderTargetRegistry registry;
+		context.targetRegistry = &registry;
+		if (context.antialiasingSource || AntialiasingPass::CanRenderToView(preferences, context)) return false;
+		bool valid = true;
+		for (DXGI_FORMAT format : {DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT_R8G8B8A8_UNORM}) {
+			D3D12_FEATURE_DATA_FORMAT_SUPPORT support{format};
+			if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support)))) return false;
+			for (bool createUAV : {false, true}) {
+				if (createUAV && ((support.Support1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) == 0 ||
+					(support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE) == 0)) continue;
+				MultiRenderTarget surface;
+				MultiRenderTargetCreateDesc desc;
+				desc.width = 17;
+				desc.height = 13;
+				desc.colors.push_back({.name = "View", .format = format, .createUAV = createUAV});
+				surface.Create(device, &fixture.targets, &fixture.depths, &fixture.shaders, desc);
+				context.defaultSurface = &surface;
+				registry.Register("View", &surface, {"View"}, std::nullopt);
+				const bool supported = createUAV && format != DXGI_FORMAT_R8G8B8A8_UNORM;
+				valid &= AntialiasingPass::CanRenderToView(preferences, context) == supported;
+				context.useViewportRect = true;
+				context.viewportX = 3;
+				context.viewportY = 2;
+				context.viewportWidth = 7;
+				context.viewportHeight = 5;
+				valid &= AntialiasingPass::CanRenderToView(preferences, context) == supported;
+				preferences.antialiasing = AntialiasingMethod::None;
+				valid &= !AntialiasingPass::CanRenderToView(preferences, context);
+				preferences.antialiasing = AntialiasingMethod::FXAA;
+				preferences.fxaa.strength = 0.0f;
+				valid &= !AntialiasingPass::CanRenderToView(preferences, context);
+				preferences.fxaa.strength = 1.0f;
+				preferences.fxaa.subpixelStrength = 0.0f;
+				valid &= !AntialiasingPass::CanRenderToView(preferences, context);
+				preferences.fxaa.subpixelStrength = 1.0f;
+				// 次のCameraが描画できなくても古い入力を持ち越さない
+				context.antialiasingSource = &surface;
+				RenderPipelineDeps deps;
+				GraphicsCore graphics;
+				BlitToViewPass(deps).Execute(graphics, {}, context);
+				valid &= context.antialiasingSource == nullptr;
+				context.useViewportRect = false;
+				registry.Clear();
+				valid &= !AntialiasingPass::CanRenderToView(preferences, context);
+			}
+		}
+		fixture.Drain();
+		return valid && fixture.IsEmpty();
+	}
 }
 
 bool NEMTests::CheckRenderTargetTransactions(ID3D12Device* device) {
 
 	return CheckRegistryReplacement(device) && CheckRegistryEviction(device) &&
-		CheckRenderPathReplacement(device);
+		CheckRenderPathReplacement(device) && CheckAntialiasingTargets(device);
 }

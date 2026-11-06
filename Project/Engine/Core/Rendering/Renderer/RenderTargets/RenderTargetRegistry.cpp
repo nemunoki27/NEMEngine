@@ -61,13 +61,13 @@ namespace {
 			return false;
 		}
 		for (size_t i = 0; i < lhs.size(); ++i) {
-			if (lhs[i].name != rhs[i].name) {
-				return false;
-			}
 			if (lhs[i].format != rhs[i].format) {
 				return false;
 			}
 			if (lhs[i].createUAV != rhs[i].createUAV) {
+				return false;
+			}
+			if (lhs[i].clearColor.value_or(Engine::Color4::Black()) != rhs[i].clearColor.value_or(Engine::Color4::Black())) {
 				return false;
 			}
 		}
@@ -137,6 +137,10 @@ void Engine::RenderTargetRegistry::BeginFrame() {
 	entries_.clear();
 	aliasTable_.clear();
 	colorAliases_.clear();
+}
+
+void Engine::RenderTargetRegistry::EndFrame() {
+
 	// 使用されなくなった一時描画先を描画Fenceの回収へ渡す
 	const uint64_t frame = GraphicsFrameState::GetFrameSerial();
 	for (auto it = transients_.begin(); it != transients_.end();) {
@@ -342,11 +346,6 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::PublishTransient(const 
 		// サイズや構成が変わっていたら再生成する
 		needsCreate = (found->second.resolvedWidth != createDesc.width) ||
 			(found->second.resolvedHeight != createDesc.height) ||
-			(oldDesc.sizeMode != desc.sizeMode) ||
-			(oldDesc.widthScale != desc.widthScale) ||
-			(oldDesc.heightScale != desc.heightScale) ||
-			(oldDesc.fixedWidth != desc.fixedWidth) ||
-			(oldDesc.fixedHeight != desc.fixedHeight) ||
 			(oldDesc.withDepth != desc.withDepth) ||
 			(!AreSameColorAttachmentDescs(oldDesc.colors, desc.colors));
 	}

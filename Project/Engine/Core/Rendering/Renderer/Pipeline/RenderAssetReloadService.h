@@ -38,8 +38,8 @@ namespace Engine {
 		bool ReloadMaterialDependencies(AssetDatabase& assetDatabase,
 			AssetID materialAssetID);
 		void ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID);
-		// Materialの描画設定を抽出結果へ反映する
-		void ApplyMaterialRenderStates(RenderSceneBatch& renderBatch);
+		// Materialの描画設定を反映し、ソートキーの変更を返す
+		bool ApplyMaterialRenderStates(RenderSceneBatch& renderBatch);
 		// 描画状態のcacheを破棄する
 		void ClearRenderStates();
 	private:

@@ -1,0 +1,10 @@
+{
+  "name": "ReflectionCompositeInPlacePipeline",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d41535345549ef313c263b8d692"
+    }
+  ]
+}

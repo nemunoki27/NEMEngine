@@ -137,6 +137,7 @@ void RenderPipelineRunner::Finalize() {
 	primitiveBackend_ = nullptr;
 	particleBackend_ = nullptr;
 	previewResources_.previewMeshBackend_ = nullptr;
+	previewResources_.previewBackendFrameStarted_ = false;
 	extractorRegistry_.Clear();
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();

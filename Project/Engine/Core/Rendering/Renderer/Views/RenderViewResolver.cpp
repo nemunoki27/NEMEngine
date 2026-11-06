@@ -8,6 +8,9 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
+// c++
+#include <cmath>
+
 using namespace Engine::CameraViewProjection;
 using namespace Engine::CameraViewSelection;
 
@@ -23,21 +26,29 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::Resolve(
 	view.kind = request.kind;
 	view.width = request.width;
 	view.height = request.height;
+	view.referenceWidth = request.GetReferenceWidth();
+	view.referenceHeight = request.GetReferenceHeight();
 	// 無効なビューや0サイズのビューではカメラ行列と描画リソースを構築しない
 	if (!request.enabled || request.width == 0 || request.height == 0) {
 		return view;
 	}
-	view.aspectRatio = static_cast<float>(request.width) / static_cast<float>(request.height);
+	const uint32_t referenceWidth = view.referenceWidth;
+	const uint32_t referenceHeight = view.referenceHeight;
 	// 描画ビューの情報を確定させる
 	switch (request.sourceKind) {
 	case RenderViewSourceKind::WorldCamera:
 
-		return ResolveWorldCameraView(request.kind, world, request.width, request.height,
+		view = ResolveWorldCameraView(request.kind, world, referenceWidth, referenceHeight,
 			request.preferredOrthographicCameraUUID, request.preferredPerspectiveCameraUUID);
+		break;
 	case RenderViewSourceKind::ManualCamera:
 
-		return BuildFromManualCamera(request.kind, request.manualCamera, request.width, request.height);
+		view = BuildFromManualCamera(request.kind, request.manualCamera, referenceWidth, referenceHeight);
+		break;
 	}
+	// 行列と画面座標は維持し、Rasterの範囲だけを実際の出力サイズへ合わせる
+	view.width = view.outputWidth = request.width;
+	view.height = view.outputHeight = request.height;
 	return view;
 }
 
@@ -49,10 +60,12 @@ std::vector<Engine::ResolvedRenderView> Engine::RenderViewResolver::ResolveGameC
 		return {};
 	}
 
+	const uint32_t referenceWidth = request.GetReferenceWidth();
+	const uint32_t referenceHeight = request.GetReferenceHeight();
 	const ResolvedCameraView orthographic = ResolveBestOrthographicCamera(
-		world, request.width, request.height);
+		world, referenceWidth, referenceHeight);
 	const std::vector<ResolvedPerspectiveCameraOutput> outputs =
-		ResolvePerspectiveCameraOutputs(world, request.width, request.height);
+		ResolvePerspectiveCameraOutputs(world, referenceWidth, referenceHeight);
 	std::vector<ResolvedRenderView> views{};
 	views.reserve(outputs.size());
 	for (const ResolvedPerspectiveCameraOutput& output : outputs) {
@@ -76,10 +89,18 @@ std::vector<Engine::ResolvedRenderView> Engine::RenderViewResolver::ResolveGameC
 		view.outputHeight = (std::min)(view.outputHeight, request.height - (std::min)(view.outputY, request.height - 1));
 		view.width = view.outputWidth;
 		view.height = view.outputHeight;
-		view.aspectRatio = static_cast<float>(view.width) / static_cast<float>(view.height);
+		const uint32_t referenceX = (std::min)(referenceWidth - 1, static_cast<uint32_t>(
+			std::round(static_cast<float>(referenceWidth) * view.normalizedOutputX)));
+		const uint32_t referenceY = (std::min)(referenceHeight - 1, static_cast<uint32_t>(
+			std::round(static_cast<float>(referenceHeight) * view.normalizedOutputY)));
+		view.referenceWidth = (std::min)(referenceWidth - referenceX, (std::max)(1u, static_cast<uint32_t>(
+			std::round(static_cast<float>(referenceWidth) * view.normalizedOutputWidth))));
+		view.referenceHeight = (std::min)(referenceHeight - referenceY, (std::max)(1u, static_cast<uint32_t>(
+			std::round(static_cast<float>(referenceHeight) * view.normalizedOutputHeight))));
+		view.aspectRatio = static_cast<float>(view.referenceWidth) / static_cast<float>(view.referenceHeight);
 		view.orthographic = orthographic;
 		view.perspective = output.camera;
-		view.screen = BuildScreenCamera(view.width, view.height);
+		view.screen = BuildScreenCamera(view.referenceWidth, view.referenceHeight);
 		view.valid = true;
 		views.emplace_back(std::move(view));
 	}
@@ -95,6 +116,8 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(Re
 	view.kind = kind;
 	view.width = width;
 	view.height = height;
+	view.referenceWidth = width;
+	view.referenceHeight = height;
 	view.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 	view.outputWidth = width;
 	view.outputHeight = height;
@@ -137,6 +160,8 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::BuildFromManualCamera(
 	view.kind = kind;
 	view.width = width;
 	view.height = height;
+	view.referenceWidth = width;
+	view.referenceHeight = height;
 	view.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 	view.outputWidth = width;
 	view.outputHeight = height;
@@ -147,4 +172,69 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::BuildFromManualCamera(
 	view.screen = BuildScreenCamera(width, height);
 	view.valid = view.orthographic.valid || view.perspective.valid || view.screen.valid;
 	return view;
+}
+
+void Engine::RenderViewResolver::ResolveRenderTextureOutput(ResolvedRenderView& view, ECSWorld& world,
+	uint32_t width, uint32_t height) {
+
+	if (!width || !height) { view.valid = false; return; }
+	view.outputX = static_cast<uint32_t>(std::round(
+		static_cast<float>(width) * view.normalizedOutputX));
+	view.outputY = static_cast<uint32_t>(std::round(
+		static_cast<float>(height) * view.normalizedOutputY));
+	view.outputWidth = (std::max)(1u, static_cast<uint32_t>(std::round(
+		static_cast<float>(width) * view.normalizedOutputWidth)));
+	view.outputHeight = (std::max)(1u, static_cast<uint32_t>(std::round(
+		static_cast<float>(height) * view.normalizedOutputHeight)));
+	view.outputX = (std::min)(view.outputX, width - 1);
+	view.outputY = (std::min)(view.outputY, height - 1);
+	view.outputWidth = (std::min)(view.outputWidth, width - view.outputX);
+	view.outputHeight = (std::min)(view.outputHeight, height - view.outputY);
+	view.width = view.outputWidth;
+	view.height = view.outputHeight;
+	view.referenceWidth = view.width;
+	view.referenceHeight = view.height;
+	view.aspectRatio = static_cast<float>(view.width) / static_cast<float>(view.height);
+	TransformComponent* transform = world.TryGetComponent<TransformComponent>(
+		view.perspective.sourceCamera);
+	PerspectiveCameraComponent* camera = world.TryGetComponent<PerspectiveCameraComponent>(
+		view.perspective.sourceCamera);
+	if (transform && camera) {
+		CameraViewProjection::UpdatePerspectiveCameraMatrices(
+			*transform, *camera, view.width, view.height);
+		view.perspective = CameraViewProjection::BuildFromPerspectiveCamera(
+			view.perspective.sourceCamera, *transform, *camera);
+	}
+	TransformComponent* orthographicTransform =
+		world.TryGetComponent<TransformComponent>(
+			view.orthographic.sourceCamera);
+	OrthographicCameraComponent* orthographicCamera =
+		world.TryGetComponent<OrthographicCameraComponent>(
+			view.orthographic.sourceCamera);
+	if (orthographicTransform && orthographicCamera) {
+		CameraViewProjection::UpdateOrthographicCameraMatrices(
+			*orthographicTransform, *orthographicCamera,
+			view.width, view.height);
+		view.orthographic = CameraViewProjection::BuildFromOrthographicCamera(
+			view.orthographic.sourceCamera,
+			*orthographicTransform, *orthographicCamera);
+	}
+	view.screen = CameraViewProjection::BuildScreenCamera(view.width, view.height);
+}
+
+const Engine::ResolvedRenderView* Engine::RenderViewResolver::FindOutputViewAtPixel(
+	std::span<const ResolvedRenderView> views, const Vector2& inputPixel, Vector2& viewPixel) {
+
+	viewPixel = Vector2::AnyInit(0.0f);
+	if (!std::isfinite(inputPixel.x) || !std::isfinite(inputPixel.y)) return nullptr;
+	for (auto it = views.rbegin(); it != views.rend(); ++it) {
+		const ResolvedRenderView& view = *it;
+		if (!view.valid || view.targetTexture || view.width == 0 || view.height == 0 ||
+			inputPixel.x < static_cast<float>(view.outputX) || inputPixel.y < static_cast<float>(view.outputY) ||
+			static_cast<float>(view.outputX + view.outputWidth) <= inputPixel.x ||
+			static_cast<float>(view.outputY + view.outputHeight) <= inputPixel.y) continue;
+		viewPixel = inputPixel - Vector2(static_cast<float>(view.outputX), static_cast<float>(view.outputY));
+		return &view;
+	}
+	return nullptr;
 }

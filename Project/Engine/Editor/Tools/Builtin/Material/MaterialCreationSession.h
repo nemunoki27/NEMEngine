@@ -35,6 +35,7 @@ namespace Engine {
 
 		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
 		BlendMode blendMode = BlendMode::Normal;
+		bool disableNormalBlending = false;
 
 		// ラスタライザ
 		D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID;

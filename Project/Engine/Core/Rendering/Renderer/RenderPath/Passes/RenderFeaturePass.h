@@ -20,6 +20,7 @@ namespace Engine {
 		bool sceneColorOutput = true;
 		bool allowInlineRayTracing = false;
 		bool useConfiguredResolution = false;
+		bool allowInPlaceReflectionComposite = false;
 	};
 
 	//============================================================================
@@ -58,5 +59,6 @@ namespace Engine {
 		bool executionSucceeded_ = false;
 
 		RenderFeatureTemporalState temporalState_{};
+		std::vector<float> resolutionScales_;
 	};
 } // Engine

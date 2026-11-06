@@ -83,6 +83,7 @@ namespace Engine {
 		D3D12_DEPTH_STENCIL_DESC depthStencil{};
 		// MRTごとに異なる合成を行う固定Pass用
 		std::optional<D3D12_BLEND_DESC> blendOverride;
+		bool disableNormalBlending = false;
 		DXGI_SAMPLE_DESC sampleDesc{ 1, 0 };
 		// プリミティブトポロジーの種類
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;

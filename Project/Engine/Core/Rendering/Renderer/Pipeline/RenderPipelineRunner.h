@@ -99,6 +99,8 @@ namespace Engine {
 		ResolvedCameraView postProcessCamera{};
 		RenderTexture2D* ambientOcclusion = nullptr;
 		MultiRenderTarget* defaultSurface = nullptr;
+		// このCameraのトーンマッピング結果をFXAAへ渡す
+		MultiRenderTarget* antialiasingSource = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
@@ -122,6 +124,7 @@ namespace Engine {
 		const RaytracingViewConstantsGPU* raytracingViewConstants = nullptr;
 		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
+		bool useThumbnailTextures = false;
 		// 現在のビューに影強度が0より大きいライトが存在するか
 		bool hasShadowCastingLight = false;
 		const PerViewLightSet* viewLights = nullptr;
@@ -180,6 +183,8 @@ namespace Engine {
 		bool drawGrid3D = false;
 		// RayQueryは無効化したまま、利用可能なら本描画と同じMeshShader経路を使う
 		bool forceVertexMeshVariant = false;
+		// ProjectPanelの小さいモデル画像だけ縮小Textureを使う
+		bool useThumbnailTextures = false;
 	};
 
 	//============================================================================
@@ -262,6 +267,8 @@ namespace Engine {
 
 		// 種類に応じた描画ビューの情報の取得
 		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewState_.view : sceneViewState_.view; }
+		// 描画済みの出力画素から2DとGPUピックで使うCameraを選ぶ
+		const ResolvedRenderView* FindPickingView(RenderViewKind kind, const Vector2& inputPixel, Vector2& viewPixel) const;
 
 		//今フレームの全ライト
 		const FrameLightBatch& GetFrameLightBatch() const { return scenePreparation_.frameLightBatch_; }

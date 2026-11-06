@@ -16,18 +16,6 @@
 //============================================================================
 //	MaterialParameterBinder classMethods
 //============================================================================
-namespace {
-
-	// TextureのIDと用途と名前で値を探す
-	const Engine::MaterialParameterValue* FindTextureParameter(
-		const Engine::MaterialParameterSet& parameters,
-		const Engine::ShaderResourceBinding& resource,
-		const Engine::MaterialParameterSet* defaults = nullptr) {
-
-		return Engine::MaterialParameterLookup::Find(parameters, resource.parameterID, resource.semantic, resource.name, defaults);
-	}
-}
-
 size_t Engine::MaterialParameterBinder::CacheKeyHasher::operator()(const CacheKey& key) const noexcept {
 
 	// Pipelineと値と描画先でCacheのHashを作る
@@ -187,27 +175,7 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 			continue;
 		}
 
-		AssetID textureID{};
-		bool textureOverridden = false;
-		// 明示した空Textureも上書きとして使う
-		if (overrides) {
-			if (const MaterialParameterValue* value =
-				FindTextureParameter(*overrides, resource,
-					&material.parameters)) {
-				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
-					textureID = *id;
-					textureOverridden = true;
-				}
-			}
-		}
-		if (!textureOverridden) {
-			if (const MaterialParameterValue* value =
-				FindTextureParameter(material.parameters, resource)) {
-				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
-					textureID = *id;
-				}
-			}
-		}
+		const AssetID textureID = MaterialParameterLookup::ResolveTextureAsset(material.parameters, overrides, resource);
 		cache.textures.emplace_back(TextureBinding{
 			.rootBinding = rootBinding,
 			.textureID = textureID,
@@ -216,6 +184,32 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	}
 	cache.texturesValid = true;
 	return cache.textures;
+}
+
+uint32_t Engine::MaterialParameterBinder::GetUnassignedTextureMask(std::span<const TextureBinding> textures) {
+
+	uint32_t mask = 0;
+	uint32_t assignedMask = 0;
+	for (const auto& texture : textures) {
+		const RootBindingLocation* binding = texture.rootBinding;
+		if (!binding || binding->space != 2 || binding->bindPoint >= 32) {
+			continue;
+		}
+		const uint32_t count = binding->bindCount == 0 ? 32 - binding->bindPoint :
+			(std::min)(binding->bindCount, 32 - binding->bindPoint);
+		const uint32_t occupiedMask = count == 32 ? UINT32_MAX :
+			((1u << count) - 1u) << binding->bindPoint;
+		// 配列・不明用途・白以外の代替値が重なるregisterは省略しない
+		if (binding->kind != ShaderBindingKind::SRV || binding->rawType != D3D_SIT_TEXTURE ||
+			binding->bindCount != 1 || texture.textureID ||
+			!MaterialParameterLookup::IsTextureSemantic(texture.semantic) ||
+			texture.semantic == MaterialParameterSemantic::DisplacementTexture) {
+			assignedMask |= occupiedMask;
+		} else {
+			mask |= occupiedMask;
+		}
+	}
+	return mask & ~assignedMask;
 }
 
 void Engine::MaterialParameterBinder::SetTextureRevision(uint64_t revision, AssetID renderTextureTarget) {

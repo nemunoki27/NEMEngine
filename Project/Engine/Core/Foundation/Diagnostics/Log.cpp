@@ -80,6 +80,7 @@ void Logger::CreateLogFilesLocked(const std::filesystem::path& logDir, bool trun
 	loggers_.resize(static_cast<std::size_t>(LogType::Count));
 	recentLogs_.clear();
 	nextLogSequence_ = 0;
+	++recentLogRevision_;
 
 	for (std::size_t i = 0; i < loggers_.size(); ++i) {
 		const auto type = static_cast<LogType>(i);
@@ -142,6 +143,7 @@ void Logger::Finalize() {
 	loggers_.clear();
 	recentLogs_.clear();
 	nextLogSequence_ = 0;
+	++recentLogRevision_;
 	initialized_ = false;
 }
 
@@ -250,10 +252,24 @@ std::vector<Logger::LogEntry> Logger::GetRecentLogs() {
 	return { recentLogs_.begin(), recentLogs_.end() };
 }
 
+bool Logger::RefreshRecentLogs(uint64_t& revision, std::vector<LogEntry>& entries) {
+
+	std::scoped_lock lock(mutex_);
+	if (revision == recentLogRevision_) {
+		return false;
+	}
+	entries.assign(recentLogs_.begin(), recentLogs_.end());
+	revision = recentLogRevision_;
+	return true;
+}
+
 void Logger::SetRecentLogLimit(std::size_t limit) {
 
 	std::scoped_lock lock(mutex_);
 	recentLogLimit_ = limit == 0 ? 1 : limit;
+	if (recentLogLimit_ < recentLogs_.size()) {
+		++recentLogRevision_;
+	}
 	while (recentLogLimit_ < recentLogs_.size()) {
 		recentLogs_.pop_front();
 	}
@@ -270,6 +286,7 @@ void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std:
 	std::scoped_lock lock(mutex_);
 	if (!initialized_ || static_cast<std::size_t>(type) >= static_cast<std::size_t>(LogType::Count)) return;
 	recentLogs_.push_back(LogEntry{ level, std::move(message), type, nextLogSequence_++ });
+	++recentLogRevision_;
 	while (recentLogLimit_ < recentLogs_.size()) {
 		recentLogs_.pop_front();
 	}

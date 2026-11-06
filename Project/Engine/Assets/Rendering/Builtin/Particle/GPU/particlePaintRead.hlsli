@@ -18,13 +18,15 @@ cbuffer ParticlePaintSceneConstants : register(b2, space4) {
 };
 
 uint FindParticlePaintReceiver(uint2 entity) {
+	if (gParticlePaintReceiverCount == 0u) return 0xffffffffu;
 	uint low = 0, high = gParticlePaintReceiverCount;
 	while (low < high) {
 		uint middle = low + (high - low) / 2;
 		if (gParticlePaintReceivers[middle].entity.x < entity.x) low = middle + 1;
 		else high = middle;
 	}
-	return low < gParticlePaintReceiverCount && all(gParticlePaintReceivers[low].entity == entity) ? low : 0xffffffffu;
+	if (low >= gParticlePaintReceiverCount) return 0xffffffffu;
+	return all(gParticlePaintReceivers[low].entity == entity) ? low : 0xffffffffu;
 }
 
 // UVが重なる面は同じ実行時Textureを共有する

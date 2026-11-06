@@ -15,6 +15,7 @@ namespace Engine {
 	class AssetDatabase;
 	class ECSWorld;
 	class GraphicsCore;
+	struct PrimitiveRendererComponent;
 	//============================================================================
 	//	RenderColorPrecisionPolicy class
 	//	内部Albedoの範囲を確認して保存形式を選ぶ
@@ -28,6 +29,8 @@ namespace Engine {
 		// 同じScene入力の形式判定を再利用する
 		DXGI_FORMAT Resolve(GraphicsCore& graphics, RenderAssetLibrary& assets,
 			const RenderSceneBatch& batch, const AssetDatabase* database, ECSWorld* world, bool allowCompact = true);
+		// 頂点色と合成方式が内部Albedoの範囲を広げないか調べる
+		static bool HasBoundedPrimitiveColors(const PrimitiveRendererComponent& renderer);
 	private:
 		//========================================================================
 		//	private Methods

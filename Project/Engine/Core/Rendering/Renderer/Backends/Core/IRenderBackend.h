@@ -64,6 +64,7 @@ namespace Engine {
 		bool occlusionDepthPyramidReady = false;
 		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
+		bool useThumbnailTextures = false;
 
 		// 現在バインド中の描画先フォーマット
 		std::array<DXGI_FORMAT, 8> rtvFormats{};

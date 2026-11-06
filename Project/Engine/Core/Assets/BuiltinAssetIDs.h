@@ -40,6 +40,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID AmbientOcclusion{ 0x4e454d4153534554ull, 0x414f000000000004ull };
 		inline constexpr AssetID AmbientOcclusionFilter{ 0x4e454d4153534554ull, 0x414f000000000014ull };
 		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7full };
+		inline constexpr AssetID ReflectionCompositeInPlace{ 0x4e454d4153534554ull, 0x9ef313c263b8d693ull };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0004ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6032ull };
@@ -73,6 +74,7 @@ namespace Engine::BuiltinAssets {
 
 		inline constexpr AssetID AutoExposure{ 0x4e454d4153534554ull, 0xae00000000000003ull };
 		inline constexpr AssetID DefaultMeshZPrepass{ 0x4e454d4153534554ull, 0xf09836087840b1d2ull };
+		inline constexpr AssetID DefaultMeshPBRDepth{ 0x4e454d4153534554ull, 0xa100000000000002ull };
 		inline constexpr AssetID DefaultMeshEditorPicking{ 0x4e454d4153534554ull, 0x8d50435034671c2cull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x966f3e8a34595313ull };
 		inline constexpr AssetID DefaultMeshMasked{ 0x4e454d4153534554ull, 0x966f3e8a34595314ull };
@@ -118,10 +120,16 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ReflectionSpatial{ 0x4e454d4153534554ull, 0x6228d203578ecde3ull };
 		inline constexpr AssetID ReflectionTemporal{ 0x4e454d4153534554ull, 0x6228d203578ecde4ull };
 		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0x6228d203578ecde5ull };
+		inline constexpr AssetID ReflectionCompositeInPlace{ 0x4e454d4153534554ull, 0x9ef313c263b8d691ull };
 	}
 
 	namespace Shaders {
 
+		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0xda1b7b9bf8074065ull };
+		inline constexpr AssetID ReflectionCompositeInPlace{ 0x4e454d4153534554ull, 0x9ef313c263b8d692ull };
+
+		inline constexpr AssetID DefaultMeshZPrepass{ 0x4e454d4153534554ull, 0x0758ab98e7671f44ull };
+		inline constexpr AssetID DefaultMeshPBRDepth{ 0x4e454d4153534554ull, 0xa100000000000001ull };
 		inline constexpr AssetID ParticleGPUImpactDecalDraw{ 0x4e454d4153534554ull, 0x7061727400000333ull };
 		inline constexpr AssetID Decal{ 0x4e454d4153534554ull, 0x444543414c000001ull };
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x8ed3590f7d583b7aull };
@@ -162,12 +170,14 @@ namespace Engine::BuiltinAssets {
 			Materials::BloomPrefilter, Materials::BloomDownsample, Materials::BloomUpsample, Materials::BloomComposite,
 			Materials::ToneMapToView, Materials::OutputTransform, Materials::RaytracingReflection,
 			Materials::ReflectionSpatial, Materials::ReflectionTemporal, Materials::ReflectionComposite,
+			Materials::ReflectionCompositeInPlace,
 			Materials::AmbientOcclusion, Materials::AmbientOcclusionFilter,
 			Materials::PostProcessMaskComposite, Materials::ScreenSpaceOutlineMask,
 			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
 			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
 			Materials::DefaultParticle, Materials::DefaultParticle2D,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
+			Pipelines::DefaultMeshZPrepass,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
 			Pipelines::ParticleGPUExtendedSimulate, Pipelines::ParticleGPUEventPrepare, Pipelines::ParticleGPUPaint, Pipelines::ParticleGPUImpactDecal,
 			Pipelines::ParticleMeshSampling, Pipelines::ParticleGPUCurlSimulate, Pipelines::InclusiveScan, Pipelines::ParticleTrail, Pipelines::ParticleTrail2D, Pipelines::ParticleGPUSimulate, Pipelines::ParticleGPUView,

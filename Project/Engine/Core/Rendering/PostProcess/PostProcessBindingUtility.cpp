@@ -105,19 +105,27 @@ namespace Engine {
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& source,
-		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader) {
+		std::vector<ComputeBindItem>& outBindItems, const MaterialAsset& material) {
+
+		const auto aliasesOutput = [&](ID3D12Resource* resource) {
+			if (!desc.allowInPlace) return false;
+			const auto* output = GetFirstColor(context.targetRegistry->Resolve(desc.dest));
+			return !resource || !output || resource == output->GetResource();
+		};
 
 		// TLASと構造化バッファは描画レジストリから解決する
 		if (binding.kind == ShaderBindingKind::AccelStruct) {
+			if (desc.allowInPlace) return false;
 			if (!context.raytracing.tlasResource) return false;
 			outBindItems.push_back({binding.name, ComputeBindValueType::AccelStruct,
 				context.raytracing.tlasResource->GetGPUVirtualAddress(), {}, binding.bindPoint, binding.space});
 			return true;
 		}
 		if (binding.rawType == D3D_SIT_STRUCTURED || binding.rawType == D3D_SIT_BYTEADDRESS) {
+			if (desc.allowInPlace) return false;
 			const auto* buffer = context.bufferRegistry.Find(binding.name);
 			if (!buffer || (!buffer->gpuAddress && !buffer->srvGPUHandle.ptr)) {
-				Logger::Output(LogType::Engine, logHeader + "BufferのBindingを解決できません binding=" + binding.name);
+				Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) + "BufferのBindingを解決できません binding=" + binding.name);
 				return false;
 			}
 			outBindItems.push_back({binding.name, ComputeBindValueType::SRV, buffer->gpuAddress,
@@ -125,24 +133,20 @@ namespace Engine {
 			return true;
 		}
 		RenderTexture2D* sourceColor = GetFirstColor(&source);
-		DepthTexture2D* sourceDepth = ResolveSourceDepth(
-			context, desc, source);
 		RenderTexture2D* texture = nullptr;
 		DepthTexture2D* depth = nullptr;
-		std::string resolvedName{};
 
 		// 名前が取れている場合は標準名を優先して解決し入力カラーまたは深度を割り当てる
 		if (binding.name == kSourceColorName) {
 			texture = sourceColor;
-			resolvedName = kSourceColorName;
 		}
 		else if (binding.name == kSourceDepthName) {
-			depth = sourceDepth;
-			resolvedName = kSourceDepthName;
+			depth = ResolveSourceDepth(context, desc, source);
 		}
 		else if (!binding.name.empty()) {
 			// 先行Passが公開したTextureも同じViewから参照する
 			if (const auto* buffer = context.bufferRegistry.Find(binding.name); buffer && buffer->srvGPUHandle.ptr) {
+				if (desc.allowInPlace) return false;
 				outBindItems.push_back({binding.name, ComputeBindValueType::SRV, 0, buffer->srvGPUHandle,
 					binding.bindPoint, binding.space});
 				return true;
@@ -163,10 +167,8 @@ namespace Engine {
 				const std::string graphSourceName(graphSource);
 				if (RenderTexture2D* color = context.targetRegistry->FindColorByName(graphSourceName)) {
 					texture = color;
-					resolvedName = binding.name;
 				} else if (DepthTexture2D* foundDepth = context.targetRegistry->FindDepthByName(graphSourceName)) {
 					depth = foundDepth;
-					resolvedName = binding.name;
 				}
 			}
 			// 標準名以外はdesc.extraSourcesでの追加のパス入力指定を確認
@@ -175,13 +177,10 @@ namespace Engine {
 				// GBufferの色名→特定アタッチメント、深度名→深度、エイリアス→color0 の順で解決する
 				if (RenderTexture2D* color = context.targetRegistry->FindColorByName(found->second)) {
 					texture = color;
-					resolvedName = binding.name;
 				} else if (DepthTexture2D* foundDepth = context.targetRegistry->FindDepthByName(found->second)) {
 					depth = foundDepth;
-					resolvedName = binding.name;
 				} else if (MultiRenderTarget* extra = ResolveExtraSource(context, found->second)) {
 					texture = GetFirstColor(extra);
-					resolvedName = binding.name;
 				}
 			}
 		}
@@ -190,17 +189,16 @@ namespace Engine {
 		if (!texture && !depth && binding.name.empty()) {
 			if (binding.bindPoint == 0 && binding.space == 0) {
 				texture = sourceColor;
-				resolvedName = kSourceColorName;
 			}
 			else if (binding.bindPoint == 1 && binding.space == 0) {
-				depth = sourceDepth;
-				resolvedName = kSourceDepthName;
+				depth = ResolveSourceDepth(context, desc, source);
 			}
 		}
 
 		auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 		// カラーテクスチャのバインドで適切なリソース状態へ遷移させる
 		if (texture) {
+			if (aliasesOutput(texture->GetResource())) return false;
 			texture->Transition(*dxCommand,
 				static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
@@ -212,6 +210,7 @@ namespace Engine {
 		}
 		// 深度テクスチャのバインド
 		if (depth) {
+			if (aliasesOutput(depth->GetResource())) return false;
 			depth->Transition(*dxCommand,
 				static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
@@ -229,6 +228,7 @@ namespace Engine {
 				const GPUTextureResource* gpuTex =
 					RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, found->second);
 				if (gpuTex && gpuTex->valid) {
+					if (aliasesOutput(gpuTex->resource.Get())) return false;
 					outBindItems.push_back({ std::string_view(binding.name),
 						ComputeBindValueType::SRV, 0, gpuTex->gpuHandle,
 						binding.bindPoint, binding.space });
@@ -242,21 +242,22 @@ namespace Engine {
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
 		if (isSourceReserved) {
-			Logger::Output(LogType::Engine, logHeader + "SRVのBindingを解決できません binding=" +
+			Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) + "SRVのBindingを解決できません binding=" +
 				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
 			return false;
 		}
 
 		// 任意のテクスチャバインディングが未設定の場合は、黒画面やエラーを防ぐため白テクスチャを割り当て
 		const GPUTextureResource* white = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
+		if (white && aliasesOutput(white->resource.Get())) return false;
 		if (!white || !white->valid) {
-			Logger::Output(LogType::Engine, logHeader +
+			Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) +
 				"SRVのBindingを解決できず白Textureも利用できません binding=" +
 				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
 			return false;
 		}
 
-		Logger::Output(LogType::Engine, logHeader + "Texture '" +
+		Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) + "Texture '" +
 			(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name) +
 			"'が未設定のためDefaultWhiteを使用します");
 		outBindItems.push_back({ binding.name.empty() ? std::string_view{} : std::string_view(binding.name),
@@ -268,7 +269,7 @@ namespace Engine {
 	bool AppendUAVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& dest,
-		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader) {
+		std::vector<ComputeBindItem>& outBindItems, const MaterialAsset& material) {
 
 		RenderTexture2D* destColor = nullptr;
 		if (!binding.name.empty()) {
@@ -289,12 +290,12 @@ namespace Engine {
 			destColor = GetFirstColor(&dest);
 		}
 		if (!destColor) {
-			Logger::Output(LogType::Engine, logHeader + "出力先Colorがありません");
+			Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) + "出力先Colorがありません");
 			return false;
 		}
 		// コンピュート書き込みにはUAVデスクリプタが必須
 		if (destColor->GetUAVGPUHandle().ptr == 0) {
-			Logger::Output(LogType::Engine, logHeader + "出力先ColorにUAV Descriptorがありません");
+			Logger::Output(LogType::Engine, MakePostProcessLogHeader(material, desc) + "出力先ColorにUAV Descriptorがありません");
 			return false;
 		}
 

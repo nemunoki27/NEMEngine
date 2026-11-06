@@ -308,8 +308,9 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 	}
 }
 
-void RenderAssetReloadService::ApplyMaterialRenderStates(RenderSceneBatch& renderBatch) {
+bool RenderAssetReloadService::ApplyMaterialRenderStates(RenderSceneBatch& renderBatch) {
 
+	bool sortChanged = false;
 	for (RenderItem& item : renderBatch.GetMutableItems()) {
 
 		if (!item.material) {
@@ -328,6 +329,8 @@ void RenderAssetReloadService::ApplyMaterialRenderStates(RenderSceneBatch& rende
 		}
 
 		// 既定MaterialはRenderer設定を保ち、状態を所有するMaterialだけを適用する
+		const RenderPhase previousPhase = item.renderPhase;
+		const BlendMode previousBlendMode = item.blendMode;
 		const MaterialRenderState& state = found->second;
 		if (state.overridesRenderer) {
 			if (!item.surfaceModeOverridden) {
@@ -341,7 +344,9 @@ void RenderAssetReloadService::ApplyMaterialRenderStates(RenderSceneBatch& rende
 			item.surfaceMode, item.renderPhase);
 		item.blendMode = ResolveMaterialBlendMode(
 			item.surfaceMode, item.blendMode);
+		sortChanged |= previousPhase != item.renderPhase || previousBlendMode != item.blendMode;
 	}
+	return sortChanged;
 }
 
 void RenderAssetReloadService::ClearRenderStates() {

@@ -293,6 +293,25 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 	if (!outPrepared.pipelineState) {
 		return false;
 	}
+	// 標準PBRでAlphaClipが必ず通る場合だけ位置専用の既存深度パスを使う
+	if (context.passKind == MaterialPassKind::ZPrepass &&
+		outPrepared.items.front()->surfaceMode == MaterialSurfaceMode::Opaque &&
+		resolvedPass.materialID == BuiltinAssets::Materials::DefaultMesh &&
+		resolvedPass.pass->pipeline == BuiltinAssets::Pipelines::DefaultMeshPBRDepth &&
+		!resolvedPass.pass->shaderOverride && !resolvedPass.material->shaderGraph &&
+		!resolvedPass.material->renderState.overridesRenderer &&
+		outPrepared.resources->HasUnclippedDepth(*resolvedPass.material)) {
+		MaterialPassBinding depthPass = *resolvedPass.pass;
+		depthPass.pipeline = BuiltinAssets::Pipelines::DefaultMeshZPrepass;
+		const PipelineVariantDesc* depthVariant = nullptr;
+		const PipelineState* depthPipeline = BackendDrawCommon::ResolveGraphicsPipeline(context, depthPass, &depthVariant);
+		// 描画状態を編集したPipelineや生成失敗は元の経路を維持する
+		if (depthPipeline && depthVariant && outPrepared.variant &&
+			MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(*outPrepared.variant, *depthVariant)) {
+			outPrepared.pipelineState = depthPipeline;
+			outPrepared.variant = depthVariant;
+		}
+	}
 	// MaterialParameters cbufferへ詰めるため解決済みマテリアルを保持する
 	outPrepared.material = resolvedPass.material;
 	if (context.passKind == MaterialPassKind::Outline ||

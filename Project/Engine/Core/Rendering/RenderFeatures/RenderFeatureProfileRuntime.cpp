@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureProfileValidation.h"
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -250,9 +251,25 @@ Engine::RenderFeatureExecutionPlan Engine::RenderFeatureProfileRuntime::BuildPla
 			return plan;
 		}
 	}
+	std::unordered_map<uint64_t, size_t> nodeIndices;
+	nodeIndices.reserve(plan.nodes.size());
 	for (size_t index = 0; index < plan.nodes.size(); ++index) {
 
 		RenderFeaturePlanNode& node = plan.nodes[index];
+		node.profileName = std::string(EnumAdapter<RenderViewKind>::ToStringView(viewKind)) + "/RenderFeature/" + node.pass->name;
+		node.raytracingChain = node.pass->type == RenderFeaturePassType::RayTracing;
+		const auto source = nodeIndices.find(node.source.pass.value);
+		if (source != nodeIndices.end()) {
+			node.sourceNodeIndex = source->second;
+			node.raytracingChain |= plan.nodes[source->second].raytracingChain;
+		}
+		for (const auto& [name, input] : node.pass->passInputs) {
+			const auto dependency = nodeIndices.find(input.pass.value);
+			if (dependency != nodeIndices.end()) {
+				node.raytracingChain |= plan.nodes[dependency->second].raytracingChain;
+			}
+		}
+		nodeIndices.emplace(node.pass->id.value, index);
 		if (!node.selectionGroup) {
 			continue;
 		}

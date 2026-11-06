@@ -4,6 +4,14 @@
 //============================================================================
 //	RenderViewTypes classMethods
 //============================================================================
+Engine::Vector2 Engine::ResolvedRenderView::GetReferenceToRenderScale() const {
+
+	const uint32_t sourceWidth = GetReferenceWidth();
+	const uint32_t sourceHeight = GetReferenceHeight();
+	return Vector2(sourceWidth ? static_cast<float>(width) / static_cast<float>(sourceWidth) : 0.0f,
+		sourceHeight ? static_cast<float>(height) / static_cast<float>(sourceHeight) : 0.0f);
+}
+
 const Engine::ResolvedCameraView* Engine::ResolvedRenderView::FindCamera(RenderCameraDomain domain) const {
 
 	switch (domain) {

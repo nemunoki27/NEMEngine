@@ -73,6 +73,13 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 
 	// 作成が終わるまでは旧描画先を維持する
 	MultiRenderTargetCreateDesc desc = BuildDefaultDesc(kind, width, height);
+	D3D12_FEATURE_DATA_FORMAT_SUPPORT support{desc.colors.front().format};
+	if (SUCCEEDED(graphicsCore.GetDXObject().GetDevice()->CheckFeatureSupport(
+		D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support)))) {
+		desc.colors.front().createUAV =
+			(support.Support1 & D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) != 0 &&
+			(support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE) != 0;
+	}
 
 	auto candidate = std::make_unique<MultiRenderTarget>();
 	candidate->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),

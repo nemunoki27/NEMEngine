@@ -134,10 +134,16 @@ void EditorGameBuildSession::ContinueAfterSceneSave(const EditorPanelContext& co
 
 void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) {
 
+	const Vector2I currentSize = EngineContext::GetWindowSetting().gameSize;
+	if (currentSize.x == width && currentSize.y == height) {
+		return;
+	}
 	const Vector2I maximum = WinApp::GetMaximumClientSize();
 	draft_.gameWidth = std::clamp(width, 1, (std::max)(maximum.x, 1));
 	draft_.gameHeight = std::clamp(height, 1, (std::max)(maximum.y, 1));
-	EngineContext::SetGameSize({ draft_.gameWidth, draft_.gameHeight });
+	if (currentSize.x == draft_.gameWidth && currentSize.y == draft_.gameHeight) {
+		return;
+	}
 
 	// 他の製品設定を保ったまま画像サイズだけを保存する
 	const std::filesystem::path path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild);
@@ -147,7 +153,13 @@ void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) 
 	}
 	data["gameWidth"] = draft_.gameWidth;
 	data["gameHeight"] = draft_.gameHeight;
-	JsonAdapter::Save(path, data);
+	if (!JsonAdapter::Save(path, data)) {
+		buildError_ = "ゲーム画像サイズを保存できませんでした";
+		draft_.gameWidth = currentSize.x;
+		draft_.gameHeight = currentSize.y;
+		return;
+	}
+	EngineContext::SetGameSize({ draft_.gameWidth, draft_.gameHeight });
 }
 
 bool EditorGameBuildSession::ConsumeOpenPopup() {

@@ -20,7 +20,8 @@
 Engine::CameraSurfacePass::CameraSurfacePass(const RenderPipelineDeps& deps, bool ambientOcclusion) :
 	ambientOcclusion_(ambientOcclusion), executor_(deps,
 		ambientOcclusion ? RenderFeatureAnchor::BeforeLighting : RenderFeatureAnchor::AfterLighting,
-		{.sceneColorOutput = !ambientOcclusion, .allowInlineRayTracing = ambientOcclusion, .useConfiguredResolution = true}) {
+		{.sceneColorOutput = !ambientOcclusion, .allowInlineRayTracing = ambientOcclusion, .useConfiguredResolution = true,
+			.allowInPlaceReflectionComposite = !ambientOcclusion}) {
 
 }
 

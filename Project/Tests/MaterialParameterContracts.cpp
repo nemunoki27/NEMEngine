@@ -16,7 +16,12 @@
 #include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderColorPrecisionPolicy.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -26,6 +31,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingMaterialResolver.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetMetaStorage.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCookStorage.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
@@ -46,6 +52,190 @@
 #include <utility>
 
 namespace {
+
+	bool TestUnclippedMeshDepth() {
+
+		using namespace Engine;
+		MaterialParameterSet defaults;
+		MaterialParameterSet overrides;
+		const auto eligible = [&] { return MeshDrawPathCommon::HasUnclippedDepth(defaults, overrides); };
+		if (eligible()) return false;
+		defaults.Set(MaterialParameterNames::BaseColor, MaterialParameterValue{ .value = Color4{1.0f, 1.0f, 1.0f, 1.0f} });
+		if (!eligible()) return false;
+		// 境界上はclipされず、負のAlphaや非有限値は元のPixel Shaderで処理する
+		for (const float alpha : {0.0f, 0.25f, 1.0f}) {
+			overrides.Set(MaterialParameterNames::BaseColor, MaterialParameterValue{ .value = Vector4{1.0f, 1.0f, 1.0f, alpha} });
+			overrides.Set(MaterialParameterNames::AlphaClip, MaterialParameterValue{ .value = alpha });
+			if (!eligible()) return false;
+			overrides.Set(MaterialParameterNames::AlphaClip, MaterialParameterValue{ .value = std::nextafter(alpha, 2.0f) });
+			if (eligible()) return false;
+		}
+		overrides.clear();
+		for (const float alpha : {-1.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
+			overrides.Set(MaterialParameterNames::BaseColor, MaterialParameterValue{ .value = Color4{1.0f, 1.0f, 1.0f, alpha} });
+			if (eligible()) return false;
+		}
+		overrides.clear();
+		for (const float cutoff : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
+			overrides.Set(MaterialParameterNames::AlphaClip, MaterialParameterValue{ .value = cutoff });
+			if (eligible()) return false;
+		}
+		overrides.clear();
+		// GPU未準備・存在しないIDも未割当にはしない。明示的な空の上書きだけ許可する
+		for (const auto name : {MaterialParameterNames::BaseColorTexture, MaterialParameterNames::OpacityTexture}) {
+			defaults.Set(name, MaterialParameterValue{ .value = AssetID{13, 17} });
+			if (eligible()) return false;
+			overrides.Set(name, MaterialParameterValue{ .value = AssetID{} });
+			if (!eligible()) return false;
+			overrides.Set(name, MaterialParameterValue{ .value = AssetID{19, 23} });
+			if (eligible()) return false;
+			overrides.Set(name, MaterialParameterValue{ .value = 0u });
+			if (eligible()) return false;
+			defaults.Set(name, MaterialParameterValue{ .value = AssetID{} });
+			overrides.clear();
+		}
+		// 名前を変更した標準パラメータもバッファ構築と同じ優先順で解決する
+		defaults.Set(MaterialParameterIDs::BaseColor, "Tint", MaterialParameterSemantic::BaseColor,
+			MaterialParameterValue{ .value = Color4{1.0f, 1.0f, 1.0f, 1.0f} });
+		overrides.Set("Tint", MaterialParameterValue{ .value = Color4{1.0f, 1.0f, 1.0f, -0.5f} });
+		if (eligible()) return false;
+		overrides.clear();
+		if (!eligible()) return false;
+		MeshGPUResource mesh;
+		mesh.subMeshes.resize(1);
+		mesh.subMeshes[0].hasBaseColorTexture = true;
+		if (!MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(mesh, {}, 0)) return false;
+		std::array<SubMeshMaterial, 1> subMeshes{};
+		subMeshes[0].stableID = Engine::UUID{29};
+		subMeshes[0].materialInstance.Set(MaterialParameterNames::BaseColorTexture,
+			MaterialParameterValue{ .value = AssetID{} });
+		if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(mesh, subMeshes, 0)) return false;
+		PipelineVariantDesc source;
+		source.shader = BuiltinAssets::Shaders::DefaultMeshPBRDepth;
+		source.numRenderTargets = 0;
+		PipelineVariantDesc depth = source;
+		depth.shader = BuiltinAssets::Shaders::DefaultMeshZPrepass;
+		if (!MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		const PipelineVariantDesc compatible = depth;
+		depth.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+		if (MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		depth = compatible;
+		depth.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		if (MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		depth = compatible;
+		depth.depthStencil.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+		if (MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		depth = compatible;
+		depth.shader = AssetID{37, 41};
+		if (MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		depth = compatible;
+		depth.numRenderTargets = 1;
+		if (MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(source, depth)) return false;
+		// Sceneから直接参照されない最適化用Pipelineも製品収録し、Shader依存を維持する
+		if (std::find(std::begin(BuiltinAssets::Runtime::Assets), std::end(BuiltinAssets::Runtime::Assets),
+			BuiltinAssets::Pipelines::DefaultMeshZPrepass) == std::end(BuiltinAssets::Runtime::Assets)) return false;
+		const auto root = RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Mesh");
+		AssetMeta pipelineMeta;
+		AssetMeta shaderMeta;
+		if (!AssetMetaStorage::ReadMetaFile(root / "DefaultMeshZPrepass/defaultMeshZPrepass.pipeline.json.meta", pipelineMeta) ||
+			!AssetMetaStorage::ReadMetaFile(root / "DefaultMeshZPrepass/defaultMeshZPrepass.shader.json.meta", shaderMeta) ||
+			pipelineMeta.guid != BuiltinAssets::Pipelines::DefaultMeshZPrepass ||
+			shaderMeta.guid != BuiltinAssets::Shaders::DefaultMeshZPrepass) return false;
+		RenderPipelineAsset sourceAsset;
+		RenderPipelineAsset depthAsset;
+		if (!FromJson(JsonFile::Load(root / "MeshPBR/meshPBRDepth.pipeline.json", false), sourceAsset) ||
+			!FromJson(JsonFile::Load(root / "DefaultMeshZPrepass/defaultMeshZPrepass.pipeline.json", false), depthAsset) ||
+			sourceAsset.variants.size() != depthAsset.variants.size() || depthAsset.variants.empty()) return false;
+		for (size_t index = 0; index < depthAsset.variants.size(); ++index) {
+			if (!MeshDrawPathCommon::CanUsePositionOnlyDepthPipeline(sourceAsset.variants[index], depthAsset.variants[index])) return false;
+		}
+		return true;
+	}
+
+	bool TestUnassignedMaterialTextures() {
+
+		using namespace Engine;
+		MaterialParameterSet defaults;
+		MaterialParameterSet overrides;
+		ShaderResourceBinding resource{};
+		resource.name = "baseColorTexture";
+		resource.parameterID = MaterialParameterIDs::BaseColorTexture;
+		resource.semantic = MaterialParameterSemantic::BaseColorTexture;
+		RootBindingLocation location{};
+		location.kind = ShaderBindingKind::SRV;
+		location.rawType = D3D_SIT_TEXTURE;
+		location.space = 2;
+		location.bindPoint = 0;
+		const auto resolveMask = [&] {
+			const MaterialParameterBinder::TextureBinding binding{
+				.rootBinding = &location,
+				.textureID = MaterialParameterLookup::ResolveTextureAsset(defaults, &overrides, resource),
+				.semantic = resource.semantic };
+			return MaterialParameterBinder::GetUnassignedTextureMask(std::span(&binding, 1));
+		};
+		if (resolveMask() != 1u) return false;
+		// GPU未読込・欠損も空のIDとは区別し、従来の代替画像を使う
+		defaults.Set(resource.name, MaterialParameterValue{ .value = AssetID{ 17, 19 } });
+		if (resolveMask() != 0u) return false;
+		overrides.Set(resource.name, MaterialParameterValue{ .value = AssetID{} });
+		if (resolveMask() != 1u) return false;
+		overrides.Set(resource.name, MaterialParameterValue{ .value = AssetID{ 23, 29 } });
+		if (resolveMask() != 0u) return false;
+		// 型が異なる上書きはTextureの既定値へ戻す
+		overrides.Set(resource.name, MaterialParameterValue{ .value = 0.0f });
+		if (resolveMask() != 0u) return false;
+		// ShaderGraphの公開名を、生成された変数名ではなく安定IDへ対応付ける
+		defaults = {};
+		overrides = {};
+		resource.parameterID = MaterialParameterID{ 12345 };
+		resource.semantic = MaterialParameterSemantic::None;
+		resource.name = "p_Texture_12345";
+		defaults.Set(resource.parameterID, "画像", MaterialParameterSemantic::None,
+			MaterialParameterValue{ .value = AssetID{ 17, 19 } });
+		overrides.Set("画像", MaterialParameterValue{ .value = AssetID{} });
+		if (MaterialParameterLookup::ResolveTextureAsset(defaults, &overrides, resource) || resolveMask() != 0u) return false;
+		resource.semantic = MaterialParameterSemantic::BaseColorTexture;
+		location.bindPoint = 6;
+		if (resolveMask() != (1u << 6)) return false;
+		location.space = 3;
+		if (resolveMask() != 0u) return false;
+		location.space = 2;
+		location.bindPoint = 32;
+		if (resolveMask() != 0u) return false;
+		location.bindPoint = 0;
+		location.bindCount = 0;
+		if (resolveMask() != 0u) return false;
+		location.bindCount = 1;
+		resource.semantic = MaterialParameterSemantic::DisplacementTexture;
+		if (resolveMask() != 0u) return false;
+		RootBindingLocation aliasLocation = location;
+		std::array<MaterialParameterBinder::TextureBinding, 2> aliases{
+			MaterialParameterBinder::TextureBinding{ .rootBinding = &location, .semantic = MaterialParameterSemantic::BaseColorTexture },
+			MaterialParameterBinder::TextureBinding{ .rootBinding = &aliasLocation, .textureID = AssetID{ 17, 19 },
+				.semantic = MaterialParameterSemantic::BaseColorTexture } };
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		aliases[1].textureID = {};
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 1u) return false;
+		for (const auto semantic : {MaterialParameterSemantic::None, MaterialParameterSemantic::DisplacementTexture}) {
+			aliases[1].semantic = semantic;
+			if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		}
+		aliases[1].semantic = MaterialParameterSemantic::BaseColorTexture;
+		aliasLocation.rawType = D3D_SIT_STRUCTURED;
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		aliasLocation.rawType = D3D_SIT_TEXTURE;
+		aliasLocation.bindCount = 2;
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		// 配列の先頭だけでなく途中のregisterと重なる場合も禁止する
+		location.bindPoint = 1;
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		location.bindPoint = 31;
+		aliasLocation.bindCount = 0;
+		if (MaterialParameterBinder::GetUnassignedTextureMask(aliases) != 0u) return false;
+		aliasLocation.bindPoint = 31;
+		aliasLocation.bindCount = 2;
+		return MaterialParameterBinder::GetUnassignedTextureMask(aliases) == 0u;
+	}
 
 	bool TestMaterialDocumentIsolation() {
 
@@ -123,8 +313,47 @@ namespace NEMTests {
 
 	bool TestMaterialParameters() {
 
+		if (!RunTest("TestUnclippedMeshDepth", TestUnclippedMeshDepth)) {
+			return false;
+		}
+		if (!RunTest("TestUnassignedMaterialTextures", TestUnassignedMaterialTextures)) {
+			return false;
+		}
+
 		if (!RunTest("TestMaterialDocumentIsolation", TestMaterialDocumentIsolation)) {
 			return false;
+		}
+		// 頂点色と透明度が内部Albedoの範囲を越えるPrimitiveを除外する
+		{
+			using namespace Engine;
+			PrimitiveRendererComponent primitive;
+			const auto bounded = [&] { return RenderColorPrecisionPolicy::HasBoundedPrimitiveColors(primitive); };
+			if (!bounded()) return false;
+			primitive.type = PrimitiveType::Cylinder;
+			if (!bounded()) return false;
+			for (auto* color : {&primitive.cylinder.topColor, &primitive.cylinder.centerColor, &primitive.cylinder.bottomColor}) {
+				color->r = 1.01f;
+				if (bounded()) return false;
+				*color = Color4::White();
+				color->a = -0.1f;
+				if (bounded()) return false;
+				*color = Color4::White();
+				color->b = std::numeric_limits<float>::quiet_NaN();
+				if (bounded()) return false;
+				*color = Color4::White();
+			}
+			for (const Color4 color : {Color4{16.01f, 1, 1, 1}, Color4{1, 1, 1, 1.01f}, Color4{1, 1, 1, -0.1f}}) {
+				primitive.materialInstance.Set("color", MaterialParameterValue{.value = color});
+				if (bounded()) return false;
+			}
+			primitive.materialInstance.Set("color", MaterialParameterValue{.value = Color4{16, 1, 1, 0.5f}});
+			if (!bounded()) return false;
+			primitive.blendMode = BlendMode::Add;
+			if (bounded()) return false;
+			primitive.blendMode = BlendMode::Normal;
+			primitive.type = PrimitiveType::Plane;
+			primitive.renderSpace = PrimitiveRenderSpace::Screen2D;
+			if (bounded()) return false;
 		}
 		// JSON文字列の往復でも整数の型と全値域を維持する
 		for (uint32_t number : { 0u, 1u, 2147483647u, 2147483648u, UINT32_MAX }) {

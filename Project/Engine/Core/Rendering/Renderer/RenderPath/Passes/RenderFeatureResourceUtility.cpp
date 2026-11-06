@@ -28,6 +28,10 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
 #include <algorithm>
@@ -38,6 +42,7 @@ namespace Engine::RenderFeatureResourceUtility {
 	bool RequiresSceneColorSnapshot(const SceneExecutionContext& context,
 		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps) {
 
+		if (context.particleCameraCaptureRequired) return true;
 		if (!passBuckets.Get(RenderPhase::PostProcessUI).IsEmpty() || !passBuckets.Get(RenderPhase::ScreenUI).IsEmpty()) return true;
 		if (deps.postProcessDebugInjector && deps.postProcessDebugInjector->IsEnabled()) return true;
 		if (!context.renderPassesRuntime || context.renderPassesRuntime->GetProfile().passes.empty()) return false;
@@ -47,6 +52,69 @@ namespace Engine::RenderFeatureResourceUtility {
 			if (!context.renderPassesRuntime->GetPlan(anchor, context.kind)->nodes.empty()) return true;
 		}
 		return false;
+	}
+
+	bool RequiresSceneInputResources(const SceneExecutionContext& context,
+		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps) {
+
+		if (RequiresSceneColorSnapshot(context, passBuckets, deps)) return true;
+		if (!passBuckets.Get(RenderPhase::Transparent).IsEmpty()) return true;
+		if (context.renderPassesRuntime) {
+			for (const auto anchor : {RenderFeatureAnchor::BeforeLighting, RenderFeatureAnchor::AfterLighting,
+				RenderFeatureAnchor::BeforeTransparent}) {
+				if (!context.renderPassesRuntime->GetPlan(anchor, context.kind)->nodes.empty()) return true;
+			}
+		}
+		for (const auto& bucket : passBuckets.buckets) {
+			for (const auto* item : bucket.items) {
+				if (!item) continue;
+				if ((item->backendID != RenderBackendID::Mesh && item->backendID != RenderBackendID::Primitive) ||
+					!deps.assetLibrary || !deps.materialResolver || !context.assetDatabase) return true;
+				// OutlineはSurfaceとは別の既定Materialを使うため暗黙入力を残す
+				if (item->world && item->world->IsAlive(item->entity) &&
+					item->world->HasComponent<InvertedHullOutlineComponent>(item->entity)) return true;
+				const auto materialID = deps.materialResolver->ResolveORDefault(*context.assetDatabase, item->material,
+					item->backendID == RenderBackendID::Mesh ? DefaultMaterialSlot::Mesh : DefaultMaterialSlot::Primitive);
+				const auto* material = deps.assetLibrary->LoadMaterial(materialID);
+				if (!material || !MaterialRenderPolicy::IsStandardSurface(*material)) return true;
+				for (const auto& pass : material->passes) {
+					if (pass.shaderOverride) return true;
+					if (pass.passKind == MaterialPassKind::Draw || pass.passKind == MaterialPassKind::Masked ||
+						pass.passKind == MaterialPassKind::ZPrepass || pass.passKind == MaterialPassKind::Transparent) continue;
+					if (pass.passKind == MaterialPassKind::EditorPicking &&
+						(pass.pipeline == BuiltinAssets::Pipelines::DefaultMeshEditorPicking ||
+							pass.pipeline == BuiltinAssets::Pipelines::DefaultPrimitiveEditorPicking)) continue;
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	void PrepareSceneInputs(GraphicsCore& graphicsCore, SceneExecutionContext& context,
+		const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps) {
+
+		if (!context.resources) return;
+		const bool sceneInputs = RequiresSceneInputResources(context, passBuckets, deps);
+		if (sceneInputs) context.resources->PrepareSceneColorOpaque(graphicsCore);
+		if (auto* opaque = context.resources->GetSceneColorOpaque()) {
+			if (context.targetRegistry) context.targetRegistry->Register("SceneColorOpaque", opaque,
+				{RenderTargetNames::kSceneColorOpaque}, std::nullopt);
+			if (auto* texture = opaque->GetColorTexture(0)) {
+				context.bufferRegistry.Register({.alias = ShaderGraphBindingNames::kSceneColor,
+					.resource = texture->GetResource(), .srvGPUHandle = texture->GetSRVGPUHandle()});
+			}
+		}
+		if (!context.cullingResources || !context.cullingResources->IsValid()) return;
+		if (sceneInputs || graphicsCore.GetDXObject().GetFeatureController().ShouldUseOcclusionCulling()) {
+			context.cullingResources->PrepareDepthPyramid(graphicsCore);
+		}
+		const auto& pyramid = context.cullingResources->GetDepthPyramid();
+		if (pyramid.IsValid()) {
+			context.bufferRegistry.Register({.alias = std::string(DepthPyramidTexture::kBindingName),
+				.resource = pyramid.GetResource(), .srvGPUHandle = pyramid.GetSRVGPUHandle(),
+				.elementCount = pyramid.GetMipCount()});
+		}
 	}
 
 	constexpr std::string_view kDefaultOutputName = "Color";

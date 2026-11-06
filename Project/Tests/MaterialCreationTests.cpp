@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Editor/Tools/Builtin/Material/MaterialCreationSession.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialCreationImportUtility.h>
+#include <Engine/Editor/Tools/Builtin/Material/MaterialCreationDocument.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/UI/Inspectors/Common/MaterialReflectionCache.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
@@ -194,9 +195,22 @@ bool NEMTests::TestMaterialCreationFailures() {
 		return false;
 	}
 	pipeline["variants"][0]["depthStencil"]["depthEnable"] = true;
+	pipeline["variants"][0]["disableNormalBlending"] = true;
 	if (!JsonFile::Save(pipelinePath, pipeline) ||
 		!MaterialCreationImportUtility::ReadPipelineSettings(database, pipelineID, settings) ||
-		settings.cullMode != D3D12_CULL_MODE_BACK || !settings.depthEnable) {
+		settings.cullMode != D3D12_CULL_MODE_BACK || !settings.depthEnable || !settings.disableNormalBlending) {
+		return false;
+	}
+	const nlohmann::json generatedPipeline = MaterialCreationDocument::MakePipelineJson(
+		"BlendStateTest", shaderID, true, false, 3, settings);
+	if (generatedPipeline["variants"].size() != 2 ||
+		!generatedPipeline["variants"][0].value("disableNormalBlending", false) ||
+		!generatedPipeline["variants"][1].value("disableNormalBlending", false)) {
+		return false;
+	}
+	pipeline["variants"][0].erase("disableNormalBlending");
+	if (!JsonFile::Save(pipelinePath, pipeline) ||
+		!MaterialCreationImportUtility::ReadPipelineSettings(database, pipelineID, settings) || settings.disableNormalBlending) {
 		return false;
 	}
 

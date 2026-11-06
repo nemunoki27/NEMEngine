@@ -6,6 +6,7 @@
       "pipelineType": "Vertex",
       "shader": "4e454d4153534554294ca2eac6bcabd0",
       "numRenderTargets": 1,
+      "disableNormalBlending": true,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
       "topologyType": "D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE",

@@ -39,7 +39,6 @@
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Rendering/Renderer/Views/CameraViewProjection.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -205,46 +204,7 @@ void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 					continue;
 				}
 
-				gameView.outputX = static_cast<uint32_t>(std::round(
-					static_cast<float>(asset->width) * gameView.normalizedOutputX));
-				gameView.outputY = static_cast<uint32_t>(std::round(
-					static_cast<float>(asset->height) * gameView.normalizedOutputY));
-				gameView.outputWidth = (std::max)(1u, static_cast<uint32_t>(std::round(
-					static_cast<float>(asset->width) * gameView.normalizedOutputWidth)));
-				gameView.outputHeight = (std::max)(1u, static_cast<uint32_t>(std::round(
-					static_cast<float>(asset->height) * gameView.normalizedOutputHeight)));
-				gameView.outputX = (std::min)(gameView.outputX, asset->width - 1);
-				gameView.outputY = (std::min)(gameView.outputY, asset->height - 1);
-				gameView.outputWidth = (std::min)(gameView.outputWidth, asset->width - gameView.outputX);
-				gameView.outputHeight = (std::min)(gameView.outputHeight, asset->height - gameView.outputY);
-				gameView.width = gameView.outputWidth;
-				gameView.height = gameView.outputHeight;
-				gameView.aspectRatio = static_cast<float>(gameView.width) / static_cast<float>(gameView.height);
-				TransformComponent* transform = request.world->TryGetComponent<TransformComponent>(
-					gameView.perspective.sourceCamera);
-				PerspectiveCameraComponent* camera = request.world->TryGetComponent<PerspectiveCameraComponent>(
-					gameView.perspective.sourceCamera);
-				if (transform && camera) {
-					CameraViewProjection::UpdatePerspectiveCameraMatrices(
-						*transform, *camera, gameView.width, gameView.height);
-					gameView.perspective = CameraViewProjection::BuildFromPerspectiveCamera(
-						gameView.perspective.sourceCamera, *transform, *camera);
-				}
-				TransformComponent* orthographicTransform =
-					request.world->TryGetComponent<TransformComponent>(
-						gameView.orthographic.sourceCamera);
-				OrthographicCameraComponent* orthographicCamera =
-					request.world->TryGetComponent<OrthographicCameraComponent>(
-						gameView.orthographic.sourceCamera);
-				if (orthographicTransform && orthographicCamera) {
-					CameraViewProjection::UpdateOrthographicCameraMatrices(
-						*orthographicTransform, *orthographicCamera,
-						gameView.width, gameView.height);
-					gameView.orthographic = CameraViewProjection::BuildFromOrthographicCamera(
-						gameView.orthographic.sourceCamera,
-						*orthographicTransform, *orthographicCamera);
-				}
-				gameView.screen = CameraViewProjection::BuildScreenCamera(gameView.width, gameView.height);
+				RenderViewResolver::ResolveRenderTextureOutput(gameView, *request.world, asset->width, asset->height);
 			}
 			for (auto it = gameCameraViews_.rbegin(); it != gameCameraViews_.rend(); ++it) {
 				if (it->valid && !it->targetTexture) {
@@ -418,10 +378,6 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (resources.GetSceneFinal()) {
 		registry->Register("SceneFinal", resources.GetSceneFinal(), { RenderTargetNames::kSceneColorFinal }, std::nullopt);
 	}
-	if (resources.GetSceneColorOpaque()) {
-		registry->Register("SceneColorOpaque", resources.GetSceneColorOpaque(),
-			{ RenderTargetNames::kSceneColorOpaque }, std::nullopt);
-	}
 
 	// Shader GraphのScene TextureをGraphics Pipelineの名前解決へ登録
 	const auto registerSceneTexture = [&](const char* alias,
@@ -436,10 +392,6 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 			.srvGPUHandle = handle,
 		});
 	};
-	if (RenderTexture2D* texture = resources.GetSceneColorOpaque()->GetColorTexture(0)) {
-		registerSceneTexture(ShaderGraphBindingNames::kSceneColor,
-			texture->GetResource(), texture->GetSRVGPUHandle());
-	}
 	if (DepthTexture2D* depth = resources.GetSceneMain()->GetDepthTexture()) {
 		registerSceneTexture(ShaderGraphBindingNames::kSceneDepth,
 			depth->GetResource(), depth->GetSRVGPUHandle());
@@ -456,20 +408,6 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	registerGBuffer(ShaderGraphBindingNames::kSceneMaterial, GBufferAttachment::Material);
 	registerGBuffer(ShaderGraphBindingNames::kSceneEmissive, GBufferAttachment::Emissive);
 	registerGBuffer(ShaderGraphBindingNames::kSceneFlags, GBufferAttachment::Flags);
-
-	// ZPrepassでもRoot Signatureを満たせるよう、生成前から有効なHi-Z SRVを登録する
-	if (context.cullingResources) {
-		const DepthPyramidTexture& depthPyramid =
-			context.cullingResources->GetDepthPyramid();
-		if (depthPyramid.IsValid()) {
-			RegisteredRenderBuffer entry{};
-			entry.alias = DepthPyramidTexture::kBindingName;
-			entry.resource = depthPyramid.GetResource();
-			entry.srvGPUHandle = depthPyramid.GetSRVGPUHandle();
-			entry.elementCount = depthPyramid.GetMipCount();
-			context.bufferRegistry.Register(entry);
-		}
-	}
 
 	// Camera別の転送先を登録する
 	context.hasShadowCastingLight = cameraState.lightSet.hasShadowCastingLight;

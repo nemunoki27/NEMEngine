@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "AntialiasingPass.h"
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -24,6 +25,7 @@
 void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	context.antialiasingSource = nullptr;
 	// 最終合成結果を出力先へ写すだけなのでバケットは使わない
 	if (!context.resources || !context.defaultSurface ||
 		!deps_.assetLibrary || !deps_.pipelineCache ||
@@ -57,10 +59,13 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		colorPipeline = context.postProcessCamera.colorPipeline;
 	}
 	// 露出更新は最終ビュー出力で1フレームに1回だけ行う
+	MultiRenderTarget* antialiasingInput = AntialiasingPass::PrepareToneMapTarget(graphicsCore, context, deps_);
 	if (!deps_.colorPipelineProcessor->ToneMap(graphicsCore, context,
-		source, dest, *deps_.assetLibrary, *deps_.pipelineCache,
+		source, antialiasingInput ? antialiasingInput : dest, *deps_.assetLibrary, *deps_.pipelineCache,
 		colorPipeline, true)) {
 
 		MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, dest);
+	} else {
+		context.antialiasingSource = antialiasingInput;
 	}
 }

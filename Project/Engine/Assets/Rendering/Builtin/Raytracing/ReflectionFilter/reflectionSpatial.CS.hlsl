@@ -111,6 +111,14 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		return;
 	}
 
+	float4 centerColor = gSourceColor.Load(
+		int3(dispatchThreadID.xy, 0));
+	bool centerValid = IsValidReflection(centerColor);
+	// 無効画素は反射対象外なので近傍の有効反射を拡散しない
+	if (!centerValid) {
+		gDestColor[dispatchThreadID.xy] = 0.0f.xxxx;
+		return;
+	}
 	uint2 geometrySize;
 	gSourceDepth.GetDimensions(geometrySize.x, geometrySize.y);
 	uint2 centerGeometry = MapPixelToTexture(
@@ -118,23 +126,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	float centerDepth = gSourceDepth.Load(int3(centerGeometry, 0));
 	float3 centerNormal = DecodeGBufferNormal(
 		gSourceNormal.Load(int3(centerGeometry, 0)).xyz);
-	float3 centerPosition = gSourcePosition.Load(
-		int3(centerGeometry, 0)).xyz;
-	float centerHitDistance = gReflectionHitDistance.Load(
-		int3(dispatchThreadID.xy, 0));
-	float4 centerColor = gSourceColor.Load(
-		int3(dispatchThreadID.xy, 0));
-	bool centerValid = IsValidReflection(centerColor);
 	if (0.5f < antiFirefly) {
 
 		gDestColor[dispatchThreadID.xy] = RemoveIsolatedFirefly(
 			dispatchThreadID.xy, outputSize, geometrySize,
 			centerColor, centerDepth, centerNormal);
-		return;
-	}
-	// 無効画素は反射対象外なので近傍の有効反射を拡散しない
-	if (!centerValid) {
-		gDestColor[dispatchThreadID.xy] = 0.0f.xxxx;
 		return;
 	}
 	float roughness = saturate(
@@ -145,6 +141,10 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		gDestColor[dispatchThreadID.xy] = centerColor;
 		return;
 	}
+	float3 centerPosition = gSourcePosition.Load(
+		int3(centerGeometry, 0)).xyz;
+	float centerHitDistance = gReflectionHitDistance.Load(
+		int3(dispatchThreadID.xy, 0));
 	float centerLuminance = Luminance(centerColor.rgb);
 
 	float4 accumulated = 0.0f.xxxx;
@@ -158,6 +158,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 			int2 samplePixel = clamp(
 				int2(dispatchThreadID.xy) + int2(x, y) * filterStep,
 				int2(0, 0), int2(outputSize) - 1);
+			float4 sampleColor = gSourceColor.Load(
+				int3(samplePixel, 0));
+			if (!IsValidReflection(sampleColor)) {
+				continue;
+			}
 			uint2 sampleGeometry = MapPixelToTexture(
 				uint2(samplePixel), outputSize, geometrySize);
 			float sampleDepth = gSourceDepth.Load(int3(sampleGeometry, 0));
@@ -167,11 +172,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 				int3(sampleGeometry, 0)).xyz;
 			float sampleHitDistance = gReflectionHitDistance.Load(
 				int3(samplePixel, 0));
-			float4 sampleColor = gSourceColor.Load(
-				int3(samplePixel, 0));
-			if (!IsValidReflection(sampleColor)) {
-				continue;
-			}
 			float spatialWeight = kATrousKernel[x + 2] *
 				kATrousKernel[y + 2];
 			float depthWeight = exp(-abs(sampleDepth - centerDepth) *

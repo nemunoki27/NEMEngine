@@ -35,8 +35,8 @@ Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 	}
 
 	// 整数変換前にサイズを検証する
-	auto size = RenderTargetSizing::ResolveSize(source.GetWidth(), source.GetHeight(),
-		tempDesc.widthScale, tempDesc.heightScale);
+	auto size = tempDesc.fixedSize ? RenderTargetSizing::ResolveSize(tempDesc.fixedSize->width, tempDesc.fixedSize->height) :
+		RenderTargetSizing::ResolveSize(source.GetWidth(), source.GetHeight(), tempDesc.widthScale, tempDesc.heightScale);
 	if (!size) {
 		return nullptr;
 	}

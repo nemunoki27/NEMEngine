@@ -239,6 +239,7 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPipelineAsset& outAsset)
 			variant.depthStencil = ParseDepthStencil(item.value("depthStencil", nlohmann::json::object()));
 			variant.numRenderTargets = item.value("numRenderTargets", 1u);
 			variant.dynamicRenderTargetFormats = item.value("dynamicRenderTargetFormats", false);
+			variant.disableNormalBlending = item.value("disableNormalBlending", false);
 			variant.requiresMeshShader = item.value("requiresMeshShader", false);
 			variant.requiresInlineRayTracing = item.value("requiresInlineRayTracing", false);
 			variant.requiresDispatchRays = item.value("requiresDispatchRays", false);
@@ -325,6 +326,7 @@ nlohmann::json Engine::ToJson(const RenderPipelineAsset& asset) {
 		item["numRenderTargets"] = variant.numRenderTargets;
 		item["dsvFormat"] = EnumAdapter<DXGI_FORMAT>::ToString(variant.dsvFormat);
 		item["dynamicRenderTargetFormats"] = variant.dynamicRenderTargetFormats;
+		item["disableNormalBlending"] = variant.disableNormalBlending;
 		// ラスタライザ/深度ステンシル/静的サンプラを対称に書き戻し、ステンシル設定を落とさない
 		item["rasterizer"] = WriteRasterizer(variant.rasterizer);
 		item["depthStencil"] = WriteDepthStencil(variant.depthStencil);

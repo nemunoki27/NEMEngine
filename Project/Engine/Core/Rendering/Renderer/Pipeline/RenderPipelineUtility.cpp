@@ -40,6 +40,7 @@ namespace Engine {
 		drawContext.pipelineCache = &pipelineCache;
 		drawContext.materialResolver = &materialResolver;
 		drawContext.forceVertexMeshVariant = context.forceVertexMeshVariant;
+		drawContext.useThumbnailTextures = context.useThumbnailTextures;
 
 		// GPUのランタイム機能を確認し、プレビュー用途ではレイジーな更新を避けるためRayQuery系を選ばない場合がある
 		drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();

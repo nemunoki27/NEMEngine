@@ -155,6 +155,7 @@ namespace Engine {
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
 		const EditorState& GetEditorState() const { return editorState_; }
+		void SetFitViewportResolution(bool enabled) { editorState_.fitViewportResolution = enabled; }
 		// Viewが表示されているWindowの出力設定を取得する
 		DisplayOutputSettings GetViewDisplayOutput(RenderViewKind kind) const;
 		bool IsSceneDirty(AssetID sceneAsset, UUID instanceID = {}) const;

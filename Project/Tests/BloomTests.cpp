@@ -71,6 +71,12 @@ bool NEMTests::TestBloomSettings() {
 	const auto tiny = BuildBloomLevelSizes(1, 1);
 	if (portrait.size() != 5 || portrait[0].width != 32 || portrait[4].height != 4 || tiny.size() != 1) return false;
 	if (!BuildBloomLevelSizes(0, 64).empty()) return false;
+	const auto nativeSize = ResolveBloomReferenceSize({225, 113}, {225, 113}, {768, 384});
+	const auto scaledSource = ResolveBloomReferenceSize({112, 56}, {225, 113}, {768, 384});
+	const auto fixedSize = ResolveBloomReferenceSize({129, 65}, {129, 65}, {129, 65});
+	const auto unsetSize = ResolveBloomReferenceSize({129, 65}, {129, 65}, {0, 0});
+	if (nativeSize.width != 768 || nativeSize.height != 384 || scaledSource.width != 382 || scaledSource.height != 190 ||
+		fixedSize.width != 129 || fixedSize.height != 65 || unsetSize.width != 129 || unsetSize.height != 65) return false;
 	profile.passes[0].anchor = RenderFeatureAnchor::AfterToneMap;
 	runtime.Rebuild(profile);
 	if (runtime.GetDiagnostic().empty()) return false;

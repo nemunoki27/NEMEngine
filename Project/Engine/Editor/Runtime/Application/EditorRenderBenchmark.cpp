@@ -64,6 +64,10 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 			static_cast<int32_t>(std::clamp(std::wcstoul(height, nullptr, 10), 1ul, 8192ul))));
 	}
 	application_->Init(graphicsCore);
+	// 固定解像度の比較も通常Editorと同じ描画経路で行う
+	wchar_t fixedResolution[2]{};
+	application_->editorManager_.SetFitViewportResolution(
+		!(GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_FIXED_RESOLUTION", fixedResolution, 2) == 1 && fixedResolution[0] == L'1'));
 	playGate_ = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_PLAY_GATE");
 	if (!playGate_.empty()) {
 		std::ofstream ready(playGate_.wstring() + L".ready");
@@ -111,6 +115,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 #endif
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
+		{ "fitViewportResolution", application_->editorManager_.GetEditorState().fitViewportResolution },
 		{ "graphicsFrameCount", GraphicsFrameState::GetActiveCount() },
 		{ "frameRateLimit", FrameRateSettings::GetInstance().GetPresentTargetFps() },
 		{ "freezeAnimation", freezeAnimation_ },

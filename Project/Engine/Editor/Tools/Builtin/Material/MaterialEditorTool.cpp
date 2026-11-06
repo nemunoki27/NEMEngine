@@ -188,6 +188,7 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		ImGui::SeparatorText(title);
 		ImGui::PushID(id);
 		MyGUI::EnumCombo("ブレンド", settings.blendMode);
+		MyGUI::Checkbox("通常ブレンドを無効化", settings.disableNormalBlending);
 		MyGUI::EnumCombo("塗りモード", settings.fillMode);
 		MyGUI::EnumCombo("カリング", settings.cullMode);
 		MyGUI::Checkbox("前面反時計回り", settings.frontCounterClockwise);

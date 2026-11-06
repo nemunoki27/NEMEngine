@@ -25,13 +25,13 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 			return;
 		}
 
-		std::vector<Entity> changedEntities;
+		changedEntities_.clear();
 		const bool completeChanges =
 			world.CollectRenderTransformChanges(
 				batch.GetSourceTransformRevision(),
-				changedEntities);
+				changedEntities_);
 		if (completeChanges) {
-			batch.RefreshTransforms(world, changedEntities);
+			batch.RefreshTransforms(world, changedEntities_);
 		} else {
 			// 履歴外の世代から再開した場合だけ安全側で全件更新する
 			batch.RefreshAllTransforms();

@@ -82,6 +82,7 @@ namespace Engine::MaterialCreationDocument {
 			{"shader", Engine::ToAssetReferenceJson(shaderID)},
 			{"numRenderTargets", numRenderTargets},
 			{"dynamicRenderTargetFormats", true},
+			{"disableNormalBlending", settings.disableNormalBlending},
 			{"dsvFormat", "DXGI_FORMAT_UNKNOWN"},
 			{"topologyType", topology},
 			{"rasterizer",

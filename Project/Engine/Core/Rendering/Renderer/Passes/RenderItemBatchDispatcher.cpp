@@ -36,6 +36,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	drawContext.depthOnly = depthOnly;
 	drawContext.forceTwoSidedRasterizer = sceneContext.forceTwoSidedRasterizer;
 	drawContext.forceVertexMeshVariant = sceneContext.forceVertexMeshVariant;
+	drawContext.useThumbnailTextures = sceneContext.useThumbnailTextures;
 	// ScreenSpaceOutline Mask描画のper-draw値を引き継ぐ
 	drawContext.screenSpaceOutlineMaskStyleID = sceneContext.screenSpaceOutlineMaskStyleID;
 	drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex = sceneContext.screenSpaceOutlineMaskRestrictSubMeshIndex;

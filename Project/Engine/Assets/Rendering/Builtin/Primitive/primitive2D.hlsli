@@ -15,7 +15,8 @@ cbuffer ViewConstants : register(b0) {
 	float3 cameraPosition;
 	uint frameSerial;
 	float materialPadding;
-	float3 _viewPad;
+	uint unassignedMaterialTextureMask;
+	float2 _viewPad;
 };
 
 struct PrimitiveInstance {

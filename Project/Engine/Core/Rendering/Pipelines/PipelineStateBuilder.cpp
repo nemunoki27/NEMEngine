@@ -38,7 +38,7 @@ namespace {
 	}
 	// BlendModeとMRT数からD3D12_BLEND_DESCを生成する
 	D3D12_BLEND_DESC MakeBlendDesc(ID3D12Device* device, BlendMode mode,
-		const DXGI_FORMAT* rtvFormats, UINT mrtCount) {
+		const DXGI_FORMAT* rtvFormats, UINT mrtCount, bool disableNormalBlending) {
 
 		D3D12_BLEND_DESC desc{};
 		desc.IndependentBlendEnable = (1 < mrtCount) ? TRUE : FALSE;
@@ -46,7 +46,7 @@ namespace {
 		// 指定モードでブレンド作成
 		D3D12_RENDER_TARGET_BLEND_DESC blendDesc{};
 		BlendState blendState;
-		blendState.Create(mode, blendDesc);
+		blendState.Create(mode, blendDesc, disableNormalBlending);
 		for (UINT i = 0; i < mrtCount; ++i) {
 
 			// MRTのフォーマットがブレンド可能かチェック
@@ -189,7 +189,8 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
-			pipelineDesc.BlendState = desc.blendOverride.value_or(MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets));
+			pipelineDesc.BlendState = desc.blendOverride ? *desc.blendOverride :
+				MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets, desc.disableNormalBlending);
 
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreateGraphicsPipelineState(
@@ -250,7 +251,8 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
-			pipelineDesc.BlendState = desc.blendOverride.value_or(MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets));
+			pipelineDesc.BlendState = desc.blendOverride ? *desc.blendOverride :
+				MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets, desc.disableNormalBlending);
 
 			// ストリームの生成
 			CD3DX12_PIPELINE_MESH_STATE_STREAM pipelineStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(pipelineDesc);

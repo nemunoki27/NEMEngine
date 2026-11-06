@@ -14,7 +14,6 @@
 
 // c++
 #include <array>
-#include <cmath>
 
 bool Engine::BloomExecutor::Execute(GraphicsCore& graphicsCore, SceneExecutionContext& context, const RenderPipelineDeps& deps,
 	UUID passID, const std::string& sourceAlias, const std::string& outputAlias, const BloomSettings& settings) {
@@ -28,11 +27,15 @@ bool Engine::BloomExecutor::Execute(GraphicsCore& graphicsCore, SceneExecutionCo
 	if (!deps.colorPipelineProcessor->PrepareExposure(graphicsCore, context, source, *deps.assetLibrary,
 		*deps.pipelineCache, context.postProcessCamera.colorPipeline)) return false;
 
-	const auto sizes = BuildBloomLevelSizes(source->GetWidth(), source->GetHeight());
+	RenderTargetSize referenceSize{source->GetWidth(), source->GetHeight()};
+	if (context.view) referenceSize = ResolveBloomReferenceSize(referenceSize, {context.view->width, context.view->height},
+		{context.view->GetReferenceWidth(), context.view->GetReferenceHeight()});
+	const auto sizes = BuildBloomLevelSizes(referenceSize.width, referenceSize.height);
 	const std::string prefix = "Bloom." + ToString(passID) + ".";
 	std::array<std::string, 5> down, up;
 	MaterialParameterSet parameters;
 	WriteBloomSettings(parameters, settings);
+	parameters.Set("bloomReferenceSize", {Vector2(static_cast<float>(referenceSize.width), static_cast<float>(referenceSize.height))});
 	// 実際の描画は共通のCompute実行経路へ渡す
 	const auto dispatch = [&](AssetID material, const std::string& input, const std::string& output,
 		const std::string& extra = {}) {
@@ -50,7 +53,7 @@ bool Engine::BloomExecutor::Execute(GraphicsCore& graphicsCore, SceneExecutionCo
 		PostProcessTemporaryTargetDesc desc;
 		desc.name = name;
 		desc.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		desc.widthScale = desc.heightScale = std::ldexp(1.0f, -static_cast<int>(level + 1));
+		desc.fixedSize = sizes[level];
 		return deps.postProcessTargetPool->Acquire(graphicsCore, registry, desc, *source);
 	};
 	for (size_t level = 0; level < sizes.size(); ++level) {

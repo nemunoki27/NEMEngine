@@ -107,6 +107,7 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 	desc.topologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 	desc.numRenderTargets = 1;
+	desc.disableNormalBlending = true;
 	desc.rtvFormats[0] = colorFormat;
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 

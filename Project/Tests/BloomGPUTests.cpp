@@ -34,7 +34,9 @@ namespace {
 	public:
 
 		bool Init();
-		bool Check(uint32_t width, uint32_t height, uint32_t mode);
+		bool Check(uint32_t width, uint32_t height, uint32_t mode, RenderTargetSize referenceSize = {0, 0},
+			std::vector<Pixel>* image = nullptr);
+		bool CheckResolutionScale();
 	private:
 
 		ComPtr<ID3D12Device> device_;
@@ -48,6 +50,7 @@ namespace {
 		uint32_t increment_ = 0, nextDescriptor_ = 0;
 		uint64_t signal_ = 0;
 		BloomSettings settings_;
+		RenderTargetSize referenceSize_{};
 
 		// 書込先の画像を作る
 		bool CreateTexture(TestTexture& texture, uint32_t width, uint32_t height, bool half);
@@ -67,7 +70,7 @@ namespace {
 		ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 		CD3DX12_ROOT_PARAMETER parameters[4];
 		parameters[0].InitAsConstants(4, 0);
-		parameters[1].InitAsConstants(8, 1);
+		parameters[1].InitAsConstants(12, 1);
 		parameters[2].InitAsDescriptorTable(1, &ranges[0]);
 		parameters[3].InitAsDescriptorTable(1, &ranges[1]);
 		const CD3DX12_STATIC_SAMPLER_DESC sampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -136,10 +139,11 @@ namespace {
 		device_->CreateUnorderedAccessView(output.resource.Get(), nullptr, &uav, cpu);
 		commands_->SetPipelineState(pipelines_[stage].Get());
 		const std::array<float, 4> frame{float(output.width), float(output.height), 1.0f / output.width, 1.0f / output.height};
-		const std::array<float, 8> values{settings_.threshold, settings_.softKnee, settings_.intensity, settings_.scatter,
-			settings_.tint.r, settings_.tint.g, settings_.tint.b, 1.0f};
+		const std::array<float, 12> values{settings_.threshold, settings_.softKnee, settings_.intensity, settings_.scatter,
+			settings_.tint.r, settings_.tint.g, settings_.tint.b, 1.0f,
+			static_cast<float>(referenceSize_.width), static_cast<float>(referenceSize_.height)};
 		commands_->SetComputeRoot32BitConstants(0, 4, frame.data(), 0);
-		commands_->SetComputeRoot32BitConstants(1, 8, values.data(), 0);
+		commands_->SetComputeRoot32BitConstants(1, 12, values.data(), 0);
 		commands_->SetComputeRootDescriptorTable(2,
 			CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptors_->GetGPUDescriptorHandleForHeapStart(), nextDescriptor_, increment_));
 		commands_->SetComputeRootDescriptorTable(3,
@@ -148,14 +152,17 @@ namespace {
 		commands_->Dispatch((output.width + 7) / 8, (output.height + 7) / 8, 1);
 	}
 
-	bool BloomGPUFixture::Check(uint32_t width, uint32_t height, uint32_t mode) {
+	bool BloomGPUFixture::Check(uint32_t width, uint32_t height, uint32_t mode, RenderTargetSize referenceSize, std::vector<Pixel>* image) {
 
 		settings_ = BloomSettings{};
+		referenceSize_ = referenceSize;
 		if (mode == 3) settings_.intensity = 0.0f;
 		if (mode == 4) settings_.scatter = 0.0f;
+		if (mode == 5) settings_.threshold = 0.0f;
 		TestTexture source, output;
 		if (!CreateTexture(source, width, height, false) || !CreateTexture(output, width, height, false)) return false;
-		const auto sizes = BuildBloomLevelSizes(width, height);
+		const auto bloomSize = ResolveBloomReferenceSize({width, height}, {width, height}, referenceSize);
+		const auto sizes = BuildBloomLevelSizes(bloomSize.width, bloomSize.height);
 		std::vector<TestTexture> down(sizes.size()), up(sizes.size());
 		for (size_t i = 0; i < sizes.size(); ++i) {
 			if (!CreateTexture(down[i], sizes[i].width, sizes[i].height, true) ||
@@ -163,10 +170,20 @@ namespace {
 		}
 		// 一様な面と小さい高輝度部分をそれぞれ確認する
 		std::vector<Pixel> pixels(width * height, Pixel{mode == 1 ? 4.0f : 0.2f, mode == 1 ? 4.0f : 0.2f, mode == 1 ? 4.0f : 0.2f, 0.37f});
-		if (mode >= 2) {
+		if (mode >= 2 && mode <= 4) {
 			for (uint32_t y = height / 2 - (height > 4 ? 2 : 0); y <= height / 2 + (height > 4 ? 1 : 0); ++y) {
 				for (uint32_t x = mode == 4 ? 0 : width / 2 - (width > 4 ? 2 : 0);
 					x <= (mode == 4 ? 3 : width / 2 + (width > 4 ? 1 : 0)); ++x) pixels[y * width + x] = {40, 20, 10, 0.37f};
+			}
+		}
+		if (mode == 5) {
+			for (uint32_t y = 0; y < height; ++y) {
+				for (uint32_t x = 0; x < width; ++x) {
+					const float dx = (static_cast<float>(x) + 0.5f) / width - 0.5f;
+					const float dy = (static_cast<float>(y) + 0.5f) / height - 0.5f;
+					const float light = 8.0f * std::exp(-(dx * dx + dy * dy) / (2.0f * 0.04f * 0.04f));
+					pixels[y * width + x] = {light, light * 0.5f, light * 0.25f, 0.37f};
+				}
 			}
 		}
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout{};
@@ -228,7 +245,58 @@ namespace {
 			valid &= std::abs(result[(height / 2) * width + width - 2][0] - 0.2f) < 0.0001f;
 		}
 		if (!valid) std::cerr << "Bloom output mismatch mode=" << mode << " size=" << width << "x" << height << "\n";
+		if (image) {
+			*image = result;
+			if (mode == 5) {
+				for (size_t i = 0; i < result.size(); ++i) {
+					for (size_t c = 0; c < 3; ++c) (*image)[i][c] -= pixels[i][c];
+				}
+			}
+		}
 		return valid;
+	}
+
+	bool BloomGPUFixture::CheckResolutionScale() {
+
+		std::vector<Pixel> reference, legacy;
+		if (!Check(768, 384, 5, {768, 384}, &reference) ||
+			!Check(768, 384, 5, {0, 0}, &legacy)) return false;
+		if (reference != legacy) return false;
+		const auto measure = [](const std::vector<Pixel>& image, uint32_t width, uint32_t height) {
+			std::array<double, 3> result{};
+			for (uint32_t y = 0; y < height; ++y) {
+				for (uint32_t x = 0; x < width; ++x) {
+					const double light = image[y * width + x][0];
+					const double dx = (double(x) + 0.5) / width - 0.5;
+					const double dy = (double(y) + 0.5) / height - 0.5;
+					result[0] += light;
+					result[1] += light * dx * dx;
+					result[2] += light * dy * dy;
+				}
+			}
+			result[1] = std::sqrt(result[1] / result[0]);
+			result[2] = std::sqrt(result[2] / result[0]);
+			result[0] /= double(width) * height;
+			return result;
+		};
+		const auto expected = measure(reference, 768, 384);
+		for (const auto size : {RenderTargetSize{384, 192}, RenderTargetSize{577, 289}, RenderTargetSize{225, 113}}) {
+			std::vector<Pixel> corrected, unscaled;
+			if (!Check(size.width, size.height, 5, {768, 384}, &corrected) ||
+				!Check(size.width, size.height, 5, {0, 0}, &unscaled)) return false;
+			const auto actual = measure(corrected, size.width, size.height);
+			const auto previous = measure(unscaled, size.width, size.height);
+			// 半精度と縮小画像の補間幅による差を含めて光量と広がりを比較する
+			bool valid = std::abs(actual[0] / expected[0] - 1.0) < 0.03;
+			for (size_t axis = 1; axis <= 2; ++axis) {
+				const double error = std::abs(actual[axis] / expected[axis] - 1.0);
+				valid &= error < 0.10 && error + 0.02 < std::abs(previous[axis] / expected[axis] - 1.0);
+			}
+			std::cout << "Bloom resolution " << size.width << "x" << size.height << " energy=" << actual[0] / expected[0]
+				<< " spread=" << actual[1] / expected[1] << "," << actual[2] / expected[2] << "\n";
+			if (!valid) return false;
+		}
+		return true;
 	}
 }
 
@@ -239,5 +307,5 @@ bool NEMTests::TestBloomGPU() {
 	for (uint32_t mode = 0; mode < 4; ++mode) {
 		if (!fixture.Check(129, 65, mode) || !fixture.Check(65, 129, mode) || !fixture.Check(1, 1, mode)) return false;
 	}
-	return fixture.Check(257, 129, 4);
+	return fixture.Check(257, 129, 4) && fixture.CheckResolutionScale();
 }

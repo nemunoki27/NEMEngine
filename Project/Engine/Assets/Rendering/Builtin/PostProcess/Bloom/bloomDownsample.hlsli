@@ -8,7 +8,11 @@ void main(uint3 pixel : SV_DispatchThreadID) {
 	if (any(pixel.xy >= uint2(resolution))) return;
 	uint width, height;
 	gSourceColor.GetDimensions(width, height);
-	float2 texel = 1.0f / float2(width, height);
+	float2 sourceSize = float2(width, height);
+#ifdef NEM_BLOOM_PREFILTER
+	if (all(isfinite(bloomReferenceSize)) && all(bloomReferenceSize > 0.0f)) sourceSize = bloomReferenceSize;
+#endif
+	float2 texel = 1.0f / sourceSize;
 	float2 uv = (float2(pixel.xy) + 0.5f) * invResolution;
 	// 13点の重みを合計1にして縮小する
 	float3 color = BloomSource(uv) * 0.125f;

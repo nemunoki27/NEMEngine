@@ -43,6 +43,10 @@ namespace Engine {
 		ScreenSpaceOutlineRenderer();
 		~ScreenSpaceOutlineRenderer();
 
+		// 保存した輪郭幅を描画サイズへ変換する
+		static ScreenSpaceOutlineStyleGPU BuildStyleForView(const ScreenSpaceOutlineStyle& style,
+			const Vector2& referenceToRenderScale);
+
 		void Init(GraphicsCore& graphicsCore);
 		void Finalize();
 
@@ -81,7 +85,7 @@ namespace Engine {
 
 		// 要求ごとのStyleと描画対象を確定する
 		bool BuildDrawRecords(std::span<const ScreenSpaceOutlineRequest> requests,
-			uint32_t& outMaxRadiusPixels);
+			uint32_t& outMaxRadiusPixels, const Vector2& referenceToRenderScale);
 		// Visible MaskとProjected Coverage Maskの両方をClearする
 		void ClearMask(GraphicsCore& graphicsCore, ScreenSpaceOutlineViewResources& resources) const;
 		// 実際に見えている表面(Visible Mask)と、Depth無視の投影範囲(Projected Coverage Mask)の2種類を描画する

@@ -14,6 +14,7 @@
 #include <array>
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <stdexcept>
 
 namespace {
@@ -40,10 +41,10 @@ namespace {
 
 	// 行間の配置も含めて転送先を確保する
 	TransferTexture CreateTexture(ID3D12Device* device, uint32_t width, uint32_t height,
-		DXGI_FORMAT format, bool output, bool structured = false) {
+		DXGI_FORMAT format, bool output, bool structured = false, bool writable = false) {
 
 		TransferTexture texture;
-		const auto flags = output ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
+		const auto flags = output || writable ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 		const auto desc = structured ? CD3DX12_RESOURCE_DESC::Buffer(uint64_t(width) * height * ComponentCount(format) * 4u, flags) :
 			CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1, 1, 0, flags);
 		const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_DEFAULT);
@@ -78,22 +79,57 @@ namespace {
 	}
 }
 
-std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device* device, ID3D12CommandQueue* queue,
-	const std::filesystem::path& path, uint32_t width, uint32_t height, std::span<const FilterTestTexture> inputs,
-	std::span<const DXGI_FORMAT> outputFormats, std::span<const float> constants, double* gpuMs, const FilterTestLayout* layout) {
+struct NEMTests::FilterShaderCache::Implementation {
 
 	Engine::DxShaderCompiler compiler;
-	compiler.Init();
-	const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_0", layout ? layout->entry : L"main", Engine::ShaderStage::CS);
+	std::map<std::pair<std::filesystem::path, std::wstring>, Engine::CompiledShader> shaders;
+};
+
+NEMTests::FilterShaderCache::FilterShaderCache() : implementation_(std::make_unique<Implementation>()) {
+
+	implementation_->compiler.Init();
+}
+
+NEMTests::FilterShaderCache::~FilterShaderCache() = default;
+
+const Engine::CompiledShader& NEMTests::FilterShaderCache::Get(const std::filesystem::path& path, const wchar_t* entry) {
+
+	const auto key = std::make_pair(std::filesystem::absolute(path).lexically_normal(), std::wstring(entry));
+	if (const auto found = implementation_->shaders.find(key); found != implementation_->shaders.end()) return found->second;
+	auto shader = implementation_->compiler.CompileShader(key.first.wstring(), L"cs_6_0", entry, Engine::ShaderStage::CS);
 	if (!shader.IsValid()) throw std::runtime_error("比較するFilterをコンパイルできません");
+	return implementation_->shaders.emplace(key, std::move(shader)).first->second;
+}
+
+std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device* device, ID3D12CommandQueue* queue,
+	const std::filesystem::path& path, uint32_t width, uint32_t height, std::span<const FilterTestTexture> inputs,
+	std::span<const DXGI_FORMAT> outputFormats, std::span<const float> constants, double* gpuMs,
+	const FilterTestLayout* layout, FilterShaderCache* shaderCache) {
+
+	std::unique_ptr<FilterShaderCache> localCache;
+	if (!shaderCache) {
+		localCache = std::make_unique<FilterShaderCache>();
+		shaderCache = localCache.get();
+	}
+	const auto& shader = shaderCache->Get(path, layout ? layout->entry : L"main");
+	const int32_t inPlaceSourceSlot = layout ? layout->inPlaceSourceSlot : -1;
+	if (inPlaceSourceSlot >= 0) {
+		if (inPlaceSourceSlot >= 26 || outputFormats.size() != 1 || gpuMs) throw std::runtime_error("同一画素検証の出力指定が不正です");
+		for (const auto& binding : shader.reflection.resources) {
+			if (binding.kind == Engine::ShaderBindingKind::SRV && binding.space == 0 &&
+				binding.bindPoint == static_cast<uint32_t>(inPlaceSourceSlot)) throw std::runtime_error("同じResourceをSRVとUAVに使用しています");
+		}
+	}
 	CD3DX12_DESCRIPTOR_RANGE ranges[2];
 	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 26, 0);
 	ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0);
-	CD3DX12_ROOT_PARAMETER parameters[3];
+	CD3DX12_ROOT_PARAMETER parameters[4];
 	parameters[0].InitAsDescriptorTable(1, &ranges[0]);
 	parameters[1].InitAsDescriptorTable(1, &ranges[1]);
 	parameters[2].InitAsConstants(static_cast<UINT>(constants.size()), layout ? layout->constantRegister : 1);
-	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(3, parameters);
+	const bool useFrameConstants = layout && !layout->frameConstants.empty();
+	if (useFrameConstants) parameters[3].InitAsConstants(static_cast<UINT>(layout->frameConstants.size()), 0);
+	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(useFrameConstants ? 4u : 3u, parameters);
 	ComPtr<ID3DBlob> signature, errors;
 	Require(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &errors));
 	ComPtr<ID3D12RootSignature> root;
@@ -118,6 +154,7 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 
 	// 比較するShaderへ全く同じ画像を転送する
 	for (size_t index = 0; index < 26; ++index) {
+		const bool inPlace = inPlaceSourceSlot == static_cast<int32_t>(index);
 		const auto found = layout ? std::find(layout->inputSlots.begin(), layout->inputSlots.end(), uint32_t(index)) : std::span<const uint32_t>::iterator{};
 		const size_t inputIndex = layout ? size_t(found - layout->inputSlots.begin()) : index;
 		const bool structured = layout && std::find(layout->structuredSlots.begin(), layout->structuredSlots.end(), uint32_t(index)) != layout->structuredSlots.end();
@@ -129,7 +166,9 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 		if (inputIndex < inputs.size()) {
 			const auto& input = inputs[inputIndex];
 			auto& target = sources[index];
-			target = CreateTexture(device, input.width, input.height, input.format, false, structured);
+			if (inPlace && (structured || input.width != width || input.height != height || input.format != outputFormats[0]))
+				throw std::runtime_error("同一画素検証の入出力形式が異なります");
+			target = CreateTexture(device, input.width, input.height, input.format, false, structured, inPlace);
 			void* mapped = nullptr;
 			Require(target.transfer->Map(0, &noRead, &mapped));
 			const size_t rowSize = input.width * ComponentCount(input.format) * sizeof(float);
@@ -142,7 +181,7 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 			if (structured) commands->CopyBufferRegion(target.resource.Get(), 0, target.transfer.Get(), 0, target.bytes);
 			else commands->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
 			const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				inPlace ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			commands->ResourceBarrier(1, &barrier);
 		}
 		if (structured && inputIndex < inputs.size()) {
@@ -152,7 +191,7 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 			srv.Buffer.NumElements = inputs[inputIndex].width * inputs[inputIndex].height;
 			srv.Buffer.StructureByteStride = ComponentCount(inputs[inputIndex].format) * 4u;
 		}
-		device->CreateShaderResourceView(sources[index].resource.Get(), &srv,
+		device->CreateShaderResourceView(inPlace ? nullptr : sources[index].resource.Get(), &srv,
 			CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->GetCPUDescriptorHandleForHeapStart(), static_cast<INT>(index), stride));
 	}
 	for (size_t index = 0; index < 4; ++index) {
@@ -160,7 +199,16 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav{};
 		uav.Format = index < outputFormats.size() ? outputFormats[index] : DXGI_FORMAT_R32G32B32A32_FLOAT;
 		uav.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		if (index < outputFormats.size()) destinations[index] = CreateTexture(device, width, height, uav.Format, true, structured);
+		if (index == 0 && inPlaceSourceSlot >= 0) {
+			// 入力として転送した同じResourceをUAVとして読み書きする
+			const auto& source = sources[static_cast<size_t>(inPlaceSourceSlot)];
+			if (!source.resource) throw std::runtime_error("同一画素検証の入力がありません");
+			auto& destination = destinations[index];
+			destination.resource = source.resource;
+			destination.footprint = source.footprint;
+			destination.bytes = source.bytes;
+			DxUtils::CreateReadbackBufferResource(device, destination.transfer, source.bytes);
+		} else if (index < outputFormats.size()) destinations[index] = CreateTexture(device, width, height, uav.Format, true, structured);
 		if (structured && index < outputFormats.size()) {
 			uav.Format = DXGI_FORMAT_UNKNOWN;
 			uav.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -177,12 +225,20 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 	commands->SetComputeRootDescriptorTable(0, heap->GetGPUDescriptorHandleForHeapStart());
 	commands->SetComputeRootDescriptorTable(1, CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->GetGPUDescriptorHandleForHeapStart(), 26, stride));
 	commands->SetComputeRoot32BitConstants(2, static_cast<UINT>(constants.size()), constants.data(), 0);
+	if (useFrameConstants) commands->SetComputeRoot32BitConstants(3,
+		static_cast<UINT>(layout->frameConstants.size()), layout->frameConstants.data(), 0);
 	ComPtr<ID3D12QueryHeap> queries;
 	ComPtr<ID3D12Resource> timestamps;
 	if (gpuMs) {
 		const D3D12_QUERY_HEAP_DESC queryDesc{ D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 2, 0 };
 		Require(device->CreateQueryHeap(&queryDesc, IID_PPV_ARGS(&queries)));
 		DxUtils::CreateReadbackBufferResource(device, timestamps, sizeof(uint64_t) * 2);
+		// 初回のパイプライン実行とキャッシュ準備を計測から外す
+		for (uint32_t iteration = 0; iteration < 32u; ++iteration) {
+			commands->Dispatch((width + 7) / 8, (height + 7) / 8, 1);
+		}
+		const auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+		commands->ResourceBarrier(1, &barrier);
 		commands->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
 	}
 	// 同じ入力で反復し提出や転送の時間を比較から外す
@@ -253,10 +309,16 @@ bool NEMTests::CheckFilterTransitionBatch(ID3D12Device* device, ID3D12CommandQue
 		for (size_t index = 0; index < textures.size(); ++index) {
 			RenderTextureCreateDesc desc;
 			desc.width = desc.height = 4;
+			if (index == 0) desc.format = DXGI_FORMAT_R16_FLOAT;
 			desc.createUAV = true;
 			textures[index].Create(device, &targets, &shaders, desc);
 			batch[index] = &textures[index];
 		}
+		const uint32_t descriptorCount = shaders.GetUseDescriptorCount();
+		const auto grayscale = textures[0].GetGrayscaleSRVGPUHandle();
+		if (grayscale.ptr == 0 || grayscale.ptr == textures[0].GetSRVGPUHandle().ptr ||
+			textures[0].GetGrayscaleSRVGPUHandle().ptr != grayscale.ptr ||
+			shaders.GetUseDescriptorCount() != descriptorCount + 1) return false;
 		batch[10] = &textures[0];
 		DxCommand commands;
 		commands.Create(device);

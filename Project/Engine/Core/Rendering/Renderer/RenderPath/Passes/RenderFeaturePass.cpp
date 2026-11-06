@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureResourceUtility.h"
+#include "CameraReflectionComposite.h"
 #include <Engine/Core/Rendering/PostProcess/Bloom/BloomExecutor.h>
 #include "RenderFeaturePassTargets.h"
 #include "RenderFeatureSelectionSession.h"
@@ -39,12 +40,6 @@
 using namespace Engine::RenderFeatureResourceUtility;
 
 namespace {
-
-	std::string MakePassProfileName(Engine::RenderViewKind kind, std::string_view passName) {
-
-		return std::string(Engine::EnumAdapter<Engine::RenderViewKind>::ToStringView(kind)) + "/RenderFeature/" +
-			   std::string(passName);
-	}
 
 	std::string MakeSelectionEffectAlias(Engine::UUID groupID) {
 
@@ -99,8 +94,7 @@ void Engine::RenderFeaturePass::Execute(
 	auto runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	// 固定反射の解像度はCameraの品質を優先する
 	if (options_.useConfiguredResolution) runtimeFeatures.useRaytracingDownsampling = true;
-	std::unordered_map<uint64_t, float> resolutionScales{};
-	std::unordered_map<uint64_t, bool> raytracingChains{};
+	resolutionScales_.assign(plan.nodes.size(), 1.0f);
 	RenderFeatureSelectionSession selection{};
 	for (size_t nodeIndex = 0; nodeIndex < plan.nodes.size(); ++nodeIndex) {
 
@@ -119,40 +113,25 @@ void Engine::RenderFeaturePass::Execute(
 		// 対象がない選択Passも主入力を後段へ渡す
 		const bool skipSelection = selectionGroup && selection.skippedSelection == selectionGroup;
 		const RenderFeaturePassSettings& pass = *node.pass;
-		bool raytracingChain = pass.type == RenderFeaturePassType::RayTracing;
-		const auto extendRaytracingChain = [&](UUID dependency) {
-			if (!dependency) {
-				return;
-			}
-			const auto found = raytracingChains.find(dependency.value);
-			raytracingChain |= found != raytracingChains.end() && found->second;
-		};
-		extendRaytracingChain(node.source.pass);
-		for (const auto& [shaderResource, input] : pass.passInputs) {
-
-			extendRaytracingChain(input.pass);
-		}
-		raytracingChains[pass.id.value] = raytracingChain;
-		const std::string profileName = MakePassProfileName(context.kind, pass.name);
+		const std::string& profileName = node.profileName;
 		ScopedGPUProfile gpuProfile{graphicsCore.GetDXObject().GetDxCommand()->GetCommandList(), profileName};
 
-		float dependencyScale = 1.0f;
-		if (node.source.pass) {
-			const auto sourceScale = resolutionScales.find(node.source.pass.value);
-			if (sourceScale != resolutionScales.end()) {
-				dependencyScale = sourceScale->second;
-			}
-		}
+		const float dependencyScale = node.sourceNodeIndex < nodeIndex ? resolutionScales_[node.sourceNodeIndex] : 1.0f;
 		float adaptiveScale = 1.0f;
 		if (pass.adaptiveResolution) {
 			adaptiveScale = temporalState_.UpdateResolution(pass, MakeStateKey(*context.view, pass.id), profileName);
 		}
 		// 依存チェーン全体で同じ動的解像度係数を使い、各出力の基準倍率へ重ねて適用する
 		const float outputScale = pass.adaptiveResolution ? adaptiveScale : dependencyScale;
-		resolutionScales[pass.id.value] = outputScale;
+		resolutionScales_[nodeIndex] = outputScale;
+		const RenderFeaturePassRuntimeOverride* runtimeOverride = RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
+		if (options_.allowInPlaceReflectionComposite && nodeIndex + 1 == plan.nodes.size() && !selectionGroup &&
+			!node.source.pass && plan.sceneColorOutput.pass == pass.id && plan.sceneColorOutput.output == "Color" &&
+			outputScale == 1.0f && TryCompositeCameraReflectionInPlace(graphicsCore, context, deps_, pass,
+				runtimeOverride, *sceneFinal, sceneColorAlias)) continue;
 		RenderFeaturePassTargets targets{};
 		if (!targets.Resolve(graphicsCore, context, *deps_.postProcessTargetPool, temporalState_, pass, *sceneFinal,
-				sceneFormat, outputScale, raytracingChain, runtimeFeatures, context.renderPassesGeneration)) {
+				sceneFormat, outputScale, node.raytracingChain, runtimeFeatures, context.renderPassesGeneration)) {
 			return;
 		}
 
@@ -169,7 +148,6 @@ void Engine::RenderFeaturePass::Execute(
 		}
 		const std::string sourceAlias =
 			isolatedSource ? selection.selectionAlias : (node.source.pass ? MakeOutputAlias(node.source) : sceneColorAlias);
-		const RenderFeaturePassRuntimeOverride* runtimeOverride = RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
 		const bool rayTracingUnavailable =
 			pass.type == RenderFeaturePassType::RayTracing &&
 			(!graphicsCore.GetDXObject().ShouldUseDispatchRays() || !context.raytracing.tlasResource);

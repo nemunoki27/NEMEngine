@@ -36,9 +36,11 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 	request.activeSceneInstanceID = activeInstance ? activeInstance->instanceID : UUID{};
 
 	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
-	// GameView/SceneViewは同じ固定解像度を基準に描画サーフェイスを作る
+	// 製品解像度は投影と入力の基準として保つ
 	uint32_t fixedRenderWidth = windowSetting.gameSize.x;
 	uint32_t fixedRenderHeight = windowSetting.gameSize.y;
+	Vector2I gameRenderSize = windowSetting.gameSize;
+	Vector2I sceneRenderSize = windowSetting.gameSize;
 
 	// エディタの状態に応じて描画ビューの要求を構築する
 	bool showGameView = true;
@@ -61,6 +63,10 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			showSceneView = false;
 		} else {
 
+			if (editorState.fitViewportResolution) {
+				gameRenderSize = editorState.gameViewportSizing.Resolve(windowSetting.gameSize);
+				sceneRenderSize = editorState.sceneViewportSizing.Resolve(windowSetting.gameSize);
+			}
 			showGameView = layout.showGameView && editorState.gameViewportVisible;
 			showSceneView = layout.showSceneView && editorState.sceneViewportVisible;
 			request.drawSceneViewDefaultGrid = showSceneView &&
@@ -87,8 +93,10 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		viewRequest.enabled = true;
 		viewRequest.renderThisFrame = true;
 		viewRequest.renderDefaultSurfaceThisFrame = showGameView;
-		viewRequest.width = fixedRenderWidth;
-		viewRequest.height = fixedRenderHeight;
+		viewRequest.width = gameRenderSize.x;
+		viewRequest.height = gameRenderSize.y;
+		viewRequest.referenceWidth = fixedRenderWidth;
+		viewRequest.referenceHeight = fixedRenderHeight;
 		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
 		viewRequest.preferredOrthographicCameraUUID = UUID{};
 		viewRequest.preferredPerspectiveCameraUUID = UUID{};
@@ -101,8 +109,10 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		viewRequest.enabled = BuildConfig::kEditorEnabled;
 		viewRequest.renderThisFrame = showSceneView;
 		viewRequest.renderDefaultSurfaceThisFrame = showSceneView;
-		viewRequest.width = viewRequest.enabled ? fixedRenderWidth : 0;
-		viewRequest.height = viewRequest.enabled ? fixedRenderHeight : 0;
+		viewRequest.width = viewRequest.enabled ? sceneRenderSize.x : 0;
+		viewRequest.height = viewRequest.enabled ? sceneRenderSize.y : 0;
+		viewRequest.referenceWidth = fixedRenderWidth;
+		viewRequest.referenceHeight = fixedRenderHeight;
 		viewRequest.manualCamera = manualSceneCamera;
 
 		// Entity Cameraが指定されている場合だけWorld側のカメラを使う

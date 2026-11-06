@@ -43,12 +43,12 @@ namespace Engine {
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& source,
-		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader);
+		std::vector<ComputeBindItem>& outBindItems, const MaterialAsset& material);
 
 	// UAVバインディングを追加し出力先のgDestColorをバインドする
 	bool AppendUAVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& dest,
-		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader);
+		std::vector<ComputeBindItem>& outBindItems, const MaterialAsset& material);
 
 } // Engine

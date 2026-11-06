@@ -64,6 +64,8 @@ namespace Engine {
 		// space2テクスチャのRootBindingとAssetIDを解決する
 		std::span<const TextureBinding> ResolveTextures(const PipelineState& pipeline,
 			const MaterialAsset& material, const MaterialParameterSet* overrides);
+		// space2の単一Textureが未割当のregisterをbitで表す、未準備のAssetは割当済みとして扱う
+		static uint32_t GetUnassignedTextureMask(std::span<const TextureBinding> textures);
 	private:
 		//========================================================================
 		//	private Methods

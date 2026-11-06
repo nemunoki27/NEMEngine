@@ -193,7 +193,8 @@ Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
 			*context.graphicsCore, context.assetDatabase,
 			textureAssetID, IsSRGBMaterialTexture(semantic) ?
 			TextureColorSpace::SRGB : TextureColorSpace::Linear,
-			semantic == MaterialParameterSemantic::NormalTexture);
+			semantic == MaterialParameterSemantic::NormalTexture,
+			context.useThumbnailTextures && semantic == MaterialParameterSemantic::BaseColorTexture);
 	uint32_t textureIndex = result.srvIndex;
 	if (semantic == MaterialParameterSemantic::DisplacementTexture) {
 
@@ -300,5 +301,5 @@ uint64_t Engine::BackendDrawCommon::GetMaterialTextureRevision(const RenderDrawC
 	const uint64_t uploadRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
 	const uint64_t renderRevision = RuntimeTextureResolver::GetBindingRevision();
 	// Camera出力の差替えでもMaterialのSRV番号を更新する
-	return Algorithm::MixHash(uploadRevision, renderRevision);
+	return Algorithm::MixHash(Algorithm::MixHash(uploadRevision, renderRevision), context.useThumbnailTextures);
 }

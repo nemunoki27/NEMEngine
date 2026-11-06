@@ -5,15 +5,101 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Views/RenderCameraHistory.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+
+// c++
+#include <cstring>
+
+namespace {
+
+	bool TestRenderViewReferenceSize() {
+
+		using namespace Engine;
+		const auto sameMatrix = [](const Matrix4x4& lhs, const Matrix4x4& rhs) {
+			return std::memcmp(lhs.m, rhs.m, sizeof(lhs.m)) == 0;
+		};
+		const auto sameCameras = [&](const ResolvedRenderView& lhs, const ResolvedRenderView& rhs) {
+			return sameMatrix(lhs.orthographic.matrices.viewProjectionMatrix, rhs.orthographic.matrices.viewProjectionMatrix) &&
+				sameMatrix(lhs.perspective.matrices.viewProjectionMatrix, rhs.perspective.matrices.viewProjectionMatrix) &&
+				sameMatrix(lhs.screen.matrices.viewProjectionMatrix, rhs.screen.matrices.viewProjectionMatrix);
+		};
+		ECSWorld world;
+		RenderViewRequest request{};
+		request.kind = RenderViewKind::Scene;
+		request.sourceKind = RenderViewSourceKind::ManualCamera;
+		request.width = 1280;
+		request.height = 720;
+		const auto full = RenderViewResolver::Resolve(request, world);
+		request.referenceWidth = request.width;
+		request.referenceHeight = request.height;
+		// 端数を含む実解像度でも2D/ScreenUIの座標範囲と3D画角を維持する
+		request.width = 641;
+		request.height = 359;
+		const auto reduced = RenderViewResolver::Resolve(request, world);
+		if (!full.valid || !reduced.valid || reduced.width != 641 || reduced.height != 359 ||
+			reduced.outputWidth != 641 || reduced.outputHeight != 359 ||
+			reduced.GetReferenceWidth() != 1280 || reduced.GetReferenceHeight() != 720 ||
+			reduced.aspectRatio != full.aspectRatio || !sameCameras(full, reduced)) return false;
+		request.enabled = false;
+		if (RenderViewResolver::Resolve(request, world).valid) return false;
+		request.enabled = true;
+		const Entity camera = world.CreateEntity();
+		world.AddComponent<TransformComponent>(camera);
+		world.AddComponent<PerspectiveCameraComponent>(camera);
+		const Entity camera2D = world.CreateEntity();
+		world.AddComponent<TransformComponent>(camera2D);
+		world.AddComponent<OrthographicCameraComponent>(camera2D);
+		request.kind = RenderViewKind::Game;
+		request.sourceKind = RenderViewSourceKind::WorldCamera;
+		request.width = 1280;
+		request.height = 720;
+		const auto fullWorld = RenderViewResolver::Resolve(request, world);
+		request.width = 640;
+		request.height = 360;
+		const auto reducedWorld = RenderViewResolver::Resolve(request, world);
+		if (!sameCameras(fullWorld, reducedWorld)) return false;
+		world.GetComponent<PerspectiveCameraComponent>(camera).common.viewportWidth = 0.5f;
+		const Entity rightCamera = world.CreateEntity();
+		world.AddComponent<TransformComponent>(rightCamera);
+		auto& rightSettings = world.AddComponent<PerspectiveCameraComponent>(rightCamera);
+		rightSettings.common.viewportX = 0.5f;
+		rightSettings.common.viewportWidth = 0.5f;
+		request.width = 1280;
+		request.height = 720;
+		const auto fullSplit = RenderViewResolver::ResolveGameCameraViews(request, world);
+		request.width = 640;
+		request.height = 360;
+		const auto reducedSplit = RenderViewResolver::ResolveGameCameraViews(request, world);
+		if (fullSplit.size() != 2 || reducedSplit.size() != 2) return false;
+		for (size_t index = 0; index < fullSplit.size(); ++index) {
+			if (!sameCameras(fullSplit[index], reducedSplit[index]) ||
+				reducedSplit[index].width != 320 || reducedSplit[index].height != 360 ||
+				reducedSplit[index].referenceWidth != 640 || reducedSplit[index].referenceHeight != 720 ||
+				reducedSplit[index].outputX * 2 != fullSplit[index].outputX) return false;
+		}
+		// RenderTextureはView表示サイズに依存せずAsset指定の出力と投影に戻す
+		auto fullTexture = fullSplit.back();
+		auto reducedTexture = reducedSplit.back();
+		fullTexture.targetTexture = reducedTexture.targetTexture = AssetID{43, 47};
+		RenderViewResolver::ResolveRenderTextureOutput(fullTexture, world, 512, 512);
+		RenderViewResolver::ResolveRenderTextureOutput(reducedTexture, world, 512, 512);
+		if (!sameCameras(fullTexture, reducedTexture) || reducedTexture.width != 256 || reducedTexture.height != 512 ||
+			reducedTexture.referenceWidth != 256 || reducedTexture.referenceHeight != 512 || reducedTexture.outputX != 256) return false;
+		RenderViewResolver::ResolveRenderTextureOutput(reducedTexture, world, 0, 512);
+		return !reducedTexture.valid;
+	}
+}
 
 namespace NEMTests {
 
 	bool TestRenderCameraHistory() {
 
 		using namespace Engine;
+		if (!TestRenderViewReferenceSize()) return false;
 		ResolvedRenderView left{};
 		left.valid = true;
 		left.width = 640;
@@ -64,6 +150,10 @@ namespace NEMTests {
 		if (update(left, 3.0f, 3) != 3.0f || update(right, 30.0f, 3) != 20.0f) {
 			return false;
 		}
+		// 実解像度が同じでも論理サイズの変更では古い投影を引き継がない
+		left.referenceWidth = 1280;
+		left.referenceHeight = 720;
+		if (update(left, 4.0f, 4) != 4.0f) return false;
 		const std::string original = right.GetHistoryKey();
 		++right.perspective.sourceCamera.generation;
 		if (right.GetHistoryKey() == original || update(right, 40.0f, 4) != 40.0f) {

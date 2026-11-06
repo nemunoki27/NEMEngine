@@ -8,6 +8,7 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
+#include "EditorViewportSizing.h"
 
 // c++
 #include <vector>
@@ -182,6 +183,10 @@ namespace Engine {
 		// Panel内容の可視状態を次の描画要求へ渡す
 		bool sceneViewportVisible = true;
 		bool gameViewportVisible = true;
+		// View画像の実表示サイズへ描画解像度を合わせる
+		bool fitViewportResolution = true;
+		EditorViewportSizing sceneViewportSizing{};
+		EditorViewportSizing gameViewportSizing{};
 		// View画像を表示しているネイティブWindow
 		void* gameViewportWindow = nullptr;
 		void* sceneViewportWindow = nullptr;

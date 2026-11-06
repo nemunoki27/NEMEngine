@@ -46,6 +46,7 @@ namespace Engine::PipelineDescriptionBuilder {
 		}
 		outDesc.rasterizer = variant.rasterizer;
 		outDesc.depthStencil = variant.depthStencil;
+		outDesc.disableNormalBlending = variant.disableNormalBlending;
 		outDesc.sampleDesc = variant.sampleDesc;
 		outDesc.topologyType = variant.topologyType;
 

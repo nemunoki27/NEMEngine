@@ -113,8 +113,10 @@ ParticleGPUFrameInputs ParticleCameraDepthPreparation::Prepare(GraphicsCore& gra
 	const auto* gameRequest = request.FindView(RenderViewKind::Game);
 	const uint32_t width = gameRequest && gameRequest->width ? gameRequest->width : 1280u;
 	const uint32_t height = gameRequest && gameRequest->height ? gameRequest->height : 720u;
+	const uint32_t referenceWidth = gameRequest && gameRequest->GetReferenceWidth() ? gameRequest->GetReferenceWidth() : width;
+	const uint32_t referenceHeight = gameRequest && gameRequest->GetReferenceHeight() ? gameRequest->GetReferenceHeight() : height;
 	if (!request.world->IsAlive(mainCamera)) {
-		mainCamera = CameraViewSelection::ResolveBestPerspectiveCamera(*request.world, width, height).sourceCamera;
+		mainCamera = CameraViewSelection::ResolveBestPerspectiveCamera(*request.world, referenceWidth, referenceHeight).sourceCamera;
 	}
 	const auto require = [&](Entity cameraEntity, bool depth, bool color) {
 		if (!request.world->IsAlive(cameraEntity)) return;
@@ -150,11 +152,17 @@ ParticleGPUFrameInputs ParticleCameraDepthPreparation::Prepare(GraphicsCore& gra
 			camera->view.kind = RenderViewKind::Game;
 			camera->view.width = width;
 			camera->view.height = height;
+			camera->view.referenceWidth = referenceWidth;
+			camera->view.referenceHeight = referenceHeight;
 			if (component->common.targetTexture) {
 				const auto* output = deps.assetLibrary->LoadRenderTexture(component->common.targetTexture);
-				if (output) { camera->view.width = output->width; camera->view.height = output->height; }
+				if (output) {
+					camera->view.width = camera->view.referenceWidth = output->width;
+					camera->view.height = camera->view.referenceHeight = output->height;
+				}
 			}
-			CameraViewProjection::UpdatePerspectiveCameraMatrices(*transform, *component, camera->view.width, camera->view.height);
+			CameraViewProjection::UpdatePerspectiveCameraMatrices(*transform, *component,
+				camera->view.GetReferenceWidth(), camera->view.GetReferenceHeight());
 			camera->view.perspective = CameraViewProjection::BuildFromPerspectiveCamera(entity, *transform, *component);
 			camera->view.valid = camera->view.perspective.valid;
 		}

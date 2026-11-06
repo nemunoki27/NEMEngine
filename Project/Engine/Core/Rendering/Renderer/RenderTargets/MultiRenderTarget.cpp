@@ -13,6 +13,27 @@
 #include <array>
 #include <stdexcept>
 
+namespace {
+
+	// 色アタッチメントの生成経路を揃える
+	std::unique_ptr<Engine::RenderTexture2D> CreateColor(ID3D12Device* device,
+		Engine::RTVDescriptor* targets, Engine::SRVDescriptor* shaders,
+		uint32_t width, uint32_t height, const Engine::ColorAttachmentDesc& color) {
+
+		auto texture = std::make_unique<Engine::RenderTexture2D>();
+		Engine::RenderTextureCreateDesc desc{};
+		desc.width = width;
+		desc.height = height;
+		desc.format = color.format;
+		desc.clearColor = color.clearColor;
+		desc.createUAV = color.createUAV;
+		desc.useOptimizedClearValue = color.useOptimizedClearValue;
+		desc.debugName = std::wstring(color.name.begin(), color.name.end());
+		texture->Create(device, targets, shaders, desc);
+		return texture;
+	}
+}
+
 //============================================================================
 //	MultiRenderTarget classMethods
 //============================================================================
@@ -44,22 +65,7 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 
 		Logger::Output(LogType::Engine, "RenderTexture2D番号: {}", i);
 
-		// 色レンダーテクスチャの情報を取得する
-		const auto& color = desc.colors[i];
-
-		// テクスチャ作成
-		auto texture = std::make_unique<RenderTexture2D>();
-		RenderTextureCreateDesc createDesc{};
-		createDesc.width = desc.width;
-		createDesc.height = desc.height;
-		createDesc.format = color.format;
-		createDesc.clearColor = color.clearColor;
-		createDesc.createUAV = color.createUAV;
-		createDesc.useOptimizedClearValue = color.useOptimizedClearValue;
-		createDesc.debugName = std::wstring(color.name.begin(), color.name.end());
-		texture->Create(device, rtvDescriptor, srvDescriptor, createDesc);
-
-		colors.emplace_back(std::move(texture));
+		colors.emplace_back(CreateColor(device, rtvDescriptor, srvDescriptor, desc.width, desc.height, desc.colors[i]));
 	}
 	// 深度レンダーテクスチャの作成
 	if (desc.depth.has_value()) {
@@ -75,6 +81,16 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 
 	Logger::Output(LogType::Engine, "MultiRenderTargetを作成しました");
 	Logger::EndSection(LogType::Engine);
+}
+
+void Engine::MultiRenderTarget::ReplaceColor(const RenderTargetCreationContext& context,
+	size_t index, const ColorAttachmentDesc& desc) {
+
+	if (index >= colors_.size()) {
+		throw std::out_of_range("色アタッチメントの指定が範囲外です");
+	}
+	auto candidate = CreateColor(context.device, &context.targets, &context.shaders, width_, height_, desc);
+	colors_[index].swap(candidate);
 }
 
 void Engine::MultiRenderTarget::Destroy() {

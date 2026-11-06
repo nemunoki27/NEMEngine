@@ -45,7 +45,7 @@ void Engine::LineBatchResources::UpdateView(const ResolvedCameraView& camera, co
 	LinePassConstants constants{};
 	constants.viewMatrix = camera.matrices.viewMatrix;
 	constants.projectionMatrix = camera.matrices.projectionMatrix;
-	constants.viewportSize = Vector2(static_cast<float>(view.width), static_cast<float>(view.height));
+	constants.viewportSize = Vector2(static_cast<float>(view.GetReferenceWidth()), static_cast<float>(view.GetReferenceHeight()));
 	constants.nearClip = camera.nearClip;
 	constants.feather = kLineAAFeather;
 	viewBuffers_[GraphicsFrameState::GetCurrentIndex()]

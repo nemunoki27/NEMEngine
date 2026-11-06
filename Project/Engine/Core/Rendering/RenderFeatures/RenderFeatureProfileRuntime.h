@@ -11,6 +11,7 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <cstddef>
 
 namespace Engine {
 
@@ -28,6 +29,9 @@ namespace Engine {
 		RenderFeatureOutputReference source{};						// 主入力の参照
 		bool selectionBegin = false;								// 選択描画の開始
 		bool selectionEnd = false;									// 選択描画の終了
+		size_t sourceNodeIndex = SIZE_MAX;							// 同じ計画内の主入力
+		bool raytracingChain = false;								// RayTracing出力を継承するか
+		std::string profileName{};									// View別の計測名
 	};
 
 	// Anchor単位で依存順に並べた実行計画

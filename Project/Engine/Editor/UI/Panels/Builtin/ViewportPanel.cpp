@@ -153,7 +153,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 				// AOの遮蔽率を白黒で表示する
 				if (auto* ao = context.renderPipeline->GetViewAmbientOcclusionTexture(viewKind)) {
 					ao->Transition(*context.graphicsCore->GetDXObject().GetDxCommand(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-					imageSRV = ao->GetSRVGPUHandle();
+					imageSRV = ao->GetGrayscaleSRVGPUHandle();
 				} else if (const auto* white = context.graphicsCore->GetBuiltinTextureLibrary().GetWhiteTexture()) {
 					imageSRV = white->gpuHandle;
 				}
@@ -179,10 +179,6 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			}
 		}
 
-		// 表示サイズ
-		Vector2 srcSize(
-			static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
-
 		// Projectの製品画像比率を取得する
 		ImVec2 avail = ImGui::GetContentRegionAvail();
 		const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
@@ -206,6 +202,12 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			viewSize_.x = avail.x;
 			viewSize_.y = avail.x / aspect;
 		}
+		auto& sizing = kind_ == ViewportPanelKind::Scene ? context.editorState->sceneViewportSizing :
+			context.editorState->gameViewportSizing;
+		const ImVec2 framebufferScale = viewport->FramebufferScale.x > 0.0f ?
+			viewport->FramebufferScale : ImGui::GetIO().DisplayFramebufferScale;
+		sizing.Update(Vector2(viewSize_.x, viewSize_.y), Vector2(framebufferScale.x, framebufferScale.y),
+			gameSize, ImGui::GetTime(), ImGui::IsMouseDown(ImGuiMouseButton_Left));
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPos().x + (avail.x - viewSize_.x) * 0.5f);
 		ImGui::SetCursorPosY(ImGui::GetCursorPos().y + (avail.y - viewSize_.y) * 0.5f);
@@ -213,7 +215,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// 実際にImageを置く位置を入力システムへ渡す
 		const ImVec2 imagePos = ImGui::GetCursorScreenPos();
 		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y), Vector2(viewSize_.x, viewSize_.y),
-			srcSize, InputViewCoordinateSpace::Screen);
+			Vector2(static_cast<float>(gameSize.x), static_cast<float>(gameSize.y)), InputViewCoordinateSpace::Screen);
 
 		// 描画画像を表示する
 		if (context.editorState->gbufferDebugView == GBufferDebugView::None) {
@@ -251,8 +253,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		}
 
 		// 画像へのAsset配置を受け付ける
-		placementSession_.HandleAssetDropPlacement(context, viewKind, imagePos, display->GetRenderTarget().width,
-			display->GetRenderTarget().height, ImGui::IsItemHovered(), viewSize_, kind_ == ViewportPanelKind::Scene);
+		placementSession_.HandleAssetDropPlacement(context, viewKind, imagePos, gameSize.x,
+			gameSize.y, ImGui::IsItemHovered(), viewSize_, kind_ == ViewportPanelKind::Scene);
 
 		// SceneのGizmoとEntityドラッグを描画する
 		bool blockDragByGizmo = false;

@@ -19,6 +19,7 @@
 
 // c++
 #include <algorithm>
+#include <cstddef>
 
 //============================================================================
 //	PrimitiveRenderBackend internal
@@ -65,8 +66,11 @@ namespace {
 		Engine::Vector3 cameraPosition = Engine::Vector3::AnyInit(0.0f);
 		uint32_t frameSerial = 0;
 		float materialPadding = 0.0f;
-		float _viewPad[3]{};
+		uint32_t unassignedMaterialTextureMask = 0;
+		float _viewPad[2]{};
 	};
+	static_assert(offsetof(PrimitiveViewConstants, unassignedMaterialTextureMask) == 212);
+	static_assert(sizeof(PrimitiveViewConstants) == 224);
 	// MeshShader経路でインデックス数を渡す定数バッファ
 	struct PrimitiveMeshConstants {
 
@@ -280,6 +284,19 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// viewの定数バッファを確保する
 	PrimitiveViewConstants viewConstants{};
+	// Border色が混ざるSamplerでは白の定数へ置き換えない
+	if (bindingMaterial && variant) {
+		const auto sampler = std::find_if(variant->staticSamplers.begin(), variant->staticSamplers.end(), [](const auto& value) {
+			return value.ShaderRegister == 0 && value.RegisterSpace == 0;
+		});
+		if (sampler != variant->staticSamplers.end() &&
+			sampler->AddressU != D3D12_TEXTURE_ADDRESS_MODE_BORDER &&
+			sampler->AddressV != D3D12_TEXTURE_ADDRESS_MODE_BORDER &&
+			sampler->AddressW != D3D12_TEXTURE_ADDRESS_MODE_BORDER) {
+			viewConstants.unassignedMaterialTextureMask = MaterialParameterBinder::GetUnassignedTextureMask(
+				materialParamBinder_.ResolveTextures(*pipelineState, *bindingMaterial, payload->materialInstance));
+		}
+	}
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
 		viewConstants.unjitteredViewProjection = camera->matrices.unjitteredViewProjectionMatrix;

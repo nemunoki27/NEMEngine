@@ -118,7 +118,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float penumbra = directional ? blockerDistance * sourceRadius :
 		blockerDistance * sourceRadius / max(lightDistance - blockerDistance, 0.01f);
 	// 接触影を保ち、半影の範囲だけを平滑化
-	float radius = sourceRadius > 0.0001f ? clamp(penumbra / GetShadowPixelSize(position), 1.5f, 32.0f) : 0.0f;
+	float radius = sourceRadius > 0.0001f ? clamp(penumbra / GetShadowPixelSize(position), kMinimumShadowFilterRadius, 32.0f) : 0.0f;
 	gShadowOutput[offset] = float2(occlusion / float(count), radius);
 	if (slot == shadowPreviewLightIndex) gShadowPreview[pixel] = 1.0f - occlusion / float(count);
 }

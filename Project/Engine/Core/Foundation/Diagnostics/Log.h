@@ -79,6 +79,8 @@ namespace Engine {
 		static void FlushAll();
 		static std::vector<LogEntry> GetRecentLogs(LogType type);
 		static std::vector<LogEntry> GetRecentLogs();
+		// 世代が変わった場合だけログを複製する
+		static bool RefreshRecentLogs(uint64_t& revision, std::vector<LogEntry>& entries);
 		// メモリに保持するログ件数を変更する
 		static void SetRecentLogLimit(std::size_t limit);
 		// メモリに保持するログ件数を取得する
@@ -142,6 +144,7 @@ namespace Engine {
 		static inline std::size_t recentLogLimit_ = 100;
 		static inline std::deque<LogEntry> recentLogs_;
 		static inline uint64_t nextLogSequence_ = 0;
+		static inline uint64_t recentLogRevision_ = 1;
 	};
 
 	template <typename... Args>

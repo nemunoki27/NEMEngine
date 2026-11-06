@@ -74,7 +74,8 @@ PSOutput main(VSOutput input) {
 	// アウトライン有効時は本体より広い距離でカバレッジを取り、縁を別色で塗る
 	if (enableOutline && outlineWidth > 0.0f) {
 
-		float outerAlpha = saturate(screenPxDistance + outlineWidth + 0.5f);
+		float pixelScale = min(referenceToRenderScale.x, referenceToRenderScale.y);
+		float outerAlpha = saturate(screenPxDistance + outlineWidth * pixelScale + 0.5f);
 		// 縁はoutlineColor、内側へ向かって本体色へ補間する
 		float3 rgb = lerp(outlineColor.rgb, fillColor.rgb, fillAlpha);
 		float regionAlpha = lerp(outlineColor.a, fillColor.a, fillAlpha);

@@ -15,7 +15,8 @@ cbuffer ViewConstants : register(b0) {
 	float3 cameraPosition;
 	uint frameSerial;
 	float materialPadding;
-	float3 _viewPad;
+	uint unassignedMaterialTextureMask;
+	float2 _viewPad;
 };
 // GraphのMaterial定数と標準定数を分ける
 #ifndef NEM_PRIMITIVE_SHADER_GRAPH

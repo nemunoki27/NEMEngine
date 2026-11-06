@@ -76,3 +76,12 @@ std::vector<Engine::RenderTargetSize> Engine::BuildBloomLevelSizes(uint32_t widt
 	}
 	return sizes;
 }
+
+Engine::RenderTargetSize Engine::ResolveBloomReferenceSize(RenderTargetSize source, RenderTargetSize actual, RenderTargetSize reference) {
+
+	const auto dimension = [](uint32_t size, uint32_t actualSize, uint32_t referenceSize) {
+		if (!actualSize || !referenceSize) return size;
+		return static_cast<uint32_t>((std::max)(uint64_t{1}, uint64_t{size} * referenceSize / actualSize));
+	};
+	return {dimension(source.width, actual.width, reference.width), dimension(source.height, actual.height, reference.height)};
+}

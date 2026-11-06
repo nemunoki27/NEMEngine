@@ -142,6 +142,8 @@ namespace {
 			const auto ao = BuildCameraAmbientOcclusionProfile(settings);
 			if (ao.passes.size() != 2 || ao.passes.back().id != CameraSurfacePassIDs::AmbientOcclusionFilter ||
 				!ao.passes.back().outputs.front().history || BuildCameraReflectionProfile(settings).passes.size() != 7) return false;
+			if (ao.passes.front().outputs.front().format != RenderFeatureTextureFormat::R16_FLOAT ||
+				ao.passes.back().outputs.front().format != RenderFeatureTextureFormat::R16_FLOAT) return false;
 			RenderFeatureProfileRuntime runtime;
 			runtime.Rebuild(ao);
 			if (!runtime.BuildPlan(RenderFeatureAnchor::BeforeLighting, RenderViewKind::Game).IsValid()) return false;
@@ -157,7 +159,11 @@ namespace {
 		RenderPassPhaseBuckets buckets{};
 		RenderPipelineDeps deps{};
 		const auto required = [&] { return RenderFeatureResourceUtility::RequiresSceneColorSnapshot(context, buckets, deps); };
-		if (required()) return false;
+		const auto resourcesRequired = [&] { return RenderFeatureResourceUtility::RequiresSceneInputResources(context, buckets, deps); };
+		if (required() || resourcesRequired()) return false;
+		context.particleCameraCaptureRequired = true;
+		if (!required() || !resourcesRequired()) return false;
+		context.particleCameraCaptureRequired = false;
 		RenderFeatureProfileAsset profile{};
 		RenderFeaturePassSettings pass{};
 		pass.id = Engine::UUID{31};
@@ -168,14 +174,20 @@ namespace {
 		RenderFeatureProfileRuntime runtime;
 		context.renderPassesRuntime = &runtime;
 		runtime.Rebuild(profile);
-		if (required()) return false;
+		if (required() || !resourcesRequired()) return false;
 		profile.passes.front().anchor = RenderFeatureAnchor::AfterTransparent;
 		runtime.Rebuild(profile);
 		if (!required()) return false;
 		profile.passes.front().enabled = false;
 		runtime.Rebuild(profile);
-		if (required()) return false;
+		if (required() || resourcesRequired()) return false;
 		RenderItem item{};
+		buckets.Get(RenderPhase::Opaque).items.push_back(&item);
+		if (!resourcesRequired()) return false;
+		buckets.Clear();
+		buckets.Get(RenderPhase::Transparent).items.push_back(&item);
+		if (!resourcesRequired()) return false;
+		buckets.Clear();
 		buckets.Get(RenderPhase::PostProcessUI).items.push_back(&item);
 		if (!required()) return false;
 		buckets.Clear();

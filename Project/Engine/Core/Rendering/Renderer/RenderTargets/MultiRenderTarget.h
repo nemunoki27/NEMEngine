@@ -90,6 +90,8 @@ namespace Engine {
 		void Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,
 			DSVDescriptor* dsvDescriptor, SRVDescriptor* srvDescriptor,
 			const MultiRenderTargetCreateDesc& desc);
+		// 指定した色だけを生成し、完成後に差し替える
+		void ReplaceColor(const RenderTargetCreationContext& context, size_t index, const ColorAttachmentDesc& desc);
 		// 破棄
 		void Destroy();
 

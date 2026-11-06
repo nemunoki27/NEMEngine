@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Assets/Project/ProjectAssetDocumentFactory.h>
+#include <Engine/Editor/Core/EditorViewportSizing.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -223,6 +224,34 @@ namespace {
 bool NEMTests::TestEditorViewportVisibility() {
 
 	using namespace Engine;
+	// 描画先は実表示に合わせ、サイズ変更中と非表示中は確定寸法を保つ
+	EditorViewportSizing sizing;
+	const Vector2I referenceSize{1904, 1041};
+	const Vector2 framebufferScale{1.0f, 1.0f};
+	if (sizing.Resolve(referenceSize) != referenceSize) return false;
+	sizing.Update(Vector2{555.25f, 303.5f}, framebufferScale, referenceSize, 0.0, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{560, 304}) return false;
+	sizing.Update(Vector2{556.25f, 303.9f}, framebufferScale, referenceSize, 0.2, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{560, 304}) return false;
+	sizing.Update(Vector2{1000, 550}, framebufferScale, referenceSize, 0.3, true);
+	sizing.Update(Vector2{1000, 550}, framebufferScale, referenceSize, 1.0, true);
+	if (sizing.Resolve(referenceSize) != Vector2I{560, 304}) return false;
+	sizing.Update(Vector2{1000, 550}, framebufferScale, referenceSize, 1.01, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{1000, 552}) return false;
+	sizing.Update(Vector2{700, 390}, framebufferScale, referenceSize, 1.1, false);
+	sizing.Update(Vector2{700, 390}, framebufferScale, referenceSize, 1.2, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{1000, 552}) return false;
+	sizing.Update(Vector2{700, 390}, framebufferScale, referenceSize, 1.3, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{704, 392}) return false;
+	sizing.Update(Vector2{}, framebufferScale, referenceSize, 2.0, false);
+	sizing.Update(Vector2{NAN, 100}, framebufferScale, referenceSize, 2.0, false);
+	if (sizing.Resolve(referenceSize) != Vector2I{704, 392}) return false;
+	sizing.Update(Vector2{1200, 700}, Vector2{2, 2}, referenceSize, 2.1, false);
+	sizing.Update(Vector2{1200, 700}, Vector2{2, 2}, referenceSize, 2.3, false);
+	if (sizing.Resolve(referenceSize) != referenceSize) return false;
+	if (sizing.Resolve(Vector2I{800, 600}) != Vector2I{800, 600}) return false;
+	sizing.Update(Vector2{400, 300}, framebufferScale, Vector2I{800, 600}, 2.4, false);
+	if (sizing.Resolve(Vector2I{800, 600}) != Vector2I{400, 304}) return false;
 	// 画面を隠してもCamera情報とRenderTexture出力を維持する
 	ECSWorld world;
 	const Entity camera = world.CreateEntity();

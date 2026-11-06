@@ -56,7 +56,7 @@ StructuredBuffer<AOInstance> gRaytracingSceneInstances : register(t4);
 StructuredBuffer<AOGeometry> gRaytracingGeometries : register(t5);
 StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
 SamplerState gSampler : register(s0);
-RWTexture2D<float4> gDestColor : register(u0);
+RWTexture2D<float> gDestColor : register(u0);
 
 uint HashAO(uint value) {
 
@@ -106,7 +106,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	gSourcePosition.GetDimensions(width, height);
 	uint2 source = min(uint2((float2(pixel) + 0.5f) * invResolution * float2(width, height)), uint2(width, height) - 1u);
 	if ((gSourceFlags.Load(int3(source, 0)) & kMaterialFlagSurface) == 0u) {
-		gDestColor[pixel] = 1.0f.xxxx;
+		gDestColor[pixel] = 1.0f;
 		return;
 	}
 	float3 position = gSourcePosition.Load(int3(source, 0)).xyz;
@@ -117,17 +117,17 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float rotation = float(HashAO(source.x + source.y * width + frameIndex * 747796405u)) / 4294967296.0f;
 	float visibility = 0.0f;
 	float distanceLimit = max(radius, 0.001f);
+	RayDesc ray;
+	ray.Origin = position + normal * max(distanceLimit * 0.001f, 0.0001f);
+	ray.TMin = 0.0001f;
+	ray.TMax = distanceLimit;
 	[loop]
 	for (uint index = 0u; index < count; ++index) {
 
 		float r = sqrt((float(index) + 0.5f) / float(count));
 		float phi = 6.2831853f * frac(float(index) * 0.61803399f + rotation);
 		float3 direction = tangent * (r * cos(phi)) + bitangent * (r * sin(phi)) + normal * sqrt(1.0f - r * r);
-		RayDesc ray;
-		ray.Origin = position + normal * max(distanceLimit * 0.001f, 0.0001f);
 		ray.Direction = direction;
-		ray.TMin = 0.0001f;
-		ray.TMax = distanceLimit;
 		RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query;
 		// 常時判定マスクで影と反射の設定から独立させる
 		query.TraceRayInline(gSceneTLAS, opaqueGeometryAllowed != 0u ? 0u : RAY_FLAG_FORCE_NON_OPAQUE, 4u, ray);
@@ -140,5 +140,5 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 			saturate(query.CommittedRayT() / distanceLimit) : 1.0f;
 	}
 	visibility /= float(count);
-	gDestColor[pixel] = float4(visibility.xxx, 1.0f);
+	gDestColor[pixel] = visibility;
 }

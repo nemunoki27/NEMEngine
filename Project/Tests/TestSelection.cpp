@@ -368,6 +368,7 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			!RunTest("TestMaterialParameters", TestMaterialParameters) ||
 			!RunTest("TestMaterialParameterHash", TestMaterialParameterHash) ||
 			!RunTest("TestMaterialReflectionCache", TestMaterialReflectionCache) ||
+			!RunTest("TestMaterialCreationFailures", TestMaterialCreationFailures) ||
 			!RunTest("TestMaterialResolverIndexChanges", TestMaterialResolverIndexChanges) ||
 			!RunTest("TestMeshAuthoringCache", TestMeshAuthoringCache) ||
 			!RunTest("TestPrimitiveTangents", TestPrimitiveTangents) ||

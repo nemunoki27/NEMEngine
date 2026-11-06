@@ -303,6 +303,9 @@ void Engine::TextureUploadService::RequestReloadByFile(
 
 			if (updatedSettings) {
 				storedDesc.importSettings = *updatedSettings;
+				if (storedDesc.previewMaxDimension > 0) {
+					storedDesc.importSettings.generateMipmaps = false;
+				}
 			}
 			PrepareRequest(request, toEnqueue);
 		}

@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/ComputeRootBinder.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
 
@@ -80,6 +81,8 @@ namespace Engine {
 		uint32_t groupCountY = 1;
 		uint32_t groupCountZ = 1;
 		bool allowInlineRayTracing = false;
+		// 同じ画素だけをUAVから読み書きする固定Passで許可する
+		bool allowInPlace = false;
 	};
 
 	//============================================================================
@@ -139,6 +142,8 @@ namespace Engine {
 			MaterialParameterLayout layout;
 			bool hasFrameConstantsByName = false;
 			bool hasFrameConstantsByRegister = false;
+			bool requiresDepth = false;
+			std::vector<ShaderResourceBinding> bindings;
 			std::vector<ShaderResourceBinding> resources;
 			std::vector<ShaderResourceBinding> samplers;
 			uint64_t lastUsedSerial = 0;
@@ -149,6 +154,9 @@ namespace Engine {
 		FrameConstantBufferAllocator constantBufferAllocator_{};
 		std::unordered_map<uint64_t, PipelineCacheEntry> parameterLayoutCache_{};
 		std::vector<RenderTexture2D*> outputTextureScratch_{};
+		std::vector<ComputeBindItem> bindScratch_;
+		std::vector<uint8_t> parameterScratch_;
+		std::unordered_map<DXGI_FORMAT, bool> typedLoadSupport_;
 		float elapsedTime_ = 0.0f;
 		uint32_t frameIndex_ = 0;
 

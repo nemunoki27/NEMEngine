@@ -57,6 +57,8 @@ namespace Engine {
 		std::vector<DXGI_FORMAT> rtvFormats;
 		uint32_t numRenderTargets = 1;
 		std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers;
+		// 不透明出力ではNormalのブレンドを省略する
+		bool disableNormalBlending = false;
 
 		// レンダーターゲットのフォーマットが動的かどうか
 		bool dynamicRenderTargetFormats = false;

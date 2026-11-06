@@ -79,13 +79,16 @@ bool ResolveHistory(float2 previousUV, uint2 outputSize,
 				continue;
 			}
 			float4 sampleColor = gHistoryColor.Load(int3(samplePixel, 0));
-			float4 sampleGeometry =
-				gHistoryGeometry.Load(int3(samplePixel, 0));
-			float4 sampleHitGeometry =
-				gHistoryHitGeometry.Load(int3(samplePixel, 0));
-			if (!IsValidReflection(sampleColor) || sampleGeometry.a <= 0.0f) {
+			if (!IsValidReflection(sampleColor)) {
 				continue;
 			}
+			float4 sampleGeometry =
+				gHistoryGeometry.Load(int3(samplePixel, 0));
+			if (sampleGeometry.a <= 0.0f) {
+				continue;
+			}
+			float4 sampleHitGeometry =
+				gHistoryHitGeometry.Load(int3(samplePixel, 0));
 			bool currentHit = currentHitGeometry.w > 0.5f;
 			bool historyHit = sampleHitGeometry.w > 0.5f;
 			if (currentHit != historyHit ||
@@ -198,8 +201,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		gSourcePosition.Load(int3(geometryPixel, 0)).xyz;
 	float3 worldNormal = DecodeGBufferNormal(
 		gSourceNormal.Load(int3(geometryPixel, 0)).xyz);
-	float2 motion = gSourceMotion.Load(int3(geometryPixel, 0));
-	float2 previousUV = uv - motion;
 
 	float4 currentColor = gSourceColor.Load(int3(dispatchThreadID.xy, 0));
 	float4 currentHitGeometry = gCurrentHitGeometry.Load(
@@ -216,6 +217,8 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 			currentHitGeometry;
 		return;
 	}
+	float2 motion = gSourceMotion.Load(int3(geometryPixel, 0));
+	float2 previousUV = uv - motion;
 	float positionLimit = max(positionThreshold,
 		distance(worldPosition, cameraWorldPos) * 0.001f);
 	float4 historyColor;

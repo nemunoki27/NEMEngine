@@ -41,13 +41,20 @@ void Engine::TextBatchResources::CreateQuadBuffers(
 
 void Engine::TextBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {
 
-	// 定数バッファにビュー行列を転送する
+	view_.Upload(BuildViewConstants(view, cameraDomain));
+}
+
+Engine::TextViewConstants Engine::TextBatchResources::BuildViewConstants(
+	const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {
+
+	// ビュー行列と画面上の輪郭幅の倍率を設定する
 	TextViewConstants constants{};
+	constants.referenceToRenderScale = view.GetReferenceToRenderScale();
 	if (const ResolvedCameraView* camera = view.FindCamera(cameraDomain)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
 	}
-	view_.Upload(constants);
+	return constants;
 }
 
 void Engine::TextBatchResources::UploadGlyphs(const std::vector<TextVSInstanceData>& vsGlyphs,

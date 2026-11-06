@@ -24,13 +24,19 @@
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayCollector.h>
+#include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayPicker.h>
+#include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayState.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 
 // c++
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <iostream>
 #include <functional>
+#include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -125,17 +131,84 @@ namespace {
 			items[0].enabled || items[1].enabled || items[0].color.a != settings.disabledAlpha ||
 			items[1].color.a != settings.disabledAlpha) return false;
 
+		// 描画解像度が変わってもアイコンの見た目と選択位置を同じ基準座標に保つ
+		if (view.GetReferenceToRenderScale() != Vector2(1.0f, 1.0f)) return false;
+		const auto referenceItems = items;
+		view.referenceWidth = view.width;
+		view.referenceHeight = view.height;
+		view.width = 400;
+		view.height = 150;
+		const Vector2 renderScale(0.5f, 0.25f);
+		if (view.GetReferenceToRenderScale() != renderScale) return false;
+		collector.Collect(readonly, view, registry, settings, items);
+		if (items.size() != referenceItems.size()) return false;
+		for (size_t index = 0; index < items.size(); ++index) {
+			if (items[index].screenCenter != referenceItems[index].screenCenter * renderScale ||
+				items[index].rectMin != referenceItems[index].rectMin * renderScale ||
+				items[index].rectMax != referenceItems[index].rectMax * renderScale) return false;
+		}
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+		auto& overlayState = SceneComponentOverlayState::GetInstance();
+		overlayState.SetRenderedItems(&world, items);
+		SceneComponentOverlayPicker picker;
+		Entity hit;
+		const bool correctPick = picker.Pick(&world, view, Vector2(435.0f, 300.0f) * renderScale, hit) && hit == camera;
+		overlayState.Clear();
+		if (!correctPick) return false;
+#endif
+
 		// 小さいライトを除外してもカメラの重なり位置を変えない
 		settings.lightIconMaxPixelSize = settings.lightIconMinPixelSize = 16.0f;
 		collector.Collect(readonly, view, registry, settings, items);
-		if (items.size() != 1 || items[0].entity != camera || items[0].screenCenter.x != 405.0f ||
+		if (items.size() != 1 || items[0].entity != camera || items[0].screenCenter.x != 202.5f ||
 			items[0].stableOrder != 0) return false;
 		world.AddComponent<SceneObjectComponent>(light).activeInHierarchy = false;
 		collector.Collect(readonly, view, registry, settings, items);
-		if (items.size() != 1 || items[0].screenCenter.x != 400.0f) return false;
+		if (items.size() != 1 || items[0].screenCenter.x != 200.0f) return false;
 		view.valid = false;
 		collector.Collect(readonly, view, registry, settings, items);
-		return items.empty();
+		if (!items.empty()) return false;
+		return ResolvedRenderView{}.GetReferenceToRenderScale() == Vector2(0.0f, 0.0f);
+	}
+
+	// 2DとGPUのピックが分割画面の同じCameraとローカル画素を選ぶ
+	bool TestSplitViewPicking() {
+
+		ResolvedRenderView surface{};
+		surface.width = 641;
+		surface.height = 359;
+		surface.referenceWidth = 1280;
+		surface.referenceHeight = 720;
+		std::array<ResolvedRenderView, 4> views{};
+		for (auto& view : views) {
+			view.valid = true;
+			view.height = view.outputHeight = surface.height;
+			view.width = view.outputWidth = 321;
+		}
+		views[1].outputX = 321;
+		views[1].width = views[1].outputWidth = 320;
+		views[2].outputX = 300;
+		views[2].outputY = 100;
+		views[2].width = views[2].outputWidth = 100;
+		views[2].height = views[2].outputHeight = 100;
+		views[3].width = views[3].outputWidth = surface.width;
+		views[3].targetTexture = AssetID{43, 47};
+		const Vector2 renderPixel = Vector2(960.0f, 360.0f) * surface.GetReferenceToRenderScale();
+		Vector2 localPixel;
+		if (RenderViewResolver::FindOutputViewAtPixel(views, renderPixel, localPixel) != &views[1] ||
+			std::abs(localPixel.x - 159.75f) > 0.0001f || std::abs(localPixel.y - 179.5f) > 0.0001f) return false;
+		// 重なる領域は最後の画面Cameraを優先し、RenderTexture出力は除外する
+		if (RenderViewResolver::FindOutputViewAtPixel(views, Vector2(350.0f, 150.0f), localPixel) != &views[2] ||
+			localPixel != Vector2(50.0f, 50.0f)) return false;
+		views[2].valid = false;
+		if (RenderViewResolver::FindOutputViewAtPixel(views, Vector2(320.5f, 10.0f), localPixel) != &views[0] ||
+			RenderViewResolver::FindOutputViewAtPixel(views, Vector2(321.0f, 10.0f), localPixel) != &views[1] ||
+			localPixel != Vector2(0.0f, 10.0f)) return false;
+		if (RenderViewResolver::FindOutputViewAtPixel(views, Vector2(641.0f, 10.0f), localPixel) ||
+			RenderViewResolver::FindOutputViewAtPixel(views, Vector2(-1.0f, 10.0f), localPixel) ||
+			RenderViewResolver::FindOutputViewAtPixel(views, Vector2(std::numeric_limits<float>::quiet_NaN(), 10.0f), localPixel)) return false;
+		views[1].valid = false;
+		return !RenderViewResolver::FindOutputViewAtPixel(views, renderPixel, localPixel) && localPixel == Vector2::AnyInit(0.0f);
 	}
 
 	bool TestToolRegistryReentry() {
@@ -396,7 +469,7 @@ namespace {
 bool TestEditorContracts() {
 
 	if (!NEMTests::TestEditorGPUPassContracts() || !NEMTests::TestEditorViewportVisibility() ||
-		!TestSceneComponentOverlayCollection() || !TestToolRegistryReentry() ||
+		!TestSceneComponentOverlayCollection() || !TestSplitViewPicking() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
 		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestPerformanceGridCommandHistory() ||

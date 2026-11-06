@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	BlendState classMethods
 //============================================================================
-void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& blendDesc) {
+void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& blendDesc, bool disableNormalBlending) {
 
 	blendDesc = {};
 	blendDesc.BlendEnable = false;
@@ -20,7 +20,7 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		// 通常αブレンド
 	case BlendMode::Normal:
 
-		blendDesc.BlendEnable = true;
+		blendDesc.BlendEnable = !disableNormalBlending;
 		blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		blendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;

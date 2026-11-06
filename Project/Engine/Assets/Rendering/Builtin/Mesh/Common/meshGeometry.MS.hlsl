@@ -47,7 +47,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 		// 頂点が属するサブメッシュのローカル行列を親行列に掛ける
 		float4 worldPos = mul(vertex.position, gMeshletWorldMatrix);
 		float4 previousWorldPos = mul(
-			LoadMeshVertex(instanceIndex, vertexIndex).position, gMeshletPreviousWorldMatrix);
+			vertex.position, gMeshletPreviousWorldMatrix);
 
 		VSOutput output;
 		output.position = mul(worldPos, viewProjection);

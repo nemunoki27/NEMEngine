@@ -75,11 +75,19 @@ void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& cont
 		return;
 	}
 	// 全描画先が完成してからサイズと所有を切り替える
+	if (IsValid() && currentWidth_ == width && currentHeight_ == height) {
+		sceneMain_->ReplaceColor(context, static_cast<size_t>(GBufferAttachment::Albedo),
+			BuildSceneMainDesc(width, height, albedoFormat).colors.front());
+		albedoFormat_ = albedoFormat;
+		return;
+	}
 	RenderPathResources candidate;
 	candidate.Create(context, width, height, albedoFormat);
 	candidate.albedoFormat_ = albedoFormat;
 	candidate.currentWidth_ = width;
 	candidate.currentHeight_ = height;
+	if (sceneColorOpaque_) candidate.PrepareSceneColorOpaque(context);
+	if (depthPyramid_.IsValid()) candidate.PrepareDepthPyramid(context);
 	// 既に使用したOutlineも候補側で完成させる
 	if (runtimeOutline_.IsValid()) candidate.PrepareScreenSpaceOutline(context, false);
 	if (editorSelectionOutline_.IsValid()) candidate.PrepareScreenSpaceOutline(context, true);
@@ -117,12 +125,43 @@ void Engine::RenderPathResources::Create(const RenderTargetCreationContext& cont
 		surface->Create(context.device, &context.targets, &context.depths, &context.shaders, desc);
 		return surface;
 	};
-	// GBuffer・合成先・透明描画用の背景を生成する
+	// 全描画で使うGBufferと合成先を生成する
 	sceneMain_ = createSurface(BuildSceneMainDesc(width, height, albedoFormat));
 	sceneFinal_ = createSurface(BuildSceneFinalDesc(width, height));
-	sceneColorOpaque_ = createSurface(BuildSceneColorOpaqueDesc(width, height));
-	depthPyramid_.Create(context.device, &context.shaders, width, height);
 
+}
+
+Engine::MultiRenderTarget* Engine::RenderPathResources::PrepareSceneColorOpaque(GraphicsCore& graphicsCore) {
+
+	const RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
+	return PrepareSceneColorOpaque(context);
+}
+
+Engine::MultiRenderTarget* Engine::RenderPathResources::PrepareSceneColorOpaque(const RenderTargetCreationContext& context) {
+
+	if (!IsValid()) return nullptr;
+	if (sceneColorOpaque_ && sceneColorOpaque_->IsValid()) return sceneColorOpaque_.get();
+	auto candidate = std::make_unique<MultiRenderTarget>();
+	candidate->Create(context.device, &context.targets, &context.depths, &context.shaders,
+		BuildSceneColorOpaqueDesc(currentWidth_, currentHeight_));
+	sceneColorOpaque_.swap(candidate);
+	return sceneColorOpaque_.get();
+}
+
+Engine::DepthPyramidTexture& Engine::RenderPathResources::PrepareDepthPyramid(GraphicsCore& graphicsCore) {
+
+	const RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
+	return PrepareDepthPyramid(context);
+}
+
+Engine::DepthPyramidTexture& Engine::RenderPathResources::PrepareDepthPyramid(const RenderTargetCreationContext& context) {
+
+	if (IsValid() && !depthPyramid_.IsValid()) {
+		depthPyramid_.Create(context.device, &context.shaders, currentWidth_, currentHeight_);
+	}
+	return depthPyramid_;
 }
 
 Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::PrepareScreenSpaceOutline(
@@ -303,8 +342,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpac
 bool Engine::RenderPathResources::IsValid() const {
 
 	return sceneMain_ && sceneMain_->IsValid() &&
-		sceneFinal_ && sceneFinal_->IsValid() &&
-		sceneColorOpaque_ && sceneColorOpaque_->IsValid() && depthPyramid_.IsValid();
+		sceneFinal_ && sceneFinal_->IsValid();
 }
 
 Engine::RenderTexture2D* Engine::RenderPathResources::GetGBufferColor(GBufferAttachment attachment) {

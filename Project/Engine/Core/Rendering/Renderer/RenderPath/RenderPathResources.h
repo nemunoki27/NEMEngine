@@ -101,6 +101,12 @@ namespace Engine {
 		// サイズに応じてレンダーターゲットを生成/再生成する
 		void Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
 		void Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height, DXGI_FORMAT albedoFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
+		// Scene Textureを参照する描画だけ読み取り用の背景を用意する
+		MultiRenderTarget* PrepareSceneColorOpaque(GraphicsCore& graphicsCore);
+		MultiRenderTarget* PrepareSceneColorOpaque(const RenderTargetCreationContext& context);
+		// 遮蔽カリングで使用するViewだけHi-Zを用意する
+		DepthPyramidTexture& PrepareDepthPyramid(GraphicsCore& graphicsCore);
+		DepthPyramidTexture& PrepareDepthPyramid(const RenderTargetCreationContext& context);
 		// Outlineの要求があるViewだけ中間描画先を用意する
 		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(GraphicsCore& graphicsCore, bool editorSelection);
 		ScreenSpaceOutlineViewResources& PrepareScreenSpaceOutline(const RenderTargetCreationContext& context, bool editorSelection);

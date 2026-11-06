@@ -49,6 +49,9 @@ namespace Engine {
 		// 出力サイズ
 		uint32_t width = 0;
 		uint32_t height = 0;
+		// カメラと画面座標の基準サイズ、0なら出力サイズを使う
+		uint32_t referenceWidth = 0;
+		uint32_t referenceHeight = 0;
 
 		// どのカメラソースからビューを解決するか
 		RenderViewSourceKind sourceKind = RenderViewSourceKind::WorldCamera;
@@ -58,6 +61,9 @@ namespace Engine {
 		UUID preferredPerspectiveCameraUUID{};
 		// ManualCamera使用時の状態
 		ManualRenderCameraState manualCamera{};
+
+		uint32_t GetReferenceWidth() const { return referenceWidth ? referenceWidth : width; }
+		uint32_t GetReferenceHeight() const { return referenceHeight ? referenceHeight : height; }
 
 		// 出力先と描画要求から実行対象を判定する
 		bool ShouldRender(const ResolvedRenderView& view) const;

@@ -27,4 +27,6 @@ namespace Engine {
 	void WriteBloomSettings(MaterialParameterSet& parameters, const BloomSettings& settings);
 	// 縮小先の実寸を最大5段階まで求める
 	std::vector<RenderTargetSize> BuildBloomLevelSizes(uint32_t width, uint32_t height);
+	// 入力画像の縮小率を維持して基準解像度へ換算する
+	RenderTargetSize ResolveBloomReferenceSize(RenderTargetSize source, RenderTargetSize actual, RenderTargetSize reference);
 }

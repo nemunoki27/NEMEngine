@@ -1,6 +1,17 @@
 #ifndef NEM_PRIMITIVE_UV_HLSLI
 #define NEM_PRIMITIVE_UV_HLSLI
 
+// bitはspace2のTexture register番号、0なら従来どおりサンプルする
+float4 SamplePrimitiveMaterialTexture(Texture2D<float4> texture, SamplerState samplerState,
+	float2 uv, uint unassignedMask, uint textureRegister) {
+
+	[branch]
+	if ((unassignedMask & (1u << textureRegister)) != 0u) {
+		return 1.0f.xxxx;
+	}
+	return texture.Sample(samplerState, uv);
+}
+
 // Ring以外は頂点UVを使い、Ringはローカル位置から角度と半径を復元する
 float2 ResolvePrimitiveLocalUV(float4 coordinates, float4 ringParams) {
 

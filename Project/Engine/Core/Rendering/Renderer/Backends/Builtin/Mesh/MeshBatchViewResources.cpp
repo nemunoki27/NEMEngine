@@ -165,8 +165,9 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 		constants.renderCameraPos = camera->cameraPos;
 	}
 	constants.frameSerial = static_cast<uint32_t>(frameSerial);
-	constants.viewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),
-		static_cast<float>((std::max)(view.height, 1u)));
+	// ScreenPixelsの輪郭幅は表示先の縮小前の座標で扱う
+	constants.viewSize = Vector2(static_cast<float>((std::max)(view.GetReferenceWidth(), 1u)),
+		static_cast<float>((std::max)(view.GetReferenceHeight(), 1u)));
 	const ResolvedRenderView* cullView = cullingView ? cullingView : &view;
 	if (const ResolvedCameraView* camera = cullView->FindCamera(RenderCameraDomain::Perspective)) {
 
@@ -184,7 +185,8 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 	} else {
 		constants.cullingViewProjection = constants.viewProjection;
 		constants.cullingView = Matrix4x4::Identity();
-		constants.cullingViewSize = constants.viewSize;
+		constants.cullingViewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),
+			static_cast<float>((std::max)(view.height, 1u)));
 		constants.cullingProjectionScale = Vector2::AnyInit(1.0f);
 	}
 	// 同じ種類のViewでもCameraが変われば別の定数領域へ転送する

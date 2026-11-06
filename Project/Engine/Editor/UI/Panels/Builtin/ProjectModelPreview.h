@@ -8,8 +8,11 @@
 
 // c++
 #include <unordered_map>
+#include <utility>
 
 namespace Engine {
+
+	class TextureUploadService;
 
 	//============================================================================
 	//	ProjectModelPreview class
@@ -41,6 +44,7 @@ namespace Engine {
 			uint64_t textureRevision = 0;
 			uint64_t lastUsedFrame = 0;
 			bool rendered = false;
+			std::vector<std::pair<std::string, std::weak_ptr<const uint8_t>>> textures;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -64,5 +68,7 @@ namespace Engine {
 		void TrimCache();
 		// モデルごとの描画資源名を作る
 		static std::string MakeTextureName(AssetID asset);
+		// 依存画像の差替えだけをサムネイルへ反映する
+		static bool UpdateTextureReferences(PreviewEntry& entry, TextureUploadService& uploads, bool update = true);
 	};
 }

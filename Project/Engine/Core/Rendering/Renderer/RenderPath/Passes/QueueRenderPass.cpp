@@ -41,9 +41,10 @@ void Engine::QueueRenderPass::Execute(
 	if (desc_.kind == RenderPathPassKind::Transparent && context.resources &&
 		(!items.IsEmpty() || RenderFeatureResourceUtility::RequiresSceneColorSnapshot(context, passBuckets, deps_))) {
 
-		MultiRenderTargetCopy::CopyColor0Resource(
-			graphicsCore, context.resources->GetSceneFinal(), context.resources->GetSceneColorOpaque());
-		context.resources->GetSceneColorOpaque()->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
+		if (auto* opaque = context.resources->GetSceneColorOpaque()) {
+			MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, context.resources->GetSceneFinal(), opaque);
+			opaque->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
+		}
 	}
 
 	DepthTexture2D* depth = nullptr;

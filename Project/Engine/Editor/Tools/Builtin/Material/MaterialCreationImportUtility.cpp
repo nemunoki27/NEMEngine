@@ -61,6 +61,7 @@ namespace Engine::MaterialCreationImportUtility {
 			if (!variant.is_object()) {
 				return false;
 			}
+			nextSettings.disableNormalBlending = variant.value("disableNormalBlending", false);
 			if (variant.contains("rasterizer") && variant["rasterizer"].is_object()) {
 				const auto& rasterizer = variant["rasterizer"];
 				nextSettings.fillMode = EnumFromJsonString(rasterizer, "fillMode", nextSettings.fillMode);

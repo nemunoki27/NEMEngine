@@ -10,6 +10,8 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
@@ -84,6 +86,20 @@ void Engine::ProjectModelPreview::TrimCache() {
 	}
 }
 
+bool Engine::ProjectModelPreview::UpdateTextureReferences(PreviewEntry& entry, TextureUploadService& uploads, bool update) {
+
+	bool changed = false;
+	for (auto& [key, previous] : entry.textures) {
+		const GPUTextureResource* texture = uploads.GetTexture(key);
+		const std::weak_ptr<const uint8_t> current = texture && texture->valid ? texture->ownership : TextureOwnership{};
+		changed |= previous.owner_before(current) || current.owner_before(previous);
+		if (update) {
+			previous = current;
+		}
+	}
+	return changed;
+}
+
 void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext& context, AssetDatabase& database) {
 
 	if (!context.graphicsCore || !context.renderPipeline) {
@@ -132,10 +148,23 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 			(entry.textureRevision == textureRevision || textureQuietFrames_ < 8))) {
 			continue;
 		}
+		if (entry.rendered && entry.meshGeneration == mesh->reloadGeneration &&
+			!UpdateTextureReferences(entry, context.graphicsCore->GetTextureUploadService(), false)) {
+			entry.textureRevision = textureRevision;
+			continue;
+		}
 		// 初回とMesh更新時だけプレビューのMaterialを同期する
 		if (!entry.rendered || entry.meshGeneration != mesh->reloadGeneration) {
 			const auto materials = ModelPreviewUtility::BuildMaterials(mesh->subMeshes);
 			SetMeshSubMeshes(*world_, entry.entity, materials);
+			entry.textures.clear();
+			for (const auto& subMesh : mesh->subMeshes) {
+				const AssetID textureAsset = subMesh.defaultTextureAssets.baseColorTexture;
+				if (textureAsset) {
+					entry.textures.emplace_back(RuntimeTextureResolver::MakeThumbnailKey(
+						Algorithm::PathToUTF8(database.ResolveFullPath(textureAsset))), TextureOwnership{});
+				}
+			}
 		}
 		auto* texture = resources_.CreateRenderTexture(MakeTextureName(asset), Vector2I(kThumbnailSize, kThumbnailSize), kClearColor, 3);
 		if (!texture) {
@@ -144,6 +173,7 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 		bool rendered = false;
 		resources_.RenderToTexture(*texture, [&](EditorToolRenderContext& renderContext) {
 			EntityPreviewRenderRequest request{};
+			request.useThumbnailTextures = true;
 			request.world = world_.get();
 			request.assetDatabase = &database;
 			request.rootEntity = entry.entity;
@@ -155,6 +185,7 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 		entry.rendered = rendered;
 		entry.meshGeneration = mesh->reloadGeneration;
 		entry.textureRevision = textureRevision;
+		UpdateTextureReferences(entry, context.graphicsCore->GetTextureUploadService());
 		nextEntry_ = cursor + 1;
 		break;
 	}

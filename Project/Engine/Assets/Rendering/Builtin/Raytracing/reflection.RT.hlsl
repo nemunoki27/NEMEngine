@@ -354,36 +354,41 @@ void ResolveRaytracingHitGeometry(
 	float3 objectNormal = SafeNormalize(
 		v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z,
 		float3(0.0f, 1.0f, 0.0f));
-	float3 objectTangent = SafeNormalize(
-		v0.tangent * bary.x + v1.tangent * bary.y + v2.tangent * bary.z,
-		float3(1.0f, 0.0f, 0.0f));
-	float tangentSign =
-		v0.tangentSign * bary.x +
-		v1.tangentSign * bary.y +
-		v2.tangentSign * bary.z < 0.0f ? -1.0f : 1.0f;
-
 	float3 localNormal = SafeNormalize(
 		mul(float4(objectNormal, 0.0f), subMesh.localNormalMatrix).xyz,
 		objectNormal);
-	float3 localTangent = SafeNormalize(
-		mul(float4(objectTangent, 0.0f), subMesh.localMatrix).xyz,
-		objectTangent);
-	float3x3 objectToWorld = (float3x3)ObjectToWorld3x4();
 	float3x3 worldToObject = (float3x3)WorldToObject3x4();
 	float3 worldNormal = SafeNormalize(
 		mul(localNormal, worldToObject), localNormal);
-	float3 worldTangent = SafeNormalize(
-		mul(objectToWorld, localTangent), localTangent);
-	worldTangent = SafeNormalize(
-		worldTangent - worldNormal * dot(worldNormal, worldTangent),
-		float3(1.0f, 0.0f, 0.0f));
+	float3 worldTangent = 0.0f.xxx;
+	float3 worldBitangent = 0.0f.xxx;
+	// 標準PBRで接線基底を使うのは解決済み法線テクスチャがある場合だけ
+	[branch]
+	if (subMesh.normalTextureIndex != kNoTexture) {
 
-	float worldOrientationSign = determinant(objectToWorld) < 0.0f ? -1.0f : 1.0f;
-	float bitangentSign = tangentSign *
-		subMesh.localOrientationSign * worldOrientationSign;
-	float3 worldBitangent =
-		SafeNormalize(cross(worldNormal, worldTangent),
+		float3 objectTangent = SafeNormalize(
+			v0.tangent * bary.x + v1.tangent * bary.y + v2.tangent * bary.z,
+			float3(1.0f, 0.0f, 0.0f));
+		float tangentSign =
+			v0.tangentSign * bary.x +
+			v1.tangentSign * bary.y +
+			v2.tangentSign * bary.z < 0.0f ? -1.0f : 1.0f;
+		float3 localTangent = SafeNormalize(
+			mul(float4(objectTangent, 0.0f), subMesh.localMatrix).xyz,
+			objectTangent);
+		float3x3 objectToWorld = (float3x3)ObjectToWorld3x4();
+		worldTangent = SafeNormalize(
+			mul(objectToWorld, localTangent), localTangent);
+		worldTangent = SafeNormalize(
+			worldTangent - worldNormal * dot(worldNormal, worldTangent),
+			float3(1.0f, 0.0f, 0.0f));
+
+		float worldOrientationSign = determinant(objectToWorld) < 0.0f ? -1.0f : 1.0f;
+		float bitangentSign = tangentSign *
+			subMesh.localOrientationSign * worldOrientationSign;
+		worldBitangent = SafeNormalize(cross(worldNormal, worldTangent),
 			float3(0.0f, 0.0f, 1.0f)) * bitangentSign;
+	}
 
 	// 両面形状の裏面ヒットでも法線を入射側へ向ける
 	if (dot(worldNormal, WorldRayDirection()) > 0.0f) {
@@ -768,6 +773,13 @@ void ReflectionClosestHit(
 //============================================================================
 //	raygeneration
 //============================================================================
+void StoreReflectionTrace(uint2 pixel, float4 color, float hitDistance, float4 hitGeometry) {
+
+	gDestColor[pixel] = color;
+	gReflectionHitDistance[pixel] = hitDistance;
+	gReflectionHitGeometry[pixel] = hitGeometry;
+}
+
 [shader("raygeneration")]
 void ReflectionRayGen() {
 
@@ -779,20 +791,17 @@ void ReflectionRayGen() {
 	uint2 sourcePixel = min(
 		uint2(sourceUV * float2(sourceDim)), sourceDim - 1u);
 
-	// Trace結果は後続フィルタでScene Colorへ合成する
-	gDestColor[pixel] = 0.0f.xxxx;
-	gReflectionHitDistance[pixel] = 0.0f;
-	gReflectionHitGeometry[pixel] = 0.0f.xxxx;
-
 	float depthValue = gSourceDepth.Load(int3(sourcePixel, 0));
 
 	// 背景画素はLightingPassがskyboxを書いているのでそのまま残す
 	if (depthValue >= 1.0f) {
+		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
 	}
 	// 反射を受けないサーフェイスはそのまま残す
 	uint surfaceFlags = gSourceFlags.Load(int3(sourcePixel, 0));
 	if ((surfaceFlags & kMaterialFlagReceiveReflection) == 0u) {
+		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
 	}
 
@@ -805,6 +814,7 @@ void ReflectionRayGen() {
 	float roughnessVisibility = 1.0f - smoothstep(
 		roughnessFadeStart, gReflectionMaxRoughness, roughness);
 	if (roughnessVisibility <= 0.0f) {
+		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
 	}
 
@@ -904,15 +914,14 @@ void ReflectionRayGen() {
 		++acceptedSampleCount;
 	}
 	if (acceptedSampleCount == 0u) {
+		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
 	}
 	reflectedRadiance /= float(acceptedSampleCount);
 	reflectedRadiance *= gReflectionIntensity * roughnessVisibility;
 
-	gDestColor[pixel] = float4(reflectedRadiance, roughnessVisibility);
-	gReflectionHitDistance[pixel] =
-		accumulatedHitDistance / float(acceptedSampleCount);
-	gReflectionHitGeometry[pixel] = hitSampleCount != 0u ?
-		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) :
-		0.0f.xxxx;
+	// Trace結果は後続フィルタへ一度だけ書き込む
+	StoreReflectionTrace(pixel, float4(reflectedRadiance, roughnessVisibility),
+		accumulatedHitDistance / float(acceptedSampleCount), hitSampleCount != 0u ?
+		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) : 0.0f.xxxx);
 }

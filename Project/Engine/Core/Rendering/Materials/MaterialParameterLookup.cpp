@@ -32,6 +32,26 @@ const Engine::MaterialParameterValue* Engine::MaterialParameterLookup::Find(cons
 	return nullptr;
 }
 
+Engine::AssetID Engine::MaterialParameterLookup::ResolveTextureAsset(const MaterialParameterSet& defaults,
+	const MaterialParameterSet* overrides, const ShaderResourceBinding& resource) {
+
+	if (overrides) {
+		if (const MaterialParameterValue* value = Find(*overrides,
+			resource.parameterID, resource.semantic, resource.name, &defaults)) {
+			if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
+				return *id;
+			}
+		}
+	}
+	if (const MaterialParameterValue* value = Find(defaults,
+		resource.parameterID, resource.semantic, resource.name)) {
+		if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
+			return *id;
+		}
+	}
+	return {};
+}
+
 bool Engine::MaterialParameterLookup::IsTextureSemantic(MaterialParameterSemantic semantic) {
 
 	switch (semantic) {

@@ -25,6 +25,11 @@ namespace Engine {
 //============================================================================
 namespace Engine::MeshDrawPathCommon {
 
+	// 標準PBRの深度描画でAlphaClipが必ず通る保存値だけを判定する
+	bool HasUnclippedDepth(const MaterialParameterSet& defaults, const MaterialParameterSet& overrides);
+	// 標準Depthの描画状態を変えず位置専用Pipelineへ切り替えられるか
+	bool CanUsePositionOnlyDepthPipeline(const PipelineVariantDesc& source, const PipelineVariantDesc& depth);
+
 	// 描画とレイ判定で表面方式を揃える
 	MeshSubMeshRenderState ResolveSubMeshRenderState(const MeshRendererComponent& renderer, const SubMeshMaterial& subMesh);
 

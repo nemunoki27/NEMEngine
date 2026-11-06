@@ -98,7 +98,8 @@ void ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecuti
 	}
 
 	uint32_t maxRadiusPixels = 0;
-	if (!BuildDrawRecords(requests, maxRadiusPixels)) {
+	const Vector2 pixelScale = context.view ? context.view->GetReferenceToRenderScale() : Vector2::AnyInit(1.0f);
+	if (!BuildDrawRecords(requests, maxRadiusPixels, pixelScale)) {
 		return;
 	}
 
@@ -113,8 +114,33 @@ void ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecuti
 	postProcess_.ExecuteComposite(graphicsCore, context, deps, resources, compositeTarget, static_cast<uint32_t>(styleScratch_.size()));
 }
 
+Engine::ScreenSpaceOutlineStyleGPU Engine::ScreenSpaceOutlineRenderer::BuildStyleForView(
+	const ScreenSpaceOutlineStyle& style, const Vector2& referenceToRenderScale) {
+
+	ScreenSpaceOutlineStyleGPU result{};
+	result.color = style.color;
+	result.priority = style.priority;
+	result.visibilityMode = static_cast<uint32_t>(style.visibilityMode);
+	result.regionMode = static_cast<uint32_t>(style.regionMode);
+	const float scale = (std::min)(referenceToRenderScale.x, referenceToRenderScale.y);
+	if (!std::isfinite(style.widthPixels) || !std::isfinite(scale) || scale <= 0.0f) {
+		result.widthPixels = 0.0f;
+		return result;
+	}
+	result.widthPixels = std::clamp(style.widthPixels, 0.0f, static_cast<float>(kMaxScreenSpaceOutlineRadiusPixels));
+	if (scale != 1.0f) {
+		// 元の整数Dilation幅を基準にし、1px未満の輪郭は透明度で残す
+		const float width = std::clamp(std::floor(result.widthPixels) * scale,
+			0.0f, static_cast<float>(kMaxScreenSpaceOutlineRadiusPixels));
+		result.color.a *= (std::min)(width, 1.0f);
+		result.widthPixels = width > 0.0f ? (std::max)(width, 1.0f) : 0.0f;
+	}
+	return result;
+}
+
 bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
-	std::span<const ScreenSpaceOutlineRequest> requests, uint32_t& outMaxRadiusPixels) {
+	std::span<const ScreenSpaceOutlineRequest> requests, uint32_t& outMaxRadiusPixels,
+	const Vector2& referenceToRenderScale) {
 
 	styleScratch_.clear();
 	drawScratch_.clear();
@@ -129,15 +155,9 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 			continue;
 		}
 
-		// GPUへ渡す前に必ず半径上限でclampする、巨大値はDilationのGPU Hang原因になる
-		const float width = std::clamp(request.style.widthPixels, 0.0f,
-			static_cast<float>(kMaxScreenSpaceOutlineRadiusPixels));
-		ScreenSpaceOutlineStyleGPU gpuStyle{};
-		gpuStyle.color = request.style.color;
-		gpuStyle.widthPixels = width;
-		gpuStyle.priority = request.style.priority;
-		gpuStyle.visibilityMode = static_cast<uint32_t>(request.style.visibilityMode);
-		gpuStyle.regionMode = static_cast<uint32_t>(request.style.regionMode);
+		const ScreenSpaceOutlineStyleGPU gpuStyle = BuildStyleForView(request.style, referenceToRenderScale);
+		const float width = gpuStyle.widthPixels;
+		if (width <= 0.0f) continue;
 
 		// 同一styleは集約してstyleIDを共有する、複数選択で同じ見た目なら1枠で済む
 		uint32_t styleID = 0;

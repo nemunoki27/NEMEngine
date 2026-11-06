@@ -22,6 +22,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
 #include <cmath>
 #include <unordered_map>
 #include <variant>
@@ -90,6 +91,10 @@ void Engine::MeshBatchResources::Finalize() {
 	subMeshParamGenerations_.clear();
 	batchIdentity_.Clear();
 	parameterGeneration_ = 1;
+	depthMaterialHash_ = 0;
+	depthParameterGeneration_ = 0;
+	hasUnclippedDepth_ = false;
+	hasAssignedDepthTexture_ = false;
 	displacementMetricMaterial_ = nullptr;
 	displacementMetricMaterialHash_ = 0;
 	cachedMaxDisplacement_ = 0.0f;
@@ -115,6 +120,20 @@ void Engine::MeshBatchResources::Finalize() {
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 	visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	initialized_ = false;
+}
+
+bool Engine::MeshBatchResources::HasUnclippedDepth(const MaterialAsset& material) {
+
+	const uint64_t materialHash = material.parameters.GetContentHash();
+	if (depthMaterialHash_ != materialHash || depthParameterGeneration_ != parameterGeneration_) {
+		hasUnclippedDepth_ = !hasAssignedDepthTexture_ && !subMeshParamScratch_.empty() &&
+			std::all_of(subMeshParamScratch_.begin(), subMeshParamScratch_.end(), [&](const auto& parameters) {
+				return MeshDrawPathCommon::HasUnclippedDepth(material.parameters, parameters);
+			});
+		depthMaterialHash_ = materialHash;
+		depthParameterGeneration_ = parameterGeneration_;
+	}
+	return hasUnclippedDepth_;
 }
 
 float Engine::MeshBatchResources::ResolveMaxDisplacement(const MaterialAsset* material) {

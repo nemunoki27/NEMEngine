@@ -10,15 +10,15 @@ cbuffer PostProcessParameters : register(b1) {
 	float3 _pad;
 };
 
-Texture2D<float4> gSourceColor : register(t0);
+Texture2D<float> gSourceColor : register(t0);
 Texture2D<float4> gSourcePosition : register(t1);
 Texture2D<float4> gSourceNormal : register(t2);
 Texture2D<float2> gSourceMotion : register(t3);
 Texture2D<uint> gSourceFlags : register(t4);
-Texture2D<float4> gHistoryColor : register(t5);
+Texture2D<float> gHistoryColor : register(t5);
 Texture2D<float4> gHistoryGeometry : register(t6);
 Texture2D<float2> gHistoryNormal : register(t7);
-RWTexture2D<float4> gDestColor : register(u0);
+RWTexture2D<float> gDestColor : register(u0);
 RWTexture2D<float4> gHistoryGeometryOutput : register(u1);
 RWTexture2D<float2> gHistoryNormalOutput : register(u2);
 
@@ -26,6 +26,8 @@ groupshared float3 sharedPosition[144];
 groupshared float3 sharedNormal[144];
 groupshared float sharedVisibility[144];
 groupshared uint sharedFlags[144];
+
+static const float kSpatialWeights[5] = { 0.60653066f, 0.88249690f, 1.0f, 0.88249690f, 0.60653066f };
 
 [numthreads(8, 8, 1)]
 void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID,
@@ -43,7 +45,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID,
 			float2(sourceWidth, sourceHeight)), uint2(sourceWidth, sourceHeight) - 1u);
 		sharedPosition[index] = gSourcePosition.Load(int3(sampleSource, 0)).xyz;
 		sharedNormal[index] = DecodeGBufferNormal(gSourceNormal.Load(int3(sampleSource, 0)).xyz);
-		sharedVisibility[index] = gSourceColor.Load(int3(samplePixel, 0)).r;
+		sharedVisibility[index] = gSourceColor.Load(int3(samplePixel, 0));
 		sharedFlags[index] = gSourceFlags.Load(int3(sampleSource, 0));
 	}
 	GroupMemoryBarrierWithGroupSync();
@@ -65,11 +67,15 @@ void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID,
 		for (int y = -2; y <= 2; ++y) {
 			for (int x = -2; x <= 2; ++x) {
 				uint sampleIndex = uint(int(centerIndex) + y * 12 + x);
+				if ((sharedFlags[sampleIndex] & 1u) == 0u) continue;
 				float3 samplePosition = sharedPosition[sampleIndex];
 				float3 sampleNormal = sharedNormal[sampleIndex];
-				float weight = exp(-float(x * x + y * y) / 8.0f) * pow(saturate(dot(normal, sampleNormal)), 32.0f) *
+				float normalWeight = saturate(dot(normal, sampleNormal));
+				// 32乗を平方の繰り返しで求める
+				[unroll]
+				for (uint power = 0u; power < 5u; ++power) normalWeight *= normalWeight;
+				float weight = kSpatialWeights[x + 2] * kSpatialWeights[y + 2] * normalWeight *
 					exp(-length(samplePosition - position) / positionLimit);
-				if ((sharedFlags[sampleIndex] & 1u) == 0u) weight = 0.0f;
 				sum += sharedVisibility[sampleIndex] * weight;
 				weightSum += weight;
 			}
@@ -83,12 +89,12 @@ void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID,
 			float3 previousNormal = DecodeOctahedralNormal(gHistoryNormal.Load(int3(historyPixel, 0)));
 			if (geometry.w > 0.0f && distance(geometry.xyz, position) < max(radius * 0.02f, 0.002f) &&
 				dot(previousNormal, normal) > 0.95f) {
-				float history = gHistoryColor.Load(int3(historyPixel, 0)).r;
+				float history = gHistoryColor.Load(int3(historyPixel, 0));
 				current = lerp(current, clamp(history, current - 0.15f, current + 0.15f), 0.85f);
 			}
 		}
 	}
-	gDestColor[pixel] = float4(saturate(current).xxx, 1.0f);
+	gDestColor[pixel] = saturate(current);
 	gHistoryGeometryOutput[pixel] = float4(position, surface ? 1.0f : 0.0f);
 	gHistoryNormalOutput[pixel] = EncodeOctahedralNormal(normal);
 }

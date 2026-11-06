@@ -6,12 +6,10 @@
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-
-// c++
-#include <format>
 
 //============================================================================
 //	ProjectAssetThumbnailCache classMethods
@@ -111,7 +109,7 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 
 std::string Engine::ProjectAssetThumbnailCache::MakeThumbnailKey(const std::string& assetPath) const {
 
-	return std::format("editor:project:thumbnail:{}", assetPath);
+	return RuntimeTextureResolver::MakeThumbnailKey(assetPath);
 }
 
 ImTextureID Engine::ProjectAssetThumbnailCache::TryGetTextureID(const std::string& key) const {
@@ -190,18 +188,7 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::str
 	if (state == TextureRequestState::None) {
 
 		// サムネイルのアップロードを要求する
-		TextureFileRequestDesc desc{};
-		desc.key = thumbnailKey;
-		desc.assetPath = assetPath;
-		if (assetDatabase_) {
-
-			if (const AssetMeta* meta = assetDatabase_->FindByPath(assetPath)) {
-				desc.importSettings = ParseTextureImportSettings(meta->importerSettings);
-			}
-		}
-		desc.requestedColorSpace = TextureColorSpace::SRGB;
-		desc.previewMaxDimension = 256;
-		desc.importSettings.generateMipmaps = false;
+		const TextureFileRequestDesc desc = RuntimeTextureResolver::MakeThumbnailRequest(assetPath, assetDatabase_);
 		textureUploadService_->RequestTextureFile(desc);
 	}
 	// フォールバックアイコン

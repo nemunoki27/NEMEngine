@@ -401,7 +401,7 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	float4 worldPos = mul(vertex.position, worldMatrix);
 	float4x4 previousWorldMatrix = GetInstanceSubMeshPreviousWorldMatrix(
 		instanceID, localSubMeshIndex);
-	float4 previousWorldPos = mul(LoadMeshVertex(instanceID, vertexID).position, previousWorldMatrix);
+	float4 previousWorldPos = mul(vertex.position, previousWorldMatrix);
 
 	VSOutput output;
 

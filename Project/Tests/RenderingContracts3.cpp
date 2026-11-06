@@ -170,7 +170,7 @@ namespace NEMTests {
 		runtime.Rebuild(profile);
 		const auto dependencyPlan = runtime.BuildPlan(dependent.anchor, Engine::RenderViewKind::Game);
 		if (!dependencyPlan.IsValid() || dependencyPlan.nodes.size() != 1 ||
-			dependencyPlan.nodes.front().source.pass != passID) {
+			dependencyPlan.nodes.front().source.pass != passID || dependencyPlan.nodes.front().sourceNodeIndex != SIZE_MAX) {
 			return false;
 		}
 		overrides.SetEnabled(passID, false);
@@ -228,8 +228,16 @@ namespace NEMTests {
 		const auto rebuiltPlan = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
 		const bool rebuilt = rebuiltPlan != retainedPlan && rebuiltPlan->nodes.front().pass->name == "ChangedSnapshot" &&
 			retainedPlan->nodes.front().pass->name != "ChangedSnapshot";
+		// 依存順とRayTracingの継承は計画に固定し、数値だけの変更では作り直さない
+		profile.passes.front().type = Engine::RenderFeaturePassType::RayTracing;
+		runtime.Rebuild(profile);
+		const auto chainPlan = runtime.GetPlan(second.anchor, Engine::RenderViewKind::Game);
+		const bool chain = chainPlan->nodes.size() == 2 && chainPlan->nodes[0].sourceNodeIndex == SIZE_MAX &&
+			chainPlan->nodes[1].sourceNodeIndex == 0 && chainPlan->nodes[0].raytracingChain && chainPlan->nodes[1].raytracingChain &&
+			chainPlan->nodes[0].profileName == "Game/RenderFeature/ChangedSnapshot" &&
+			chainPlan->nodes[1].profileName == "Game/RenderFeature/AutomaticOutput";
 		return valid && cleared && enabledByScript && disabledPassKeepsBypassNode && visibleEnabled && automatic && previous &&
-			selectedView && reused && parameterOnly && changed && viewChanged && rebuilt && overrides.Find(passID) == nullptr;
+			selectedView && reused && parameterOnly && changed && viewChanged && rebuilt && chain && overrides.Find(passID) == nullptr;
 	}
 
 	bool TestShaderPathDependencies() {

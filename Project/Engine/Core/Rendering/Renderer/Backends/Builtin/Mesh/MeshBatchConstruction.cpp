@@ -72,6 +72,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	meshInstanceIndexMap_.clear();
 	subMeshScratch_.clear();
 	subMeshParamScratch_.clear();
+	hasAssignedDepthTexture_ = false;
 	materialBuffers_.ResetActive();
 	materialBuffers_.Invalidate();
 	displacementMetricMaterial_ = nullptr;
@@ -286,6 +287,10 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			const uint32_t subMeshIndex =
 				batchSubMeshIndex == kAllMeshSubMeshes ?
 				localSubMeshIndex : batchSubMeshIndex;
+			// 未解決のインポートTextureも位置専用Depthの対象にしない
+			hasAssignedDepthTexture_ |= subMeshIndex >= subMeshes.size() ||
+				MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(gpuMesh, subMeshes, subMeshIndex) ||
+				static_cast<bool>(MeshDrawPathCommon::ResolveSubMeshOpacityTextureAssetID(gpuMesh, subMeshes, subMeshIndex));
 
 			// サブメッシュの形状データを構築
 			MeshSubMeshShaderData data{};

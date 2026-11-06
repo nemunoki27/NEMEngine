@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <format>
@@ -33,6 +34,13 @@ namespace {
 	Engine::AssetID writingRenderTexture{};
 	uint64_t bindingRevision = 1;
 
+	std::string MakeThumbnailAssetPath(const std::string& assetPath) {
+
+		const auto fullPath = Engine::RuntimePaths::ResolveAssetPath(assetPath);
+		const std::string logicalPath = Engine::RuntimePaths::ToAssetPath(fullPath);
+		return logicalPath.empty() ? Engine::Algorithm::PathToUTF8(fullPath) : logicalPath;
+	}
+
 	// Importer色空間が明示済みなら描画用途に依存しない同一GPUリソースへ統合する
 	std::string MakeTextureKey(const std::string& path,
 		const Engine::TextureImportSettings& importSettings,
@@ -47,6 +55,29 @@ namespace {
 }
 
 namespace Engine::RuntimeTextureResolver {
+
+	std::string MakeThumbnailKey(const std::string& assetPath) {
+
+		return std::format("editor:project:thumbnail:{}",
+			MakeThumbnailAssetPath(assetPath));
+	}
+
+	TextureFileRequestDesc MakeThumbnailRequest(const std::string& assetPath,
+		const AssetDatabase* assetDatabase) {
+
+		TextureFileRequestDesc desc{};
+		desc.assetPath = MakeThumbnailAssetPath(assetPath);
+		desc.key = MakeThumbnailKey(desc.assetPath);
+		if (assetDatabase) {
+			if (const AssetMeta* meta = assetDatabase->FindByPath(desc.assetPath)) {
+				desc.importSettings = ParseTextureImportSettings(meta->importerSettings);
+			}
+		}
+		desc.requestedColorSpace = TextureColorSpace::SRGB;
+		desc.previewMaxDimension = 256;
+		desc.importSettings.generateMipmaps = false;
+		return desc;
+	}
 
 	void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture, TextureOwnership ownership) {
 
@@ -199,7 +230,7 @@ namespace Engine::RuntimeTextureResolver {
 
 	BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
 		const AssetDatabase* assetDatabase, AssetID textureAssetID,
-		TextureColorSpace requestedColorSpace, bool normalMap) {
+		TextureColorSpace requestedColorSpace, bool normalMap, bool thumbnail) {
 
 		if (!textureAssetID) {
 			return {};
@@ -260,8 +291,9 @@ namespace Engine::RuntimeTextureResolver {
 			importSettings.preset = TextureImportPreset::NormalMap;
 			importSettings.colorSpace = TextureColorSpace::Linear;
 		}
-		const std::string key = MakeTextureKey(basePath, importSettings, requestedColorSpace) +
-			(normalMap ? ":normal" : "");
+		const bool useThumbnail = thumbnail && !normalMap && requestedColorSpace == TextureColorSpace::SRGB;
+		const std::string key = useThumbnail ? MakeThumbnailKey(basePath) :
+			MakeTextureKey(basePath, importSettings, requestedColorSpace) + (normalMap ? ":normal" : "");
 		TextureRequestState state = uploadService.GetState(key);
 		if (state == TextureRequestState::None) {
 
@@ -271,6 +303,9 @@ namespace Engine::RuntimeTextureResolver {
 			desc.importSettings = importSettings;
 			desc.requestedColorSpace = requestedColorSpace;
 			desc.normalMap = normalMap;
+			if (useThumbnail) {
+				desc = MakeThumbnailRequest(basePath, assetDatabase);
+			}
 			uploadService.RequestTextureFile(desc);
 			state = TextureRequestState::Queued;
 		}

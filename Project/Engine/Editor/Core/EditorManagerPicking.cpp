@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Runtime/Context/EngineContext.h>
 
 // c++
 #include <algorithm>
@@ -96,7 +97,8 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		const RenderCameraDomain cameraDomain = uiRuntime ?
 			RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
 		const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
-		if (!camera) {
+		if (!camera || (RenderItemExtract::GetVisibilityLayerMask(*world, entity, renderer.renderingLayerMask) &
+			view.GetCullingMask(cameraDomain)) == 0) {
 			return;
 		}
 
@@ -137,7 +139,8 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		const RenderCameraDomain cameraDomain = uiRuntime ?
 			RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
 		const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
-		if (!camera) {
+		if (!camera || (RenderItemExtract::GetVisibilityLayerMask(*world, entity, renderer.renderingLayerMask) &
+			view.GetCullingMask(cameraDomain)) == 0) {
 			return;
 		}
 
@@ -175,7 +178,8 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 			const RenderCameraDomain cameraDomain = uiRuntime ?
 				RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
 			const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
-			if (!camera) {
+			if (!camera || (RenderItemExtract::GetVisibilityLayerMask(*world, entity, renderer.renderingLayerMask) &
+				view.GetCullingMask(cameraDomain)) == 0) {
 				return;
 			}
 
@@ -305,6 +309,16 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			if (!mousePosInView.has_value()) {
 				return false;
 			}
+			const auto* surface = renderPipeline.GetViewportRenderService().GetSurface(viewKind);
+			const Vector2I referenceSize = EngineContext::GetWindowSetting().gameSize;
+			if (!surface || surface->GetWidth() == 0 || surface->GetHeight() == 0 ||
+				referenceSize.x <= 0 || referenceSize.y <= 0) {
+				return false;
+			}
+			// 分割Cameraの丸め誤差を持ち込まず、画像全体の論理座標を実画素へ合わせる
+			const Vector2 renderPixel = mousePosInView.value() * Vector2(
+				static_cast<float>(surface->GetWidth()) / static_cast<float>(referenceSize.x),
+				static_cast<float>(surface->GetHeight()) / static_cast<float>(referenceSize.y));
 
 			// 即時ピック(2D/Overlay)はここで候補だけ設定し、選択はリリース時に確定する
 			auto selectHit = [&](const Entity& hit) {
@@ -314,12 +328,18 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				editorState_.scenePickCandidateRequestID =
 					editorState_.scenePickRequestID;
 				};
+			Vector2 viewPixel;
+			const ResolvedRenderView* pickedView = renderPipeline.FindPickingView(viewKind, renderPixel, viewPixel);
+			if (!pickedView) {
+				selectHit(Entity::Null());
+				return true;
+			}
 
 			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
 			if (viewKind == RenderViewKind::Scene) {
 				Entity overlayHit = Entity::Null();
 				if (sceneComponentOverlayPicker_.Pick(context.activeWorld,
-					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit) &&
+					*pickedView, viewPixel, overlayHit) &&
 					context.activeWorld && IsScenePickDimensionAllowed(*context.activeWorld, overlayHit,
 						editorState_.sceneViewPickDimension)) {
 					selectHit(overlayHit);
@@ -328,7 +348,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			}
 
 			// 2Dエンティティのピック処理を優先実行
-			Entity hitEntity2D = Execute2DPick(mousePosInView.value(), renderPipeline.GetResolvedView(viewKind), context.activeWorld);
+			Entity hitEntity2D = Execute2DPick(viewPixel, *pickedView, context.activeWorld);
 			if (hitEntity2D.IsValid()) {
 
 				// 2Dが優先されるため、GPUによる3Dピックは行わず、即座に選択を確定する
@@ -344,7 +364,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				dimensionFilter = ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension);
 			}
 			if (pickTarget && renderPipeline.RenderMeshPicking(graphicsCore, viewKind,
-				mousePosInView.value(), *pickTarget, dimensionFilter)) {
+				renderPixel, *pickTarget, dimensionFilter)) {
 
 				if (meshSubMeshPicker_->ExecuteReadback(
 					graphicsCore, editorState_.scenePickRequestID)) {

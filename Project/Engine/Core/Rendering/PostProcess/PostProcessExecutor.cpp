@@ -56,6 +56,9 @@ void Engine::PostProcessExecutor::Release() {
 	constantBufferAllocator_.Release();
 	ClearParameterLayoutCache();
 	outputTextureScratch_.clear();
+	bindScratch_.clear();
+	parameterScratch_.clear();
+	typedLoadSupport_.clear();
 	elapsedTime_ = 0.0f;
 	frameIndex_ = 0;
 }
@@ -106,12 +109,9 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		return false;
 	}
 
-	// これから実行されるポスト識別名を取得
-	const std::string logHeader = MakePostProcessLogHeader(*materialAsset, desc);
-
 	// 書き込み先と書き込み元が同じなら処理しない
-	if (sourceColor->GetResource() == destColor->GetResource()) {
-		Logger::Output(LogType::Engine, logHeader +
+	if (sourceColor->GetResource() == destColor->GetResource() && !desc.allowInPlace) {
+		Logger::Output(LogType::Engine, MakePostProcessLogHeader(*materialAsset, desc) +
 			"入力と出力が同じResourceです Computeの同一Resource書き込みは許可されません");
 		return false;
 	}
@@ -119,7 +119,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	// 描画パスをマテリアルから取得
 	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
-		Logger::Output(LogType::Engine, logHeader + "Compute Passが見つかりません");
+		Logger::Output(LogType::Engine, MakePostProcessLogHeader(*materialAsset, desc) + "Compute Passが見つかりません");
 		return false;
 	}
 
@@ -138,15 +138,40 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		runtimeFeatures,
 		nullptr, false, &samplerOverrides, passBinding->shaderOverride);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
-		Logger::Output(LogType::Engine, logHeader + "Pipelineがないかコンパイルに失敗しました");
+		Logger::Output(LogType::Engine, MakePostProcessLogHeader(*materialAsset, desc) + "Pipelineがないかコンパイルに失敗しました");
 		return false;
 	}
 
 	// 深度リソースをポストプロセスで使用するか
-	const bool requiresDepth = RequiresSourceDepth(*pipelineState);
+	PipelineCacheEntry& cacheEntry = GetPipelineEntry(*pipelineState);
+	if (desc.allowInPlace) {
+		// SRVとの別名参照はBindingUtilityで拒否し、出力は一枚だけに限定する
+		if (!desc.outputTargets.empty() || !destColor->GetUAVGPUHandle().ptr) return false;
+		uint32_t outputCount = 0;
+		for (const auto& binding : pipelineState->GetComputeReflection().resources) {
+			if (binding.bindCount != 1 || binding.kind == ShaderBindingKind::AccelStruct ||
+				binding.name == "gNEMGlobalTexture2D" || binding.name == "gNEMGlobalTextureCube") return false;
+		}
+		for (const auto& binding : cacheEntry.bindings) {
+			if (binding.kind != ShaderBindingKind::UAV) continue;
+			if (binding.name != PostProcessBindingNames::kDestColor || binding.bindPoint != 0 || binding.space != 0) return false;
+			++outputCount;
+		}
+		if (outputCount != 1) return false;
+		const auto format = destColor->GetFormat();
+		auto [support, inserted] = typedLoadSupport_.try_emplace(format, false);
+		if (inserted) {
+			D3D12_FEATURE_DATA_FORMAT_SUPPORT query{format};
+			support->second = SUCCEEDED(graphicsCore.GetDXObject().GetDevice()->CheckFeatureSupport(
+				D3D12_FEATURE_FORMAT_SUPPORT, &query, sizeof(query))) &&
+				(query.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0 &&
+				(query.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE) != 0;
+		}
+		if (!support->second) return false;
+	}
 	// 使用するのに深度リソースがない場合
-	if (requiresDepth && !ResolveSourceDepth(context, desc, *source)) {
-		Logger::Output(LogType::Engine, logHeader +
+	if (cacheEntry.requiresDepth && !ResolveSourceDepth(context, desc, *source)) {
+		Logger::Output(LogType::Engine, MakePostProcessLogHeader(*materialAsset, desc) +
 			"gSourceDepthが必要ですが入力Depthがありません");
 		return false;
 	}
@@ -163,48 +188,35 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	pipelineState->BindGlobalDescriptorTablesCompute(commandList,
 		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
-	std::vector<ComputeBindItem> binds{};
-	binds.reserve(8);
+	auto& binds = bindScratch_;
+	binds.clear();
+	binds.reserve(cacheEntry.bindings.size() + 2);
 	// リフレクション情報からバッファをバインドする
-	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
-	for (const ShaderResourceBinding& binding : reflection.resources) {
-		if (!IsResourceBinding(binding) && binding.kind != ShaderBindingKind::CBV) {
-			continue;
-		}
-		if (binding.name == "gNEMGlobalTexture2D" ||
-			binding.name == "gNEMGlobalTextureCube") {
-
-			continue;
-		}
-
+	for (const ShaderResourceBinding& binding : cacheEntry.bindings) {
 		if (binding.kind == ShaderBindingKind::SRV || binding.kind == ShaderBindingKind::AccelStruct) {
-			if (!AppendSRVBinding(binding, graphicsCore, context, desc, *source, binds, logHeader)) {
+			if (!AppendSRVBinding(binding, graphicsCore, context, desc, *source, binds, *materialAsset)) {
 				return false;
 			}
 			continue;
 		}
 		if (binding.kind == ShaderBindingKind::UAV) {
 			if (!AppendUAVBinding(binding, graphicsCore, context,
-				desc, *dest, binds, logHeader)) {
+				desc, *dest, binds, *materialAsset)) {
 
 				return false;
 			}
 			continue;
 		}
-		if (binding.kind == ShaderBindingKind::CBV && binding.name != kFrameConstantsName &&
-			binding.name != kParameterConstantsName && !(binding.space == 0 && binding.bindPoint <= 1)) {
+		if (binding.kind == ShaderBindingKind::CBV) {
 			// ライト等の共通定数を同じViewの登録内容から取得する
 			const auto* buffer = context.bufferRegistry.Find(binding.name);
 			if (!buffer || !buffer->gpuAddress) {
-				Logger::Output(LogType::Engine, logHeader + "定数Bufferを解決できません binding=" + binding.name);
+				Logger::Output(LogType::Engine, MakePostProcessLogHeader(*materialAsset, desc) + "定数Bufferを解決できません binding=" + binding.name);
 				return false;
 			}
 			binds.push_back({binding.name, ComputeBindValueType::CBV, buffer->gpuAddress, {}, binding.bindPoint, binding.space});
 		}
 	}
-
-	// パイプラインキャッシュを解決し、フレーム定数バインドの有無も初回のみ解決してキャッシュする
-	PipelineCacheEntry& cacheEntry = GetPipelineEntry(*pipelineState);
 
 	// 共通フレーム、ポストプロセス実行情報のバッファデータを構築してバインド
 	if (cacheEntry.hasFrameConstantsByName || cacheEntry.hasFrameConstantsByRegister) {
@@ -259,20 +271,19 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 				.ownership = result.ownership,
 			};
 		};
-		std::vector<uint8_t> bytes;
+		MaterialParameterSet merged;
+		const MaterialParameterSet* parameters = &materialAsset->parameters;
 		if (!desc.parameterOverrides.empty()) {
-
-			MaterialAsset merged = *materialAsset;
-			merged.parameters.MergeFrom(desc.parameterOverrides);
-			bytes = MaterialParameterBufferBuilder::Build(
-				merged, parameterLayout, resolveTexture);
-		} else {
-			bytes = MaterialParameterBufferBuilder::Build(
-				*materialAsset, parameterLayout, resolveTexture);
+			merged = materialAsset->parameters;
+			merged.MergeFrom(desc.parameterOverrides);
+			parameters = &merged;
 		}
+		parameterScratch_.resize((std::max)(parameterLayout.GetSizeInBytes(), 16u));
+		MaterialParameterBufferBuilder::BuildElementInto(parameterScratch_, *parameters,
+			MaterialParameterSet{}, parameterLayout, resolveTexture);
 
 		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetResourceRetirement(),
-			graphicsCore.GetDXObject().GetDevice(), bytes);
+			graphicsCore.GetDXObject().GetDevice(), parameterScratch_);
 
 		binds.push_back({ kParameterConstantsName, ComputeBindValueType::CBV,
 			allocation.gpuAddress, {}, parameterLayout.GetBindPoint(), parameterLayout.GetSpace() });
@@ -372,9 +383,16 @@ Engine::PostProcessExecutor::PipelineCacheEntry& Engine::PostProcessExecutor::Ge
 		entry.layout.Build(pipeline.GetComputeReflection(), kParameterConstantsName);
 		entry.hasFrameConstantsByName = (pipeline.FindBindingByName(kFrameConstantsName, ShaderBindingKind::CBV) != nullptr);
 		entry.hasFrameConstantsByRegister = (pipeline.FindBinding(ShaderBindingKind::CBV, 0, 0) != nullptr);
+		entry.requiresDepth = RequiresSourceDepth(pipeline);
 		// Shaderの公開世代ごとに編集用の型情報も揃える
 		for (const auto& binding : pipeline.GetComputeReflection().resources) {
 
+			const bool resourceBinding = IsResourceBinding(binding);
+			const bool sharedConstants = binding.kind == ShaderBindingKind::CBV && binding.name != kFrameConstantsName &&
+				binding.name != kParameterConstantsName && !(binding.space == 0 && binding.bindPoint <= 1);
+			if ((resourceBinding || sharedConstants) && binding.name != "gNEMGlobalTexture2D" && binding.name != "gNEMGlobalTextureCube") {
+				entry.bindings.emplace_back(binding);
+			}
 			if (binding.kind == ShaderBindingKind::SRV && binding.name != kSourceColorName && binding.name != kSourceDepthName) {
 				entry.resources.emplace_back(binding);
 			} else if (binding.kind == ShaderBindingKind::Sampler) {

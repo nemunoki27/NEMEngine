@@ -91,6 +91,8 @@ namespace Engine {
 		// Shaderの配置に合わせてサブメッシュのMaterial値を転送
 		void UploadSubMeshMaterialParams(const MaterialAsset* material,
 			const MaterialParameterLayout& layout, const RenderDrawContext& drawContext);
+		// 描画用に解決した全SubMeshで切り抜きが不要か調べる
+		bool HasUnclippedDepth(const MaterialAsset& material);
 
 		// スキニングに使用するリソースを確保する
 		void EnsureSkinningResources(GraphicsCore& graphicsCore);
@@ -215,6 +217,10 @@ namespace Engine {
 		// InstanceとSubMeshごとのMaterial上書き
 		std::vector<MaterialParameterSet> subMeshParamScratch_{};
 		MeshMaterialBuffers materialBuffers_{};
+		uint64_t depthMaterialHash_ = 0;
+		uint64_t depthParameterGeneration_ = 0;
+		bool hasUnclippedDepth_ = false;
+		bool hasAssignedDepthTexture_ = false;
 		// 頂点変位Boundsのマテリアル別キャッシュ
 		const MaterialAsset* displacementMetricMaterial_ = nullptr;
 		uint64_t displacementMetricMaterialHash_ = 0;

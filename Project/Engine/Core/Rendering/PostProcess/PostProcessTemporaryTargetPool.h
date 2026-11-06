@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetSizing.h>
 
 // c++
 #include <string>
@@ -29,6 +30,7 @@ namespace Engine {
 		float widthScale = 1.0f;
 		float heightScale = 1.0f;
 		bool createUAV = true;
+		std::optional<RenderTargetSize> fixedSize;
 	};
 
 	//============================================================================

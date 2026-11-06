@@ -15,11 +15,6 @@ struct VSInput {
 //============================================================================
 //	resources
 //============================================================================
-cbuffer ViewConstants : register(b0) {
-
-	float4x4 viewProjection;
-};
-
 struct VSInstance {
 
 	float2 rectMin;

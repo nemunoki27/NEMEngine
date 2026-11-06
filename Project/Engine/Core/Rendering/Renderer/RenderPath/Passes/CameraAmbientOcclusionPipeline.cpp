@@ -17,7 +17,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraAmbientOcclusionProfile(con
 	trace.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 	trace.sceneInputs["gSourceFlags"] = "SceneFlagsMain";
 	trace.outputs.push_back({.name = "Raw", .shaderResource = "gDestColor",
-		.format = RenderFeatureTextureFormat::RGBA16_FLOAT, .widthScale = scale, .heightScale = scale});
+		.format = RenderFeatureTextureFormat::R16_FLOAT, .widthScale = scale, .heightScale = scale});
 	trace.parameterOverrides.Set("opaqueGeometryAllowed", MaterialParameterValue{.value = uint32_t(opaqueGeometryAllowed)});
 	trace.parameterOverrides.Set("cullingMask", MaterialParameterValue{.value = static_cast<uint32_t>(settings.cullingMask) & 0x00ffffffu});
 	trace.parameterOverrides.Set("radius", MaterialParameterValue{.value = settings.ambientOcclusionRadius});
@@ -35,7 +35,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraAmbientOcclusionProfile(con
 	filter.sceneInputs["gSourceFlags"] = "SceneFlagsMain";
 	filter.sceneInputs["gSourceMotion"] = "SceneMotionMain";
 	filter.outputs.push_back({.name = "Color", .shaderResource = "gDestColor",
-		.format = RenderFeatureTextureFormat::RGBA16_FLOAT, .widthScale = scale, .heightScale = scale,
+		.format = RenderFeatureTextureFormat::R16_FLOAT, .widthScale = scale, .heightScale = scale,
 		.history = true, .historyShaderResource = "gHistoryColor"});
 	filter.outputs.push_back({.name = "Geometry", .shaderResource = "gHistoryGeometryOutput",
 		.format = RenderFeatureTextureFormat::RGBA32_FLOAT, .widthScale = scale, .heightScale = scale,

@@ -34,60 +34,89 @@ namespace {
 		}
 	}
 
-	void DrawLogEntry(uint64_t sequence, const std::string& text, spdlog::level::level_enum level) {
+	void DrawLogEntry(const Engine::Logger::LogEntry& log, const ImVec2& size) {
 
-		const std::string id = std::to_string(sequence);
-		ImGui::PushID(id.c_str());
-		ImGui::PushStyleColor(ImGuiCol_Text, ToLevelColor(level));
-		ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
-		ImGui::TextWrapped("%s", text.c_str());
-		ImGui::PopTextWrapPos();
-		ImGui::PopStyleColor();
+		ImGui::PushID(static_cast<int>(log.sequence >> 32));
+		ImGui::PushID(static_cast<int>(log.sequence));
+		if (ImGui::IsRectVisible(size)) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ToLevelColor(log.level));
+			ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + size.x);
+			ImGui::TextUnformatted(log.message.c_str());
+			ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
 
-		if (ImGui::IsItemClicked()) {
-			ImGui::SetClipboardText(text.c_str());
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("クリックでコピー");
+			if (ImGui::IsItemClicked()) {
+				ImGui::SetClipboardText(log.message.c_str());
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("クリックでコピー");
+			}
+		} else {
+			ImGui::Dummy(size);
 		}
 
 		ImGui::Spacing();
 		ImGui::Separator();
 		ImGui::Spacing();
 		ImGui::PopID();
+		ImGui::PopID();
 	}
 
-	void DrawLogs(const char* childID) {
+}
 
-		const auto logs = Engine::Logger::GetRecentLogs();
+//============================================================================
+//	ConsolePanel classMethods
+//============================================================================
+void Engine::ConsolePanel::RefreshLogs(float width) {
 
-		ImGui::BeginChild(childID, ImVec2(0.0f, 0.0f), false);
-		ImGui::SetWindowFontScale(0.74f);
-
-		if (logs.empty()) {
-			ImGui::TextDisabled("ログはありません");
-		}
-
-		for (int i = static_cast<int>(logs.size()) - 1; i >= 0; --i) {
-
-			const auto& log = logs[static_cast<std::size_t>(i)];
-			const std::string text = std::string(log.type == Engine::LogType::Engine ? "[Engine] [" : "[Game] [") +
+	const bool logsChanged = Logger::RefreshRecentLogs(logRevision_, logs_);
+	if (logsChanged) {
+		for (auto& log : logs_) {
+			log.message = std::string(log.type == LogType::Engine ? "[Engine] [" : "[Game] [") +
 				ToLevelLabel(log.level) + "] " + log.message;
-
-			DrawLogEntry(log.sequence, text, log.level);
 		}
-
-		ImGui::SetWindowFontScale(1.0f);
-		// ログ欄の右クリックから保存先を開く
-		if (ImGui::BeginPopupContextWindow("LogContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
-			if (ImGui::MenuItem("ログをエクスプローラーで開く")) {
-				Engine::EditorShell::OpenDirectory(Engine::Logger::GetLogDir());
-			}
-			ImGui::EndPopup();
-		}
-
-		ImGui::EndChild();
 	}
+	if (!logsChanged && logWidth_ == width && logFontSize_ == ImGui::GetFontSize() && logFont_ == ImGui::GetFont()) {
+		return;
+	}
+	logWidth_ = width;
+	logFontSize_ = ImGui::GetFontSize();
+	logFont_ = ImGui::GetFont();
+	logHeights_.resize(logs_.size());
+	for (size_t index = 0; index < logs_.size(); ++index) {
+		logHeights_[index] = ImGui::CalcTextSize(logs_[index].message.c_str(), nullptr, false, width).y;
+	}
+}
+
+void Engine::ConsolePanel::DrawLogs() {
+
+	const bool visible = ImGui::BeginChild("##LogList", ImVec2(0.0f, 0.0f), false);
+	if (!visible) {
+		ImGui::EndChild();
+		return;
+	}
+	ImGui::SetWindowFontScale(0.74f);
+	const float width = ImGui::GetContentRegionAvail().x;
+	RefreshLogs(width);
+
+	if (logs_.empty()) {
+		ImGui::TextDisabled("ログはありません");
+	}
+
+	for (size_t index = logs_.size(); index > 0; --index) {
+		DrawLogEntry(logs_[index - 1], ImVec2(width, logHeights_[index - 1]));
+	}
+
+	ImGui::SetWindowFontScale(1.0f);
+	// ログ欄の右クリックから保存先を開く
+	if (ImGui::BeginPopupContextWindow("LogContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
+		if (ImGui::MenuItem("ログをエクスプローラーで開く")) {
+			EditorShell::OpenDirectory(Logger::GetLogDir());
+		}
+		ImGui::EndPopup();
+	}
+
+	ImGui::EndChild();
 }
 
 //============================================================================
@@ -105,7 +134,7 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	DrawLogs("##LogList");
+	DrawLogs();
 
 	ImGui::End();
 }

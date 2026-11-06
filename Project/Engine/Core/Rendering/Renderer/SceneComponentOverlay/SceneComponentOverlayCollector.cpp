@@ -167,7 +167,7 @@ namespace {
 
 		// ライトアイコンはEntityの回転・スケールを使わず、位置だけをSceneViewへ射影する
 		const Engine::Vector3 position = GetWorldPosition(world, entity);
-		ProjectionResult projection = ProjectToSceneView(camera, view.width, view.height, position);
+		ProjectionResult projection = ProjectToSceneView(camera, view.GetReferenceWidth(), view.GetReferenceHeight(), position);
 		if (!projection.visible || settings.lightIconHideDistance < projection.distance) {
 			return;
 		}
@@ -209,7 +209,7 @@ namespace {
 		}
 
 		const Engine::Vector3 position = GetWorldPosition(world, entity);
-		ProjectionResult projection = ProjectToSceneView(camera, view.width, view.height, position);
+		ProjectionResult projection = ProjectToSceneView(camera, view.GetReferenceWidth(), view.GetReferenceHeight(), position);
 		if (!projection.visible || settings.lightIconHideDistance < projection.distance) {
 			return;
 		}
@@ -235,7 +235,7 @@ void Engine::SceneComponentOverlayCollector::Collect(const ECSWorld& world, cons
 	SceneComponentOverlayItemList& outItems) const {
 
 	outItems.clear();
-	if (!view.valid) {
+	if (!view.valid || view.width == 0 || view.height == 0) {
 		return;
 	}
 	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective);
@@ -267,6 +267,14 @@ void Engine::SceneComponentOverlayCollector::Collect(const ECSWorld& world, cons
 		AddCameraItem(world, entity, cameraComponent, registry, *camera, view, settings,
 			stableOrder, overlapCounts, outItems);
 		});
+
+	// アイコンの大きさと重なり判定は基準座標で保ち、描画と選択の矩形を同時に変換する
+	const Vector2 renderScale = view.GetReferenceToRenderScale();
+	for (SceneComponentOverlayItem& item : outItems) {
+		item.screenCenter *= renderScale;
+		item.rectMin *= renderScale;
+		item.rectMax *= renderScale;
+	}
 
 	// 近いものを優先し、同じ奥行きなら登録順で安定させる
 	std::sort(outItems.begin(), outItems.end(), [](const SceneComponentOverlayItem& lhs,

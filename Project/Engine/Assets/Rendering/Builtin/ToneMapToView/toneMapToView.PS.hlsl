@@ -89,14 +89,20 @@ float3 ApplyColorGrading(float3 color) {
 	const float luminance = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 	color = luminance.xxx + (color - luminance.xxx) * saturation;
 	color = (color - 0.18f) * contrast + 0.18f;
-	color = pow(max(color, 0.0f), 1.0f / max(gamma, 0.01f));
+	color = max(color, 0.0f);
+	// 補正が等倍なら画素ごとのLogとExpを省く
+	[branch]
+	if (any(gamma != 1.0f.xxx)) color = pow(color, 1.0f / max(gamma, 0.01f));
 	return color * gain + offset;
 }
 
 float3 ApplyFilmicControls(float3 color) {
 
-	color = pow(saturate(color), 1.0f + filmicToe * 1.5f);
-	color = 1.0f - pow(1.0f - color, 1.0f + filmicShoulder * 2.0f);
+	color = saturate(color);
+	[branch]
+	if (filmicToe != 0.0f) color = pow(color, 1.0f + filmicToe * 1.5f);
+	[branch]
+	if (filmicShoulder != 0.0f) color = 1.0f - pow(1.0f - color, 1.0f + filmicShoulder * 2.0f);
 	const float range = max(1.0f - filmicBlackClip - filmicWhiteClip, 0.001f);
 	return saturate((color - filmicBlackClip) / range);
 }

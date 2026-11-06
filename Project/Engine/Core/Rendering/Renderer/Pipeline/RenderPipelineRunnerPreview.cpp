@@ -96,6 +96,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	context.viewportWidth = request.viewportWidth;
 	context.viewportHeight = request.viewportHeight;
 	context.disableInlineRayTracing = true;
+	context.useThumbnailTextures = request.useThumbnailTextures;
 	context.forceVertexMeshVariant = request.forceVertexMeshVariant;
 	context.world = request.world;
 	context.systemContext = request.systemContext;
@@ -178,6 +179,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 #endif
 
 	request.surface->TransitionForShaderRead(*dxCommand);
+	context.targetRegistry->EndFrame();
 
 	return true;
 }

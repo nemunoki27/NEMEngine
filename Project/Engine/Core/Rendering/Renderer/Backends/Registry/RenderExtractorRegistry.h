@@ -30,5 +30,7 @@ namespace Engine {
 	private:
 		// 外部データの世代を登録順に保持する
 		std::vector<uint64_t> contentRevisions_;
+		// Transform差分の収集領域をフレーム間で再利用する
+		std::vector<Entity> changedEntities_;
 	};
 } // Engine

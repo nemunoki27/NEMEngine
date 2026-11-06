@@ -24,6 +24,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
 #include "Passes/AntialiasingPass.h"
+#include "Passes/RenderFeatureResourceUtility.h"
 
 // c++
 #include <array>
@@ -121,6 +122,7 @@ void Engine::DeferredRenderPath::Finalize() {
 void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
+	RenderFeatureResourceUtility::PrepareSceneInputs(graphicsCore, context, passBuckets, deps_);
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	for (auto& pass : passes_) {
 

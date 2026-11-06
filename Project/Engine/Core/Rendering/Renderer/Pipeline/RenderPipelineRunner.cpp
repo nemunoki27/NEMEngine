@@ -187,7 +187,12 @@ Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind
 void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request) {
 
 	// プレビュー資源はframe境界で一度だけ初期化する
+	const bool previewResourcesInitialized = previewResources_.previewBackendFrameStarted_;
 	previewResources_.previewBackendFrameStarted_ = false;
+	// Panelを閉じた後も使用済みPreviewの参照を回収する
+	if (previewResourcesInitialized) {
+		previewResources_.BeginFrame(graphicsCore);
+	}
 
 	// Worldの読込中もUI出力のAssetと定数領域を使用する
 	renderAssetLibrary_.Init(request.assetDatabase);
@@ -287,8 +292,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			cameraSnapshot.inverseViewProjection =
 				gameCamera->matrices.inverseProjectionMatrix * gameCamera->matrices.inverseViewMatrix;
 			cameraSnapshot.cameraPos = gameCamera->cameraPos;
-			cameraSnapshot.width = static_cast<float>(gameViewState_.view.width);
-			cameraSnapshot.height = static_cast<float>(gameViewState_.view.height);
+			cameraSnapshot.width = static_cast<float>(gameViewState_.view.GetReferenceWidth());
+			cameraSnapshot.height = static_cast<float>(gameViewState_.view.GetReferenceHeight());
 			cameraSnapshot.valid = true;
 		}
 	}
@@ -315,6 +320,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		SceneExecutionContext context = BuildViewExecutionContext(graphicsCore, request, activeScene, kind, view);
 		context.particleCameraCaptureRequired = particleCameraDepth_.NeedsCapture(view.perspective.sourceCamera);
 		if (!context.sceneInstance) {
+			context.targetRegistry->EndFrame();
 			return;
 		}
 		if (particleBackend_) particleBackend_->PublishFeedback(graphicsCore, context.bufferRegistry);
@@ -393,6 +399,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			}
 		}
 		RuntimeTextureResolver::EndRenderTextureWrite(view.targetTexture);
+		context.targetRegistry->EndFrame();
 	};
 	std::unordered_set<AssetID> clearedRenderTextures{};
 	bool clearGameSurface = true;

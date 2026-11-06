@@ -39,6 +39,8 @@ namespace Engine {
 			uint64_t frameSerial = 0;
 			uint32_t width = 0;
 			uint32_t height = 0;
+			uint32_t referenceWidth = 0;
+			uint32_t referenceHeight = 0;
 			ResolvedProjectionMode projectionMode = ResolvedProjectionMode::Perspective;
 		};
 

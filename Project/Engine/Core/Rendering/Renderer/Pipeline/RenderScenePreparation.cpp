@@ -17,8 +17,7 @@ void RenderScenePreparation::Extract(ECSWorld& world, RenderExtractorRegistry& e
 	LightExtractorRegistry& lightExtractors, RenderAssetReloadService* materialStates) {
 
 	extractors.BuildBatch(world, renderBatch_);
-	if (materialStates) {
-		materialStates->ApplyMaterialRenderStates(renderBatch_);
+	if (materialStates && materialStates->ApplyMaterialRenderStates(renderBatch_)) {
 		renderBatch_.Sort();
 	}
 	lightExtractors.BuildBatch(world, frameLightBatch_);

@@ -22,31 +22,22 @@ bool IsValidReflection(float4 color) {
 		all(abs(color) < 65504.0f.xxxx);
 }
 
-[numthreads(8, 8, 1)]
-void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
-
-	uint2 outputSize;
-	gDestColor.GetDimensions(outputSize.x, outputSize.y);
-	if (any(dispatchThreadID.xy >= outputSize)) {
-		return;
-	}
+float4 CompositeReflection(uint2 pixel, uint2 outputSize, float4 sourceColor) {
 
 	uint2 reflectionSize;
 	gReflectionColor.GetDimensions(reflectionSize.x, reflectionSize.y);
 	float2 reflectionPosition =
-		(float2(dispatchThreadID.xy) + 0.5f) /
+		(float2(pixel) + 0.5f) /
 		float2(outputSize) * float2(reflectionSize) - 0.5f;
 	int2 basePixel = int2(floor(reflectionPosition));
 	float2 fractionValue = frac(reflectionPosition);
-	float centerDepth = gSourceDepth.Load(int3(dispatchThreadID.xy, 0));
-	float4 sourceColor = gSourceColor.Load(int3(dispatchThreadID.xy, 0));
+	float centerDepth = gSourceDepth.Load(int3(pixel, 0));
 	if (centerDepth >= 1.0f) {
-		gDestColor[dispatchThreadID.xy] = sourceColor;
-		return;
+		return sourceColor;
 	}
-	uint surfaceFlags = gSourceFlags.Load(int3(dispatchThreadID.xy, 0));
+	uint surfaceFlags = gSourceFlags.Load(int3(pixel, 0));
 	float roughness = clamp(gSourceMaterial.Load(
-		int3(dispatchThreadID.xy, 0)).g, 0.04f, 1.0f);
+		int3(pixel, 0)).g, 0.04f, 1.0f);
 	float roughnessFadeStart = max(
 		reflectionMaxRoughness - reflectionRoughnessFade, 0.0f);
 	float roughnessVisibility = 1.0f - smoothstep(
@@ -54,13 +45,12 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	if ((surfaceFlags & kReflectionFilterReceiveReflection) == 0u ||
 		roughnessVisibility <= 0.0f) {
 
-		gDestColor[dispatchThreadID.xy] = sourceColor;
-		return;
+		return sourceColor;
 	}
 	float3 centerNormal = DecodeGBufferNormal(
-		gSourceNormal.Load(int3(dispatchThreadID.xy, 0)).xyz);
+		gSourceNormal.Load(int3(pixel, 0)).xyz);
 	float3 centerPosition =
-		gSourcePosition.Load(int3(dispatchThreadID.xy, 0)).xyz;
+		gSourcePosition.Load(int3(pixel, 0)).xyz;
 
 	float4 reflection = 0.0f.xxxx;
 	float totalWeight = 0.0f;
@@ -71,6 +61,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
 			int2 samplePixel = clamp(basePixel + int2(x, y),
 				int2(0, 0), int2(reflectionSize) - 1);
+			float4 sampleReflection = gReflectionColor.Load(
+				int3(samplePixel, 0));
+			if (!IsValidReflection(sampleReflection)) {
+				continue;
+			}
 			uint2 geometryPixel = MapPixelToTexture(
 				uint2(samplePixel), reflectionSize, outputSize);
 			float sampleDepth = gSourceDepth.Load(int3(geometryPixel, 0));
@@ -78,11 +73,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 				gSourceNormal.Load(int3(geometryPixel, 0)).xyz);
 			float3 samplePosition =
 				gSourcePosition.Load(int3(geometryPixel, 0)).xyz;
-			float4 sampleReflection = gReflectionColor.Load(
-				int3(samplePixel, 0));
-			if (!IsValidReflection(sampleReflection)) {
-				continue;
-			}
 			// 半解像度側の被覆率を現在画素のラフネス被覆率へ補正する
 			float sampleVisibility = max(sampleReflection.a, 0.05f);
 			sampleReflection.rgb *= roughnessVisibility / sampleVisibility;
@@ -101,6 +91,27 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	}
 	reflection = totalWeight > 1e-5f ?
 		reflection / totalWeight : 0.0f.xxxx;
-	gDestColor[dispatchThreadID.xy] = float4(
+	return float4(
 		sourceColor.rgb + reflection.rgb, sourceColor.a);
+}
+
+[numthreads(8, 8, 1)]
+void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
+
+	uint2 outputSize;
+	gDestColor.GetDimensions(outputSize.x, outputSize.y);
+	if (any(dispatchThreadID.xy >= outputSize)) return;
+	gDestColor[dispatchThreadID.xy] = CompositeReflection(dispatchThreadID.xy, outputSize,
+		gSourceColor.Load(int3(dispatchThreadID.xy, 0)));
+}
+
+[numthreads(8, 8, 1)]
+void mainInPlace(uint3 dispatchThreadID : SV_DispatchThreadID) {
+
+	uint2 outputSize;
+	gDestColor.GetDimensions(outputSize.x, outputSize.y);
+	if (any(dispatchThreadID.xy >= outputSize)) return;
+	// 色は自身の画素だけを読み、近傍は別の入力から参照する
+	gDestColor[dispatchThreadID.xy] = CompositeReflection(dispatchThreadID.xy, outputSize,
+		gDestColor[dispatchThreadID.xy]);
 }

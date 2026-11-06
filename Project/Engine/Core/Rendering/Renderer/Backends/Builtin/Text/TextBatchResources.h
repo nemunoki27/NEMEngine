@@ -28,7 +28,10 @@ namespace Engine {
 	struct TextViewConstants {
 
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
+		Vector2 referenceToRenderScale = Vector2::AnyInit(1.0f);
+		Vector2 padding{};
 	};
+	static_assert(sizeof(TextViewConstants) == 80);
 	// 頂点シェーダインスタンスデータ
 	struct TextVSInstanceData {
 
@@ -77,6 +80,7 @@ namespace Engine {
 
 		// 描画に使用するビューを更新する、2DはOrthographic 3DはPerspectiveのカメラを使う
 		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain);
+		static TextViewConstants BuildViewConstants(const ResolvedRenderView& view, RenderCameraDomain cameraDomain);
 		void UploadGlyphs(const std::vector<TextVSInstanceData>& vsGlyphs, const std::vector<TextPSInstanceData>& psGlyphs);
 
 		//--------- accessor -----------------------------------------------------
