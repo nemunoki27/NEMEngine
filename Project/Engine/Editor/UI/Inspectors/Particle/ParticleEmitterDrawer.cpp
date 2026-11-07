@@ -83,9 +83,9 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 			if (!shapes.empty() && MyGUI::BeginPropertyRow("発生形状")) {
 
 				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex])))) {
+				if (ImGui::BeginCombo("##Value", ImGuiUtility::GetEnumDisplayName("ParticleEmitterShape", EnumAdapter<ParticleEmitterShape>::ToString(shapes[currentIndex])))) {
 					for (int32_t i = 0; i < static_cast<int32_t>(shapes.size()); ++i) {
-						if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<ParticleEmitterShape>::ToString(shapes[i])), i == currentIndex)) {
+						if (ImGui::Selectable(ImGuiUtility::GetEnumDisplayName("ParticleEmitterShape", EnumAdapter<ParticleEmitterShape>::ToString(shapes[i])), i == currentIndex)) {
 
 							group.emitter.shape = shapes[i];
 							changed = true;

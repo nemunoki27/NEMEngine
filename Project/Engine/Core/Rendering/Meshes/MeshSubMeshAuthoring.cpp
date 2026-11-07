@@ -100,15 +100,8 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 				current.sourcePivot = layout[i].sourcePivot;
 				updated = true;
 			}
-			const bool sourceSurfaceWasUnset =
-				current.sourceSurfaceMode == MaterialSurfaceMode::Auto;
 			if (current.sourceSurfaceMode != layout[i].sourceSurfaceMode) {
 				current.sourceSurfaceMode = layout[i].sourceSurfaceMode;
-				updated = true;
-			}
-			if (sourceSurfaceWasUnset &&
-				current.alphaCutoff != layout[i].alphaCutoff) {
-				current.alphaCutoff = layout[i].alphaCutoff;
 				updated = true;
 			}
 		}
@@ -187,10 +180,8 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		entry.name = layout[i].name;
 		entry.sourceSubMeshIndex = layout[i].sourceSubMeshIndex;
 		entry.sourcePivot = layout[i].sourcePivot;
-		const bool sourceSurfaceWasUnset =
-			entry.sourceSurfaceMode == MaterialSurfaceMode::Auto;
 		entry.sourceSurfaceMode = layout[i].sourceSurfaceMode;
-		if (!reused || sourceSurfaceWasUnset) {
+		if (!reused) {
 			entry.alphaCutoff = layout[i].alphaCutoff;
 		}
 

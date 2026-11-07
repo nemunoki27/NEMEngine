@@ -335,15 +335,8 @@ void Engine::EditorState::CommitScenePick(ECSWorld& world) {
 
 bool Engine::EditorState::HasValidSubMeshSelection(ECSWorld* world) const {
 
-	if (!world || selectionKind != EditorSelectionKind::MeshSubMesh || !world->IsAlive(selectedEntity)) {
-		return false;
-	}
-	if (!world->HasComponent<MeshRendererComponent>(selectedEntity)) {
-		return false;
-	}
-
-	return selectedSubMeshIndex <
-		GetMeshSubMeshes(*world, selectedEntity).size();
+	uint32_t subMeshIndex = 0;
+	return TryResolveSelectedSubMeshIndex(world, subMeshIndex);
 }
 
 bool Engine::EditorState::TryResolveSelectedSubMeshIndex(ECSWorld* world, uint32_t& outSubMeshIndex) const {
@@ -416,6 +409,15 @@ bool Engine::EditorState::HasValidSelection(ECSWorld* world) const {
 		return HasValidJointSelection(world);
 	}
 	return selectionKind == EditorSelectionKind::Entity;
+}
+
+Engine::Entity Engine::EditorState::ResolveComponentSelection(ECSWorld* world) const {
+
+	if ((selectionKind == EditorSelectionKind::Entity || selectionKind == EditorSelectionKind::MeshSubMesh) &&
+		HasValidSelection(world)) {
+		return selectedEntity;
+	}
+	return Entity::Null();
 }
 
 void Engine::EditorState::ClearSelection() {

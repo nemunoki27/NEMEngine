@@ -60,11 +60,9 @@ nlohmann::json Engine::InspectorPanel::MakeDuplicateState(const EditorPanelConte
 
 	UUID targetUUID = lockedEntityUUID_;
 	ECSWorld* world = context.GetWorld();
-	const bool entitySelection =
-		context.editorState && (context.editorState->selectionKind == EditorSelectionKind::Entity ||
-								   context.editorState->selectionKind == EditorSelectionKind::MeshSubMesh);
-	if (!targetUUID && world && entitySelection && context.editorState->HasValidSelection(world)) {
-		targetUUID = world->GetUUID(context.editorState->selectedEntity);
+	const Entity selected = context.editorState ? context.editorState->ResolveComponentSelection(world) : Entity::Null();
+	if (!targetUUID && world && world->IsAlive(selected)) {
+		targetUUID = world->GetUUID(selected);
 	}
 
 	return {
@@ -82,11 +80,7 @@ bool Engine::InspectorPanel::CanDuplicate(const EditorPanelContext& context) con
 	if (lockedEntityUUID_) {
 		return world->IsAlive(world->FindByUUID(lockedEntityUUID_));
 	}
-	if (!context.editorState || (context.editorState->selectionKind != EditorSelectionKind::Entity &&
-									context.editorState->selectionKind != EditorSelectionKind::MeshSubMesh)) {
-		return false;
-	}
-	return context.editorState->HasValidSelection(world);
+	return context.editorState && world->IsAlive(context.editorState->ResolveComponentSelection(world));
 }
 
 void Engine::InspectorPanel::EndPreview() {
@@ -103,9 +97,8 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	if (*open && previewWorld) {
 		if (lockedEntityUUID_) {
 			previewEntity = previewWorld->FindByUUID(lockedEntityUUID_);
-		} else if (context.editorState->selectionKind == EditorSelectionKind::Entity &&
-				   context.editorState->HasValidSelection(previewWorld)) {
-			previewEntity = context.editorState->selectedEntity;
+		} else if (context.editorState) {
+			previewEntity = context.editorState->ResolveComponentSelection(previewWorld);
 		}
 	}
 	componentSession_.SyncPreviewOwner(previewWorld, previewEntity);

@@ -7,7 +7,26 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 
 	if (type.ends_with("EasingType") || type.ends_with("RendererFillMode") ||
 		type.ends_with("RendererCullMode") || type.ends_with("RendererDepthComparison") ||
-		type.ends_with("RendererStencilOperation")) return name;
+		type.ends_with("RendererStencilOperation") || type.ends_with("BlendMode") ||
+		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") ||
+		type.ends_with("ShaderGraphSurfaceMode") || type.ends_with("MaterialCreateType") ||
+		type.ends_with("PrimitiveType") || type.ends_with("ParticleEmitterShape") ||
+		type.ends_with("ColliderShapeType")) return name;
+	if (type.ends_with("PrimitiveRenderSpace") || type.ends_with("Dimension") ||
+		type.ends_with("SceneViewMode")) {
+		const std::string_view value = name;
+		if (value == "Screen2D" || value == "Type2D" || value == "Mode2D") return "2D";
+		if (value == "World3D" || value == "Type3D" || value == "Mode3D") return "3D";
+	}
+	// DirectXの選択肢は型の接頭辞だけを除いて英語で表示する
+	if (type.starts_with("D3D12_")) {
+		for (const std::string_view prefix : { "D3D12_TEXTURE_ADDRESS_MODE_", "D3D12_TEXTURE_ADDRESS_",
+			"D3D12_FILL_MODE_", "D3D12_CULL_MODE_", "D3D12_COMPARISON_FUNC_", "D3D12_COMPARISON_",
+			"D3D12_FILTER_", "D3D12_DEPTH_WRITE_MASK_", "D3D12_STATIC_BORDER_COLOR_", "D3D12_STENCIL_OP_" }) {
+			if (std::string_view(name).starts_with(prefix)) return name + prefix.size();
+		}
+		return name;
+	}
 	if (type.ends_with("AntialiasingMethod")) {
 		if (std::string_view(name) == "None") return "なし";
 		return name;
@@ -15,8 +34,6 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 	if (type.ends_with("SceneViewCameraControlStyle") && std::string_view(name) == "Original") return "オリジナル";
 	if (type.ends_with("SceneViewCameraControlSource") && std::string_view(name) == "Disabled") return "使用しない";
 
-	// ブレンドの標準値とパーティクルの法線方向を区別する
-	if (type.ends_with("BlendMode") && std::string_view(name) == "Normal") return "標準";
 	if (type.ends_with("ParticleForceFieldType")) {
 		if (std::string_view(name) == "Attraction") return "引力";
 		if (std::string_view(name) == "Repulsion") return "斥力";

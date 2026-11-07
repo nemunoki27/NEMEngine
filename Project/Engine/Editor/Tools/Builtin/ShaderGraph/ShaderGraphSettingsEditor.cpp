@@ -7,6 +7,7 @@
 #include "ShaderGraphPreviewController.h"
 #include "ShaderGraphEnumWidget.h"
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 using Engine::ShaderGraphWidgets::D3D12EnumCombo;
@@ -42,7 +43,7 @@ bool Engine::ShaderGraphSettingsEditor::Draw() {
 
 	// 描画条件の変更を編集sessionへ通知する
 	editSession_.MarkDirty(MyGUI::EnumCombo("サーフェス", editSession_.GetDraft().surfaceMode).valueChanged);
-	editSession_.MarkDirty(MyGUI::EnumCombo("ブレンド", editSession_.GetDraft().renderState.blendMode).valueChanged);
+	editSession_.MarkDirty(MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::BlendMode), editSession_.GetDraft().renderState.blendMode).valueChanged);
 	editSession_.MarkDirty(MyGUI::Checkbox("両面描画", editSession_.GetDraft().renderState.twoSided));
 	editSession_.MarkDirty(D3D12EnumCombo("塗りモード", editSession_.GetDraft().renderState.fillMode).valueChanged);
 	editSession_.MarkDirty(D3D12EnumCombo("カリング", editSession_.GetDraft().renderState.cullMode).valueChanged);

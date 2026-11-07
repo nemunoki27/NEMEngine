@@ -253,6 +253,8 @@ namespace Engine {
 		void ClearSelection();
 
 		bool HasValidSelection(ECSWorld* world) const;
+		// コンポーネント編集の所有元を解決する、サブメッシュ選択も含む
+		Entity ResolveComponentSelection(ECSWorld* world) const;
 		bool HasClipboard() const { return !clipboardSnapshots.empty(); }
 	};
 } // Engine

@@ -414,6 +414,20 @@ bool NEMTests::TestMeshAuthoringCache() {
 		matched[0].materialInstance.GetContentHash() != changed[0].materialInstance.GetContentHash()) {
 		return false;
 	}
+	// Autoのモデルでも同期や並べ替えで編集済みカットオフを上書きしない
+	matched[0].alphaCutoff = 0.75f;
+	if (MeshSubMeshAuthoring::SyncComponentToLayout(layout, matched, true) || matched[0].alphaCutoff != 0.75f) {
+		return false;
+	}
+	changed = matched;
+	changed[0].name = "Previous";
+	if (!MeshSubMeshAuthoring::SyncComponentToLayout(layout, changed, true) || changed[0].alphaCutoff != 0.75f) {
+		return false;
+	}
+	layout[0].sourceSurfaceMode = MaterialSurfaceMode::Masked;
+	if (!MeshSubMeshAuthoring::SyncComponentToLayout(layout, matched, true) || matched[0].alphaCutoff != 0.75f) {
+		return false;
+	}
 	const auto* roughness = matched[0].materialInstance.FindByName(MaterialParameterNames::Roughness);
 	return roughness && std::get<float>(roughness->value) == 0.65f &&
 		   !MeshSubMeshAuthoring::SyncComponentToLayout(layout, matched, true) &&

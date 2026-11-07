@@ -52,7 +52,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			AssetEditSetting setting{};
 			setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh);
 			return MyGUI::AssetReferenceField(
-				"既定マテリアル", draft.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
+				"マテリアル", draft.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
 		});
 
 		// モデルファイルのマテリアル係数やテクスチャを現shaderのパラメータへ再適用する
@@ -78,9 +78,12 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	{
 		DrawField(anyItemActive, [&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::SortLayer), draft.layer); });
 		DrawField(anyItemActive, [&]() { return MyGUI::DragInt(Engine::GetInspectorLabel(Engine::InspectorFieldID::DrawOrder), draft.order); });
-		DrawField(
-			anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("既定ブレンドモード", draft.blendMode); });
-		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawEnumComboField("既定キュー", draft.queue); });
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField(GetInspectorLabel(InspectorFieldID::BlendMode), draft.blendMode);
+		});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField(GetInspectorLabel(InspectorFieldID::RenderQueue), draft.queue);
+		});
 
 		// ライティングや影の適用フラグ、ビット単位で持つためboolへ写してから書き戻す
 		auto drawRenderFlagField = [&](const char* label, MeshRenderFlags flag) {
@@ -114,14 +117,14 @@ void Engine::MeshRendererInspectorDrawer::ApplyPreview(
 		return;
 	}
 
+	// サブメッシュ選択中も表示と描画レイヤーの共通項目を反映する
+	SerializedComponentInspectorDrawer<MeshRendererComponent>::ApplyPreview(world, entity, previewComponent);
 	if (previewSubMeshIndex_ < subMeshDraft_.size() &&
 		SetMeshSubMesh(world, entity, previewSubMeshIndex_, subMeshDraft_[previewSubMeshIndex_])) {
 		return;
 	}
 
-	world.GetComponent<MeshRendererComponent>(entity) = previewComponent;
 	SetMeshSubMeshes(world, entity, subMeshDraft_);
-	world.MarkComponentModified<MeshRendererComponent>(entity);
 }
 
 void Engine::MeshRendererInspectorDrawer::OnSyncDraftFromWorld(

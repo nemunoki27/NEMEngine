@@ -460,16 +460,7 @@ const char* Engine::ImGuiUtility::GetDisplayName(const char* name) {
 		{ "Collecting", "解放を確認中" },
 		{ "Unloaded", "解放済み" },
 	};
-	std::string_view key = name;
-	// DirectXの型名は表示時だけ取り除く
-	for (const std::string_view prefix : { "D3D12_TEXTURE_ADDRESS_MODE_", "D3D12_FILL_MODE_",
-		"D3D12_CULL_MODE_", "D3D12_COMPARISON_FUNC_", "D3D12_FILTER_", "D3D12_DEPTH_WRITE_MASK_",
-		"D3D12_STATIC_BORDER_COLOR_" }) {
-		if (key.starts_with(prefix)) {
-			key.remove_prefix(prefix.size());
-			break;
-		}
-	}
-	const auto found = names.find(key);
+	if (std::string_view(name).starts_with("D3D12_")) return GetEnumDisplayName("D3D12_", name);
+	const auto found = names.find(name);
 	return found != names.end() ? found->second : name;
 }

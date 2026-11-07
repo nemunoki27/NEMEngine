@@ -36,9 +36,9 @@ bool Engine::ParticleShapeOverLifetimeModuleDrawer::Draw(IParticleModule& module
 	if (!types.empty() && MyGUI::BeginPropertyRow("対象形状")) {
 
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<PrimitiveType>::ToString(types[currentIndex])))) {
+		if (ImGui::BeginCombo("##Value", ImGuiUtility::GetEnumDisplayName("PrimitiveType", EnumAdapter<PrimitiveType>::ToString(types[currentIndex])))) {
 			for (int32_t i = 0; i < static_cast<int32_t>(types.size()); ++i) {
-				if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<PrimitiveType>::ToString(types[i])), i == currentIndex)) {
+				if (ImGui::Selectable(ImGuiUtility::GetEnumDisplayName("PrimitiveType", EnumAdapter<PrimitiveType>::ToString(types[i])), i == currentIndex)) {
 
 					settings_.shape = types[i];
 					ParticleShapeAnimation::EnsureParameters(settings_);

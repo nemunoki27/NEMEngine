@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/ShaderAsset.h>
@@ -187,7 +188,7 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	auto drawPipelineSettings = [&](const char* id, const char* title, PipelineCreateSettings& settings) {
 		ImGui::SeparatorText(title);
 		ImGui::PushID(id);
-		MyGUI::EnumCombo("ブレンド", settings.blendMode);
+		MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::BlendMode), settings.blendMode);
 		MyGUI::Checkbox("通常ブレンドを無効化", settings.disableNormalBlending);
 		MyGUI::EnumCombo("塗りモード", settings.fillMode);
 		MyGUI::EnumCombo("カリング", settings.cullMode);

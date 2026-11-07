@@ -4,46 +4,10 @@
         {
             "builtinDefault": true,
             "displayName": "Default",
-            "imguiIniData": "",
+            "imguiIniData": "[Window][##EditorDockSpaceHost]\nPos=0,24\nSize=1920,1033\nCollapsed=0\n\n[Window][Toolbar]\nPos=0,24\nSize=1089,35\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Hierarchy]\nPos=1091,24\nSize=207,697\nCollapsed=0\nDockId=0x00000008,0\n\n[Window][Console]\nPos=248,61\nSize=302,341\nCollapsed=0\nDockId=0x00000010,0\n\n[Window][Inspector:inspector.primary]\nPos=1300,24\nSize=620,697\nCollapsed=0\nDockId=0x00000009,0\n\n[Window][Tool]\nPos=0,61\nSize=246,341\nCollapsed=0\nDockId=0x0000000F,0\n\n[Window][Project:project.primary]\nPos=1091,723\nSize=338,334\nCollapsed=0\nDockId=0x00000014,0\n\n[Window][GameView]\nPos=552,61\nSize=537,341\nCollapsed=0\nDockId=0x00000012,0\n\n[Window][SceneView]\nPos=0,404\nSize=1089,653\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][シーン未保存通知##CloseApplication]\nPos=763,473\nSize=392,117\nCollapsed=0\n\n[Window][パフォーマンスチェック]\nPos=1303,283\nSize=617,438\nCollapsed=0\nDockId=0x0000000C,0\n\n[Window][Script Profiler]\nPos=60,60\nSize=624,173\nCollapsed=0\n\n[Window][Script Execution Order]\nPos=389,312\nSize=513,501\nCollapsed=0\n\n[Window][アニメーションクリップ作成ツール]\nPos=60,60\nSize=447,163\nCollapsed=0\n\n[Window][SceneViewCamera]\nPos=929,137\nSize=838,364\nCollapsed=0\n\n[Window][Material]\nPos=885,52\nSize=658,571\nCollapsed=0\n\n[Window][アセットの名前変更]\nPos=800,427\nSize=409,202\nCollapsed=0\n\n[Window][アセットの作成]\nPos=852,439\nSize=216,178\nCollapsed=0\n\n[Window][シェーダーグラフ]\nViewportPos=1920,23\nViewportId=0xC2404B17\nSize=1920,1057\nCollapsed=0\n\n[Window][シェーダーグラフ/ShaderGraphParameters_DD47EF43]\nIsChild=1\nSize=499,780\n\n[Window][アセットの削除]\nPos=790,470\nSize=409,117\nCollapsed=0\n\n[Window][ポストプロセス設定]\nPos=103,101\nSize=877,723\nCollapsed=0\n\n[Window][Project:Project.56d654939ccaef26]\nPos=1569,723\nSize=351,334\nCollapsed=0\nDockId=0x0000000E,0\n\n[Window][シーン未保存通知]\nPos=764,470\nSize=392,117\nCollapsed=0\n\n[Window][Project:Project.febc4872713df132]\nPos=1431,723\nSize=489,334\nCollapsed=0\nDockId=0x00000015,0\n\n[Window][エディターレイアウトの保存]\nPos=852,451\nSize=216,154\nCollapsed=0\n\n[Table][0x0EAA557F,8]\nRefScale=20\nColumn 0  Weight=1.0000\nColumn 1  Width=60\nColumn 2  Width=45\nColumn 3  Width=85\nColumn 4  Width=70\nColumn 5  Width=75\nColumn 6  Width=75\nColumn 7  Width=90\n\n[Table][0x12B29AED,2]\nRefScale=20\nColumn 0  Width=420\nColumn 1  Weight=1.0000\n\n[Table][0xF47B73D2,2]\nRefScale=20\nColumn 0  Weight=1.0000\nColumn 1  Width=340\n\n[Docking][Data]\nDockSpace           ID=0x031325F7 Window=0xEF43222D Pos=0,47 Size=1920,1033 Split=X\n  DockNode          ID=0x00000003 Parent=0x031325F7 SizeRef=1089,995 Split=Y\n    DockNode        ID=0x00000001 Parent=0x00000003 SizeRef=890,35 HiddenTabBar=1 Selected=0x0C01D6D5\n    DockNode        ID=0x00000002 Parent=0x00000003 SizeRef=890,660 Split=Y Selected=0x6B18D6E3\n      DockNode      ID=0x00000005 Parent=0x00000002 SizeRef=988,341 Split=X Selected=0x5B83CEA4\n        DockNode    ID=0x00000011 Parent=0x00000005 SizeRef=550,332 Split=X Selected=0xEA83D666\n          DockNode  ID=0x0000000F Parent=0x00000011 SizeRef=246,341 Selected=0x93E80FB3\n          DockNode  ID=0x00000010 Parent=0x00000011 SizeRef=302,341 Selected=0xEA83D666\n        DockNode    ID=0x00000012 Parent=0x00000005 SizeRef=537,332 Selected=0x5B83CEA4\n      DockNode      ID=0x00000006 Parent=0x00000002 SizeRef=988,653 CentralNode=1 Selected=0x6B18D6E3\n  DockNode          ID=0x00000004 Parent=0x031325F7 SizeRef=829,995 Split=Y Selected=0x1B3C7F84\n    DockNode        ID=0x00000007 Parent=0x00000004 SizeRef=569,697 Split=Y Selected=0x1B3C7F84\n      DockNode      ID=0x0000000B Parent=0x00000007 SizeRef=569,257 Split=X Selected=0x1B3C7F84\n        DockNode    ID=0x00000008 Parent=0x0000000B SizeRef=207,697 Selected=0xBABDAE5E\n        DockNode    ID=0x00000009 Parent=0x0000000B SizeRef=620,697 Selected=0x1B3C7F84\n      DockNode      ID=0x0000000C Parent=0x00000007 SizeRef=569,438 Selected=0xBB2EA782\n    DockNode        ID=0x0000000A Parent=0x00000004 SizeRef=569,334 Split=X Selected=0xD119DF97\n      DockNode      ID=0x0000000D Parent=0x0000000A SizeRef=264,334 Split=X Selected=0x30DF9287\n        DockNode    ID=0x00000014 Parent=0x0000000D SizeRef=338,334 Selected=0xD119DF97\n        DockNode    ID=0x00000015 Parent=0x0000000D SizeRef=489,334 Selected=0x30DF9287\n      DockNode      ID=0x0000000E Parent=0x0000000A SizeRef=351,334 Selected=0xB21DD5D5\n\n",
             "imported": false,
             "layoutID": "engine.default",
             "order": 0,
-            "panels": [
-                {
-                    "instanceID": "project.primary",
-                    "open": true,
-                    "primary": true,
-                    "state": {},
-                    "typeID": "Project"
-                },
-                {
-                    "instanceID": "inspector.primary",
-                    "open": true,
-                    "primary": true,
-                    "state": {
-                        "mode": "FollowSelection"
-                    },
-                    "typeID": "Inspector"
-                }
-            ],
-            "visibility": {
-                "console": true,
-                "gameView": true,
-                "hierarchy": true,
-                "inspector": true,
-                "project": true,
-                "sceneView": true,
-                "tool": true,
-                "toolbar": true
-            }
-        },
-        {
-            "builtinDefault": false,
-            "displayName": "editEffect",
-            "imguiIniData": "[Window][##EditorDockSpaceHost]\nPos=0,24\nSize=1920,1033\nCollapsed=0\n\n[Window][Toolbar]\nPos=237,24\nSize=885,32\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Hierarchy]\nPos=0,24\nSize=235,517\nCollapsed=0\nDockId=0x0000000B,0\n\n[Window][Console]\nPos=0,543\nSize=235,349\nCollapsed=0\nDockId=0x00000009,0\n\n[Window][Inspector:inspector.primary]\nPos=1124,24\nSize=796,1033\nCollapsed=0\nDockId=0x00000004,0\n\n[Window][Tool]\nPos=0,894\nSize=235,163\nCollapsed=0\nDockId=0x0000000A,0\n\n[Window][Project:project.primary]\nPos=237,578\nSize=476,479\nCollapsed=0\nDockId=0x00000007,0\n\n[Window][GameView]\nPos=237,58\nSize=885,518\nCollapsed=0\nDockId=0x0000000D,1\n\n[Window][SceneView]\nPos=237,58\nSize=885,518\nCollapsed=0\nDockId=0x0000000D,0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][エディターレイアウトの保存]\nPos=852,451\nSize=216,154\nCollapsed=0\n\n[Window][Project:Project.c178dd92533b7544]\nPos=715,578\nSize=407,479\nCollapsed=0\nDockId=0x00000008,0\n\n[Docking][Data]\nDockSpace           ID=0x031325F7 Window=0xEF43222D Pos=0,24 Size=1920,1033 Split=X\n  DockNode          ID=0x00000001 Parent=0x031325F7 SizeRef=235,1033 Split=Y Selected=0xBABDAE5E\n    DockNode        ID=0x0000000B Parent=0x00000001 SizeRef=207,517 Selected=0xBABDAE5E\n    DockNode        ID=0x0000000C Parent=0x00000001 SizeRef=207,514 Split=Y Selected=0xEA83D666\n      DockNode      ID=0x00000009 Parent=0x0000000C SizeRef=235,349 Selected=0xEA83D666\n      DockNode      ID=0x0000000A Parent=0x0000000C SizeRef=235,163 Selected=0x93E80FB3\n  DockNode          ID=0x00000002 Parent=0x031325F7 SizeRef=1683,1033 Split=X\n    DockNode        ID=0x00000003 Parent=0x00000002 SizeRef=885,995 Split=Y Selected=0x6B18D6E3\n      DockNode      ID=0x00000005 Parent=0x00000003 SizeRef=676,32 HiddenTabBar=1 Selected=0x0C01D6D5\n      DockNode      ID=0x00000006 Parent=0x00000003 SizeRef=676,999 Split=Y Selected=0x6B18D6E3\n        DockNode    ID=0x0000000D Parent=0x00000006 SizeRef=676,518 CentralNode=1 Selected=0x6B18D6E3\n        DockNode    ID=0x0000000E Parent=0x00000006 SizeRef=676,479 Split=X Selected=0xD119DF97\n          DockNode  ID=0x00000007 Parent=0x0000000E SizeRef=476,357 Selected=0xD119DF97\n          DockNode  ID=0x00000008 Parent=0x0000000E SizeRef=407,357 Selected=0x4DFD90B9\n    DockNode        ID=0x00000004 Parent=0x00000002 SizeRef=796,995 Selected=0x73922575\n\n",
-            "imported": false,
-            "layoutID": "engine.64ca5572cc6e5754",
-            "order": 1,
             "panels": [
                 {
                     "instanceID": "inspector.primary",
@@ -62,18 +26,18 @@
                     "state": {
                         "assetSource": "Engine",
                         "displayName": "Project",
-                        "selectedDirectory": "Engine/Assets"
+                        "selectedDirectory": "Engine/Assets/Textures/DefaultEffect/Noise"
                     },
                     "typeID": "Project"
                 },
                 {
-                    "instanceID": "Project.c178dd92533b7544",
+                    "instanceID": "Project.febc4872713df132",
                     "open": true,
                     "primary": false,
                     "state": {
-                        "assetSource": "Game",
+                        "assetSource": "Engine",
                         "displayName": "Project 2",
-                        "selectedDirectory": "GameAssets"
+                        "selectedDirectory": "Engine/Assets/Textures/DefaultEffect/Noise"
                     },
                     "typeID": "Project"
                 }
@@ -85,7 +49,6 @@
                 "inspector": true,
                 "project": true,
                 "sceneView": true,
-                "tool": true,
                 "toolbar": true
             }
         }

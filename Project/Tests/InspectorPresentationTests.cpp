@@ -11,6 +11,7 @@
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
 #include <Engine/Core/World/Components/Physics/PhysicsJointComponent.h>
@@ -97,6 +98,65 @@ namespace {
 		session.SyncOwner(&world, other);
 		session.EndEditing();
 		return !world.HasComponent<SimpleAnimationComponent>(other);
+	}
+
+	// サブメッシュ選択の所有元と編集コマンドの保存を確認する
+	bool TestSubMeshSelection() {
+
+		using namespace Engine;
+		ECSWorld world;
+		const Entity entity = world.CreateEntity();
+		world.AddComponent<SceneObjectComponent>(entity);
+		world.AddComponent<MeshRendererComponent>(entity);
+		SubMeshMaterial initial;
+		initial.stableID = Engine::UUID{123};
+		SetMeshSubMeshes(world, entity, std::span(&initial, 1));
+		EditorState state;
+		state.SelectMeshSubMesh(entity, 0, initial.stableID);
+		if (state.ResolveComponentSelection(&world) != entity) return false;
+		nlohmann::json before;
+		world.SerializeComponentToJson(entity, "MeshRenderer", before);
+		auto edited = initial;
+		edited.localPos.x = 3.0f;
+		edited.localRotation.y = 30.0f;
+		edited.localScale.z = 2.0f;
+		edited.uvPos.x = 0.25f;
+		edited.uvRotation = 0.5f;
+		edited.uvScale.y = 3.0f;
+		edited.materialInstance.Set(MaterialParameterNames::Roughness, MaterialParameterValue{.value = 0.25f});
+		nlohmann::json after;
+		SerializeMeshRenderer(world.GetComponent<MeshRendererComponent>(entity), std::span(&edited, 1), after);
+		EditorContext editor;
+		editor.activeWorld = &world;
+		EditorCommandContext commands;
+		commands.editorContext = &editor;
+		commands.editorState = &state;
+		SetSerializedComponentCommand command(entity, "MeshRenderer", before, after);
+		if (!command.Execute(commands) || state.selectionKind != EditorSelectionKind::MeshSubMesh) return false;
+		nlohmann::json actual;
+		world.SerializeComponentToJson(entity, "MeshRenderer", actual);
+		if (actual != after || state.ResolveComponentSelection(&world) != entity) return false;
+		command.Undo(commands);
+		world.SerializeComponentToJson(entity, "MeshRenderer", actual);
+		if (actual != before || !command.Redo(commands)) return false;
+		world.SerializeComponentToJson(entity, "MeshRenderer", actual);
+		if (actual != after) return false;
+
+		// 配列位置が変わっても安定IDから同じ所有元を解決する
+		state.selectedSubMeshIndex = 8;
+		if (!state.HasValidSubMeshSelection(&world) || state.ResolveComponentSelection(&world) != entity) return false;
+		state.ValidateSelection(&world);
+		if (state.selectedSubMeshIndex != 0) return false;
+		state.SelectEntity(entity);
+		if (state.ResolveComponentSelection(&world) != entity) return false;
+		state.selectionKind = EditorSelectionKind::Joint;
+		if (state.ResolveComponentSelection(&world) != Entity::Null()) return false;
+		state.selectionKind = EditorSelectionKind::Asset;
+		if (state.ResolveComponentSelection(&world) != Entity::Null()) return false;
+		state.SelectMeshSubMesh(entity, 99);
+		if (state.ResolveComponentSelection(&world) != Entity::Null()) return false;
+		state.ClearSelection();
+		return state.ResolveComponentSelection(&world) == Entity::Null();
 	}
 
 	// 読み取り専用表示のコピーとIDと保存値の不変性を確認する
@@ -208,7 +268,7 @@ namespace {
 bool NEMTests::TestInspectorPresentation() {
 
 	using namespace Engine;
-	if (!TestRemovedComponentEditSession() || !TestReadOnlyFields()) return false;
+	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields()) return false;
 	if (std::string_view(GetInspectorPlaybackState(true, false)) != "再生中" ||
 		std::string_view(GetInspectorPlaybackState(true, true)) != "一時停止" ||
 		std::string_view(GetInspectorPlaybackState(false, false, true)) != "完了" ||
