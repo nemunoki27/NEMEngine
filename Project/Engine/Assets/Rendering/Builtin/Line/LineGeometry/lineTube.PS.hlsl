@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "lineTube.hlsli"
+#include "../../Atmosphere/transparentFog.hlsli"
 
 //============================================================================
 //	main
@@ -16,5 +17,5 @@ float4 main(TubeGSOutput input) : SV_TARGET0 {
 
 	float4 color = input.color;
 	color.rgb *= shade;
-	return color;
+	return ApplyTransparentFog(color, input.position);
 }

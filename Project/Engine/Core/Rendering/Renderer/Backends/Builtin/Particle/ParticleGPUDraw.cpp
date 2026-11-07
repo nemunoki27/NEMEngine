@@ -153,6 +153,7 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 				graphics.GetDXObject().GetDevice(), constants);
 			auto* commands = BackendDrawCommon::SetupGraphicsPipeline(context, *pipeline, item.blendMode);
 			SyncAndBindRegistry(*pipeline, context, commands);
+			BackendDrawCommon::BindTransparentFog(context, *pipeline, item, constantBufferAllocator_, commands);
 			RootBindingCommand::SetGraphicsCBV(commands,
 				pipeline->FindBindingByName("ParticleGPUViewConstants", ShaderBindingKind::CBV), allocation.gpuAddress);
 			RootBindingCommand::SetGraphicsCBV(commands,

@@ -34,7 +34,8 @@ namespace Engine {
 		~EnvironmentSpecularMap();
 
 		// 未生成のMipを一段ずつ更新する
-		void Update(GraphicsCore& graphics, AssetID source, uint32_t sourceSRV, const TextureOwnership& ownership);
+		void Update(GraphicsCore& graphics, AssetID source, uint32_t sourceSRV, const TextureOwnership& ownership,
+			uint64_t contentRevision = 0);
 		// 非表示になった環境画像のGPU資源を回収する
 		void CollectUnused();
 
@@ -65,6 +66,8 @@ namespace Engine {
 			uint32_t srv = UINT32_MAX;
 			std::array<uint32_t, 8> uavs{};
 			uint32_t nextMip = 0;
+			uint64_t contentRevision = 0;
+			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 			uint64_t updateFrame = UINT64_MAX;
 			uint64_t lastUsed = 0;
 			std::weak_ptr<const uint8_t> sourceLifetime;

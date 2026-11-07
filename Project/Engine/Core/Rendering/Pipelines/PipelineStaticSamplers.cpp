@@ -68,17 +68,19 @@ namespace {
 
 			const auto overrideIt = overrides.byName.find(binding.name);
 			const bool hasOverride = overrideIt != overrides.byName.end();
-			if (!hasOverride && !overrides.fillMissingSamplers) {
+			// 大気LUTはMaterialのSampler設定に依存せず線形Clampで読む
+			const bool atmosphereSampler = binding.name == "fogLinearSampler" && binding.bindPoint == 10 && binding.space == 7;
+			if (!hasOverride && !overrides.fillMissingSamplers && !atmosphereSampler) {
 				continue;
 			}
 
 			const PipelineStaticSamplerSettings settings =
-				hasOverride ? overrideIt->second : PipelineStaticSamplerSettings{};
+				hasOverride && !atmosphereSampler ? overrideIt->second : PipelineStaticSamplerSettings{};
 			const UINT count = (std::max)(1u, binding.bindCount);
 			for (UINT i = 0; i < count; ++i) {
 
 				const UINT shaderRegister = binding.bindPoint + i;
-				if (!hasOverride && HasStaticSamplerSlot(staticSamplers, shaderRegister, binding.space)) {
+				if (!hasOverride && !atmosphereSampler && HasStaticSamplerSlot(staticSamplers, shaderRegister, binding.space)) {
 					continue;
 				}
 				ReplaceStaticSampler(staticSamplers, MakeStaticSamplerDesc(settings, shaderRegister, binding.space));

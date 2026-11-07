@@ -136,6 +136,12 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
 		inline constexpr AssetID DeferredLightingShadowed{ 0x4e454d4153534554ull, 0x4c49474854000002ull };
 		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
+		inline constexpr AssetID AtmosphereTransmittance{ 0x4e454d4153534554ull, 0x41544d4f53000001ull };
+		inline constexpr AssetID AtmosphereMultiScattering{ 0x4e454d4153534554ull, 0x41544d4f53000002ull };
+		inline constexpr AssetID AtmosphereSkyView{ 0x4e454d4153534554ull, 0x41544d4f53000003ull };
+		inline constexpr AssetID AtmosphereCubemap{ 0x4e454d4153534554ull, 0x41544d4f53000004ull };
+		inline constexpr AssetID AtmosphereAerial{ 0x4e454d4153534554ull, 0x41544d4f53000005ull };
+		inline constexpr AssetID HeightFog{ 0x4e454d4153534554ull, 0x41544d4f53000006ull };
 		inline constexpr AssetID EnvironmentSpecular{ 0x4e454d4153534554ull, 0x454e5649524f0001ull };
 		inline constexpr AssetID EnvironmentBRDF{ 0x4e454d4153534554ull, 0x454e5649524f0002ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
@@ -148,6 +154,8 @@ namespace Engine::BuiltinAssets {
 			Decal,
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
 			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
+			AtmosphereTransmittance, AtmosphereMultiScattering, AtmosphereSkyView, AtmosphereCubemap, AtmosphereAerial,
+			HeightFog,
 			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
 		};
 

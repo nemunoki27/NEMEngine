@@ -5664,6 +5664,273 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": []
+    },
+    {
+      "id": 73,
+      "registryName": "SkyAtmosphere",
+      "nativeType": "SkyAtmosphereComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/SkyAtmosphereComponent.h",
+      "exposure": "GeneratedBinding",
+      "reason": "空と高さ霧の編集値を公開する",
+      "managedType": "SkyAtmosphere",
+      "managedSurface": "NEMEngine.SkyAtmosphere",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "SunEntity",
+          "nativeMember": "sunEntity",
+          "kind": "SceneEntityRef",
+          "access": "ReadWrite",
+          "id": 2,
+          "requiredComponent": "DirectionalLightComponent"
+        },
+        {
+          "managedName": "PlanetRadiusKm",
+          "nativeMember": "planetRadiusKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 3
+        },
+        {
+          "managedName": "AtmosphereHeightKm",
+          "nativeMember": "atmosphereHeightKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 4
+        },
+        {
+          "managedName": "RayleighScattering",
+          "nativeMember": "rayleighScattering",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 5
+        },
+        {
+          "managedName": "RayleighScaleHeightKm",
+          "nativeMember": "rayleighScaleHeightKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 6
+        },
+        {
+          "managedName": "MieScattering",
+          "nativeMember": "mieScattering",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 7
+        },
+        {
+          "managedName": "MieAbsorption",
+          "nativeMember": "mieAbsorption",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 8
+        },
+        {
+          "managedName": "MieScaleHeightKm",
+          "nativeMember": "mieScaleHeightKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 9
+        },
+        {
+          "managedName": "MieAnisotropy",
+          "nativeMember": "mieAnisotropy",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 10
+        },
+        {
+          "managedName": "OzoneAbsorption",
+          "nativeMember": "ozoneAbsorption",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 11
+        },
+        {
+          "managedName": "OzoneCenterHeightKm",
+          "nativeMember": "ozoneCenterHeightKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 12
+        },
+        {
+          "managedName": "OzoneWidthKm",
+          "nativeMember": "ozoneWidthKm",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 13
+        },
+        {
+          "managedName": "GroundAlbedo",
+          "nativeMember": "groundAlbedo",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 14
+        },
+        {
+          "managedName": "IblIntensity",
+          "nativeMember": "iblIntensity",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 15
+        },
+        {
+          "managedName": "AerialPerspectiveDistance",
+          "nativeMember": "aerialPerspectiveDistance",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 16
+        },
+        {
+          "managedName": "AerialPerspectiveStrength",
+          "nativeMember": "aerialPerspectiveStrength",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 17
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "registryName": "ExponentialHeightFog",
+      "nativeType": "ExponentialHeightFogComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/ExponentialHeightFogComponent.h",
+      "exposure": "GeneratedBinding",
+      "reason": "空と高さ霧の編集値を公開する",
+      "managedType": "ExponentialHeightFog",
+      "managedSurface": "NEMEngine.ExponentialHeightFog",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "Density",
+          "nativeMember": "density",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 2
+        },
+        {
+          "managedName": "HeightFalloff",
+          "nativeMember": "heightFalloff",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 3
+        },
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 4
+        },
+        {
+          "managedName": "StartDistance",
+          "nativeMember": "startDistance",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 5
+        },
+        {
+          "managedName": "MaxOpacity",
+          "nativeMember": "maxOpacity",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 6
+        },
+        {
+          "managedName": "CutoffDistance",
+          "nativeMember": "cutoffDistance",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 7
+        },
+        {
+          "managedName": "DirectionalColor",
+          "nativeMember": "directionalColor",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 8
+        },
+        {
+          "managedName": "DirectionalExponent",
+          "nativeMember": "directionalExponent",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 9
+        },
+        {
+          "managedName": "DirectionalStartDistance",
+          "nativeMember": "directionalStartDistance",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 10
+        },
+        {
+          "managedName": "DirectionalIntensity",
+          "nativeMember": "directionalIntensity",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 11
+        },
+        {
+          "managedName": "SkyContribution",
+          "nativeMember": "skyContribution",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 12
+        },
+        {
+          "managedName": "SecondDensity",
+          "nativeMember": "secondDensity",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 13
+        },
+        {
+          "managedName": "SecondHeightFalloff",
+          "nativeMember": "secondHeightFalloff",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 14
+        },
+        {
+          "managedName": "SecondHeightOffset",
+          "nativeMember": "secondHeightOffset",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 15
+        }
+      ]
     }
   ]
 }

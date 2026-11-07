@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include "LightGPUConversion.h"
+#include <Engine/Core/Rendering/Renderer/Lighting/AtmosphereLighting.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 #include <algorithm>
@@ -26,6 +28,8 @@ namespace {
 	uint64_t BuildViewHash(const Engine::PerViewLightSet& lightSet) {
 
 		uint64_t hash = 1469598103934665603ull;
+		const uint64_t atmosphereRevision = lightSet.sourceWorld ? lightSet.sourceWorld->GetLightDataRevision() : 0;
+		hash = HashBytes(hash, &atmosphereRevision, sizeof(atmosphereRevision));
 		hash = HashBytes(hash, &lightSet.sourceWorld,
 			sizeof(lightSet.sourceWorld));
 		const Engine::ECSWorldLifetime* sourceLifetime =
@@ -95,8 +99,20 @@ void Engine::ViewLightData::Update(const PerViewLightSet& lightSet) {
 
 	// 平行光源
 	FillLightScratch(lightSet.directionalLights, directionalScratch_,
-		[](const DirectionalLightItem& item) {
-			return LightGPUConversion::ToGPU(item);
+		[&](const DirectionalLightItem& item) {
+			auto result = LightGPUConversion::ToGPU(item);
+			if (!item.common.world || !lightSet.camera) return result;
+			Entity owner{};
+			const auto* sky = AtmosphereLighting::Find(*item.common.world, lightSet.camera->cullingMask, owner);
+			if (sky && AtmosphereLighting::ResolveSun(*item.common.world, owner, *sky) == item.common.entity) {
+				const float groundHeight = LightExtract::GetWorldPos(*item.common.world, owner).y;
+				const Vector3 transmission = AtmosphereLighting::SunTransmittance(*sky,
+					(lightSet.camera->cameraPos.y - groundHeight) * 0.001f, item.direction * -1.0f);
+				result.color.r *= transmission.x;
+				result.color.g *= transmission.y;
+				result.color.b *= transmission.z;
+			}
+			return result;
 		});
 	// 点光源
 	FillLightScratch(lightSet.pointLights, pointScratch_,

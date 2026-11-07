@@ -166,7 +166,7 @@ void Engine::EnvironmentSpecularMap::BuildBRDF(GraphicsCore& graphics) {
 }
 
 void Engine::EnvironmentSpecularMap::Update(GraphicsCore& graphics, AssetID source, uint32_t sourceSRV,
-	const TextureOwnership& ownership) {
+	const TextureOwnership& ownership, uint64_t contentRevision) {
 
 	selected_ = nullptr;
 	if (sourceSRV == UINT32_MAX || !Initialize(graphics)) return;
@@ -182,23 +182,31 @@ void Engine::EnvironmentSpecularMap::Update(GraphicsCore& graphics, AssetID sour
 	}
 	auto& map = *selected_;
 	map.lastUsed = frame;
+	if (map.contentRevision != contentRevision) {
+		map.nextMip = 0;
+		map.contentRevision = contentRevision;
+	}
 	if (map.nextMip == kMipCount || map.updateFrame == frame) return;
 	map.updateFrame = frame;
-	map.irradiance->Update(graphics, source, sourceSRV);
-	const uint32_t mip = map.nextMip;
-	const uint32_t size = std::max(kFaceSize >> mip, 1u);
-	Bind(graphics, *prefilterPipeline_, {sourceSRV, size, float(mip) / float(kMipCount - 1), 128}, map.uavs[mip]);
+	map.irradiance->Update(graphics, source, sourceSRV, contentRevision);
 	auto* dxCommand = graphics.GetDXObject().GetDxCommand();
-	dxCommand->GetCommandList()->Dispatch((size + 7) / 8, (size + 7) / 8, 6);
-	++map.nextMip;
+	if (map.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+		dxCommand->TransitionBarriers({map.resource.Get()}, map.state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		map.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
+	// 動的な空は同じ世代の全Mipを揃えてから公開する
+	const uint32_t endMip = contentRevision != 0 ? kMipCount : map.nextMip + 1;
+	while (map.nextMip < endMip) {
+		const uint32_t mip = map.nextMip;
+		const uint32_t size = std::max(kFaceSize >> mip, 1u);
+		Bind(graphics, *prefilterPipeline_, {sourceSRV, size, float(mip) / float(kMipCount - 1), 128}, map.uavs[mip]);
+		dxCommand->GetCommandList()->Dispatch((size + 7) / 8, (size + 7) / 8, 6);
+		++map.nextMip;
+	}
 	if (map.nextMip == kMipCount) {
-		// 未完成のMipを描画へ公開しない
-		dxCommand->TransitionBarriers({map.resource.Get()}, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			static_cast<D3D12_RESOURCE_STATES>(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
-		for (uint32_t& index : map.uavs) {
-			descriptor_->Retire(index, {});
-			index = UINT32_MAX;
-		}
+		map.state = static_cast<D3D12_RESOURCE_STATES>(
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		dxCommand->TransitionBarriers({map.resource.Get()}, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, map.state);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/AtmosphereEnvironment.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
@@ -21,6 +22,8 @@ Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
 	if (!world || !assetDatabase) {
 		return info;
 	}
+	info = graphicsCore.GetAtmosphereEnvironment().Resolve(graphicsCore, *world, cullingMask);
+	if (info.found) return info;
 
 	// 背景と環境光で同じSkyboxを選ぶ
 	const SkyboxRendererComponent* skybox = Find(*world, cullingMask);

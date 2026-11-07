@@ -45,6 +45,7 @@ void ParticleRenderBackend::DrawGPUTrails(const RenderDrawContext& context, cons
 	const auto trailAllocation = constantBufferAllocator_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), trailConstants);
 	auto* commands = BackendDrawCommon::SetupGraphicsPipeline(context, *pipeline, item.blendMode);
 	SyncAndBindRegistry(*pipeline, context, commands);
+	BackendDrawCommon::BindTransparentFog(context, *pipeline, item, constantBufferAllocator_, commands);
 	RootBindingCommand::SetGraphicsCBV(commands, pipeline->FindBindingByName("ParticleGPUViewConstants", ShaderBindingKind::CBV), viewAllocation.gpuAddress);
 	RootBindingCommand::SetGraphicsCBV(commands, pipeline->FindBindingByName("ParticleGPUTrailConstants", ShaderBindingKind::CBV), trailAllocation.gpuAddress);
 	const auto srv = [&](const char* name, D3D12_GPU_VIRTUAL_ADDRESS address) {

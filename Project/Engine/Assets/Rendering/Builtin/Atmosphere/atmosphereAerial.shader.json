@@ -1,0 +1,11 @@
+{
+  "name": "AtmosphereAerial",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "93abdabcd6674ea69d8d07bf7422d079",
+      "entry": "AerialMain",
+      "profile": "cs_6_0"
+    }
+  ]
+}

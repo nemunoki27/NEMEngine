@@ -18,6 +18,7 @@
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 
 // c++
 #include <filesystem>
@@ -63,6 +64,9 @@ namespace Engine::BackendDrawCommon {
 	// パイプラインをセットアップしてコマンドリストを取得
 	ID3D12GraphicsCommandList6* SetupGraphicsPipeline(const RenderDrawContext& context,
 		const PipelineState& pipelineState, BlendMode blendMode);
+	// 3D透明物へ霧を接続しUIと不透明物では無効にする
+	void BindTransparentFog(const RenderDrawContext& context, const PipelineState& pipeline,
+		const RenderItem& item, FrameConstantBufferAllocator& allocator, ID3D12GraphicsCommandList* commands);
 
 	// スクラッチデータを毎回作り直さず使いまわすための準備
 	void PrepareGraphicsBindItemsScratch(const RenderBufferRegistry& globalRegistry,

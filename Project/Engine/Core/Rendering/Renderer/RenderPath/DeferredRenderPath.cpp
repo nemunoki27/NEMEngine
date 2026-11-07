@@ -15,6 +15,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
 #include "Passes/CameraSurfacePass.h"
+#include "Passes/HeightFogPass.h"
 #include "Passes/DecalPass.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeaturePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
@@ -100,6 +101,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		// 固定反射を任意のポストプロセスより先に合成する
 		if (kind == RenderPathPassKind::Lighting) {
 			passes_.emplace_back(std::make_unique<CameraSurfacePass>(deps_, false));
+			passes_.emplace_back(std::make_unique<HeightFogPass>());
 		}
 		for (const AnchorPoint& point : kAnchorPoints) {
 			if (point.after == kind) {

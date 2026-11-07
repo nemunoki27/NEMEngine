@@ -15,14 +15,14 @@ namespace {
 
 	const std::string kBaseColorTextureParameter(Engine::MaterialParameterNames::BaseColorTexture);
 
-	// 設定中テクスチャの実サイズを取得する、未ロードや未設定ならfalse
+	// 設定中テクスチャの実サイズを取得する
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
 		Engine::AssetID textureID, Engine::Vector2& outSize) {
 
 		if (!context.graphicsCore || !context.editorContext) {
 			return false;
 		}
-		return Engine::RuntimeTextureResolver::TryResolveSize(
+		return Engine::RuntimeTextureResolver::TryResolveSourceSize(
 			*context.graphicsCore, context.editorContext->assetDatabase, textureID, outSize);
 	}
 }

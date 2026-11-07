@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "primitive.hlsli"
+#include "../Atmosphere/transparentFog.hlsli"
 #include "../Mesh/Common/pbrShading.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Particle/GPU/particlePaintRead.hlsli"
@@ -134,6 +135,6 @@ TransparentPSOutput mainTransparent(VSOutput input) {
 	}
 
 	TransparentPSOutput output;
-	output.color = float4(finalColor, m.baseColor.a);
+	output.color = ApplyTransparentFog(float4(finalColor, m.baseColor.a), input.position);
 	return output;
 }

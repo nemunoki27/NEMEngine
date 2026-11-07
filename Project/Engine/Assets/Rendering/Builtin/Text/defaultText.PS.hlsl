@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "defaultText.hlsli"
+#include "../Atmosphere/transparentFog.hlsli"
 
 //============================================================================
 //	output
@@ -85,7 +86,7 @@ PSOutput main(VSOutput input) {
 		if (alpha < (1.0f / 255.0f)) {
 			discard;
 		}
-		output.color = float4(rgb, alpha);
+		output.color = ApplyTransparentFog(float4(rgb, alpha), input.position);
 		return output;
 	}
 
@@ -94,7 +95,7 @@ PSOutput main(VSOutput input) {
 	if (alpha < (1.0f / 255.0f)) {
 		discard;
 	}
-	output.color = float4(fillColor.rgb, alpha);
+	output.color = ApplyTransparentFog(float4(fillColor.rgb, alpha), input.position);
 
 	return output;
 }

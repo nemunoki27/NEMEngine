@@ -41,6 +41,14 @@ internal static class BindingGeneratorSelfTests {
                 File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("SceneObjectUtility::FindByLocalFileID"));
             Expect("EntityRef managed property generated",
                 File.ReadAllText(Path.Combine(csDir, "ComponentBindings.generated.cs")).Contains("public GameObject? Target"));
+            var referenceProperty = new PropertyModel { ManagedName = "Sun", NativeMember = "sunEntity", Kind = "SceneEntityRef" };
+            var referenceText = new System.Text.StringBuilder();
+            NativeBindingEmitter.EmitCppGet(referenceText, referenceProperty);
+            NativeBindingEmitter.EmitCppSet(referenceText, referenceProperty, new Dictionary<string, EnumModel>(), "TestComponent");
+            Expect("SceneEntityRef resolves persistent references", referenceText.ToString().Contains("c->sunEntity.Resolve(world, entity)"));
+            Expect("SceneEntityRef persists assigned entities", referenceText.ToString().Contains("SceneEntityReference::FromEntity(world, target)"));
+            Expect("SceneEntityRef rejects other worlds", referenceText.ToString().Contains("ResolveWorld(targetNative) != &world"));
+            Expect("SceneEntityRef managed type", BindingTypeLayout.PODInfo("SceneEntityRef") == ("GameObject", 16));
             Expect("native registration generated",
                 File.ReadAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.cpp")).Contains("Register<TestComponent>(0"));
             Expect("component mutation notification generated",

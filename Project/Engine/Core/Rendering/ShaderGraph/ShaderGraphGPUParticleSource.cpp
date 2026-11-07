@@ -84,7 +84,7 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 		"\t\tparticleSurfaceParameters.z, particleSurfaceParameters.w);\n"
 		"\tcolor.rgb += graph.emissive + input.emissive.rgb * input.emissive.w;\n"
 		"\tParticleGPUPixelOutput output;\n"
-		"\toutput.color = PrepareParticleGPUBlend(color, input.blendMode);\n"
+		"\toutput.color = PrepareParticleGPUBlend(color, input.blendMode, input.position);\n"
 		"\treturn output;\n}\n";
 	return source;
 }

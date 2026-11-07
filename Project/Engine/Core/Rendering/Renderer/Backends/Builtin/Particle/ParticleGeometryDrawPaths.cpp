@@ -74,6 +74,7 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 		context, *pipelineState, item->blendMode);
 
 	SyncAndBindRegistry(*pipelineState, context, commandList);
+	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
 	}
@@ -151,6 +152,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(context, *pipelineState, item->blendMode);
 
 	SyncAndBindRegistry(*pipelineState, context, commandList);
+	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
 	}
@@ -205,6 +207,7 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 		context, *pipelineState, item->blendMode);
 
 	SyncAndBindRegistry(*pipelineState, context, commandList);
+	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
 	}

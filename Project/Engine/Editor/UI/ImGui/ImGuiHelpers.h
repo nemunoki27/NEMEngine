@@ -294,6 +294,10 @@ namespace Engine {
 			const char* label, Color4& value,
 			ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float);
 
+		// Popup内に直接配置する色ピッカー
+		static ValueEditResult ColorPicker(const char* id, Color4& value,
+			ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float);
+
 		//============================================================================
 		//	カーブ編集
 		//============================================================================

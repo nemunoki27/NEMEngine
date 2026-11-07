@@ -95,6 +95,10 @@ cbuffer DeferredLightingConstants : register(b1) {
 	uint environmentBRDFIndex;
 	uint physicalEnvironmentEnabled;
 	uint _environmentPad;
+	float4 atmosphereSun;
+	float4 atmosphereSolar;
+	uint atmosphereSkyIndex;
+	uint3 _atmospherePad;
 };
 
 Texture2D<float> gDirectionalShadowMap0 : register(t13);
@@ -285,6 +289,18 @@ float3 SampleBackground(float2 texcoord) {
 	float2 ndc = float2(texcoord.x * 2.0f - 1.0f, 1.0f - texcoord.y * 2.0f);
 	float4 worldFar = mul(float4(ndc, 1.0f, 1.0f), inverseViewProjection);
 	float3 direction = normalize(worldFar.xyz / worldFar.w - cameraPos);
+	if (atmosphereSkyIndex != kNoCubemap) {
+		float latitude = asin(clamp(direction.y, -1.0f, 1.0f)) / 1.570796327f;
+		float2 skyUV = float2(frac(atan2(direction.z, direction.x) / 6.283185307f + 1.0f),
+			0.5f + 0.5f * sign(latitude) * sqrt(abs(latitude)));
+		Texture2D<float4> sky = NEM_TEXTURE2D(atmosphereSkyIndex);
+		float3 result = sky.SampleLevel(gSampler, skyUV, 0).rgb;
+		float angle = acos(clamp(dot(direction, atmosphereSun.xyz), -1.0f, 1.0f));
+		float pixelWidth = max(length(ddx(direction)), length(ddy(direction)));
+		float coverage = 1.0f - smoothstep(max(atmosphereSun.w - pixelWidth * 0.5f, 0.0f),
+			atmosphereSun.w + pixelWidth * 0.5f, angle);
+		return min(result + atmosphereSolar.rgb * coverage, 65000.0f);
+	}
 
 	// キューブマップテクスチャ取得
 	TextureCube<float4> cubemap = NEM_TEXTURECUBE(skyboxCubemapIndex);

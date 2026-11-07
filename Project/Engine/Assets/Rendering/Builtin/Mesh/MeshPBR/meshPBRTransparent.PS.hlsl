@@ -7,6 +7,7 @@
 #include "../Common/meshPBR.hlsli"
 #include "../Common/meshSurfaceLighting.hlsli"
 #include "../../Common/temporalMotion.hlsli"
+#include "../../Atmosphere/transparentFog.hlsli"
 
 //============================================================================
 //	output
@@ -26,6 +27,6 @@ TransparentPSOutput mainTransparent(VSOutput input) {
 	float3 finalColor = EvaluateMeshSurfaceLighting(input, m);
 
 	TransparentPSOutput output;
-	output.color = float4(finalColor, m.baseColor.a);
+	output.color = ApplyTransparentFog(float4(finalColor, m.baseColor.a), input.position);
 	return output;
 }

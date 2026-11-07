@@ -29,7 +29,8 @@ namespace Engine {
 		~SkyboxIrradianceMap();
 
 		// 元cubemapが変わった時だけ畳み込みを実行して放射照度cubemapを更新する
-		void Update(GraphicsCore& graphicsCore, AssetID sourceAssetID, uint32_t sourceSRVIndex);
+		void Update(GraphicsCore& graphicsCore, AssetID sourceAssetID, uint32_t sourceSRVIndex,
+			uint64_t contentRevision = 0);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -47,7 +48,8 @@ namespace Engine {
 
 			uint32_t sourceCubemapIndex = 0xFFFFFFFF;
 			uint32_t faceSize = 0;
-			uint32_t _pad[2] = { 0, 0 };
+			uint32_t sampleCount = 0;
+			uint32_t _pad = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -72,6 +74,7 @@ namespace Engine {
 		// 構築済みの元cubemap、変化した時だけ再畳み込みする
 		AssetID builtAssetID_{};
 		uint32_t builtSRVIndex_ = UINT32_MAX;
+		uint64_t builtContentRevision_ = 0;
 		bool built_ = false;
 
 		// 定数と出力UAVのスロット

@@ -19,6 +19,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/AtmosphereEnvironment.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderRequirements.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
@@ -213,6 +214,14 @@ void Engine::LightingPass::Execute(
 	// 背景に使うskyboxを探す、最初に見つかったskyboxが対象
 	const SceneSkyboxInfo skybox = SceneSkyboxResolver::Resolve(
 		graphicsCore, context.assetDatabase, context.world, context.view->GetCullingMask(RenderCameraDomain::Perspective));
+	AtmosphereViewData atmosphere{};
+	const ResolvedCameraView* atmosphereCamera = context.view->FindCamera(RenderCameraDomain::Perspective);
+	if (context.world && atmosphereCamera && atmosphereCamera->valid) {
+		atmosphere = graphicsCore.GetAtmosphereEnvironment().PrepareView(graphicsCore, *context.world,
+			context.view->GetCullingMask(RenderCameraDomain::Perspective), context.view->GetHistoryKey(),
+			atmosphereCamera->cameraPos,
+			atmosphereCamera->matrices.inverseProjectionMatrix * atmosphereCamera->matrices.inverseViewMatrix);
+	}
 	profiler.EndPass(commandList);
 	profiler.BeginPass(commandList, profilePrefix + " Irradiance");
 	uint32_t irradianceCubemapIndex = 0xFFFFFFFF;
@@ -261,6 +270,10 @@ void Engine::LightingPass::Execute(
 
 	// 背景復元用の逆ビュー射影と視点を集める、2Dビューでは背景を出さない
 	LightingConstants constants{};
+	constants.atmosphereSkyIndex = atmosphere.skyIndex;
+	constants.atmosphereSun = {-atmosphere.sunDirection.x, -atmosphere.sunDirection.y,
+		-atmosphere.sunDirection.z, atmosphere.sunAngularRadius};
+	constants.atmosphereSolar = {atmosphere.solarLuminance.x, atmosphere.solarLuminance.y, atmosphere.solarLuminance.z, 0};
 	constants.ambientIntensity = 0.03f;
 	constants.skyboxColor = skybox.found ? skybox.color : graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;

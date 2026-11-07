@@ -1,0 +1,11 @@
+{
+  "name": "AtmosphereCubemap",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "93abdabcd6674ea69d8d07bf7422d079",
+      "entry": "CubemapMain",
+      "profile": "cs_6_0"
+    }
+  ]
+}

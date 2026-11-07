@@ -69,6 +69,8 @@ void Engine::MeshGraphicsBinding::Bind(const RenderDrawContext& context,
 	// バッファレジストリ登録済みバッファをまとめてバインドする
 	registryAutoBindTable_.Sync(*prepared.pipelineState, *context.bufferRegistry);
 	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
+	BackendDrawCommon::BindTransparentFog(context, *prepared.pipelineState, *prepared.items.front(),
+		constantBufferAllocator_, commandList);
 
 	// メッシュ固有バインドのスロット解決を更新
 	sharedBindCache_.Sync(*prepared.pipelineState);

@@ -126,10 +126,11 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 }
 
 void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
-	AssetID sourceAssetID, uint32_t sourceSRVIndex) {
+	AssetID sourceAssetID, uint32_t sourceSRVIndex, uint64_t contentRevision) {
 
 	// 構築済みで元cubemapが変わっていなければ何もしない
-	if (built_ && builtAssetID_ == sourceAssetID && builtSRVIndex_ == sourceSRVIndex) {
+	if (built_ && builtAssetID_ == sourceAssetID && builtSRVIndex_ == sourceSRVIndex &&
+		builtContentRevision_ == contentRevision) {
 		return;
 	}
 
@@ -145,6 +146,7 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	IrradianceConstants constants{};
 	constants.sourceCubemapIndex = sourceSRVIndex;
 	constants.faceSize = kFaceSize;
+	constants.sampleCount = contentRevision != 0 ? 128u : 0u;
 	constants_.Upload(constants);
 
 	// 出力cubemapをUAV状態へ遷移
@@ -187,5 +189,6 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	// 構築済みの元cubemapを記録
 	builtAssetID_ = sourceAssetID;
 	builtSRVIndex_ = sourceSRVIndex;
+	builtContentRevision_ = contentRevision;
 	built_ = true;
 }

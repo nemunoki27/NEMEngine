@@ -1,4 +1,5 @@
 #include "TestSelection.h"
+#include "HeightFogGPUTests.h"
 #include "RendererRenderSettingsGPUTests.h"
 #include "EditorWindowTests.h"
 #include "InspectorPresentationTests.h"
@@ -139,6 +140,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--bistro-normals") {
 		return RunTest("TestBistroNormalTextures", TestBistroNormalTextures) ? 0 : 53;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--height-fog-gpu") {
+		return RunTest("TestHeightFogGPU", TestHeightFogGPU) ? 0 : 75;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor-asset-workflow") {
 		return RunTest("TestEditorAssetWorkflow", TestEditorAssetWorkflow) ? 0 : 53;

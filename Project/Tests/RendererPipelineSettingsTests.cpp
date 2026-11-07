@@ -6,6 +6,43 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Pipelines/RendererPipelineSettings.h>
 
+namespace {
+
+	bool CheckAtmosphereSampler() {
+
+		using namespace Engine;
+		ShaderReflectionInfo reflection;
+		ShaderResourceBinding fog{};
+		fog.name = "fogLinearSampler";
+		fog.kind = ShaderBindingKind::Sampler;
+		fog.bindPoint = 10;
+		fog.space = 7;
+		reflection.resources.emplace_back(fog);
+		auto material = fog;
+		material.name = "materialSampler";
+		material.bindPoint = 0;
+		material.space = 0;
+		reflection.resources.emplace_back(material);
+		const auto valid = [](const std::vector<D3D12_STATIC_SAMPLER_DESC>& samplers) {
+
+			return samplers.size() == 1 && samplers[0].ShaderRegister == 10 && samplers[0].RegisterSpace == 7 &&
+				samplers[0].Filter == D3D12_FILTER_MIN_MAG_MIP_LINEAR &&
+				samplers[0].AddressU == D3D12_TEXTURE_ADDRESS_MODE_CLAMP &&
+				samplers[0].AddressV == D3D12_TEXTURE_ADDRESS_MODE_CLAMP &&
+				samplers[0].AddressW == D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		};
+		if (!valid(BuildPipelineStaticSamplers(reflection, {}, {}))) return false;
+		PipelineStaticSamplerOverrideSet overrides;
+		auto& replacement = overrides.byName[fog.name];
+		replacement.filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		replacement.addressU = replacement.addressV = replacement.addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		D3D12_STATIC_SAMPLER_DESC existing{};
+		existing.ShaderRegister = fog.bindPoint;
+		existing.RegisterSpace = fog.space;
+		return valid(BuildPipelineStaticSamplers(reflection, { existing }, overrides));
+	}
+}
+
 bool NEMTests::TestRendererPipelineSettings() {
 
 	using namespace Engine;
@@ -82,5 +119,5 @@ bool NEMTests::TestRendererPipelineSettings() {
 		if (desc.depthStencil.DepthFunc != static_cast<D3D12_COMPARISON_FUNC>(value) ||
 			desc.depthStencil.FrontFace.StencilFailOp != static_cast<D3D12_STENCIL_OP>(value)) return false;
 	}
-	return true;
+	return CheckAtmosphereSampler();
 }

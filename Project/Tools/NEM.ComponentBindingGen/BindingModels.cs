@@ -23,6 +23,7 @@ internal sealed class PropertyModel {
     public string ManagedName = ""; // 公開プロパティ名
     public string NativeMember = ""; // 対応するNativeメンバー
     public string Kind = ""; // 値の種別
+    public string? RequiredComponent; // Entity参照に必要なNative型
     public string? AssetType; // Asset参照の型
     public string? EnumType; // 列挙型名
     public string Access = "ReadWrite"; // 読取と書込の許可

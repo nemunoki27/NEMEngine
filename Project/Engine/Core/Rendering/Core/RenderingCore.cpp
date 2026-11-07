@@ -5,6 +5,7 @@
 #include <Engine/Core/Rendering/Assets/FontRenderService.h>
 #include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/EnvironmentSpecularMap.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/AtmosphereEnvironment.h>
 
 //============================================================================
 //	GraphicsCore classMethods
@@ -63,6 +64,7 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 	environmentSpecularMap_ = std::make_unique<EnvironmentSpecularMap>();
+	atmosphereEnvironment_ = std::make_unique<AtmosphereEnvironment>();
 	runtimeSettings_ = std::make_unique<RuntimeProjectSettings>(*this, usesEditorUI);
 	engineContext_->SetRuntimeSettings(runtimeSettings_.get());
 }
@@ -73,6 +75,7 @@ void Engine::GraphicsCore::TickFrameServices() {
 	textureUploadService_->TickFinalize();
 	bufferUploadService_->TickFinalize();
 	environmentSpecularMap_->CollectUnused();
+	atmosphereEnvironment_->CollectUnused();
 }
 
 void Engine::GraphicsCore::SyncWindowSize() {
@@ -165,6 +168,7 @@ void Engine::GraphicsCore::Finalize() {
 	drain();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
+	atmosphereEnvironment_.reset();
 	environmentSpecularMap_.reset();
 	fontRenderService_.reset();
 	if (builtinTextureLibrary_) {

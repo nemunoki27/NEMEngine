@@ -33,9 +33,10 @@ internal static class NativeBindingEmitter {
         sb.Append("#include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>\n");
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>\n");
         sb.Append("#include <Engine/Core/Foundation/Identity/UUID.h>\n");
-        if (components.SelectMany(c => c.Properties).Any(p => p.Kind == "EntityRef")) {
+        if (components.SelectMany(c => c.Properties).Any(p => p.Kind == "EntityRef" || p.Kind == "SceneEntityRef")) {
             sb.Append("#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>\n");
             sb.Append("#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>\n");
+            sb.Append("#include <Engine/Core/World/Scene/Utility/SceneEntityReference.h>\n");
         }
         foreach (string header in components.Select(c => c.NativeHeader).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h, StringComparer.Ordinal)) {
             sb.Append($"#include <{header}>\n");
@@ -192,6 +193,11 @@ internal static class NativeBindingEmitter {
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedAssetGUID))) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\t*reinterpret_cast<ManagedAssetGUID*>(out) = ToManagedAssetGUID(c->{m});\n");
                 break;
+            case "SceneEntityRef":
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append($"\t\t\t\tconst Entity target = c->{m}.Resolve(world, entity);\n");
+                sb.Append("\t\t\t\t*reinterpret_cast<ManagedNativeEntity*>(out) = world.IsAlive(target) ? MakeNativeEntity(world, target) : MakeNullNativeEntity();\n");
+                break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\tconst Entity target = SceneObjectUtility::FindByLocalFileID(world, SceneObjectUtility::GetSceneInstanceID(world, entity), c->{m});\n");
@@ -233,6 +239,16 @@ internal static class NativeBindingEmitter {
             case "AssetRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedAssetGUID))) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\tc->{m} = ToAssetID(*reinterpret_cast<const ManagedAssetGUID*>(value));\n");
+                break;
+            case "SceneEntityRef":
+                sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
+                sb.Append("\t\t\t\tconst ManagedNativeEntity targetNative = *reinterpret_cast<const ManagedNativeEntity*>(value);\n");
+                sb.Append("\t\t\t\tconst Entity target = ResolveEntity(targetNative);\n");
+                sb.Append("\t\t\t\tif (targetNative.IsValid() && (ResolveWorld(targetNative) != &world || !world.IsAlive(target))) return ManagedStatus::InvalidArgument;\n");
+                if (prop.RequiredComponent != null) {
+                    sb.Append($"\t\t\t\tif (targetNative.IsValid() && !world.TryGetComponentForBinding<{prop.RequiredComponent}>(target)) return ManagedStatus::InvalidArgument;\n");
+                }
+                sb.Append($"\t\t\t\tc->{m} = targetNative.IsValid() ? SceneEntityReference::FromEntity(world, target) : SceneEntityReference{{}};\n");
                 break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");

@@ -316,6 +316,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// ルートパラメータをバインドする
 	SyncAndBindRegistry(*pipelineState, context, commandList);
+	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(
 			commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);

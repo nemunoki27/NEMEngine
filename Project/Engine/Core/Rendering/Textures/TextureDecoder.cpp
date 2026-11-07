@@ -267,6 +267,30 @@ namespace {
 
 }
 
+HRESULT Engine::TextureDecoder::ReadMetadata(const std::string& assetPath, DirectX::TexMetadata& metadata) {
+
+	metadata = {};
+	const auto fullPath = RuntimePaths::ResolveAssetPath(assetPath);
+	const std::string extension = Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension()));
+	if (extension == ".dds") {
+		return DirectX::GetMetadataFromDDSFile(fullPath.c_str(), DirectX::DDS_FLAGS_NONE, metadata);
+	}
+	if (extension == ".tga") {
+		return DirectX::GetMetadataFromTGAFile(fullPath.c_str(), metadata);
+	}
+	if (extension == ".hdr") {
+		return DirectX::GetMetadataFromHDRFile(fullPath.c_str(), metadata);
+	}
+	const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
+		return initialized;
+	}
+	ScopedCleanup comCleanup([initialized]() noexcept {
+		if (SUCCEEDED(initialized)) CoUninitialize();
+	});
+	return DirectX::GetMetadataFromWICFile(fullPath.c_str(), DirectX::WIC_FLAGS_NONE, metadata);
+}
+
 Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDesc& job) {
 
 	DecodedTexture result{};

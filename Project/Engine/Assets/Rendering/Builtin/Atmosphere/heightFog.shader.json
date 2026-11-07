@@ -1,0 +1,11 @@
+{
+  "name": "HeightFog",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "fc4f99e549b52b09a68e9e03e626118a",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

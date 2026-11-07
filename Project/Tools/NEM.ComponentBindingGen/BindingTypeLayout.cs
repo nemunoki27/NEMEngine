@@ -10,7 +10,7 @@ internal static class BindingTypeLayout {
             case "Int": case "UInt": case "Long": case "ULong": case "Float": case "Double":
             case "String": case "Enum":
             case "Vector2": case "Vector3": case "Vector4": case "Quaternion":
-            case "Color3": case "Color4": case "AssetRef": case "EntityRef":
+            case "Color3": case "Color4": case "AssetRef": case "SceneEntityRef": case "EntityRef":
                 return true;
             default: return false;
         }
@@ -35,7 +35,7 @@ internal static class BindingTypeLayout {
             case "Quaternion": return ("Quaternion", 16);
             case "Color3": return ("Color3", 12);
             case "Color4": return ("Color4", 16);
-            case "EntityRef": return ("GameObject", 16);
+            case "SceneEntityRef": case "EntityRef": return ("GameObject", 16);
             default: return ("", 0);
         }
     }

@@ -233,12 +233,11 @@ void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& sessi
 		break;
 	case NodeValuePopupKind::Color: {
 		Color4 value = std::get_if<Color4>(&node.value.value) ? std::get<Color4>(node.value.value) : Color4::White();
-		float color[4] = {value.r, value.g, value.b, value.a};
 		ImGui::SetNextItemWidth(ImGui::GetFrameHeight() * 12.0f);
-		if (ImGui::ColorPicker4("##NodeColorPicker", color,
-				ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaPreviewHalf)) {
+		if (MyGUI::ColorPicker("##NodeColorPicker", value,
+				ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaPreviewHalf).valueChanged) {
 
-			node.value.value = Color4(color[0], color[1], color[2], color[3]);
+			node.value.value = value;
 			session.MarkDirty();
 		}
 		break;

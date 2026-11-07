@@ -60,7 +60,8 @@ namespace Engine::ShaderGraphStageSource {
 					  "\treturn EncodeGBuffer(surface);\n"
 					  "}\n";
 		} else {
-			source += "struct TransparentPSOutput { float4 color : SV_TARGET0; };\n\n"
+			source += "#include \"Builtin/Atmosphere/transparentFog.hlsli\"\n"
+					  "struct TransparentPSOutput { float4 color : SV_TARGET0; };\n\n"
 					  "TransparentPSOutput mainTransparent(VSOutput input) {\n\n"
 					  "\tShaderGraphSurface graph = EvaluatePrimitiveShaderGraph(input);\n"
 					  "\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
@@ -80,7 +81,7 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tfloat3 ambient = ((input.flags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) ? 0.03f * graph.baseColor.rgb "
 					  "* graph.ambientOcclusion : 0.0f.xxx;\n"
 					  "\tTransparentPSOutput output;\n"
-					  "\toutput.color = float4(lighting + ambient * (1.0f - graph.transmission) + graph.emissive, alpha);\n"
+					  "\toutput.color = ApplyTransparentFog(float4(lighting + ambient * (1.0f - graph.transmission) + graph.emissive, alpha), input.position);\n"
 					  "\treturn output;\n"
 					  "}\n";
 		}
@@ -100,7 +101,8 @@ namespace Engine::ShaderGraphStageSource {
 		source += "SamplerState gSampler : register(s0);\n";
 		// TextのAtlasとSpriteのUV入力を宣言する
 		if (text) {
-			source += "Texture2D<float4> gAtlas : register(t1);\n"
+			source += "#include \"Builtin/Atmosphere/transparentFog.hlsli\"\n"
+					  "Texture2D<float4> gAtlas : register(t1);\n"
 					  "struct PSInstance { float2 atlasSize; float pxRange; float padding0; float4x4 uvMatrix; };\n"
 					  "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
 		} else if (sprite) {
@@ -150,8 +152,9 @@ namespace Engine::ShaderGraphStageSource {
 		}
 		source += "\tclip(alpha - max(graph.alphaClip, 1.0f / 255.0f));\n"
 				  "\tPSOutput output;\n"
-				  "\toutput.color = float4(graph.baseColor.rgb, alpha);\n"
-				  "\treturn output;\n"
+				  "\toutput.color = float4(graph.baseColor.rgb, alpha);\n";
+		if (text) source += "\toutput.color = ApplyTransparentFog(output.color, input.position);\n";
+		source += "\treturn output;\n"
 				  "}\n";
 		return source;
 	}
@@ -213,7 +216,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tcolor.a *= graph.opacity;\n"
 			"\tclip(color.a - max(material.materialParams.x, graph.alphaClip));\n"
 			"\tcolor.rgb += graph.emissive + material.emissive.rgb * material.emissive.w;\n"
-			"\tcolor = PrepareParticleBlendColor(color, material);\n"
+			"\tcolor = PrepareParticleBlendColor(color, material, input.position);\n"
 			"\tPSOutput output;\n"
 			"\toutput.color = color;\n"
 			"\treturn output;\n"

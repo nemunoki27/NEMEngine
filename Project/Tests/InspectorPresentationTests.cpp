@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Lighting/AtmosphereLighting.h>
+#include <Engine/Core/World/Components/Lighting/SkyAtmosphereComponent.h>
+#include <Engine/Core/World/Components/Lighting/ExponentialHeightFogComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorCommonBindings.h>
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentEditSession.h>
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
@@ -26,6 +29,8 @@
 
 // c++
 #include <array>
+#include <cmath>
+#include <limits>
 #include <iostream>
 #include <unordered_set>
 
@@ -159,6 +164,51 @@ namespace {
 		return state.ResolveComponentSelection(&world) == Entity::Null();
 	}
 
+	bool TestColorEditCompletion() {
+
+		using namespace Engine;
+		ImGuiContext* previous = ImGui::GetCurrentContext();
+		ImGuiContext* gui = ImGui::CreateContext();
+		ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = ImVec2(800, 600);
+		io.DeltaTime = 1.0f / 60.0f;
+		unsigned char* pixels;
+		int width, height;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		Color4 value(1.0f, 0.0f, 0.0f, 1.0f);
+		ImVec2 origin;
+		int completions = 0;
+		int changes = 0;
+		for (int frame = 0; frame < 14; ++frame) {
+			if (frame > 0) io.AddMousePosEvent(origin.x + 230.0f, origin.y + 20.0f + float(frame) * 8.0f);
+			if (frame == 2 || frame == 8) io.AddMouseButtonEvent(0, true);
+			if (frame == 6 || frame == 12) io.AddMouseButtonEvent(0, false);
+			ImGui::NewFrame();
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2(500, 550));
+			ImGui::Begin("ColorCompletion", nullptr, ImGuiWindowFlags_NoTitleBar);
+			origin = ImGui::GetCursorScreenPos();
+			ImGui::SetNextItemWidth(240.0f);
+			const auto result = MyGUI::ColorPicker("Picker", value, ImGuiColorEditFlags_PickerHueBar |
+				ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoInputs);
+			changes += result.valueChanged ? 1 : 0;
+			completions += result.editFinished ? 1 : 0;
+			Color3 other(0.2f, 0.3f, 0.4f);
+			const auto unrelated = MyGUI::ColorEdit("Other", other);
+			ImGui::End();
+			ImGui::Render();
+			if ((io.MouseDown[0] && result.editFinished) || unrelated.editFinished) return false;
+			if (frame == 6 && completions != 1) return false;
+		}
+		if (completions != 2 || changes < 4) {
+			std::cerr << "Color edit: changes=" << changes << " completions=" << completions << "\n";
+			return false;
+		}
+		return true;
+	}
+
 	// 読み取り専用表示のコピーとIDと保存値の不変性を確認する
 	bool TestReadOnlyFields() {
 
@@ -268,7 +318,7 @@ namespace {
 bool NEMTests::TestInspectorPresentation() {
 
 	using namespace Engine;
-	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields()) return false;
+	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields() || !TestColorEditCompletion()) return false;
 	if (std::string_view(GetInspectorPlaybackState(true, false)) != "再生中" ||
 		std::string_view(GetInspectorPlaybackState(true, true)) != "一時停止" ||
 		std::string_view(GetInspectorPlaybackState(false, false, true)) != "完了" ||
@@ -278,6 +328,40 @@ bool NEMTests::TestInspectorPresentation() {
 		std::string_view(GetInspectorLabel(InspectorFieldID::Duration)) != "再生時間" ||
 		std::string_view(GetInspectorLabel(InspectorFieldID::StartDelay)) != "開始待ち" ||
 		std::string_view(GetInspectorLabel(InspectorFieldID::AxisAngle)) != "軸＋角度") return false;
+	SkyAtmosphereComponent atmosphere;
+	const auto zenith = AtmosphereLighting::SunTransmittance(atmosphere, 0.0f, Vector3(0, 1, 0));
+	const auto elevated = AtmosphereLighting::SunTransmittance(atmosphere, 10.0f, Vector3(0, 1, 0));
+	const auto horizon = AtmosphereLighting::SunTransmittance(atmosphere, 0.0f, Vector3(1, 0, 0));
+	const auto below = AtmosphereLighting::SunTransmittance(atmosphere, 0.0f, Vector3(0, -1, 0));
+	if (!(zenith.x > 0 && zenith.x < 1 && zenith.x >= zenith.y && zenith.y >= zenith.z &&
+		elevated.x > zenith.x && elevated.y > zenith.y && elevated.z > zenith.z &&
+		horizon.x < zenith.x && horizon.y < zenith.y && horizon.z < zenith.z &&
+		below.x == 0 && below.y == 0 && below.z == 0)) return false;
+	auto vacuum = atmosphere;
+	vacuum.rayleighScattering = Color3::Black();
+	vacuum.mieScattering = vacuum.mieAbsorption = 0;
+	vacuum.ozoneAbsorption = Color3::Black();
+	const auto clear = AtmosphereLighting::SunTransmittance(vacuum, 0.0f, Vector3(0, 1, 0));
+	if (clear.x != 1 || clear.y != 1 || clear.z != 1) return false;
+	auto invalidAtmosphere = atmosphere;
+	invalidAtmosphere.planetRadiusKm = 0;
+	invalidAtmosphere.rayleighScaleHeightKm = std::numeric_limits<float>::quiet_NaN();
+	invalidAtmosphere.mieAbsorption = std::numeric_limits<float>::infinity();
+	const auto sanitized = AtmosphereLighting::Sanitize(invalidAtmosphere);
+	if (!(sanitized.planetRadiusKm > 0 && std::isfinite(sanitized.rayleighScaleHeightKm) &&
+		sanitized.rayleighScaleHeightKm > 0 && std::isfinite(sanitized.mieAbsorption))) return false;
+	ExponentialHeightFogComponent fog;
+	atmosphere.mieAnisotropy = 0.7f;
+	atmosphere.sunEntity.localFileID = Engine::UUID::New();
+	fog.secondDensity = 0.04f;
+	fog.secondHeightOffset = -3.0f;
+	const nlohmann::json savedAtmosphere = atmosphere;
+	const nlohmann::json savedFog = fog;
+	const auto restoredAtmosphere = savedAtmosphere.get<SkyAtmosphereComponent>();
+	const auto restoredFog = savedFog.get<ExponentialHeightFogComponent>();
+	if (nlohmann::json(restoredAtmosphere) != savedAtmosphere || nlohmann::json(restoredFog) != savedFog) return false;
+	if (BindInspectorCommonFields(atmosphere).enabled != &atmosphere.enabled ||
+		BindInspectorCommonFields(fog).displayLayer != &fog.renderingLayerMask) return false;
 	SkyboxRendererComponent sky;
 	ParticleSystemComponent particle;
 	ForceFieldComponent field;

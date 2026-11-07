@@ -198,6 +198,43 @@ namespace {
 		return true;
 	}
 
+	// GPUを初期化せず画像形式ごとの元サイズを取得する
+	bool CheckSourceTextureMetadata() {
+
+		using namespace Engine;
+		NEMTests::TestDirectory directory("SourceTextureMetadata");
+		DirectX::ScratchImage input, hdr;
+		if (FAILED(input.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, 513, 129, 1, 1)) ||
+			FAILED(hdr.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, 97, 43, 1, 1))) return false;
+		std::memset(input.GetPixels(), 255, input.GetPixelsSize());
+		std::memset(hdr.GetPixels(), 0, hdr.GetPixelsSize());
+		const auto ddsPath = directory.GetPath() / "Source.dds";
+		const auto tgaPath = directory.GetPath() / "Source.tga";
+		const auto hdrPath = directory.GetPath() / "Source.hdr";
+		const auto pngPath = directory.GetPath() / "Source.png";
+		if (FAILED(DirectX::SaveToDDSFile(input.GetImages(), input.GetImageCount(), input.GetMetadata(),
+			DirectX::DDS_FLAGS_NONE, ddsPath.c_str())) ||
+			FAILED(DirectX::SaveToTGAFile(*input.GetImage(0, 0, 0), tgaPath.c_str())) ||
+			FAILED(DirectX::SaveToHDRFile(*hdr.GetImage(0, 0, 0), hdrPath.c_str()))) return false;
+		const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+		if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) return false;
+		ScopedCleanup comCleanup([initialized]() noexcept {
+			if (SUCCEEDED(initialized)) CoUninitialize();
+		});
+		if (FAILED(DirectX::SaveToWICFile(*input.GetImage(0, 0, 0), DirectX::WIC_FLAGS_NONE,
+			DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), pngPath.c_str()))) return false;
+		DirectX::TexMetadata metadata{};
+		for (const auto& path : {ddsPath, tgaPath, pngPath}) {
+			if (FAILED(TextureDecoder::ReadMetadata(Algorithm::PathToUTF8(path), metadata)) ||
+				metadata.width != 513 || metadata.height != 129) return false;
+		}
+		if (FAILED(TextureDecoder::ReadMetadata(Algorithm::PathToUTF8(hdrPath), metadata)) ||
+			metadata.width != 97 || metadata.height != 43) return false;
+		std::ofstream(directory.GetPath() / "Broken.png") << "invalid image";
+		return FAILED(TextureDecoder::ReadMetadata(Algorithm::PathToUTF8(directory.GetPath() / "Broken.png"), metadata)) &&
+			FAILED(TextureDecoder::ReadMetadata(Algorithm::PathToUTF8(directory.GetPath() / "Missing.png"), metadata));
+	}
+
 	// サムネイルだけ縮小し、通常画像のサイズは保つ
 	bool CheckThumbnail() {
 
@@ -346,7 +383,8 @@ bool NEMTests::TestEditorAssetWorkflow() {
 	if (camera.common.renderPasses != BuiltinAssets::RenderPasses::Default ||
 		!scene["Entities"][1]["Components"].contains("DirectionalLight")) { return false; }
 	return CheckNormal(DXGI_FORMAT_BC5_UNORM) && CheckNormal(DXGI_FORMAT_BC5_SNORM) &&
-		CheckPropertyLabels() && CheckThumbnail() && CheckInspectorInput() && CheckModelPreviewMaterials();
+		CheckPropertyLabels() && CheckThumbnail() && CheckSourceTextureMetadata() &&
+		CheckInspectorInput() && CheckModelPreviewMaterials();
 }
 
 // Bistroの実画像を編集せず、法線用途とData用途を読み分ける

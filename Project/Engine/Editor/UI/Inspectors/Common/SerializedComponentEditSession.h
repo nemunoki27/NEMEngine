@@ -56,7 +56,11 @@ namespace Engine {
 			return !editingWorld || editingWorld != world.GetLifetime() ||
 				editingEntityStableUUID_ != entityUUID || !isEditing_;
 		}
-		void SetEditing(bool editing) { isEditing_ = editing; }
+		void SetEditing(bool editing) {
+
+			if (isEditing_ && !editing && previewActive_) commitRequested_ = true;
+			isEditing_ = editing;
+		}
 		void RequestCommit() { commitRequested_ = true; }
 		T& GetDraft() { return draftComponent_; }
 		const T& GetDraft() const { return draftComponent_; }

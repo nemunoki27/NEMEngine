@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
+#include <Engine/Core/Rendering/Textures/TextureDecoder.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -319,6 +320,28 @@ namespace Engine::RuntimeTextureResolver {
 		return { fallbackIndex, state != TextureRequestState::Failed };
 	}
 
+	bool TryResolveSourceSize(GraphicsCore& graphicsCore,
+		const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize) {
+
+		if (!assetDatabase || !textureAssetID) return false;
+		const AssetMeta* meta = assetDatabase->Find(textureAssetID);
+		if (meta && meta->type == AssetType::RenderTexture) {
+			return TryResolveSize(graphicsCore, assetDatabase, textureAssetID, outSize);
+		}
+		const auto fullPath = assetDatabase->ResolveFullPath(textureAssetID);
+		if (fullPath.empty()) return false;
+		DirectX::TexMetadata metadata{};
+		const HRESULT result = TextureDecoder::ReadMetadata(Algorithm::PathToUTF8(fullPath), metadata);
+		if (FAILED(result) || metadata.width == 0 || metadata.height == 0) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"画像のサイズを取得できません ファイル={} HRESULT=0x{:08X}",
+				Algorithm::PathToUTF8(fullPath), static_cast<uint32_t>(result));
+			return false;
+		}
+		outSize = Vector2(static_cast<float>(metadata.width), static_cast<float>(metadata.height));
+		return true;
+	}
+
 	bool TryResolveSize(GraphicsCore& graphicsCore,
 		const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize) {
 
@@ -378,5 +401,6 @@ namespace Engine::RuntimeTextureResolver {
 		outSize = Vector2(static_cast<float>(desc.Width), static_cast<float>(desc.Height));
 		return true;
 	}
+
 
 }

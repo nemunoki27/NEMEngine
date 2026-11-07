@@ -1,6 +1,8 @@
 #ifndef NEM_PARTICLE_HLSLI
 #define NEM_PARTICLE_HLSLI
 
+#include "../../Atmosphere/transparentFog.hlsli"
+
 static const uint PARTICLE_BLEND_MULTIPLY = 3u;
 static const uint PARTICLE_BLEND_SCREEN = 4u;
 static const uint PARTICLE_BLEND_PREMULTIPLIED = 5u;
@@ -87,7 +89,7 @@ float2 TransformParticleUV(float2 uv, ParticleMaterialData material) {
 	return mul(float4(uv, 0.0f, 1.0f), material.uvMatrix).xy;
 }
 
-float4 PrepareParticleBlendColor(float4 color, ParticleMaterialData material) {
+float4 PrepareParticleBlendColor(float4 color, ParticleMaterialData material, float4 screenPosition) {
 
 	const uint blendMode = (uint) round(material.materialParams.z);
 	const float alpha = saturate(color.a);
@@ -99,6 +101,6 @@ float4 PrepareParticleBlendColor(float4 color, ParticleMaterialData material) {
 		// ScreenとPremultipliedはブレンド前にRGBをα乗算する
 		color.rgb *= alpha;
 	}
-	return color;
+	return ApplyTransparentFog(color, screenPosition);
 }
 #endif // NEM_PARTICLE_HLSLI

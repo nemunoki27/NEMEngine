@@ -5,6 +5,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Lighting/SkyAtmosphereComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.h>
 #include <Engine/Core/Scripting/Managed/ManagedMaterialConversion.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
@@ -27,6 +29,34 @@ namespace {
 
 	using namespace Engine;
 	using namespace Engine::GeneratedComponentBindings;
+
+	// 太陽参照の型制約と永続化、参照先削除を確認する
+	bool CheckAtmosphereReferences() {
+
+		ECSWorld world(ECSWorldKind::Runtime);
+		auto& registry = ManagedWorldRegistry::GetInstance();
+		const auto handle = registry.Register(world);
+		const auto owner = SceneAuthoring::CreateGameObject(world, "Atmosphere");
+		const auto sun = SceneAuthoring::CreateGameObject(world, "Sun");
+		world.AddComponent<SkyAtmosphereComponent>(owner);
+		const auto native = MakeNativeEntity(world, owner);
+		const auto target = MakeNativeEntity(world, sun);
+		const auto type = static_cast<int32_t>(ComponentTypeRegistry::GetInstance().GetID<SkyAtmosphereComponent>());
+		bool passed = SetComponentProperty(native, type, 2, &target, sizeof(target)) == ManagedStatus::InvalidArgument;
+		world.AddComponent<DirectionalLightComponent>(sun);
+		passed &= SetComponentProperty(native, type, 2, &target, sizeof(target)) == ManagedStatus::Ok;
+		ManagedNativeEntity restored{};
+		passed &= GetComponentProperty(native, type, 2, &restored, sizeof(restored)) == ManagedStatus::Ok;
+		passed &= ResolveEntity(restored) == sun;
+		const nlohmann::json saved = world.GetComponent<SkyAtmosphereComponent>(owner);
+		world.RemoveComponent<SkyAtmosphereComponent>(owner);
+		world.AddComponent<SkyAtmosphereComponent>(owner) = saved.get<SkyAtmosphereComponent>();
+		passed &= world.GetComponent<SkyAtmosphereComponent>(owner).sunEntity.Resolve(world, owner) == sun;
+		world.DestroyEntity(sun);
+		passed &= GetComponentProperty(native, type, 2, &restored, sizeof(restored)) == ManagedStatus::Ok && !restored.IsValid();
+		registry.Unregister(handle);
+		return passed;
+	}
 
 	// 全公開プロパティの転送幅と書込結果を確認する
 	bool CheckBindings() {
@@ -65,7 +95,7 @@ namespace {
 				} else {
 					alignas(16) std::array<uint8_t, 16> original{}, value{}, result{};
 					int size = kind == "Vector2" ? 8 : (kind == "Vector3" || kind == "Color3") ? 12 :
-						(kind == "Vector4" || kind == "Color4" || kind == "Quaternion" || kind == "AssetRef" || kind == "EntityRef") ? 16 : 4;
+						(kind == "Vector4" || kind == "Color4" || kind == "Quaternion" || kind == "AssetRef" || kind == "EntityRef" || kind == "SceneEntityRef") ? 16 : 4;
 					valid = GetComponentProperty(native, type, id, original.data(), size) == ManagedStatus::Ok;
 					value = original;
 					if (writable && valid) {
@@ -173,5 +203,5 @@ namespace {
 bool NEMTests::TestRuntimeAPIContracts() {
 
 	return TestRendererRenderSettings() && TestRendererPipelineSettings() && CheckBindings() && CheckPendingParticleSettings() && CheckMaterialNames() &&
-		CheckRuntimeAssetRestore() && CheckTextAssetTypes();
+		CheckRuntimeAssetRestore() && CheckTextAssetTypes() && CheckAtmosphereReferences();
 }

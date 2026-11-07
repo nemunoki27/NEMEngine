@@ -131,9 +131,9 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		renderer.materialInstance.Set(MaterialParameterIDs::BaseColorTexture, MaterialParameterNames::BaseColorTexture,
 			MaterialParameterSemantic::BaseColorTexture, texture);
 
-		// 読込済みTextureの実サイズを初期サイズにする
+		// 元画像の実サイズを初期サイズにする
 		Vector2 textureSize{};
-		if (RuntimeTextureResolver::TryResolveSize(graphicsCore, &database, payload.assetID, textureSize)) {
+		if (RuntimeTextureResolver::TryResolveSourceSize(graphicsCore, &database, payload.assetID, textureSize)) {
 			renderer.size = textureSize;
 		}
 

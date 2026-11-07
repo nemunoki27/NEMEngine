@@ -155,6 +155,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	{
 		// レジストリのオートバインドとスロット解決をまとめて行う
 		SyncAndBindRegistry(*pipelineState, context, commandList);
+		BackendDrawCommon::BindTransparentFog(context, *pipelineState, *items.front(), constantBufferAllocator_, commandList);
 		if (perDrawBindCache_.Has(viewCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
 				resources.GetViewGPUAddress());

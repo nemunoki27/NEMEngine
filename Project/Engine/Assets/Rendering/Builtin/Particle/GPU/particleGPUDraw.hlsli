@@ -1,6 +1,8 @@
 #ifndef NEM_PARTICLE_GPU_DRAW
 #define NEM_PARTICLE_GPU_DRAW
 
+#include "../../Atmosphere/transparentFog.hlsli"
+
 struct ParticleGPUVertexOutput {
 	float4 position : SV_POSITION;
 	float2 uv : TEXCOORD0;
@@ -20,11 +22,11 @@ struct ParticleGPUPixelOutput {
 	float4 color : SV_TARGET0;
 };
 
-float4 PrepareParticleGPUBlend(float4 color, uint mode) {
+float4 PrepareParticleGPUBlend(float4 color, uint mode, float4 screenPosition) {
 	float alpha = saturate(color.a);
 	if (mode == 3u) color.rgb = lerp(1.0f.xxx, color.rgb, alpha);
 	else if (mode == 4u || mode == 5u) color.rgb *= alpha;
-	return color;
+	return ApplyTransparentFog(color, screenPosition);
 }
 
 #endif

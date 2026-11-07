@@ -46,11 +46,13 @@ namespace Engine::CurveEditorUtility {
 				keyB.time = time;
 				result.valueChanged = true;
 			}
-			float color[3] = {keyR.value, keyG.value, keyB.value};
-			if (ImGui::ColorEdit3("色", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_PickerHueWheel)) {
-				keyR.value = color[0];
-				keyG.value = color[1];
-				keyB.value = color[2];
+			Color3 color(keyR.value, keyG.value, keyB.value);
+			const auto colorEdit = MyGUI::ColorEdit("色", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_PickerHueWheel);
+			result.editFinished |= colorEdit.editFinished;
+			if (colorEdit.valueChanged) {
+				keyR.value = color.r;
+				keyG.value = color.g;
+				keyB.value = color.b;
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);

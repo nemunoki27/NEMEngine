@@ -115,7 +115,7 @@ internal static class ManagedBindingEmitter {
                 sb.Append("    }\n\n");
                 break;
             }
-            case "EntityRef": {
+            case "SceneEntityRef": case "EntityRef": {
                 sb.Append($"    {prop.CSVisibility} GameObject? {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ NativeEntity v = NativeEntity.Null; NativeComponentAPI.ComponentGet(native, TypeID, {propID}, &v, sizeof(NativeEntity)); return GameObject.FromNative(v); }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ NativeEntity v = GameObject.RawNative(value); NativeComponentAPI.ComponentSet(native, TypeID, {propID}, &v, sizeof(NativeEntity)); }}\n");

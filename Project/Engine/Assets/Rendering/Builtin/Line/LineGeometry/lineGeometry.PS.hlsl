@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "lineGeometry.hlsli"
+#include "../../Atmosphere/transparentFog.hlsli"
 
 //============================================================================
 //	main
@@ -20,5 +21,5 @@ float4 main(GSOutput input) : SV_TARGET0 {
 	color.a *= coverage;
 
 	clip(color.a - (1.0f / 255.0f));
-	return color;
+	return ApplyTransparentFog(color, input.position);
 }

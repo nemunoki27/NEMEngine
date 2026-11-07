@@ -52,7 +52,7 @@ PSOutput main(VSOutput input) {
 	clip(result.a - material.materialParams.x);
 	result.rgb += custom.edgeColor.rgb * custom.edgeColor.a * edge;
 	result.rgb += material.emissive.rgb * material.emissive.w;
-	result = PrepareParticleBlendColor(result, material);
+	result = PrepareParticleBlendColor(result, material, input.position);
 
 	PSOutput output;
 	output.color = result;

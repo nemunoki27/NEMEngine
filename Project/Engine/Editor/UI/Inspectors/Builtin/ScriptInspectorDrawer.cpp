@@ -158,12 +158,8 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				} else {
 
 					// 編集中は編集用の値を扱う
-					bool changed = false;
 					for (const ManagedFieldSchema& field : schema.fields) {
-						changed |= DrawAuthoringField(field, entry.serializedFields, ctx, anyItemActive);
-					}
-					if (changed) {
-						RequestCommit();
+						PushEditResult(DrawAuthoringField(field, entry.serializedFields, ctx), anyItemActive);
 					}
 				}
 			} else if (resolutionReason == ManagedScriptResolutionReason::BuildFailed ||

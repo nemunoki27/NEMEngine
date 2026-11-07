@@ -16,7 +16,8 @@ namespace Engine::ShaderGraphStageSource {
 							 "#define NEM_SHADER_GRAPH_MATERIAL\n";
 		// 不透明はGBufferへ透明はLighting結果へ出力する
 		if (transparent) {
-			source += "#include \"Builtin/Mesh/Common/meshSurfaceLighting.hlsli\"\n";
+			source += "#include \"Builtin/Mesh/Common/meshSurfaceLighting.hlsli\"\n"
+				"#include \"Builtin/Atmosphere/transparentFog.hlsli\"\n";
 		} else {
 			source += "#include \"Builtin/Mesh/Common/defaultMesh.hlsli\"\n"
 					  "#include \"Builtin/Mesh/Common/meshLighting.hlsli\"\n"
@@ -80,7 +81,7 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tmaterial.ao = graph.ambientOcclusion;\n"
 					  "\tmaterial.emissive = graph.emissive;\n"
 					  "\tTransparentPSOutput output;\n"
-					  "\toutput.color = float4(EvaluateMeshSurfaceLighting(input, material, graph.transmission), alpha);\n"
+					  "\toutput.color = ApplyTransparentFog(float4(EvaluateMeshSurfaceLighting(input, material, graph.transmission), alpha), input.position);\n"
 					  "\treturn output;\n"
 					  "}\n";
 		}

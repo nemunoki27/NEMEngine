@@ -1,4 +1,5 @@
 #include "../Common/descriptorHeapCompatibility.hlsli"
+#include "environmentSampling.hlsli"
 
 //============================================================================
 //	定数
@@ -18,7 +19,8 @@ cbuffer IrradianceConstants : register(b0) {
 	uint sourceCubemapIndex;
 	// 出力cubemapの1面のサイズ
 	uint faceSize;
-	uint2 _pad0;
+	uint dynamicSampleCount;
+	uint _pad0;
 };
 
 RWTexture2DArray<float4> gIrradianceMap : register(u0);
@@ -63,6 +65,19 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float3 bitangent = cross(N, tangent);
 
 	TextureCube<float4> sourceCubemap = NEM_TEXTURECUBE(sourceCubemapIndex);
+	if (dynamicSampleCount > 0u) {
+		float3 irradiance = 0.0f;
+		for (uint i = 0u; i < dynamicSampleCount; ++i) {
+			float2 sampleUV = EnvironmentHammersley(i, dynamicSampleCount);
+			float radius = sqrt(sampleUV.x);
+			float angle = sampleUV.y * 2.0f * PI;
+			float3 direction = tangent * (radius * cos(angle)) + bitangent * (radius * sin(angle)) +
+				N * sqrt(1.0f - sampleUV.x);
+			irradiance += sourceCubemap.SampleLevel(gSampler, direction, 0.0f).rgb;
+		}
+		gIrradianceMap[dispatchID] = float4(irradiance / float(dynamicSampleCount), 1.0f);
+		return;
+	}
 
 	// 半球をphi/thetaで等間隔サンプリングしてcos重み付きで畳み込む
 	float3 irradiance = 0.0f.xxx;

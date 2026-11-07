@@ -24,6 +24,8 @@ namespace Engine {
 	};
 
 	namespace TextureDecoder {
+		// GPU転送や画像展開をせず元画像の情報を取得する
+		HRESULT ReadMetadata(const std::string& assetPath, DirectX::TexMetadata& metadata);
 		// 要求に従って画像を読み込み加工する
 		DecodedTexture Decode(const TextureFileRequestDesc& job);
 	}

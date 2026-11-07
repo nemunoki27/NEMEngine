@@ -28,6 +28,26 @@
 //============================================================================
 namespace {
 
+	Engine::ValueEditResult DrawColorValue(const char* id, float* color, ImGuiColorEditFlags flags, bool picker) {
+
+		ImGui::PushID(id);
+		ImGuiStorage* storage = ImGui::GetStateStorage();
+		const ImGuiID pendingID = ImGui::GetID("##ColorPending");
+		const ImGuiID frameID = ImGui::GetID("##ColorFrame");
+		const int frame = ImGui::GetFrameCount();
+		bool pending = storage->GetInt(frameID, -2) == frame - 1 && storage->GetBool(pendingID);
+		Engine::ValueEditResult result{};
+		result.valueChanged = picker ? ImGui::ColorPicker4("##Color", color, flags) : ImGui::ColorEdit4("##Color", color, flags);
+		result.anyItemActive = ImGui::IsItemActive();
+		pending |= result.valueChanged;
+		// Popup内の操作も値が変わらないリリースフレームで確定する
+		result.editFinished = pending && !result.anyItemActive;
+		storage->SetBool(pendingID, pending && !result.editFinished);
+		storage->SetInt(frameID, frame);
+		ImGui::PopID();
+		return result;
+	}
+
 	//============================================================================
 	//	レイアウト定数
 	//============================================================================
@@ -257,9 +277,7 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& valu
 	}
 
 	float color[3] = {value.r, value.g, value.b};
-	result.valueChanged = ImGui::ColorEdit3("##Value", color, flags);
-	result.anyItemActive = ImGui::IsItemActive();
-	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
+	result = DrawColorValue("##Value", color, flags | ImGuiColorEditFlags_NoAlpha, false);
 
 	if (result.valueChanged) {
 		value.r = color[0];
@@ -280,9 +298,7 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& valu
 	}
 
 	float color[4] = {value.r, value.g, value.b, value.a};
-	result.valueChanged = ImGui::ColorEdit4("##Value", color, flags);
-	result.anyItemActive = ImGui::IsItemActive();
-	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
+	result = DrawColorValue("##Value", color, flags, false);
 
 	if (result.valueChanged) {
 		value.r = color[0];
@@ -292,6 +308,14 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& valu
 	}
 
 	EndPropertyRow();
+	return result;
+}
+
+Engine::ValueEditResult Engine::MyGUI::ColorPicker(const char* id, Color4& value, ImGuiColorEditFlags flags) {
+
+	float color[4] = {value.r, value.g, value.b, value.a};
+	const auto result = DrawColorValue(id, color, flags, true);
+	if (result.valueChanged) value = Color4(color[0], color[1], color[2], color[3]);
 	return result;
 }
 

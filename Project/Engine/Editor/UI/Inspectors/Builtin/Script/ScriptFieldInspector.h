@@ -103,8 +103,8 @@ namespace Engine::ScriptFieldInspector {
 		const DrawContext& ctx, const char* label);
 
 	// 編集値と実行値への接続
-	bool DrawAuthoringField(const Engine::ManagedFieldSchema& field, nlohmann::json& sf,
-		const DrawContext& ctx, bool& anyItemActive);
+	ValueEditResult DrawAuthoringField(const Engine::ManagedFieldSchema& field, nlohmann::json& sf,
+		const DrawContext& ctx);
 	void DrawRuntimeField(const Engine::ManagedFieldSchema& field, nlohmann::json& runtimeState,
 		const DrawContext& ctx, Engine::BehaviorHandle handle);
 	Engine::BehaviorHandle FindLiveHandle(Engine::ECSWorld& world, const Engine::Entity& entity,

@@ -20,6 +20,8 @@ namespace Engine {
 	struct MeshRendererComponent;
 	struct SpriteRendererComponent;
 	struct TextRendererComponent;
+	struct SkyAtmosphereComponent;
+	struct ExponentialHeightFogComponent;
 	struct SkyboxRendererComponent;
 	struct DecalProjectorComponent;
 	struct LineRendererComponent;
@@ -57,6 +59,8 @@ namespace Engine {
 	InspectorCommonFields BindInspectorCommonFields(MeshRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SpriteRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(TextRendererComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(SkyAtmosphereComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(ExponentialHeightFogComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SkyboxRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(DecalProjectorComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(LineRendererComponent& value);

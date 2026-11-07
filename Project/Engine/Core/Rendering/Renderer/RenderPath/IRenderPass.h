@@ -34,6 +34,7 @@ namespace Engine {
 		EditorOverlay,
 		Decal,
 		Antialiasing,
+		HeightFog,
 	};
 
 	//============================================================================

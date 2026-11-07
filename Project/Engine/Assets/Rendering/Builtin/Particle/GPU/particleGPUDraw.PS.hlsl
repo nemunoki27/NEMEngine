@@ -12,6 +12,6 @@ ParticleGPUPixelOutput main(ParticleGPUVertexOutput input) {
 		particleSurfaceParameters.z, particleSurfaceParameters.w);
 	color.rgb += input.emissive.rgb * input.emissive.w;
 	ParticleGPUPixelOutput output;
-	output.color = PrepareParticleGPUBlend(color, input.blendMode);
+	output.color = PrepareParticleGPUBlend(color, input.blendMode, input.position);
 	return output;
 }

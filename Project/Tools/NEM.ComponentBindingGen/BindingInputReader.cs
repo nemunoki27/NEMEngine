@@ -83,6 +83,7 @@ internal sealed class BindingInputReader {
                             ManagedName = Str(p, "managedName"),
                             NativeMember = Str(p, "nativeMember"),
                             Kind = Str(p, "kind"),
+                            RequiredComponent = p.TryGetProperty("requiredComponent", out JsonElement required) ? required.GetString() : null,
                             AssetType = p.TryGetProperty("assetType", out JsonElement at) ? at.GetString() : null,
                             EnumType = p.TryGetProperty("enumType", out JsonElement et) ? et.GetString() : null,
                             Access = p.TryGetProperty("access", out JsonElement ac) ? (ac.GetString() ?? "ReadWrite") : "ReadWrite",
@@ -124,6 +125,11 @@ internal sealed class BindingInputReader {
             if (components[i].ID != i) {
                 Error($"component ids must be contiguous from 0. expected={i} actual={components[i].ID}.");
             }
+        }
+        foreach (var property in components.SelectMany(component => component.Properties)) {
+            if (property.RequiredComponent != null &&
+                (property.Kind != "SceneEntityRef" || !components.Any(component => component.NativeType == property.RequiredComponent)))
+                Error("requiredComponent requires SceneEntityRef and a registered Native component.");
         }
         return (enums, components);
     }

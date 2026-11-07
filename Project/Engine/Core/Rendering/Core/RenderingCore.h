@@ -20,6 +20,7 @@ namespace Engine {
 
 	class FontRenderService;
 	class EnvironmentSpecularMap;
+	class AtmosphereEnvironment;
 	class RuntimeProjectSettings;
 
 	//============================================================================
@@ -79,6 +80,7 @@ namespace Engine {
 		BuiltinTextureLibrary& GetBuiltinTextureLibrary() { return *builtinTextureLibrary_; }
 		FontRenderService& GetFontRenderService() { return *fontRenderService_; }
 		EnvironmentSpecularMap& GetEnvironmentSpecularMap() { return *environmentSpecularMap_; }
+		AtmosphereEnvironment& GetAtmosphereEnvironment() { return *atmosphereEnvironment_; }
 
 		// 静的GPUバッファ転送サービスのアクセサ
 		BufferUploadService& GetBufferUploadService() { return *bufferUploadService_; }
@@ -125,6 +127,7 @@ namespace Engine {
 		// Fontの固定画像をTextureサービスより先に解放する
 		std::unique_ptr<FontRenderService> fontRenderService_;
 		std::unique_ptr<EnvironmentSpecularMap> environmentSpecularMap_;
+		std::unique_ptr<AtmosphereEnvironment> atmosphereEnvironment_;
 
 		// 静的GPUバッファ転送サービス
 		std::unique_ptr<BufferUploadService> bufferUploadService_;

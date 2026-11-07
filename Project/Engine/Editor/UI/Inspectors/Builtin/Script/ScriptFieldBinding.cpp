@@ -9,11 +9,11 @@
 
 namespace Engine::ScriptFieldInspector {
 
-	bool DrawAuthoringField(const Engine::ManagedFieldSchema& field, nlohmann::json& sf,
-		const DrawContext& ctx, bool& anyItemActive) {
+	ValueEditResult DrawAuthoringField(const Engine::ManagedFieldSchema& field, nlohmann::json& sf,
+		const DrawContext& ctx) {
 
 		if (field.isHidden) {
-			return false;
+			return {};
 		}
 		DrawHeaderIfAny(field);
 
@@ -22,8 +22,7 @@ namespace Engine::ScriptFieldInspector {
 
 		const Engine::ValueEditResult result = DrawValue(field, value, ctx, label.c_str());
 		DrawTooltipIfAny(field);
-		anyItemActive |= result.anyItemActive;
-		return result.valueChanged;
+		return result;
 	}
 
 	void DrawRuntimeField(const Engine::ManagedFieldSchema& field, nlohmann::json& runtimeState,

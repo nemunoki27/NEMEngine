@@ -53,6 +53,9 @@ namespace Engine {
 		// テクスチャの実ピクセルサイズを取得する、ロード済みのときのみtrueを返しフォールバックは対象外
 		bool TryResolveSize(GraphicsCore& graphicsCore,
 			const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize);
+		// 配置やサイズ合わせの操作時に元画像のサイズを取得する
+		bool TryResolveSourceSize(GraphicsCore& graphicsCore,
+			const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize);
 
 	} // RuntimeTextureResolver
 } // Engine
