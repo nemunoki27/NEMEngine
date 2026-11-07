@@ -23,6 +23,9 @@ namespace Engine {
 		uint32_t skyIndex = UINT32_MAX;
 		Vector3 solarLuminance = Vector3::AnyInit(0.0f);
 		float sunAngularRadius = 0.004712389f;
+		Vector3 moonDirection = Vector3(0.0f, -1.0f, 0.0f);
+		Vector3 lunarLuminance = Vector3::AnyInit(0.0f);
+		float moonAngularRadius = 0.004956735f;
 	};
 
 	//============================================================================

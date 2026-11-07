@@ -57,14 +57,14 @@ namespace Engine {
 		const auto* context = GetCurrentContext();
 		const auto* world = ResolveWorld(entity);
 		if (!context || !world || !world->IsAlive(ResolveEntity(entity))) return 0.0f;
-		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & 127u),
+		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & kTimeChannelMask),
 			context->deltaTime, context->unscaledDeltaTime).deltaTime;
 	}
 
 	float ManagedScriptRuntime::GetLocalTimeScaleCallback(ManagedNativeEntity entity, uint32_t channel) {
 		const auto* world = ResolveWorld(entity);
 		if (!world || !world->IsAlive(ResolveEntity(entity))) return 0.0f;
-		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & 127u), 1, 1).localScale;
+		return ResolveLocalTime(*world, ResolveEntity(entity), {}, static_cast<TimeChannel>(channel & kTimeChannelMask), 1, 1).localScale;
 	}
 
 	float ManagedScriptRuntime::GetDeltaTimeCallback() {

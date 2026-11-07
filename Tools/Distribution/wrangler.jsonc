@@ -1,7 +1,17 @@
 {
   "name": "nemengine-distribution",
+  "account_id": "9f245d7568ac402a6d148015f6b13e96",
   "main": "worker.mjs",
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
-  "r2_buckets": [{ "binding": "DISTRIBUTION", "bucket_name": "nemengine-distribution" }]
+  "r2_buckets": [
+    {
+      "binding": "DISTRIBUTION",
+      "bucket_name": "nemengine-distribution"
+    }
+  ],
+  "vars": {
+    "PUBLISHER_ORIGIN": "https://nemengine-distribution.nemengine-distribution.workers.dev",
+    "PUBLISHER_USER_ID": "4104e59e7f74b4f42a601f644c0432de"
+  }
 }

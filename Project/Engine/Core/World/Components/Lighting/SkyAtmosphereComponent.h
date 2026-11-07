@@ -22,6 +22,11 @@ namespace Engine {
 		bool enabled = true;
 		uint32_t renderingLayerMask = 1u;
 		SceneEntityReference sunEntity{};
+		SceneEntityReference moonEntity{};
+		bool moonDiskEnabled = true;
+		float moonAngularRadius = 0.284f;
+		Color3 moonDiskColor{1.0f, 1.0f, 1.0f};
+		float moonDiskBrightness = 1.0f;
 		float planetRadiusKm = 6360.0f;
 		float atmosphereHeightKm = 100.0f;
 		Color3 rayleighScattering{0.005802f, 0.013558f, 0.0331f};

@@ -1,3 +1,5 @@
+import {isArtifactKey, managePublication} from './publication-worker.mjs';
+
 // 共有URLから配布物だけを読み出す
 export default {
   async fetch(request, env) {
@@ -5,8 +7,9 @@ export default {
     const prefix = '/' + env.CHANNEL + '/';
     const pathname = new URL(request.url).pathname;
     if (!pathname.startsWith(prefix)) return new Response('Not found', {status:404});
-    if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', {status:405, headers:{Allow:'GET, HEAD'}});
     const key = pathname.slice(prefix.length);
+    if (key.startsWith('manage/')) return managePublication(request, env, key.slice(7));
+    if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', {status:405, headers:{Allow:'GET, HEAD'}});
     if (key === 'launcher/latest/NEMLauncherSetup.exe') {
       const catalog = await env.DISTRIBUTION.get('catalog.json');
       if (!catalog) return new Response('Not found', {status:404});
@@ -22,7 +25,7 @@ export default {
           'X-Content-Type-Options':'nosniff', 'X-Robots-Tag':'noindex, nofollow, noarchive'}});
       } catch { return new Response('Launcher unavailable', {status:503}); }
     }
-    if (!/^(catalog\.json|releases\/\d+\.\d+\.\d+\/[a-f0-9]{64}\/engine\.zip|toolchains\/[a-zA-Z0-9.-]+\.zip|launcher\/\d+\.\d+\.\d+\/[a-f0-9]{64}\/NEMLauncherSetup\.exe)$/.test(key))
+    if (key !== 'catalog.json' && !isArtifactKey(key))
       return new Response('Not found', {status:404});
     const object = await env.DISTRIBUTION.get(key, {
       onlyIf: request.headers, range: request.headers

@@ -21,11 +21,20 @@ void Engine::SkyAtmosphereInspectorDrawer::DrawFields([[maybe_unused]] const Edi
 	};
 	sunSetting.rejectReason = "DirectionalLightコンポーネントが必要です";
 	DrawField(anyItemActive, [&]() {
-		return SceneEntityReferenceFields::Draw("太陽・未設定は自動選択", world, entity, draft.sunEntity, sunSetting);
+		return SceneEntityReferenceFields::Draw("太陽", world, entity, draft.sunEntity, sunSetting);
 	});
 	if (!world.IsAlive(AtmosphereLighting::ResolveSun(world, entity, draft))) {
 		MyGUI::Text("太陽", "有効なDirectionalLightがありません");
 	}
+	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField("月を表示", draft.moonDiskEnabled); });
+	DrawField(anyItemActive, [&] {
+		return SceneEntityReferenceFields::Draw("月", world, entity, draft.moonEntity, sunSetting);
+	});
+	DrawField(anyItemActive, [&] { return MyGUI::DragFloat("月の角度半径（度）", draft.moonAngularRadius,
+		{.dragSpeed = 0.001f, .minValue = 0.01f, .maxValue = 45.0f}); });
+	DrawField(anyItemActive, [&] { return MyGUI::ColorEdit("月の表示色", draft.moonDiskColor); });
+	DrawField(anyItemActive, [&] { return MyGUI::DragFloat("月の表示明るさ", draft.moonDiskBrightness,
+		{.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 10000.0f}); });
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("地表半径 km", draft.planetRadiusKm, { .dragSpeed = 0.01f, .minValue = 0.0f });
 	});

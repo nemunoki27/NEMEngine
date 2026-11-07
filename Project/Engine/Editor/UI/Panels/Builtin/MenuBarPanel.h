@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include "EditorLayoutMenuSession.h"
+#include <Engine/Editor/Templates/EditorTemplateMenuSession.h>
 
 namespace Engine {
 
@@ -37,5 +38,6 @@ namespace Engine {
 
 		// レイアウト名の入力と保存要求
 		EditorLayoutMenuSession layoutSession_;
+		EditorTemplateMenuSession templateSession_;
 	};
 } // Engine

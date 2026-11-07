@@ -45,6 +45,31 @@
           </DataGrid>
         </DockPanel>
       </TabItem>
+      <TabItem Header="アセット">
+        <DockPanel Margin="12">
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,12"><Button Content="アセット一覧を更新" Click="RefreshCatalog"/></WrapPanel>
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="2*" MinWidth="260"/></Grid.ColumnDefinitions>
+            <DataGrid x:Name="Assets" SelectionChanged="SelectAsset" Margin="0,0,16,0">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="アセット" Binding="{Binding Name}" Width="*" MinWidth="180" ElementStyle="{StaticResource LauncherListTitleStyle}"/>
+                <DataGridTextColumn Header="版" Binding="{Binding Version}" Width="80" ElementStyle="{StaticResource LauncherListTextStyle}"/>
+                <DataGridTextColumn Header="容量" Binding="{Binding DownloadSize}" Width="90" ElementStyle="{StaticResource LauncherListTextStyle}"/>
+              </DataGrid.Columns>
+            </DataGrid>
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <StackPanel Margin="0,6,0,0">
+                <TextBlock x:Name="AssetName" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock x:Name="AssetDescription" TextWrapping="Wrap" Margin="0,12,0,16"/>
+                <TextBlock x:Name="AssetVersion" Foreground="#AAAAAA" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock x:Name="AssetEngine" Foreground="#AAAAAA" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock x:Name="AssetFileName" Foreground="#AAAAAA" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                <Button x:Name="AssetDownload" Content="ダウンロード" Click="DownloadAsset" HorizontalAlignment="Left" IsEnabled="False"/>
+                <Button x:Name="AssetOpenFolder" Content="保存先を開く" Click="OpenAssetFolder" HorizontalAlignment="Left" IsEnabled="False"/>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </DockPanel>
+      </TabItem>
       <TabItem Header="設定">
         <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>

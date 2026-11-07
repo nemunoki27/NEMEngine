@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
 #include <Engine/Core/World/Systems/Time/TimerSystem.h>
+#include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
@@ -48,6 +49,7 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	scheduler.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<TransformSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<DayNightCycleSystem>(), ++order);
 	// Transform更新後の座標でJoint拘束を解く
 	scheduler.AddSystem(std::make_unique<JointConstraintSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<ParticleSystem>(), ++order);

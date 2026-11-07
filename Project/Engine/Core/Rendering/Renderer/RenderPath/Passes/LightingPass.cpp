@@ -274,6 +274,9 @@ void Engine::LightingPass::Execute(
 	constants.atmosphereSun = {-atmosphere.sunDirection.x, -atmosphere.sunDirection.y,
 		-atmosphere.sunDirection.z, atmosphere.sunAngularRadius};
 	constants.atmosphereSolar = {atmosphere.solarLuminance.x, atmosphere.solarLuminance.y, atmosphere.solarLuminance.z, 0};
+	constants.atmosphereMoon = {-atmosphere.moonDirection.x, -atmosphere.moonDirection.y,
+		-atmosphere.moonDirection.z, atmosphere.moonAngularRadius};
+	constants.atmosphereLunar = {atmosphere.lunarLuminance.x, atmosphere.lunarLuminance.y, atmosphere.lunarLuminance.z, 0};
 	constants.ambientIntensity = 0.03f;
 	constants.skyboxColor = skybox.found ? skybox.color : graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;

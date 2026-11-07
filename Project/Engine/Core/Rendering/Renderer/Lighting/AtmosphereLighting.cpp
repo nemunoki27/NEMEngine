@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
+#include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
 
 // c++
 #include <algorithm>
@@ -37,6 +38,9 @@ Engine::SkyAtmosphereComponent Engine::AtmosphereLighting::Sanitize(const SkyAtm
 	sky.iblIntensity = finite(sky.iblIntensity, defaults.iblIntensity, 0.0f, 10000.0f);
 	sky.aerialPerspectiveDistance = finite(sky.aerialPerspectiveDistance, defaults.aerialPerspectiveDistance, 0.01f, 10000000.0f);
 	sky.aerialPerspectiveStrength = finite(sky.aerialPerspectiveStrength, defaults.aerialPerspectiveStrength, 0.0f, 100.0f);
+	sky.moonAngularRadius = finite(sky.moonAngularRadius, defaults.moonAngularRadius, 0.01f, 45.0f);
+	sky.moonDiskColor = color(sky.moonDiskColor, defaults.moonDiskColor, 100.0f);
+	sky.moonDiskBrightness = finite(sky.moonDiskBrightness, defaults.moonDiskBrightness, 0.0f, 10000.0f);
 	return sky;
 }
 
@@ -55,6 +59,8 @@ const Engine::SkyAtmosphereComponent* Engine::AtmosphereLighting::Find(ECSWorld&
 
 Engine::Entity Engine::AtmosphereLighting::ResolveSun(ECSWorld& world, Entity owner, const SkyAtmosphereComponent& sky) {
 
+	Entity controlledSun{}, controlledMoon{};
+	if (ResolveDayNightAtmosphereLights(world, owner, controlledSun, controlledMoon)) return controlledSun;
 	Entity sun = sky.sunEntity.Resolve(world, owner);
 	if (!sky.sunEntity.localFileID) {
 		world.ForEach<DirectionalLightComponent>([&](Entity entity, const auto& light) {
@@ -62,6 +68,14 @@ Engine::Entity Engine::AtmosphereLighting::ResolveSun(ECSWorld& world, Entity ow
 		});
 	}
 	return sun;
+}
+
+Engine::Entity Engine::AtmosphereLighting::ResolveMoon(ECSWorld& world, Entity owner, const SkyAtmosphereComponent& sky) {
+
+	Entity sun{}, moon{};
+	if (ResolveDayNightAtmosphereLights(world, owner, sun, moon)) return moon;
+	const Entity configured = sky.moonEntity.Resolve(world, owner);
+	return configured != ResolveSun(world, owner, sky) ? configured : Entity::Null();
 }
 
 Engine::Vector3 Engine::AtmosphereLighting::SunTransmittance(const SkyAtmosphereComponent& source,

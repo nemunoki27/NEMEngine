@@ -5803,6 +5803,42 @@
           "kind": "Float",
           "access": "ReadWrite",
           "id": 17
+        },
+        {
+          "managedName": "Moon",
+          "nativeMember": "moonEntity",
+          "kind": "SceneEntityRef",
+          "requiredComponent": "DirectionalLightComponent",
+          "access": "ReadWrite",
+          "id": 18
+        },
+        {
+          "managedName": "MoonDiskEnabled",
+          "nativeMember": "moonDiskEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 19
+        },
+        {
+          "managedName": "MoonAngularRadius",
+          "nativeMember": "moonAngularRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 20
+        },
+        {
+          "managedName": "MoonDiskColor",
+          "nativeMember": "moonDiskColor",
+          "kind": "Color3",
+          "access": "ReadWrite",
+          "id": 21
+        },
+        {
+          "managedName": "MoonDiskBrightness",
+          "nativeMember": "moonDiskBrightness",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 22
         }
       ]
     },
@@ -5929,6 +5965,156 @@
           "kind": "Float",
           "access": "ReadWrite",
           "id": 15
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "registryName": "DayNightCycle",
+      "nativeType": "DayNightCycleComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/DayNightCycleComponent.h",
+      "exposure": "GeneratedBinding",
+      "reason": "昼夜の時刻・光源・軌道と再生操作を公開する",
+      "managedType": "DayNightCycle",
+      "managedSurface": "NEMEngine.DayNightCycle",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "FixedTime",
+          "nativeMember": "fixedTime",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "PlayInEditMode",
+          "nativeMember": "playInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 2
+        },
+        {
+          "managedName": "StartHour",
+          "nativeMember": "startHour",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 3
+        },
+        {
+          "managedName": "DayDurationSeconds",
+          "nativeMember": "dayDurationSeconds",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 4
+        },
+        {
+          "managedName": "OrbitAzimuth",
+          "nativeMember": "orbitAzimuth",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 5
+        },
+        {
+          "managedName": "NoonAltitude",
+          "nativeMember": "noonAltitude",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 6
+        },
+        {
+          "managedName": "MoonTimeOffset",
+          "nativeMember": "moonTimeOffset",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 7
+        },
+        {
+          "managedName": "Sun",
+          "nativeMember": "sunEntity",
+          "kind": "SceneEntityRef",
+          "access": "ReadWrite",
+          "requiredComponent": "DirectionalLightComponent",
+          "id": 8
+        },
+        {
+          "managedName": "Moon",
+          "nativeMember": "moonEntity",
+          "kind": "SceneEntityRef",
+          "access": "ReadWrite",
+          "requiredComponent": "DirectionalLightComponent",
+          "id": 9
+        },
+        {
+          "managedName": "Atmosphere",
+          "nativeMember": "atmosphereEntity",
+          "kind": "SceneEntityRef",
+          "access": "ReadWrite",
+          "requiredComponent": "SkyAtmosphereComponent",
+          "id": 10
+        },
+        {
+          "managedName": "ControlRequest",
+          "nativeMember": "runtimeRequest",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 11
+        },
+        {
+          "managedName": "SeekHour",
+          "nativeMember": "runtimeSeekHour",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 12
+        },
+        {
+          "managedName": "CurrentHour",
+          "nativeMember": "runtimeCurrentHour",
+          "kind": "Float",
+          "access": "ReadOnly",
+          "id": 13
+        },
+        {
+          "managedName": "IsPlaying",
+          "nativeMember": "runtimePlaying",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 14
+        },
+        {
+          "managedName": "IsPaused",
+          "nativeMember": "runtimePaused",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 15
+        },
+        {
+          "managedName": "SunDirection",
+          "nativeMember": "runtimeSunDirection",
+          "kind": "Vector3",
+          "access": "ReadOnly",
+          "id": 16
+        },
+        {
+          "managedName": "MoonDirection",
+          "nativeMember": "runtimeMoonDirection",
+          "kind": "Vector3",
+          "access": "ReadOnly",
+          "id": 17
+        },
+        {
+          "managedName": "Diagnostic",
+          "nativeMember": "runtimeDiagnostic",
+          "kind": "String",
+          "access": "ReadOnly",
+          "id": 18
         }
       ]
     }

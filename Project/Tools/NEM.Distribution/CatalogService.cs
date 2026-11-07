@@ -19,6 +19,7 @@ public static class CatalogService {
             DistributionStorage.RequireVersion(release.Version);
             if (!versions.Add(release.Version)) throw new InvalidDataException("配布一覧に同じ版が重複しています");
         }
+        ContentValidation.Validate(catalog);
         return catalog;
     }
 }

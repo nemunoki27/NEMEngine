@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test worker.test.mjs",
+    "test": "node --test worker.test.mjs content.test.mjs",
     "deploy": "wrangler deploy",
-    "publish-engine": "node publish.mjs"
+    "publish-engine": "node publish.mjs",
+    "publish-content": "node content.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",

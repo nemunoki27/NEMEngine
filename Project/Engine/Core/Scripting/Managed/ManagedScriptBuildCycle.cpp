@@ -96,13 +96,11 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	cycle_.lastBuildWorkingDir = projectPath.parent_path();
 
 	// ビルド前に.cs.metaの安定ID採番と維持を非同期で実行する、ツールが無ければ飛ばして直接ビルドする
-	// metadata sync toolはレイアウトで配置が異なるため候補を順に探す
-	// エンジンソース構成: Project/Engine/Managed/NEM.ScriptMetaSync/bin/<profile>/net10.0/
-	// prebuilt SDK構成: <GameRoot>/External/NEMEngine/Managed/Tools/
+	// ゲームの配置に依存せず配布版とソース版の同期Toolを探す
 	const std::filesystem::path projectRoot = projectPath.parent_path().parent_path().parent_path();
 	const std::filesystem::path syncToolCandidates[] = {
 		RuntimePaths::GetEngineProjectRoot() / "Managed/Tools/NEM.ScriptMetaSync.dll",
-		projectRoot / "Engine" / "Managed" / "NEM.ScriptMetaSync" / "bin" / BuildProfile() / "net10.0" / "NEM.ScriptMetaSync.dll",
+		RuntimePaths::GetEngineProjectRoot() / "Engine/Managed/NEM.ScriptMetaSync/bin" / BuildProfile() / "net10.0/NEM.ScriptMetaSync.dll",
 		projectRoot.parent_path() / "External" / "NEMEngine" / "Managed" / "Tools" / "NEM.ScriptMetaSync.dll",
 	};
 	std::filesystem::path syncToolDll;

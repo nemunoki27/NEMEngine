@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Lighting/ExponentialHeightFogComponent.h>
 #include <Engine/Core/World/Components/Lighting/SkyAtmosphereComponent.h>
+#include <Engine/Core/World/Components/Lighting/DayNightCycleComponent.h>
 #include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 #include <Engine/Core/World/Components/Time/TimerComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
@@ -222,6 +223,11 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(TimerComponent& 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(SkyAtmosphereComponent& value) {
 
 	return { .enabled = &value.enabled, .displayLayer = &value.renderingLayerMask };
+}
+
+Engine::InspectorCommonFields Engine::BindInspectorCommonFields(DayNightCycleComponent& value) {
+
+	return { .enabled = &value.enabled };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(ExponentialHeightFogComponent& value) {

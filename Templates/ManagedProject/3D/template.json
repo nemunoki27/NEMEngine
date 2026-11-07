@@ -1,0 +1,12 @@
+{
+    "additionalPaths": [],
+    "contentRevision": "535522a3c3503837fc4be939cfde920f7bb7c0dd6290f777da3d2fa02da7155d",
+    "description": "3Dゲームの基本シーン",
+    "engineVersion": "",
+    "id": "3D",
+    "kind": "3D",
+    "name": "3D",
+    "schemaVersion": 1,
+    "startupScene": "9ae738b8c4d75926215a9de84fd12c6f",
+    "version": "1.0.0"
+}

@@ -12,6 +12,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/MotionAnimationComponent.h>
 #include <Engine/Core/World/Components/Time/TimerComponent.h>
+#include <Engine/Core/World/Components/Lighting/DayNightCycleComponent.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
@@ -38,6 +39,7 @@ namespace {
 		case 26: if (auto* component = world.TryGetComponentForBinding<SkinnedAnimationComponent>(entity)) return &component->timeSource; break;
 		case 70: if (auto* component = world.TryGetComponentForBinding<SimpleAnimationComponent>(entity)) return &component->timeSource; break;
 		case 71: if (auto* component = world.TryGetComponentForBinding<TimerComponent>(entity)) return &component->timeSource; break;
+		case 75: if (auto* component = world.TryGetComponentForBinding<DayNightCycleComponent>(entity)) return &component->timeSource; break;
 		case 72: if (auto* record = TryGetMotionAnimation(world, entity)) return &record->settings.timeSource; break;
 		}
 		return nullptr;
@@ -99,6 +101,10 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			data = *component;
 		} else if (type == 71) {
 			const auto* component = world->TryGetComponentForBinding<TimerComponent>(target);
+			if (!component) return -1;
+			data = *component;
+		} else if (type == 75) {
+			const auto* component = world->TryGetComponentForBinding<DayNightCycleComponent>(target);
 			if (!component) return -1;
 			data = *component;
 		} else if (type == 72) {
@@ -169,6 +175,14 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			*source = candidate;
 			ClearLegacyUnscaledTime(*world, target, type);
 			world->MarkComponentModified(target, type);
+			return 1;
+		}
+		if (type == 75) {
+			auto* component = world->TryGetComponentForBinding<DayNightCycleComponent>(target);
+			if (!component) return 0;
+			from_json(data, *component);
+			restoreTimeSource();
+			world->MarkComponentModified<DayNightCycleComponent>(target);
 			return 1;
 		}
 		if (type == 72) {

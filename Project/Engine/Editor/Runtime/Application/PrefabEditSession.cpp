@@ -22,6 +22,7 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
+#include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
 #include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 
@@ -299,6 +300,7 @@ bool Engine::PrefabEditSession::SaveCurrentPrefab() {
 		return false;
 	}
 	SimpleAnimationSystem::RestoreEditPreviews(*editWorld);
+	DayNightCycleSystem::RestoreEditPreviews(*editWorld);
 	MotionAnimationSystem::RestoreEditPreviews(*editWorld);
 	AnimationClipPlayerSystem::RestoreEditPreviews(*editWorld);
 

@@ -10,7 +10,7 @@ void Engine::from_json(const nlohmann::json& in, TimeScaleComponent& component) 
 	component.enabled = in.value("enabled", component.enabled);
 	component.applyToChildren = in.value("applyToChildren", component.applyToChildren);
 	component.inheritParentScale = in.value("inheritParentScale", component.inheritParentScale);
-	component.channels = in.value("channels", component.channels) & 127u;
+	component.channels = in.value("channels", component.channels) & kTimeChannelMask;
 }
 
 void Engine::to_json(nlohmann::json& out, const TimeScaleComponent& component) {

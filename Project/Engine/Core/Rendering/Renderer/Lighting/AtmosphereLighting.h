@@ -8,5 +8,6 @@ namespace Engine::AtmosphereLighting {
 	SkyAtmosphereComponent Sanitize(const SkyAtmosphereComponent& sky);
 	const SkyAtmosphereComponent* Find(ECSWorld& world, uint32_t cullingMask, Entity& owner);
 	Entity ResolveSun(ECSWorld& world, Entity owner, const SkyAtmosphereComponent& sky);
+	Entity ResolveMoon(ECSWorld& world, Entity owner, const SkyAtmosphereComponent& sky);
 	Vector3 SunTransmittance(const SkyAtmosphereComponent& sky, float altitudeKm, const Vector3& direction);
 }

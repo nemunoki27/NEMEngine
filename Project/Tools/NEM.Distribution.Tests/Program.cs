@@ -5,6 +5,10 @@ using System.Security.Cryptography;
 using NEMEngine.Distribution;
 
 string repository = Path.GetFullPath(args.FirstOrDefault(value => !value.StartsWith("--")) ?? ".");
+if (args.Contains("--content-window")) {
+    ContentWindowSession.Run(repository, args);
+    return;
+}
 GitNativeChecks.LauncherOverride = args.FirstOrDefault(value => value.StartsWith("--launcher="))?[11..];
 string owner = Path.Combine(repository, "Generated", "LT");
 string root = Path.Combine(owner, Guid.NewGuid().ToString("N")[..8]);
@@ -23,7 +27,22 @@ async Task Reject(Func<Task> action, string message) {
     throw new Exception(message);
 }
 try {
+    if (args.Contains("--template-script-build")) {
+        await TemplateScriptBuildChecks.RunAsync(repository, root, Check);
+        Console.WriteLine($"PASS {passed} template script build checks");
+        return;
+    }
+    if (args.Any(value => value.StartsWith("--content-live=", StringComparison.Ordinal))) {
+        await ContentLiveChecks.RunAsync(repository, root, args, Check);
+        Console.WriteLine($"PASS {passed} live content checks");
+        return;
+    }
     LauncherThemeChecks.Run(repository, root, Check);
+    await ContentDistributionChecks.RunAsync(root, Check);
+    if (args.Contains("--content-only")) {
+        Console.WriteLine($"PASS {passed} content and launcher checks");
+        return;
+    }
     ProjectDeletionChecks.Run(root, Check);
     ProjectRenameChecks.Run(root, Check);
     await GitHubContractChecks.RunAsync(root, Check);

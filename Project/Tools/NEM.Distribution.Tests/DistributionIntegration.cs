@@ -112,7 +112,7 @@ internal static class DistributionIntegration {
         check(true, "共有エンジンの内容保持");
     }
 
-    private static async Task RunAsync(string executable, string[] arguments, string directory,
+    internal static async Task RunAsync(string executable, string[] arguments, string directory,
         Dictionary<string, string> environment, string log) {
         var start = new ProcessStartInfo(executable) { WorkingDirectory = directory, UseShellExecute = false,
             CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };

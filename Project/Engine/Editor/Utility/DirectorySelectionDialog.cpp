@@ -60,8 +60,9 @@ namespace {
 	}
 
 	// COM資源を保持してフォルダー選択を実行する
-	std::optional<std::filesystem::path> SelectDirectory(
-		const std::filesystem::path& initialDirectory, HWND owner, const std::atomic_bool& cancelRequested, HRESULT& result) {
+	std::optional<std::filesystem::path> SelectPath(
+		const std::filesystem::path& initialDirectory, bool folder, const std::wstring& filter,
+		HWND owner, const std::atomic_bool& cancelRequested, HRESULT& result) {
 
 		result = ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 		if (FAILED(result)) {
@@ -74,16 +75,20 @@ namespace {
 			return {};
 		}
 
-		// フォルダー選択だけを許可する
+		// 選択方法を共通のダイアログへ設定する
 		FILEOPENDIALOGOPTIONS options{};
 		result = dialog->GetOptions(&options);
 		if (SUCCEEDED(result)) {
-			result = dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+			result = dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | (folder ? FOS_PICKFOLDERS : FOS_FILEMUSTEXIST));
 		}
 		if (FAILED(result)) {
 			return {};
 		}
-		dialog->SetTitle(L"出力先を選択");
+		dialog->SetTitle(folder ? L"フォルダーを選択" : L"ファイルを選択");
+		if (!folder) {
+			const COMDLG_FILTERSPEC fileType{L"対応ファイル", filter.c_str()};
+			dialog->SetFileTypes(1, &fileType);
+		}
 		std::error_code ec;
 		if (!initialDirectory.empty() && std::filesystem::is_directory(initialDirectory, ec)) {
 
@@ -129,10 +134,10 @@ namespace {
 }
 
 //============================================================================
-//	DirectorySelectionDialog classMethods
+//	PathSelectionDialog classMethods
 //============================================================================
 // ダイアログの実行スレッドと選択結果を所有する
-struct Engine::EditorShell::DirectorySelectionDialog::State {
+struct Engine::EditorShell::PathSelectionDialog::State {
 
 	std::thread thread;							   // ダイアログの実行スレッド
 	std::mutex mutex;							   // 選択結果の排他
@@ -143,17 +148,28 @@ struct Engine::EditorShell::DirectorySelectionDialog::State {
 	HRESULT result = S_OK;						   // 完了通知前に確定する実行結果
 };
 
-Engine::EditorShell::DirectorySelectionDialog::DirectorySelectionDialog() : state_(std::make_unique<State>()) {
+Engine::EditorShell::PathSelectionDialog::PathSelectionDialog() : state_(std::make_unique<State>()) {
 }
 
-Engine::EditorShell::DirectorySelectionDialog::~DirectorySelectionDialog() {
+Engine::EditorShell::PathSelectionDialog::~PathSelectionDialog() {
 
 	// 表示中のダイアログを閉じてから所有状態を破棄する
 	state_->cancelRequested = true;
 	JoinDialogThread(state_->thread);
 }
 
-bool Engine::EditorShell::DirectorySelectionDialog::Open(const std::filesystem::path& initialDirectory) {
+bool Engine::EditorShell::PathSelectionDialog::Open(const std::filesystem::path& initialDirectory) {
+
+	return Start(initialDirectory, true, L"*.*");
+}
+
+bool Engine::EditorShell::PathSelectionDialog::OpenFile(const std::filesystem::path& initialDirectory, const std::wstring& filter) {
+
+	return Start(initialDirectory, false, filter);
+}
+
+bool Engine::EditorShell::PathSelectionDialog::Start(
+	const std::filesystem::path& initialDirectory, bool folder, const std::wstring& filter) {
 
 	if (state_->active) {
 		return false;
@@ -173,12 +189,12 @@ bool Engine::EditorShell::DirectorySelectionDialog::Open(const std::filesystem::
 	const HWND owner = WinApp::GetHwnd();
 	try {
 
-		state_->thread = std::thread([state, owner, initialDirectory]() {
+		state_->thread = std::thread([state, owner, initialDirectory, folder, filter]() {
 			// 失敗した場合も完了を通知する
 			ScopedCleanup complete([state]() noexcept { state->completed = true; });
 			try {
 
-				auto selected = SelectDirectory(initialDirectory, owner, state->cancelRequested, state->result);
+				auto selected = SelectPath(initialDirectory, folder, filter, owner, state->cancelRequested, state->result);
 				std::lock_guard lock(state->mutex);
 				state->selected = std::move(selected);
 			} catch (...) {
@@ -196,7 +212,7 @@ bool Engine::EditorShell::DirectorySelectionDialog::Open(const std::filesystem::
 	return true;
 }
 
-bool Engine::EditorShell::DirectorySelectionDialog::Poll(std::optional<std::filesystem::path>& outSelected) {
+bool Engine::EditorShell::PathSelectionDialog::Poll(std::optional<std::filesystem::path>& outSelected) {
 
 	outSelected.reset();
 	if (!state_->active || !state_->completed) {
@@ -218,7 +234,7 @@ bool Engine::EditorShell::DirectorySelectionDialog::Poll(std::optional<std::file
 	return true;
 }
 
-bool Engine::EditorShell::DirectorySelectionDialog::IsOpen() const {
+bool Engine::EditorShell::PathSelectionDialog::IsOpen() const {
 
 	return state_->active;
 }

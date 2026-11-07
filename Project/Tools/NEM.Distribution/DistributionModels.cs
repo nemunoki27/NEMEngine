@@ -30,6 +30,8 @@ public sealed record ReleaseCatalog {
     public int SchemaVersion { get; init; } = 1;
     public LauncherRelease? Launcher { get; init; }
     public List<EngineRelease> Engines { get; init; } = [];
+    public List<SampleRelease> Samples { get; init; } = [];
+    public List<AssetRelease> Assets { get; init; } = [];
 }
 
 public sealed record EngineFile {

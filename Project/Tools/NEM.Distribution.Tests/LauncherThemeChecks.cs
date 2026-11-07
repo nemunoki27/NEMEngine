@@ -69,6 +69,7 @@ internal static class LauncherThemeChecks {
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var stream = File.Create(image)) encoder.Save(stream);
         LauncherMenuChecks.Run(root, check);
+        LauncherContentChecks.Run(repository, root, check);
         LauncherVisualChecks.Run(repository, root, check);
         window.Show();
         LauncherGitChecks.Run(repository, root, window, check);

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/World/Time/LocalTime.h>
 
 namespace Engine {
 
@@ -19,7 +20,7 @@ namespace Engine {
 		bool enabled = true;
 		bool applyToChildren = true;
 		bool inheritParentScale = true;
-		uint32_t channels = 127;
+		uint32_t channels = kTimeChannelMask;
 	};
 
 	// json変換

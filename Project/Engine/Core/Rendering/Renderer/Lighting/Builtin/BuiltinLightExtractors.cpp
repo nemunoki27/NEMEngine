@@ -7,6 +7,11 @@
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
+#include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
+
+// c++
+#include <algorithm>
+#include <cmath>
 
 //============================================================================
 //	BuiltinLightExtractor specializations
@@ -21,15 +26,19 @@ void Engine::BuiltinLightExtractor<Engine::DirectionalLightComponent>::Extract(
 			return;
 		}
 
-		const Matrix4x4 worldMatrix = LightExtract::GetWorldMatrix(world, entity);
-
 		DirectionalLightItem item{};
 		LightExtract::FillCommonFields(item.common, world, entity);
 		item.color = light.color;
 		item.intensity = light.intensity;
 		item.shadowStrength = light.shadowStrength;
 		item.shadowAngularRadius = light.shadowAngularRadius;
-		item.direction = LightExtract::GetWorldDirection(light.direction, worldMatrix);
+		item.direction = LightExtract::GetDirectionalWorldDirection(world, entity, light.direction);
+		Vector3 controlled;
+		if (ResolveDayNightLightDirection(world, entity, controlled)) {
+			const float radius = std::sin(std::clamp(light.shadowAngularRadius, 0.01f, 45.0f) * 0.0174532925f);
+			const float visibility = std::clamp((-controlled.y + radius) / (radius * 2.0f), 0.0f, 1.0f);
+			item.intensity *= visibility * visibility * (3.0f - 2.0f * visibility);
+		}
 		batch.Add(std::move(item));
 		});
 }

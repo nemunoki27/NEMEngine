@@ -98,7 +98,7 @@ internal static class LauncherVisualChecks {
             view.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Descending));
             Pump(window);
             check(view.Cast<ProjectListEntry>().First().Name.StartsWith("長い日本語"), "名前の列で並べ替えられません");
-            tabs.SelectedIndex = 2;
+            tabs.SelectedIndex = 3;
             window.Width = 1100;
             Pump(window);
             var accounts = (ComboBox)window.FindName("GitHubAccounts");

@@ -18,26 +18,6 @@
 //============================================================================
 //	EditorSourceNavigation namespaceMethods
 //============================================================================
-bool Engine::EditorSourceNavigation::IsEngineSourceProject() {
-
-	// Sandboxを含むソース配下のプロジェクトだけを許可する
-	const auto paths = RuntimePaths::GetSnapshot();
-	std::error_code ec;
-	const auto relative = std::filesystem::relative(paths->projectRoot, paths->engineProjectRoot, ec);
-	if (ec || relative.empty() || relative.has_root_path()) {
-		return false;
-	}
-	for (const auto& part : relative) {
-		if (part == "..") {
-			return false;
-		}
-	}
-
-	// SDKには同梱しない編集用ソースの存在も確認する
-	return std::filesystem::is_regular_file(paths->engineProjectRoot /
-		"Engine/Editor/UI/Inspectors/Builtin/BuiltinComponentEditorRegistration.cpp", ec);
-}
-
 std::filesystem::path Engine::EditorSourceNavigation::ResolveScriptFile(
 	const ScriptEntry& entry, const AssetDatabase* database) {
 

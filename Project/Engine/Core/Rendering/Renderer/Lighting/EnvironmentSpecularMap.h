@@ -35,7 +35,7 @@ namespace Engine {
 
 		// 未生成のMipを一段ずつ更新する
 		void Update(GraphicsCore& graphics, AssetID source, uint32_t sourceSRV, const TextureOwnership& ownership,
-			uint64_t contentRevision = 0);
+			uint64_t contentRevision = 0, bool incremental = false);
 		// 非表示になった環境画像のGPU資源を回収する
 		void CollectUnused();
 
@@ -44,6 +44,7 @@ namespace Engine {
 		uint32_t GetCubemapIndex() const;
 		uint32_t GetIrradianceIndex() const;
 		uint32_t GetBRDFIndex() const { return brdfSRV_; }
+		bool IsCurrentComplete() const;
 	private:
 		//========================================================================
 		//	private Methods
@@ -103,5 +104,7 @@ namespace Engine {
 		void Bind(GraphicsCore& graphics, PipelineState& pipeline, const Constants& constants, uint32_t uav);
 		// 使用中の出力を回収する
 		void Retire(Cubemap& map);
+		// 鏡面と拡散で同じ完成済みの世代を選ぶ
+		const Cubemap* GetPublishedMap() const;
 	};
 }

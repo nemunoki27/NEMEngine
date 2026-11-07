@@ -1,5 +1,5 @@
-param(
-    [string]$Version = '0.1.7',
+﻿param(
+    [string]$Version = '0.1.9',
     [string]$ToolchainRoot = '',
     [string]$OutputDirectory = '',
     [string]$BaseUrl = '',
@@ -86,7 +86,18 @@ try {
     }
     $packageRoot = Join-Path $stage 'Engine'
     Copy-PackageDirectory (Join-Path $engineRepository 'Project/Engine/Assets') (Join-Path $packageRoot 'Engine/Assets')
-    Copy-PackageDirectory (Join-Path $engineRepository 'Templates/ManagedProject') (Join-Path $packageRoot 'ProjectTemplates')
+    $templates = Join-Path $engineRepository 'Templates/ManagedProject'
+    foreach ($kind in @('2D', '3D')) {
+        $metadata = Get-Content -LiteralPath (Join-Path $templates "$kind/template.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($metadata.schemaVersion -ne 1 -or $metadata.kind -ne $kind -or $metadata.id -ne $kind -or
+            $metadata.startupScene -notmatch '^[a-fA-F0-9]{32}$') { throw "テンプレートの保存情報が不正です: $kind" }
+        $matched = @(Get-ChildItem -LiteralPath (Join-Path $templates "$kind/GameAssets") -File -Recurse -Filter '*.scene.json.meta' |
+            Where-Object { (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json).guid -eq $metadata.startupScene })
+        if ($matched.Count -ne 1 -or !(Test-Path -LiteralPath $matched[0].FullName.Substring(0, $matched[0].FullName.Length - 5))) {
+            throw "テンプレートの開始シーンが見つかりません: $kind"
+        }
+    }
+    Copy-PackageDirectory $templates (Join-Path $packageRoot 'ProjectTemplates')
     Copy-PackageDirectory (Join-Path $engineRepository 'Tools/ProductBuild') (Join-Path $packageRoot 'Tools/ProductBuild')
     Copy-RequiredFile (Join-Path $engineRepository 'Tools/BuildGame.ps1') (Join-Path $packageRoot 'Tools/BuildGame.ps1')
     Copy-RequiredFile (Join-Path $PSScriptRoot 'NEM.GameScripts.targets') (Join-Path $packageRoot 'Managed/Build/NEM.GameScripts.targets')
@@ -158,7 +169,7 @@ try {
     }
     $toolchainInfo = New-PackageInfo $sdkStage "dotnet-$sdkVersion-win-x64" "toolchains/dotnet-$sdkVersion-win-x64.zip" $true
     Write-Utf8Json (Join-Path $archiveRoot "release-$Version.json") ([ordered]@{
-        version = $Version; notes = 'Inspectorの共通化・カテゴリ別Component一覧・参照欄とイージングの統一・SkyboxとCameraControllerの表示整理'; minimumLauncherVersion = '0.1.0'; toolchainVersion = $sdkVersion; engine = $engineInfo; toolchain = $toolchainInfo
+        version = $Version; notes = '太陽と月の昼夜サイクル・開発者用テンプレート管理・サンプルプロジェクトとアセット配布'; minimumLauncherVersion = '0.1.10'; toolchainVersion = $sdkVersion; engine = $engineInfo; toolchain = $toolchainInfo
     })
     # アーカイブと検証情報を一組で公開する
     Move-Item -LiteralPath $archiveRoot -Destination $releaseDirectory

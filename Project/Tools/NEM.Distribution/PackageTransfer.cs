@@ -8,11 +8,8 @@ namespace NEMEngine.Distribution;
 public sealed class PackageTransfer(HttpClient client) {
     public async Task<string> DownloadAsync(PackageInfo package, string cacheRoot,
         IProgress<TransferProgress>? progress, CancellationToken token) {
-        DistributionStorage.RequireID(package.ID);
-        if (package.Bytes <= 0 || package.UnpackedBytes <= 0 || package.Sha256.Length != 64 ||
-            !package.Sha256.All(Uri.IsHexDigit)) throw new InvalidDataException("配布物の検証情報が不正です");
-        if (!Uri.TryCreate(package.Url, UriKind.Absolute, out Uri? uri) || uri.Scheme != "https")
-            throw new InvalidDataException("配布URLはHTTPSで指定してください");
+        ContentValidation.Validate(package);
+        var uri = new Uri(package.Url);
         Directory.CreateDirectory(cacheRoot);
         string archive = DistributionStorage.Child(cacheRoot, package.ID + "-" + package.Sha256 + ".zip");
         if (File.Exists(archive) && await DistributionStorage.HashAsync(archive, token) == package.Sha256.ToLowerInvariant()) return archive;

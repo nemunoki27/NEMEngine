@@ -136,6 +136,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//	エディターレイアウト設定
 	//============================================================================
 	layoutSession_.DrawMenu(context);
+	templateSession_.DrawMenu(context);
 
 	// 使用中のSDK情報を表示
 	const std::string version = RuntimePaths::IsInstalledEngine() ? RuntimePaths::GetEngineVersion() : EditorBuildInfo::kVersion;
@@ -146,4 +147,5 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	ImGui::EndMainMenuBar();
 	EditorGameBuildMenu::DrawPopup(context, *context.gameBuildSession);
 	layoutSession_.DrawPopup(context);
+	templateSession_.DrawPopup(context);
 }

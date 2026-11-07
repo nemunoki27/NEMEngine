@@ -166,7 +166,7 @@ void Engine::EnvironmentSpecularMap::BuildBRDF(GraphicsCore& graphics) {
 }
 
 void Engine::EnvironmentSpecularMap::Update(GraphicsCore& graphics, AssetID source, uint32_t sourceSRV,
-	const TextureOwnership& ownership, uint64_t contentRevision) {
+	const TextureOwnership& ownership, uint64_t contentRevision, bool incremental) {
 
 	selected_ = nullptr;
 	if (sourceSRV == UINT32_MAX || !Initialize(graphics)) return;
@@ -195,7 +195,7 @@ void Engine::EnvironmentSpecularMap::Update(GraphicsCore& graphics, AssetID sour
 		map.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 	}
 	// 動的な空は同じ世代の全Mipを揃えてから公開する
-	const uint32_t endMip = contentRevision != 0 ? kMipCount : map.nextMip + 1;
+	const uint32_t endMip = contentRevision != 0 && !incremental ? kMipCount : map.nextMip + 1;
 	while (map.nextMip < endMip) {
 		const uint32_t mip = map.nextMip;
 		const uint32_t size = std::max(kFaceSize >> mip, 1u);
@@ -212,18 +212,30 @@ void Engine::EnvironmentSpecularMap::Update(GraphicsCore& graphics, AssetID sour
 
 uint32_t Engine::EnvironmentSpecularMap::GetCubemapIndex() const {
 
-	if (!selected_) return UINT32_MAX;
-	if (selected_->nextMip == kMipCount) return selected_->srv;
-	// 新しい世代が完成するまでは同じAssetの旧結果を使う
-	for (const auto& map : maps_) {
-		if (map->source == selected_->source && map->nextMip == kMipCount) return map->srv;
-	}
-	return UINT32_MAX;
+	const auto* map = GetPublishedMap();
+	return map ? map->srv : UINT32_MAX;
 }
 
 uint32_t Engine::EnvironmentSpecularMap::GetIrradianceIndex() const {
 
-	return selected_ ? selected_->irradiance->GetSRVIndex() : UINT32_MAX;
+	const auto* map = GetPublishedMap();
+	return map ? map->irradiance->GetSRVIndex() : UINT32_MAX;
+}
+
+const Engine::EnvironmentSpecularMap::Cubemap* Engine::EnvironmentSpecularMap::GetPublishedMap() const {
+
+	if (!selected_ || selected_->nextMip == kMipCount) return selected_;
+	const Cubemap* published = nullptr;
+	for (const auto& map : maps_) {
+		if (map->source == selected_->source && map->nextMip == kMipCount &&
+			(!published || published->updateFrame < map->updateFrame)) published = map.get();
+	}
+	return published;
+}
+
+bool Engine::EnvironmentSpecularMap::IsCurrentComplete() const {
+
+	return selected_ && selected_->nextMip == kMipCount;
 }
 
 void Engine::EnvironmentSpecularMap::CollectUnused() {

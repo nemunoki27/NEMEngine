@@ -44,7 +44,9 @@ internal static class LauncherMenuChecks {
         var border = (Border)available.Template.FindName("MenuBorder", available);
         check(menu.Background is System.Windows.Media.SolidColorBrush brush && brush.Color.R < 96 && border != null,
             "右クリックメニューに暗色の配色が適用されません");
-        var settingsGrid = (Grid)((TabItem)tabs.Items[2]).Content;
+        check(tabs.Items.Cast<TabItem>().Select(tab => (string)tab.Header).SequenceEqual(new[] { "プロジェクト", "エンジン", "アセット", "設定" }),
+            "アセットタブの配置が正しくありません");
+        var settingsGrid = (Grid)((TabItem)tabs.Items[3]).Content;
         var settings = (StackPanel)settingsGrid.Children.OfType<ScrollViewer>().Single().Content;
         var report = settingsGrid.Children.OfType<Button>().Single();
         check((string)report.Content == "バグ報告" && report.HorizontalAlignment == HorizontalAlignment.Right && Grid.GetRow(report) == 1,

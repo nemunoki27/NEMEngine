@@ -21,6 +21,7 @@ namespace Engine {
 	struct SpriteRendererComponent;
 	struct TextRendererComponent;
 	struct SkyAtmosphereComponent;
+	struct DayNightCycleComponent;
 	struct ExponentialHeightFogComponent;
 	struct SkyboxRendererComponent;
 	struct DecalProjectorComponent;
@@ -60,6 +61,7 @@ namespace Engine {
 	InspectorCommonFields BindInspectorCommonFields(SpriteRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(TextRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SkyAtmosphereComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(DayNightCycleComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(ExponentialHeightFogComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SkyboxRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(DecalProjectorComponent& value);

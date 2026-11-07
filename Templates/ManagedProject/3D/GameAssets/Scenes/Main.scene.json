@@ -1,106 +1,598 @@
 {
-  "SchemaVersion": 3,
-  "Header": {
-    "name": "Main",
-    "subScenes": []
-  },
-  "Entities": [
-    {
-      "LocalFileID": "0000000000000001",
-      "Components": {
-        "Name": {
-          "name": "Camera3D"
+    "Entities": [
+        {
+            "Components": {
+                "DayNightCycle": {
+                    "atmosphereEntity": {
+                        "kind": "Scene",
+                        "localFileId": "c9045a498f7bb42b",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                    },
+                    "dayDurationSeconds": 300.0,
+                    "enabled": true,
+                    "fixedTime": true,
+                    "moonEntity": {
+                        "kind": "Scene",
+                        "localFileId": "bdc45a0ef0ee6283",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                    },
+                    "moonTimeOffset": 12.0,
+                    "noonAltitude": 60.0,
+                    "orbitAzimuth": 0.0,
+                    "playInEditMode": true,
+                    "startHour": 10.0,
+                    "sunEntity": {
+                        "kind": "Scene",
+                        "localFileId": "cd6d892221f79398",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                    },
+                    "timeSource": {
+                        "mode": "Global",
+                        "source": {
+                            "kind": "Scene",
+                            "localFileId": "",
+                            "sourceAsset": ""
+                        }
+                    }
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "69787571ec5f1544",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "DayCycle"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "524b543e9f3f3661",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "524b543e9f3f3661"
         },
-        "SceneObject": {
-          "activeSelf": true,
-          "localFileId": "0000000000000001",
-          "tag": "Untagged",
-          "visibilityLayerMask": 4294967295
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Environment"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "69787571ec5f1544",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "69787571ec5f1544"
         },
-        "Transform": {
-          "dimension": 1,
-          "localPos": {
-            "x": 0,
-            "y": 2,
-            "z": -10
-          },
-          "localRotation": {
-            "w": 1,
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "localScale": {
-            "x": 1,
-            "y": 1,
-            "z": 1
-          }
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "7bbae7e206d1db65",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "7bbae7e206d1db65"
         },
-        "Hierarchy": {
-          "parentLocalFileID": "",
-          "siblingOrder": 0
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.5914893746376038,
+                        "g": 0.4006047248840332,
+                        "r": 0.30707108974456787
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 1.0,
+                    "shadowAngularRadius": 0.27000001072883606,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "69787571ec5f1544",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "Moon"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "bdc45a0ef0ee6283",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "bdc45a0ef0ee6283"
         },
-        "PerspectiveCamera": {
-          "isMain": true,
-          "enabled": true,
-          "renderPasses": "4e454d4153534554525450524f46494c"
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "69787571ec5f1544",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Sky"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "c9045a498f7bb42b",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkyAtmosphere": {
+                    "aerialPerspectiveDistance": 32000.0,
+                    "aerialPerspectiveStrength": 1.0,
+                    "atmosphereHeightKm": 100.0,
+                    "enabled": true,
+                    "groundAlbedo": {
+                        "b": 0.02978724241256714,
+                        "g": 0.02978724241256714,
+                        "r": 0.02978724241256714
+                    },
+                    "iblIntensity": 1.0,
+                    "mieAbsorption": 0.0004440000047907233,
+                    "mieAnisotropy": 0.800000011920929,
+                    "mieScaleHeightKm": 1.2000000476837158,
+                    "mieScattering": 0.003996000159531832,
+                    "moonAngularRadius": 0.2840000092983246,
+                    "moonDiskBrightness": 1.0,
+                    "moonDiskColor": {
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "moonDiskEnabled": true,
+                    "moonEntity": {
+                        "kind": "Scene",
+                        "localFileId": "bdc45a0ef0ee6283",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                    },
+                    "ozoneAbsorption": {
+                        "b": 8.499999967170879e-05,
+                        "g": 0.0018810000037774444,
+                        "r": 0.0006500000017695129
+                    },
+                    "ozoneCenterHeightKm": 25.0,
+                    "ozoneWidthKm": 30.0,
+                    "planetRadiusKm": 6360.0,
+                    "rayleighScaleHeightKm": 8.0,
+                    "rayleighScattering": {
+                        "b": 0.03310000151395798,
+                        "g": 0.013558000326156616,
+                        "r": 0.005801999941468239
+                    },
+                    "renderingLayerMask": 16777215,
+                    "sunEntity": {
+                        "kind": "Scene",
+                        "localFileId": "cd6d892221f79398",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
+                    }
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "c9045a498f7bb42b"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.7134450078010559,
+                        "g": 0.7556090354919434,
+                        "r": 0.8510638475418091
+                    },
+                    "direction": {
+                        "x": 0.0,
+                        "y": -1.0,
+                        "z": 0.0
+                    },
+                    "enabled": true,
+                    "intensity": 8.0,
+                    "shadowAngularRadius": 0.2800000011920929,
+                    "shadowStrength": 0.9100000262260437
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "69787571ec5f1544",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Sun"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "cd6d892221f79398",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "cd6d892221f79398"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "ambientOcclusionEnabled": true,
+                    "ambientOcclusionIntensity": 1.0,
+                    "ambientOcclusionQuality": 1,
+                    "ambientOcclusionRadius": 3.180999994277954,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "saturation": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "temperature": 6500.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 0.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "orthographicSize": 5.0,
+                    "postProcessEnabled": true,
+                    "priority": 0,
+                    "projectionMode": "Perspective",
+                    "reflectionEnabled": true,
+                    "reflectionIntensity": 0.2199999988079071,
+                    "reflectionMaxDistance": 600.0,
+                    "reflectionParameters": {},
+                    "reflectionQuality": 1,
+                    "renderPasses": "4e454d4153534554525450524f46494c",
+                    "targetTexture": "",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d793890d0e35c9ee",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 1.7701586484909058,
+                        "z": -6.390993118286133
+                    },
+                    "localRotation": {
+                        "w": 0.9999756217002869,
+                        "x": -0.006981260143220425,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 0.9999994039535522,
+                        "z": 0.9999994039535522
+                    }
+                }
+            },
+            "LocalFileID": "d793890d0e35c9ee"
         }
-      }
+    ],
+    "Header": {
+        "name": "Main",
+        "subScenes": []
     },
-    {
-      "LocalFileID": "0000000000000002",
-      "Components": {
-        "Name": {
-          "name": "DirectionalLight"
-        },
-        "SceneObject": {
-          "activeSelf": true,
-          "localFileId": "0000000000000002",
-          "tag": "Untagged",
-          "visibilityLayerMask": 4294967295
-        },
-        "Transform": {
-          "dimension": 1,
-          "localPos": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "localRotation": {
-            "w": 1,
-            "x": 0,
-            "y": 0,
-            "z": 0
-          },
-          "localScale": {
-            "x": 1,
-            "y": 1,
-            "z": 1
-          }
-        },
-        "Hierarchy": {
-          "parentLocalFileID": "",
-          "siblingOrder": 1
-        },
-        "DirectionalLight": {
-          "enabled": true,
-          "color": {
-            "r": 1,
-            "g": 1,
-            "b": 1,
-            "a": 1
-          },
-          "direction": {
-            "x": 0,
-            "y": -1,
-            "z": 0
-          },
-          "intensity": 10,
-          "shadowStrength": 0.92,
-          "shadowAngularRadius": 0.27
-        }
-      }
-    }
-  ],
-  "PrefabInstances": []
+    "PrefabInstances": [],
+    "SchemaVersion": 3
 }

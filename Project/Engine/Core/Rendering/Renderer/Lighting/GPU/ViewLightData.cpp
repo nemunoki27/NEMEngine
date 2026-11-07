@@ -104,7 +104,8 @@ void Engine::ViewLightData::Update(const PerViewLightSet& lightSet) {
 			if (!item.common.world || !lightSet.camera) return result;
 			Entity owner{};
 			const auto* sky = AtmosphereLighting::Find(*item.common.world, lightSet.camera->cullingMask, owner);
-			if (sky && AtmosphereLighting::ResolveSun(*item.common.world, owner, *sky) == item.common.entity) {
+			if (sky && (AtmosphereLighting::ResolveSun(*item.common.world, owner, *sky) == item.common.entity ||
+				AtmosphereLighting::ResolveMoon(*item.common.world, owner, *sky) == item.common.entity)) {
 				const float groundHeight = LightExtract::GetWorldPos(*item.common.world, owner).y;
 				const Vector3 transmission = AtmosphereLighting::SunTransmittance(*sky,
 					(lightSet.camera->cameraPos.y - groundHeight) * 0.001f, item.direction * -1.0f);

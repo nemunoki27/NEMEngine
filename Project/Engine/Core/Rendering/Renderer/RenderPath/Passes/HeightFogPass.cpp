@@ -104,12 +104,16 @@ void Engine::HeightFogPass::Execute(GraphicsCore& graphics,
 			std::max(fog->secondHeightFalloff, 0.0f), fog->secondHeightOffset, 0.0f);
 		bool foundSun = false;
 		if (atmosphere.aerialIndex != UINT32_MAX) {
-			data.sunDirection = Vector4(atmosphere.sunDirection.x, atmosphere.sunDirection.y, atmosphere.sunDirection.z, 0.0f);
-			foundSun = atmosphere.sunAvailable;
+			const auto& solar = atmosphere.solarLuminance;
+			const auto& lunar = atmosphere.lunarLuminance;
+			const bool moon = lunar.x + lunar.y + lunar.z > solar.x + solar.y + solar.z;
+			const auto direction = moon ? atmosphere.moonDirection : atmosphere.sunDirection;
+			data.sunDirection = Vector4(direction.x, direction.y, direction.z, 0.0f);
+			foundSun = atmosphere.sunAvailable || moon;
 		}
 		context.world->ForEach<DirectionalLightComponent>([&](const Entity& entity, const auto& light) {
 			if (foundSun || atmosphere.aerialIndex != UINT32_MAX || !LightExtract::IsVisible(*context.world, entity, light.enabled)) return;
-			const Vector3 direction = LightExtract::GetWorldDirection(light.direction, LightExtract::GetWorldMatrix(*context.world, entity));
+			const Vector3 direction = LightExtract::GetDirectionalWorldDirection(*context.world, entity, light.direction);
 			data.sunDirection = Vector4(direction.x, direction.y, direction.z, 0.0f);
 			foundSun = true;
 		});

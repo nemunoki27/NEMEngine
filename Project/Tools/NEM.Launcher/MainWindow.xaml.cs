@@ -62,6 +62,7 @@ public partial class MainWindow : Window {
             long bytes = release == null ? 0 : release.Engine.Bytes + release.Toolchain.Bytes;
             return new EngineRow(version, local?.Status ?? "未インストール", bytes == 0 ? "" : $"{bytes / 1048576.0:F0} MB", release?.Notes ?? "ローカル登録");
         }).ToArray();
+        RefreshAssets();
         InstallRoot.Text = store_.State.InstallRoot;
         ProjectsRoot.Text = store_.State.ProjectsRoot;
         RefreshGitHubAccount();
@@ -108,12 +109,16 @@ public partial class MainWindow : Window {
 
     private async void CreateProject(object sender, RoutedEventArgs e) {
         if (store_.State.Engines.Count == 0) { Tabs.SelectedIndex = 1; Status.Text = "先にエンジンをインストールしてください"; return; }
-        var dialog = new ProjectDialog(this, store_.State.Engines.Select(engine => engine.Version), store_.State.ProjectsRoot);
+        var dialog = new ProjectDialog(this, store_.State.Engines.Select(engine => engine.Version), store_.State.ProjectsRoot,
+            samples: catalog_.Samples);
         if (dialog.ShowDialog() != true) return;
         string name = dialog.ProjectName, parent = dialog.ParentDirectory, version = dialog.EngineVersion, template = dialog.ProjectTemplate;
-        await RunAsync(async (_, token) => {
+        SampleRelease? sample = dialog.Sample;
+        await RunAsync(async (progress, token) => {
             var service = new ProjectService(store_);
-            var project = await Task.Run(() => service.Create(name, parent, version, template), token);
+            var project = sample == null
+                ? await Task.Run(() => service.Create(name, parent, version, template, token), token)
+                : await Task.Run(() => service.CreateSampleAsync(name, parent, version, sample, client_, progress, token), token);
             service.StartEditor(project);
         });
     }

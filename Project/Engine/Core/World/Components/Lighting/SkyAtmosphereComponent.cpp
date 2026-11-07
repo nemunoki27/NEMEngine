@@ -8,6 +8,11 @@ void Engine::from_json(const nlohmann::json& in, SkyAtmosphereComponent& compone
 	component.enabled = in.value("enabled", component.enabled);
 	component.renderingLayerMask = in.value("renderingLayerMask", component.renderingLayerMask);
 	component.sunEntity = in.value("sunEntity", component.sunEntity);
+	component.moonEntity = in.value("moonEntity", component.moonEntity);
+	component.moonDiskEnabled = in.value("moonDiskEnabled", component.moonDiskEnabled);
+	component.moonAngularRadius = in.value("moonAngularRadius", component.moonAngularRadius);
+	if (in.contains("moonDiskColor")) component.moonDiskColor = Color3::FromJson(in["moonDiskColor"]);
+	component.moonDiskBrightness = in.value("moonDiskBrightness", component.moonDiskBrightness);
 	component.planetRadiusKm = in.value("planetRadiusKm", component.planetRadiusKm);
 	component.atmosphereHeightKm = in.value("atmosphereHeightKm", component.atmosphereHeightKm);
 	if (in.contains("rayleighScattering")) component.rayleighScattering = Color3::FromJson(in["rayleighScattering"]);
@@ -31,6 +36,11 @@ void Engine::to_json(nlohmann::json& out, const SkyAtmosphereComponent& componen
 	out["enabled"] = component.enabled;
 	out["renderingLayerMask"] = component.renderingLayerMask;
 	out["sunEntity"] = component.sunEntity;
+	out["moonEntity"] = component.moonEntity;
+	out["moonDiskEnabled"] = component.moonDiskEnabled;
+	out["moonAngularRadius"] = component.moonAngularRadius;
+	out["moonDiskColor"] = component.moonDiskColor.ToJson();
+	out["moonDiskBrightness"] = component.moonDiskBrightness;
 	out["planetRadiusKm"] = component.planetRadiusKm;
 	out["atmosphereHeightKm"] = component.atmosphereHeightKm;
 	out["rayleighScattering"] = component.rayleighScattering.ToJson();

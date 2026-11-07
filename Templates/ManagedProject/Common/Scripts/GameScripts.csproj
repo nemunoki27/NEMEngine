@@ -22,6 +22,8 @@
     <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="obj/**/*.cs" />
+    <Compile Remove="bin/**/*.cs" />
     <Compile Include="../GameAssets/**/*.cs" Link="GameAssets/%(RecursiveDir)%(Filename)%(Extension)" />
     <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
     <Reference Include="NEM.ScriptCore"><HintPath>$(NEMEngineRoot)/Managed/Ref/NEM.ScriptCore.dll</HintPath><Private>false</Private></Reference>

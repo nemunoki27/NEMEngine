@@ -45,6 +45,8 @@ namespace Engine {
 		Vector3 GetWorldPos(ECSWorld& world, const Entity& entity);
 		// 方向の取得
 		Vector3 GetWorldDirection(const Vector3& localDirection, const Matrix4x4& worldMatrix);
+		// 昼夜制御を含めた平行光源の方向を取得する
+		Vector3 GetDirectionalWorldDirection(ECSWorld& world, Entity entity, const Vector3& localDirection);
 
 		// 共通フィールド設定
 		void FillCommonFields(LightItemCommon& common, ECSWorld& world, const Entity& entity);

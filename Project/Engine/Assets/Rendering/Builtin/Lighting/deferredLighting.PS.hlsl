@@ -97,6 +97,8 @@ cbuffer DeferredLightingConstants : register(b1) {
 	uint _environmentPad;
 	float4 atmosphereSun;
 	float4 atmosphereSolar;
+	float4 atmosphereMoon;
+	float4 atmosphereLunar;
 	uint atmosphereSkyIndex;
 	uint3 _atmospherePad;
 };
@@ -296,10 +298,19 @@ float3 SampleBackground(float2 texcoord) {
 		Texture2D<float4> sky = NEM_TEXTURE2D(atmosphereSkyIndex);
 		float3 result = sky.SampleLevel(gSampler, skyUV, 0).rgb;
 		float angle = acos(clamp(dot(direction, atmosphereSun.xyz), -1.0f, 1.0f));
-		float pixelWidth = max(length(ddx(direction)), length(ddy(direction)));
+		// 背景と物体の分岐に依存せず隣接画素の角度幅を求める
+		float2 pixelStep = 2.0f / max(float2(viewportSize), 1.0f.xx);
+		float4 adjacentX = worldFar + inverseViewProjection[0] * pixelStep.x;
+		float4 adjacentY = worldFar - inverseViewProjection[1] * pixelStep.y;
+		float3 directionX = normalize(adjacentX.xyz / adjacentX.w - cameraPos);
+		float3 directionY = normalize(adjacentY.xyz / adjacentY.w - cameraPos);
+		float pixelWidth = max(max(length(directionX - direction), length(directionY - direction)), 1e-6f);
 		float coverage = 1.0f - smoothstep(max(atmosphereSun.w - pixelWidth * 0.5f, 0.0f),
 			atmosphereSun.w + pixelWidth * 0.5f, angle);
-		return min(result + atmosphereSolar.rgb * coverage, 65000.0f);
+		float moonAngle = acos(clamp(dot(direction, atmosphereMoon.xyz), -1.0f, 1.0f));
+		float moonCoverage = 1.0f - smoothstep(max(atmosphereMoon.w - pixelWidth * 0.5f, 0.0f),
+			atmosphereMoon.w + pixelWidth * 0.5f, moonAngle);
+		return min(result + atmosphereSolar.rgb * coverage + atmosphereLunar.rgb * moonCoverage, 65000.0f);
 	}
 
 	// キューブマップテクスチャ取得

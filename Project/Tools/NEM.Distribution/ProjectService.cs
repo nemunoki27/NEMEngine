@@ -20,42 +20,11 @@ public sealed partial class ProjectService(LauncherStore store) {
             Descriptor = descriptor, EngineVersion = version };
     }
 
-    public ProjectEntry Create(string name, string parent, string version, string template) {
-        ValidateName(name);
+    public ProjectEntry Create(string name, string parent, string version, string template, CancellationToken token = default) {
         if (template is not ("2D" or "3D")) throw new ArgumentException("2Dまたは3Dを選択してください");
         var installed = store.Resolve(version);
-        var manifest = EngineValidation.Read(installed.Root);
-        if (manifest.Version != version) throw new InvalidDataException("エンジンの版が一致しません");
-        string destination = DistributionStorage.Child(parent, name);
-        if (Directory.Exists(destination) || File.Exists(destination)) throw new IOException("同じ名前の保存先が既に存在します");
-        if (DistributionStorage.IsInside(destination, store.State.InstallRoot) ||
-            store.State.Engines.Any(engine => DistributionStorage.IsInside(destination, engine.Root) || DistributionStorage.IsInside(destination, engine.ToolchainRoot)))
-            throw new IOException("エンジンのインストール先にはプロジェクトを作成できません");
-        Directory.CreateDirectory(parent);
-        string stage = DistributionStorage.Child(parent, ".project-" + Guid.NewGuid().ToString("N"));
-        bool published = false;
-        try {
-            // テンプレートが完成してから保存先へ公開する
-            DistributionStorage.CopyTree(Path.Combine(installed.Root, "ProjectTemplates", "Common"), stage);
-            DistributionStorage.CopyTree(Path.Combine(installed.Root, "ProjectTemplates", template), stage);
-            string descriptorName = name + ".nemproject";
-            DistributionStorage.Write(Path.Combine(stage, descriptorName), new {
-                schemaVersion = 1, projectGuid = Guid.NewGuid().ToString("N"), name, engineVersion = version,
-                sceneStorage = "Monolithic", assetsDirectory = "GameAssets", packagesDirectory = "Packages",
-                projectSettingsDirectory = "ProjectSettings"
-            });
-            Bind(Path.Combine(stage, descriptorName), installed);
-            Directory.Move(stage, destination);
-            published = true;
-            string descriptor = Path.Combine(destination, descriptorName);
-            var project = Read(descriptor);
-            store.Register(project);
-            published = false;
-            return project;
-        } catch {
-            if (published) Directory.Move(destination, stage);
-            throw;
-        } finally { DistributionStorage.RemoveTree(stage, parent); }
+        string source = Path.Combine(installed.Root, "ProjectTemplates", template);
+        return CreateFromTemplate(name, parent, version, source, template, null, token);
     }
 
     public static void Bind(string descriptor, InstalledEngine engine) {

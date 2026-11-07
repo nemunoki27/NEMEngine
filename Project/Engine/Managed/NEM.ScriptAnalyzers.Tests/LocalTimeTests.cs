@@ -24,7 +24,7 @@ internal static unsafe class LocalTimeTests {
 		try {
 			snapshot = """{"timeSource":{"mode":"Explicit","source":{}},"timeSourceNative":{"world":{"index":4,"generation":7},"index":42,"generation":3}}""";
 			NativeEntity native = new() { world = new() { index = 4, generation = 7 }, index = 1, generation = 2 };
-			foreach (int type in new[] { 0, 8, 9, 26, 70, 71, 72 }) {
+			foreach (int type in new[] { 0, 8, 9, 26, 70, 71, 72, 75 }) {
 				var settings = ComponentTimeSource.Read(native, type);
 				Check(settings.Mode == TimeSourceMode.Explicit && GameObject.RawNative(settings.Source).index == 42);
 				ComponentTimeSource.Apply(native, type, settings);

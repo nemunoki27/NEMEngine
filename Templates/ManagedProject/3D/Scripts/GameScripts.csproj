@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup Condition="'$(NEMScriptIntermediateOutput)' != ''">
+    <BaseIntermediateOutputPath>$(NEMScriptIntermediateOutput)</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(NEMScriptIntermediateOutput)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="../Library/EngineBinding.props" />
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>GameScripts</AssemblyName>
+    <RootNamespace>GameScripts</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NEMScriptMetadataMode Condition="'$(NEMScriptMetadataMode)' == ''">EditorSync</NEMScriptMetadataMode>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' == ''">../Managed/$(Configuration)/</OutputPath>
+    <OutputPath Condition="'$(NEMScriptStagingOutput)' != ''">$(NEMScriptStagingOutput)/</OutputPath>
+    <Optimize Condition="'$(Configuration)' != 'Release'">false</Optimize>
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="obj/**/*.cs" />
+    <Compile Remove="bin/**/*.cs" />
+    <Compile Include="../GameAssets/**/*.cs" Link="GameAssets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
+    <Reference Include="NEM.ScriptCore"><HintPath>$(NEMEngineRoot)/Managed/Ref/NEM.ScriptCore.dll</HintPath><Private>false</Private></Reference>
+    <Analyzer Include="$(NEMEngineRoot)/Managed/Analyzers/NEM.ScriptCodeGen.dll" />
+    <Analyzer Include="$(NEMEngineRoot)/Managed/Analyzers/NEM.ScriptAnalyzers.dll" />
+  </ItemGroup>
+  <Import Project="$(NEMEngineRoot)/Managed/Build/NEM.GameScripts.targets" />
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>

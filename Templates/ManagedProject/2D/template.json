@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "2D",
+  "name": "2D",
+  "description": "2Dゲームの基本シーン",
+  "kind": "2D",
+  "startupScene": "4e454d50524f4a4543544d41494e0001",
+  "additionalPaths": []
+}

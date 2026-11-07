@@ -8,6 +8,7 @@ if (!file || !catalogURL || new URL(catalogURL).protocol !== 'https:' ||
 const catalog = JSON.parse(await readFile(file, 'utf8'));
 const packages = catalog.engines.flatMap(release => [release.engine, release.toolchain]);
 if (catalog.launcher) packages.push(catalog.launcher.setup);
+for (const release of [...catalog.samples || [], ...catalog.assets || []]) packages.push(release.package);
 for (const item of mode === '--catalog-only' ? [] : packages) {
   // 公開URLの実体をメモリへ溜めずに照合する
   const response = await fetch(item.url, {redirect:'error'});
@@ -24,10 +25,11 @@ for (const item of mode === '--catalog-only' ? [] : packages) {
     throw new Error('SHA-256が一致しません: ' + item.id);
   // 再開取得とサイズ確認を配信先でも確認する
   const head = await fetch(item.url, {method:'HEAD', redirect:'error'});
-  const range = await fetch(item.url, {headers:{Range:'bytes=0-1023'}, redirect:'error'});
+  const lastByte = Math.min(1023, item.bytes - 1);
+  const range = await fetch(item.url, {headers:{Range:`bytes=0-${lastByte}`}, redirect:'error'});
   if (head.status !== 200 || Number(head.headers.get('content-length')) !== item.bytes ||
-      range.status !== 206 || range.headers.get('content-range') !== `bytes 0-1023/${item.bytes}` ||
-      (await range.arrayBuffer()).byteLength !== 1024)
+      range.status !== 206 || range.headers.get('content-range') !== `bytes 0-${lastByte}/${item.bytes}` ||
+      (await range.arrayBuffer()).byteLength !== lastByte + 1)
     throw new Error('部分取得またはHEADに失敗しました: ' + item.id);
   console.log('検証成功: ' + item.id + ' / SHA-256・サイズ・部分取得');
 }

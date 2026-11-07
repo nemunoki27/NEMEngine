@@ -108,6 +108,8 @@ namespace Engine {
 			uint32_t _environmentPad = 0;
 			Vector4 atmosphereSun{};
 			Vector4 atmosphereSolar{};
+			Vector4 atmosphereMoon{};
+			Vector4 atmosphereLunar{};
 			uint32_t atmosphereSkyIndex = UINT32_MAX;
 			uint32_t _atmospherePad[3]{};
 		};

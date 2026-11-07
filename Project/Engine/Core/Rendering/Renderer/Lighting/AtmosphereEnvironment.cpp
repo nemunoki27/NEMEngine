@@ -20,6 +20,7 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
 #include <cmath>
 #include <stdexcept>
@@ -40,6 +41,9 @@ namespace {
 		Engine::Vector4 planet{};
 		Engine::Vector4 sun{};
 		Engine::Vector4 solar{};
+		Engine::Vector4 moon{};
+		Engine::Vector4 lunar{};
+		Engine::Vector4 moonDisk{};
 	};
 	struct AtmosphereConstants {
 
@@ -90,6 +94,24 @@ namespace {
 		}
 	};
 
+	// 大気へ入る光源の放射量は地平線下でも保持する
+	void ResolveLight(Engine::ECSWorld& world, Engine::Entity entity, Engine::Vector4& direction, Engine::Vector4& energy) {
+
+		const auto* light = world.TryGetComponent<Engine::DirectionalLightComponent>(entity);
+		if (!light || !Engine::LightExtract::IsVisible(world, entity, light->enabled)) return;
+		const auto vector = -Engine::LightExtract::GetDirectionalWorldDirection(world, entity, light->direction);
+		if (std::isfinite(vector.x) && std::isfinite(vector.y) && std::isfinite(vector.z)) {
+			direction.x = vector.x;
+			direction.y = vector.y;
+			direction.z = vector.z;
+		}
+		energy.x = light->color.r * light->intensity;
+		energy.y = light->color.g * light->intensity;
+		energy.z = light->color.b * light->intensity;
+		for (float* channel : {&energy.x, &energy.y, &energy.z})
+			*channel = std::isfinite(*channel) ? std::clamp(*channel, 0.0f, 100000.0f) : 0.0f;
+	}
+
 	AtmosphereParameters ResolveParameters(Engine::ECSWorld& world, Engine::Entity owner,
 		const Engine::SkyAtmosphereComponent& source) {
 
@@ -103,21 +125,14 @@ namespace {
 		result.planet = {sky.planetRadiusKm, sky.atmosphereHeightKm, Engine::LightExtract::GetWorldPos(world, owner).y, 0};
 		const Engine::Entity sun = Engine::AtmosphereLighting::ResolveSun(world, owner, sky);
 		result.sun = {0, 1, 0, 0.004712389f};
-		if (world.IsAlive(sun) && world.HasComponent<Engine::DirectionalLightComponent>(sun)) {
-			const auto& light = world.GetComponent<Engine::DirectionalLightComponent>(sun);
-			if (Engine::LightExtract::IsVisible(world, sun, light.enabled)) {
-				auto direction = Engine::LightExtract::GetWorldDirection(light.direction,
-					Engine::LightExtract::GetWorldMatrix(world, sun)) * -1.0f;
-				if (!std::isfinite(direction.x) || !std::isfinite(direction.y) || !std::isfinite(direction.z)) direction = {0, 1, 0};
-				result.sun = {direction.x, direction.y, direction.z,
-					(std::isfinite(light.shadowAngularRadius) ? std::clamp(light.shadowAngularRadius, 0.01f, 45.0f) : 0.27f) * 0.0174532925f};
-				result.solar = {light.color.r * light.intensity, light.color.g * light.intensity,
-					light.color.b * light.intensity, 0};
-			}
-		}
-		for (float* channel : {&result.solar.x, &result.solar.y, &result.solar.z}) {
-			*channel = std::isfinite(*channel) ? std::clamp(*channel, 0.0f, 100000.0f) : 0.0f;
-		}
+		ResolveLight(world, sun, result.sun, result.solar);
+		if (const auto* light = world.TryGetComponent<Engine::DirectionalLightComponent>(sun))
+			result.sun.w = (std::isfinite(light->shadowAngularRadius) ? std::clamp(light->shadowAngularRadius, 0.01f, 45.0f) : 0.27f) * 0.0174532925f;
+		result.moon = {0, 1, 0, sky.moonAngularRadius * 0.0174532925f};
+		ResolveLight(world, Engine::AtmosphereLighting::ResolveMoon(world, owner, sky), result.moon, result.lunar);
+		result.lunar.w = sky.moonDiskEnabled ? 1.0f : 0.0f;
+		result.moonDisk = {sky.moonDiskColor.r * sky.moonDiskBrightness, sky.moonDiskColor.g * sky.moonDiskBrightness,
+			sky.moonDiskColor.b * sky.moonDiskBrightness, 0};
 		if (!std::isfinite(result.planet.z)) result.planet.z = 0.0f;
 		return result;
 	}
@@ -143,11 +158,19 @@ struct Engine::AtmosphereEnvironment::State {
 		LookupTexture transmittance;
 		LookupTexture multiple;
 		LookupTexture sky;
-		LookupTexture cube;
+		std::array<LookupTexture, 2> cubes;
 		LookupTexture background;
 		AtmosphereConstants constants{};
+		AtmosphereParameters capturedParameters{};
+		std::chrono::steady_clock::time_point captureTime{};
 		uint64_t revision = 0;
 		uint64_t used = 0;
+		uint64_t preparedFrame = UINT64_MAX;
+		uint32_t cubeSlot = 1;
+		bool parametersValid = false;
+		bool environmentDirty = true;
+		bool forceSnapshot = true;
+		bool filterPending = false;
 		std::vector<std::unique_ptr<View>> views;
 	};
 	std::vector<std::unique_ptr<Environment>> environments;
@@ -231,17 +254,19 @@ struct Engine::AtmosphereEnvironment::State {
 			entry->transmittance.Create(graphics, 256, 64, false);
 			entry->multiple.Create(graphics, 32, 32, false);
 			entry->sky.Create(graphics, 200, 100, false);
-			entry->cube.Create(graphics, 128, 128, true);
+			for (auto& cube : entry->cubes) cube.Create(graphics, 128, 128, true);
 			entry->background.Create(graphics, 128, 128, true);
 			environment = entry.get();
 			environments.push_back(std::move(entry));
 		}
 		auto& entry = *environment;
 		entry.used = GraphicsFrameState::GetFrameSerial();
+		if (entry.preparedFrame == entry.used) return environment;
+		entry.preparedFrame = entry.used;
 		const auto parameters = ResolveParameters(world, owner, *selected);
-		const bool mediumChanged = entry.revision == 0 || std::memcmp(&parameters, &entry.constants.parameters,
+		const bool mediumChanged = !entry.parametersValid || std::memcmp(&parameters, &entry.constants.parameters,
 			offsetof(AtmosphereParameters, sun)) != 0;
-		const bool changed = entry.revision == 0 || std::memcmp(&parameters, &entry.constants.parameters, sizeof(parameters)) != 0;
+		const bool changed = !entry.parametersValid || std::memcmp(&parameters, &entry.constants.parameters, sizeof(parameters)) != 0;
 		if (changed) {
 			entry.constants.parameters = parameters;
 			entry.constants.indices = {entry.transmittance.srv, entry.multiple.srv, entry.sky.srv, 0};
@@ -249,12 +274,29 @@ struct Engine::AtmosphereEnvironment::State {
 				Dispatch(graphics, 0, entry.transmittance, entry.constants, 256, 64);
 				Dispatch(graphics, 1, entry.multiple, entry.constants, 32, 32);
 			}
+			entry.parametersValid = true;
+			entry.environmentDirty = true;
+			const auto& before = entry.capturedParameters.sun;
+			const float sunDot = before.x * parameters.sun.x + before.y * parameters.sun.y + before.z * parameters.sun.z;
+			const auto& beforeMoon = entry.capturedParameters.moon;
+			const float moonDot = beforeMoon.x * parameters.moon.x + beforeMoon.y * parameters.moon.y + beforeMoon.z * parameters.moon.z;
+			entry.forceSnapshot |= mediumChanged || sunDot < 0.9998477f || moonDot < 0.9998477f;
+		} else if (entry.environmentDirty) entry.forceSnapshot = true;
+		const auto now = std::chrono::steady_clock::now();
+		const double elapsed = std::chrono::duration<double>(now - entry.captureTime).count();
+		if (entry.environmentDirty && !entry.filterPending && (entry.forceSnapshot || elapsed >= 0.1)) {
+			entry.cubeSlot = 1u - entry.cubeSlot;
 			Dispatch(graphics, 2, entry.sky, entry.constants, 200, 100);
-			Dispatch(graphics, 3, entry.cube, entry.constants, 128, 128, 6);
+			Dispatch(graphics, 3, entry.cubes[entry.cubeSlot], entry.constants, 128, 128, 6);
 			entry.constants.indices[3] = 1;
 			Dispatch(graphics, 3, entry.background, entry.constants, 128, 128, 6);
 			entry.constants.indices[3] = 0;
 			++entry.revision;
+			entry.captureTime = now;
+			entry.capturedParameters = parameters;
+			entry.environmentDirty = false;
+			entry.forceSnapshot = false;
+			entry.filterPending = true;
 		}
 		return environment;
 	}
@@ -272,7 +314,9 @@ Engine::SceneSkyboxInfo Engine::AtmosphereEnvironment::Resolve(GraphicsCore& gra
 	auto* entry = state_->Prepare(graphics, world, mask, sky);
 	if (!entry) return {};
 	auto& environment = graphics.GetEnvironmentSpecularMap();
-	environment.Update(graphics, entry->source, entry->cube.srv, entry->ownership, entry->revision);
+	environment.Update(graphics, entry->source, entry->cubes[entry->cubeSlot].srv, entry->ownership,
+		entry->revision, entry->revision != 1);
+	entry->filterPending = !environment.IsCurrentComplete();
 	SceneSkyboxInfo result{};
 	result.found = true;
 	result.cubemapIndex = entry->background.srv;
@@ -327,6 +371,17 @@ Engine::AtmosphereViewData Engine::AtmosphereEnvironment::PrepareView(GraphicsCo
 	const float solidAngle = 3.14159265f * sun.w * sun.w;
 	result.solarLuminance = {solar.x * transmission.x / solidAngle,
 		solar.y * transmission.y / solidAngle, solar.z * transmission.z / solidAngle};
+	const auto& moon = data.parameters.moon;
+	const auto& lunar = data.parameters.lunar;
+	const auto& disk = data.parameters.moonDisk;
+	result.moonDirection = {-moon.x, -moon.y, -moon.z};
+	result.moonAngularRadius = moon.w;
+	const Vector3 moonTransmission = AtmosphereLighting::SunTransmittance(*sky, data.parameters.planet.w,
+		Vector3(moon.x, moon.y, moon.z));
+	const float moonSolidAngle = 3.14159265f * moon.w * moon.w;
+	result.lunarLuminance = {lunar.x * disk.x * lunar.w * moonTransmission.x / moonSolidAngle,
+		lunar.y * disk.y * lunar.w * moonTransmission.y / moonSolidAngle,
+		lunar.z * disk.z * lunar.w * moonTransmission.z / moonSolidAngle};
 	return result;
 }
 

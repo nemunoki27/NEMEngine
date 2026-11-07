@@ -1,4 +1,5 @@
 #include "ILightExtractor.h"
+#include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
 
 //============================================================================
 //	ILightExtractor classMethods
@@ -47,4 +48,11 @@ void Engine::LightExtract::FillCommonFields(LightItemCommon& common, ECSWorld& w
 	common.world = &world;
 	common.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 	common.cameraDomain = RenderCameraDomain::Perspective;
+}
+
+Engine::Vector3 Engine::LightExtract::GetDirectionalWorldDirection(ECSWorld& world, Entity entity, const Vector3& localDirection) {
+
+	Vector3 direction;
+	if (ResolveDayNightLightDirection(world, entity, direction)) return direction;
+	return GetWorldDirection(localDirection, GetWorldMatrix(world, entity));
 }

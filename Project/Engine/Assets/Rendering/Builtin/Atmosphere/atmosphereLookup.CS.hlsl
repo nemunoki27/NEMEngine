@@ -112,6 +112,13 @@ void CubemapMain(uint3 pixel : SV_DispatchThreadID) {
 	float3 transmittance = AtmosphereSunTransmittance(atmosphere,
 		float3(0, atmosphere.planet.x + 0.002f, 0), atmosphere.sun.xyz, lookupIndices.x, gLinearSampler);
 	color += float(lookupIndices.w) * transmittance * atmosphere.solar.rgb * coverage / (3.14159265f * max(radius * radius, pixelRadius * pixelRadius));
+	float moonRadius = max(atmosphere.moon.w, 0.0001f);
+	float moonAngle = acos(clamp(dot(direction, atmosphere.moon.xyz), -1.0f, 1.0f));
+	float moonCoverage = 1.0f - smoothstep(max(moonRadius - pixelRadius, 0.0f), moonRadius + pixelRadius, moonAngle);
+	float3 moonTransmittance = AtmosphereSunTransmittance(atmosphere,
+		float3(0, atmosphere.planet.x + 0.002f, 0), atmosphere.moon.xyz, lookupIndices.x, gLinearSampler);
+	color += float(lookupIndices.w) * atmosphere.lunar.w * atmosphere.moonDisk.rgb * moonTransmittance *
+		atmosphere.lunar.rgb * moonCoverage / (3.14159265f * max(moonRadius * moonRadius, pixelRadius * pixelRadius));
 	gCubeOutput[pixel] = float4(min(color, 65000.0f), 1);
 }
 

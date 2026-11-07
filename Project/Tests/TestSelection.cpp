@@ -4,6 +4,7 @@
 #include "EditorWindowTests.h"
 #include "InspectorPresentationTests.h"
 #include "TimerTests.h"
+#include "DayNightCycleTests.h"
 #include "LocalTimeTests.h"
 #include "MotionAnimationTests.h"
 #include "ParticleWorldTests.h"
@@ -33,6 +34,7 @@
 #include "SkeletonAnimationTests.h"
 #include "SimpleAnimationTests.h"
 #include "EditorAssetWorkflowTests.h"
+#include "EditorTemplateTests.h"
 #include "ProjectGitIgnoreTests.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
@@ -47,6 +49,10 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--editor-templates") {
+		return RunTest("TestEditorTemplates", TestEditorTemplates) ? 0 : 89;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--renderer-render-settings-gpu") {
 		return RunTest("TestRendererRenderSettingsGPU", TestRendererRenderSettingsGPU) ? 0 : 87;
@@ -72,6 +78,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--timer") {
 		return RunTest("TestTimer", TestTimer) ? 0 : 81;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--day-night") {
+		return RunTest("TestDayNightCycle", TestDayNightCycle) ? 0 : 88;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--spline") {
 		return RunTest("TestParticleWorldData", TestParticleWorldData) ? 0 : 82;

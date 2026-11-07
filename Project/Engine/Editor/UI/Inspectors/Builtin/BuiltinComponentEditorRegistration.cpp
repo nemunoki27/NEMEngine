@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/ExponentialHeightFogInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/SkyAtmosphereInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Light/DayNightCycleInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Core/ComponentEditorRegistry.h>
 
 // ビルトインDrawer群
@@ -198,6 +199,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		"Timer", "Timer", "Time", "UI/Inspectors/Builtin/Time/TimerInspectorDrawer.cpp"));
 	registry.Register(MakeComponentEditorDescriptor<SkyAtmosphereInspectorDrawer>(
 		"SkyAtmosphere", "SkyAtmosphere", "Lighting", "UI/Inspectors/Builtin/Light/SkyAtmosphereInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<DayNightCycleInspectorDrawer>(
+		"DayNightCycle", "DayNightCycle", "Lighting", "UI/Inspectors/Builtin/Light/DayNightCycleInspectorDrawer.cpp"));
 	registry.Register(MakeComponentEditorDescriptor<ExponentialHeightFogInspectorDrawer>(
 		"ExponentialHeightFog", "ExponentialHeightFog", "Lighting", "UI/Inspectors/Builtin/Light/ExponentialHeightFogInspectorDrawer.cpp"));
 	// スクリプト
