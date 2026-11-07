@@ -15,6 +15,7 @@ void Engine::from_json(const nlohmann::json& in, SpriteRendererComponent& compon
 	component.size = Vector2::FromJson(in.value("size", nlohmann::json()));
 	component.pivot = Vector2::FromJson(in.value("pivot", nlohmann::json()));
 	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 	component.renderingLayerMask = in.value(
 		"renderingLayerMask", component.renderingLayerMask) &
 		kRenderingLayerMaskBits;
@@ -27,6 +28,7 @@ void Engine::to_json(nlohmann::json& out, const SpriteRendererComponent& compone
 	out["size"] = component.size.ToJson();
 	out["pivot"] = component.pivot.ToJson();
 	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	out["renderSettings"] = component.renderSettings;
 	out["renderingLayerMask"] = component.renderingLayerMask &
 		kRenderingLayerMaskBits;
 }

@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
@@ -111,6 +112,8 @@ namespace Engine {
 		int32_t order = 0;
 		// 表示フラグ
 		bool visible = true;
+		// マテリアルから継承する描画設定
+		RendererRenderSettings renderSettings{.cullMode = RendererCullMode::NONE, .depthTest = false, .depthWrite = false};
 		// RenderFeatureとLightが参照する描画レイヤー
 		uint32_t renderingLayerMask = 1u;
 

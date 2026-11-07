@@ -1,4 +1,5 @@
 #include "TestSelection.h"
+#include "RendererRenderSettingsGPUTests.h"
 #include "EditorWindowTests.h"
 #include "InspectorPresentationTests.h"
 #include "TimerTests.h"
@@ -45,6 +46,10 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--renderer-render-settings-gpu") {
+		return RunTest("TestRendererRenderSettingsGPU", TestRendererRenderSettingsGPU) ? 0 : 87;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--mesh-rendering") {
 		return RunTest("TestBuiltinShaderSources", TestBuiltinShaderSources) &&

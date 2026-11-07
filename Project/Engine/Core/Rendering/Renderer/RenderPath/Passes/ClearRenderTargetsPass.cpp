@@ -26,7 +26,7 @@ void Engine::ClearRenderTargetsPass::Execute(GraphicsCore& graphicsCore,
 	clearDesc.clearColor = true;
 	clearDesc.clearDepth = true;
 	clearDesc.clearDepthValue = 1.0f;
-	clearDesc.clearStencil = false;
+	clearDesc.clearStencil = true;
 	// RTV書き込み状態へ遷移してからクリア
 	sceneMain->TransitionForRender(*dxCommand);
 	sceneMain->Bind(*dxCommand);
@@ -41,7 +41,10 @@ void Engine::ClearRenderTargetsPass::Execute(GraphicsCore& graphicsCore,
 		surfaceClearDesc.clearColorValue = graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 		surfaceClearDesc.clearDepth = (context.defaultSurface->GetDepthTexture() != nullptr);
 		surfaceClearDesc.clearDepthValue = 1.0f;
-		surfaceClearDesc.clearStencil = false;
+		const auto* surfaceDepth = context.defaultSurface->GetDepthTexture();
+		surfaceClearDesc.clearStencil = surfaceDepth &&
+			(surfaceDepth->GetDSVFormat() == DXGI_FORMAT_D24_UNORM_S8_UINT ||
+				surfaceDepth->GetDSVFormat() == DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
 
 		context.defaultSurface->TransitionForRender(*dxCommand);
 		context.defaultSurface->Bind(*dxCommand);

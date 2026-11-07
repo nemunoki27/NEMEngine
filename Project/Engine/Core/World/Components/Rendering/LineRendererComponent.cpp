@@ -32,6 +32,7 @@ namespace {
 			in.value("ignoreParentRotation", component.ignoreParentRotation);
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 		component.renderingLayerMask = in.value(
 			"renderingLayerMask", component.renderingLayerMask) &
 			Engine::kRenderingLayerMaskBits;
@@ -51,6 +52,7 @@ namespace {
 		out["ignoreParentRotation"] = component.ignoreParentRotation;
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderSettings"] = component.renderSettings;
 		out["renderingLayerMask"] = component.renderingLayerMask &
 			Engine::kRenderingLayerMaskBits;
 	}

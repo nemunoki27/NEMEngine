@@ -174,17 +174,6 @@ float3 ResolveReflectionSampleRadiance(float3 radiance) {
 	return ClampReflectionSample(radiance);
 }
 
-float3 ReconstructWorldPosition(float2 uv, float depthValue) {
-
-	float4 clip = float4(uv * 2.0f - 1.0f, depthValue, 1.0f);
-	clip.y *= -1.0f;
-
-	float4 world = mul(clip, gInverseViewProjection);
-	world.xyz /= max(abs(world.w), 1e-6f);
-
-	return world.xyz;
-}
-
 float3 LoadPrimaryWorldPosition(uint2 pixel) {
 	return gSourcePosition.Load(int3(pixel, 0)).xyz;
 }
@@ -261,35 +250,22 @@ float3 EvaluateReflectionEnvironment(float3 direction, float roughness) {
 	return EvaluateSkyReflection(direction);
 }
 
-float3 EstimateWorldNormalFromDepth(
-	uint2 pixel, uint2 dim, float centerDepth) {
+float3 EstimateWorldNormalFromPosition(
+	uint2 pixel, uint2 dim) {
 
 	uint2 leftPixel = uint2((pixel.x > 0) ? pixel.x - 1 : pixel.x, pixel.y);
 	uint2 rightPixel = uint2(min(pixel.x + 1, dim.x - 1), pixel.y);
 	uint2 upPixel = uint2(pixel.x, (pixel.y > 0) ? pixel.y - 1 : pixel.y);
 	uint2 downPixel = uint2(pixel.x, min(pixel.y + 1, dim.y - 1));
 
-	float2 uvCenter = (float2(pixel) + 0.5f) / float2(dim);
-	float2 uvLeft = (float2(leftPixel) + 0.5f) / float2(dim);
-	float2 uvRight = (float2(rightPixel) + 0.5f) / float2(dim);
-	float2 uvUp = (float2(upPixel) + 0.5f) / float2(dim);
-	float2 uvDown = (float2(downPixel) + 0.5f) / float2(dim);
+	float3 p = LoadPrimaryWorldPosition(pixel);
+	float3 pl = LoadPrimaryWorldPosition(leftPixel);
+	float3 pr = LoadPrimaryWorldPosition(rightPixel);
+	float3 pu = LoadPrimaryWorldPosition(upPixel);
+	float3 pd = LoadPrimaryWorldPosition(downPixel);
 
-	float leftDepth = gSourceDepth.Load(int3(leftPixel, 0));
-	float rightDepth = gSourceDepth.Load(int3(rightPixel, 0));
-	float upDepth = gSourceDepth.Load(int3(upPixel, 0));
-	float downDepth = gSourceDepth.Load(int3(downPixel, 0));
-
-	float3 p = ReconstructWorldPosition(uvCenter, centerDepth);
-	float3 pl = ReconstructWorldPosition(uvLeft, leftDepth);
-	float3 pr = ReconstructWorldPosition(uvRight, rightDepth);
-	float3 pu = ReconstructWorldPosition(uvUp, upDepth);
-	float3 pd = ReconstructWorldPosition(uvDown, downDepth);
-
-	float3 dx = (abs(rightDepth - centerDepth) <
-		abs(leftDepth - centerDepth)) ? (pr - p) : (p - pl);
-	float3 dy = (abs(downDepth - centerDepth) <
-		abs(upDepth - centerDepth)) ? (pd - p) : (p - pu);
+	float3 dx = (length(pr - p) < length(p - pl)) ? (pr - p) : (p - pl);
+	float3 dy = (length(pd - p) < length(p - pu)) ? (pd - p) : (p - pu);
 
 	float3 n = SafeNormalize(cross(dy, dx), float3(0.0f, 1.0f, 0.0f));
 	float3 toCamera = SafeNormalize(
@@ -786,20 +762,19 @@ void ReflectionRayGen() {
 	uint2 pixel = DispatchRaysIndex().xy;
 	uint2 dim = DispatchRaysDimensions().xy;
 	uint2 sourceDim;
-	gSourceDepth.GetDimensions(sourceDim.x, sourceDim.y);
+	gSourcePosition.GetDimensions(sourceDim.x, sourceDim.y);
 	float2 sourceUV = (float2(pixel) + 0.5f) / float2(dim);
 	uint2 sourcePixel = min(
 		uint2(sourceUV * float2(sourceDim)), sourceDim - 1u);
 
-	float depthValue = gSourceDepth.Load(int3(sourcePixel, 0));
+	uint surfaceFlags = gSourceFlags.Load(int3(sourcePixel, 0));
 
 	// 背景画素はLightingPassがskyboxを書いているのでそのまま残す
-	if (depthValue >= 1.0f) {
+	if ((surfaceFlags & kMaterialFlagSurface) == 0u) {
 		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
 	}
 	// 反射を受けないサーフェイスはそのまま残す
-	uint surfaceFlags = gSourceFlags.Load(int3(sourcePixel, 0));
 	if ((surfaceFlags & kMaterialFlagReceiveReflection) == 0u) {
 		StoreReflectionTrace(pixel, 0.0f.xxxx, 0.0f, 0.0f.xxxx);
 		return;
@@ -822,8 +797,8 @@ void ReflectionRayGen() {
 	float3 worldNormal = DecodeWorldNormal(
 		gSourceNormal.Load(int3(sourcePixel, 0)).xyz);
 	if (dot(worldNormal, worldNormal) <= 1e-6f) {
-		worldNormal = EstimateWorldNormalFromDepth(
-			sourcePixel, sourceDim, depthValue);
+		worldNormal = EstimateWorldNormalFromPosition(
+			sourcePixel, sourceDim);
 	}
 
 	float3 V = SafeNormalize(

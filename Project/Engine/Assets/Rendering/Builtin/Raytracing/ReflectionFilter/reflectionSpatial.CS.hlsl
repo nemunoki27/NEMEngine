@@ -70,7 +70,8 @@ float4 RemoveIsolatedFirefly(uint2 pixel, uint2 outputSize,
 
 			uint2 sampleGeometry = MapPixelToTexture(
 				uint2(samplePixel), outputSize, geometrySize);
-			float sampleDepth = gSourceDepth.Load(int3(sampleGeometry, 0));
+			float sampleDepth = ProjectReflectionSurfaceDepth(
+				gSourcePosition.Load(int3(sampleGeometry, 0)).xyz);
 			float3 sampleNormal = DecodeGBufferNormal(
 				gSourceNormal.Load(int3(sampleGeometry, 0)).xyz);
 			if (abs(sampleDepth - centerDepth) > 0.005f ||
@@ -120,10 +121,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		return;
 	}
 	uint2 geometrySize;
-	gSourceDepth.GetDimensions(geometrySize.x, geometrySize.y);
+	gSourcePosition.GetDimensions(geometrySize.x, geometrySize.y);
 	uint2 centerGeometry = MapPixelToTexture(
 		dispatchThreadID.xy, outputSize, geometrySize);
-	float centerDepth = gSourceDepth.Load(int3(centerGeometry, 0));
+	float centerDepth = ProjectReflectionSurfaceDepth(
+		gSourcePosition.Load(int3(centerGeometry, 0)).xyz);
 	float3 centerNormal = DecodeGBufferNormal(
 		gSourceNormal.Load(int3(centerGeometry, 0)).xyz);
 	if (0.5f < antiFirefly) {
@@ -165,7 +167,8 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 			}
 			uint2 sampleGeometry = MapPixelToTexture(
 				uint2(samplePixel), outputSize, geometrySize);
-			float sampleDepth = gSourceDepth.Load(int3(sampleGeometry, 0));
+			float sampleDepth = ProjectReflectionSurfaceDepth(
+				gSourcePosition.Load(int3(sampleGeometry, 0)).xyz);
 			float3 sampleNormal = DecodeGBufferNormal(
 				gSourceNormal.Load(int3(sampleGeometry, 0)).xyz);
 			float3 samplePosition = gSourcePosition.Load(

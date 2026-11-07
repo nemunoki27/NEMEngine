@@ -33,6 +33,7 @@ namespace {
 			in.value("uvPerCharacter", component.uvPerCharacter);
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 		component.renderingLayerMask = in.value(
 			"renderingLayerMask", component.renderingLayerMask) &
 			Engine::kRenderingLayerMaskBits;
@@ -55,6 +56,7 @@ namespace {
 		out["uvPerCharacter"] = component.uvPerCharacter;
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderSettings"] = component.renderSettings;
 		out["renderingLayerMask"] = component.renderingLayerMask &
 			Engine::kRenderingLayerMaskBits;
 		out["dimension"] = static_cast<int>(component.dimension);

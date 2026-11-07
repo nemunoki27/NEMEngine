@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 
 // c++
 #include <memory>
@@ -48,6 +49,8 @@ namespace Engine {
 		bool twoSidedRasterizer = false;
 		// 静的サンプラー上書きのハッシュ値
 		uint64_t samplerHash = 0;
+		// 正規化したRendererの個別描画状態
+		RendererRenderSettings rendererSettings{};
 
 		// 比較演算子
 		bool operator==(const PipelineCacheKey& rhs) const noexcept;
@@ -79,7 +82,8 @@ namespace Engine {
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr,
-			AssetID shaderOverrideAssetID = {}, bool forceTwoSidedRasterizer = false);
+			AssetID shaderOverrideAssetID = {}, bool forceTwoSidedRasterizer = false,
+			const RendererRenderSettings* renderSettings = nullptr);
 		// 状態、形状ステージ、Materialステージを合成して取得する
 		const PipelineState* GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
@@ -87,7 +91,8 @@ namespace Engine {
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr,
-			bool forceTwoSidedRasterizer = false);
+			bool forceTwoSidedRasterizer = false,
+			const RendererRenderSettings* renderSettings = nullptr);
 
 		// データクリア
 		void Clear();

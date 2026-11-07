@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Editor/UI/Inspectors/Common/TimeSourceFields.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDrawer.h>
@@ -101,7 +102,9 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	if (ImGui::BeginTabBar("##ParticleSystemSettings")) {
 		ParticleEmitterDrawer emitter(settingsEditor_, status_);
 		ParticlePhaseDrawer phases(settingsEditor_, status_, moduleSearch_);
-		changed |= emitter.Draw(context, settingsEditor_.GetDraft(), draft.simulationTarget);
+		changed |= emitter.Draw(context, settingsEditor_.GetDraft(), draft.simulationTarget, [&] {
+			PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
+		});
 		changed |= phases.Draw(context, settingsEditor_.GetDraft(), settingsEditor_.GetEditorState(), draft.simulationTarget);
 		if (gpu) changed |= ParticleFeedbackDrawer::Draw(context, world, entity, settingsEditor_.GetDraft().feedback);
 		ImGui::EndTabBar();

@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
@@ -45,6 +46,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
+	PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
 	//============================================================================
 	//	ライン描画パラメータ
 	//============================================================================

@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/DepthPyramidTexture.h>
 #include <Engine/Core/Rendering/Particle/ParticleOpaqueDepthSnapshot.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RendererDepthAttachments.h>
 
 // c++
 #include <cstdint>
@@ -131,6 +132,8 @@ namespace Engine {
 		DepthPyramidTexture& GetDepthPyramid() { return depthPyramid_; }
 		const DepthPyramidTexture& GetDepthPyramid() const { return depthPyramid_; }
 
+		RendererDepthAttachments& GetRendererDepthAttachments() { return rendererDepthAttachments_; }
+		DepthTextureSnapshot& GetOutlineDepthSnapshot() { return outlineDepth_; }
 		ParticleOpaqueDepthSnapshot& GetParticleOpaqueDepthSnapshot() { return particleOpaqueDepth_; }
 		const ParticleOpaqueDepthSnapshot& GetParticleOpaqueDepthSnapshot() const { return particleOpaqueDepth_; }
 
@@ -185,6 +188,8 @@ namespace Engine {
 		std::unique_ptr<MultiRenderTarget> sceneColorOpaque_;
 		DepthPyramidTexture depthPyramid_{};
 		ParticleOpaqueDepthSnapshot particleOpaqueDepth_;
+		DepthTextureSnapshot outlineDepth_;
+		RendererDepthAttachments rendererDepthAttachments_;
 		// Runtime ScreenSpaceOutlineComponent用
 		ScreenSpaceOutlineViewResources runtimeOutline_{};
 		// Editor選択temporary request用

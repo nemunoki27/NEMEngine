@@ -10,6 +10,7 @@
 #include "ParticleSystemSettingsStorage.h"
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 
 // c++
 #include <unordered_map>
@@ -164,6 +165,8 @@ namespace Engine {
 		uint32_t randomSeed = 0;
 		bool drawEmitterShape = false;
 		bool visible = true;
+		// マテリアルから継承する描画設定
+		RendererRenderSettings renderSettings{.cullMode = RendererCullMode::NONE, .depthWrite = false};
 
 		static void OnAdded(
 			ECSWorld& world, const Entity& entity, ParticleSystemComponent& component);

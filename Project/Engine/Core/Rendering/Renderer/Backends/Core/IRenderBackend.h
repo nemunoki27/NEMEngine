@@ -73,6 +73,8 @@ namespace Engine {
 
 		// 描画で使用するMaterialパス
 		MaterialPassKind passKind = MaterialPassKind::Draw;
+		// 通常描画へ適用するRendererの個別設定
+		const RendererRenderSettings* renderSettings = nullptr;
 		bool depthOnly = false;
 		bool forceTwoSidedRasterizer = false;
 

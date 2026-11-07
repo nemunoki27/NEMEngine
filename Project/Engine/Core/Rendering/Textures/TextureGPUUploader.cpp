@@ -100,14 +100,14 @@ namespace {
 	}
 }
 
-void Engine::TextureGPUUploader::Init(ID3D12Device* device, SRVDescriptor* descriptor) {
+void Engine::TextureGPUUploader::Init(ID3D12Device* device, SRVDescriptor* descriptor, ID3D12CommandQueue* queue) {
 
 	if (!descriptor) throw std::invalid_argument("TextureのDescriptorが指定されていません");
 	if (uploadCommand_) throw std::logic_error("TextureGPUUploaderは初期化済みです");
 
 	// 転送用資源の作成後に初期化状態を公開する
 	auto command = std::make_unique<DxUploadCommand>();
-	command->Create(device);
+	command->Create(device, queue);
 	device_ = device;
 	srvDescriptor_ = descriptor;
 	uploadCommand_ = std::move(command);

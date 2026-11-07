@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
 // c++
 #include <array>
@@ -38,6 +39,38 @@ namespace {
 		const D3D12_RANGE writtenRange{0, 0};
 		readback->Unmap(0, &writtenRange);
 		return valid;
+	}
+
+	bool CheckSharedTexturePublication(ID3D12Device* device, ID3D12CommandQueue* queue) {
+
+		Engine::GraphicsResourceRetirement retirement;
+		Engine::SRVDescriptor descriptors;
+		descriptors.Init(device, {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE});
+		descriptors.SetRetirementQueue(retirement);
+		Engine::TextureUploadService textures;
+		textures.Init(device, &descriptors, queue);
+		ComPtr<ID3D12Fence> gate;
+		if (FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)))) return false;
+		struct GateLifetime {
+			ID3D12Fence* fence;
+			~GateLifetime() { fence->Signal(1); }
+		} lifetime{gate.Get()};
+		if (FAILED(queue->Wait(gate.Get(), 1))) return false;
+		textures.RequestSolidColor1x1("SharedQueuePublication", 31, 63, 127, 255);
+		// 描画Queueが未完了でもCPUを待たず、転送前のSRVを公開しない
+		textures.TickFinalize();
+		textures.TickFinalize();
+		const bool pending = textures.GetTexture("SharedQueuePublication") == nullptr &&
+			textures.GetState("SharedQueuePublication") == Engine::TextureRequestState::Queued;
+		if (FAILED(gate->Signal(1))) return false;
+		textures.WaitAll();
+		const auto* texture = textures.GetTexture("SharedQueuePublication");
+		const bool published = texture && texture->valid && texture->resource &&
+			textures.GetState("SharedQueuePublication") == Engine::TextureRequestState::Ready;
+		textures.Finalize();
+		retirement.Seal(1);
+		retirement.Collect(1);
+		return pending && published;
 	}
 }
 
@@ -84,7 +117,7 @@ bool NEMTests::CheckAsyncUploadLifetime(ID3D12Device* device, ID3D12CommandQueue
 	valid &= uploads.TryFinalize() && ReadMatches(readback.Get(), &expected, sizeof(expected));
 	// 同じAllocatorの次の転送も完了後にだけ再利用する
 	uploads.ExecuteCommands({});
-	return valid && uploads.TryFinalize();
+	return valid && uploads.TryFinalize() && CheckSharedTexturePublication(device, queue);
 }
 
 bool NEMTests::CheckUploadPageReuse(ID3D12Device* device, ID3D12CommandQueue* queue) {

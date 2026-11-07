@@ -6,6 +6,7 @@
 #include "ManagedScriptUtility.h"
 #include "ManagedCameraSettings.h"
 #include "ManagedMotionAnimationSettings.h"
+#include "ManagedRendererSettings.h"
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -75,6 +76,8 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			const auto* component = world->TryGetComponentForBinding<MeshRendererComponent>(target);
 			if (!component) return -1;
 			SerializeMeshRenderer(*component, GetMeshSubMeshes(*world, target), data);
+		} else if (const auto* settings = ResolveRendererSettings(*world, target, type)) {
+			data = {{"renderSettings", *settings}};
 		} else if (type == 16 || type == 17) {
 			const auto* camera = ResolveCamera(*world, target, type);
 			const auto* context = GetCurrentContext();
@@ -137,6 +140,17 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			if (persisted.sourceAsset == source->source.sourceAsset && persisted.localFileID == source->source.localFileID)
 				source->runtimeSourceID = world->GetUUID(ResolveEntity(reference));
 		};
+		if (data.value("renderSettingsPatch", false)) {
+			auto* settings = ResolveRendererSettings(*world, target, type);
+			if (!settings) return 0;
+			auto candidate = *settings;
+			from_json(data.at("renderSettings"), candidate);
+			if (candidate != *settings) {
+				*settings = candidate;
+				world->MarkComponentModified(target, type);
+			}
+			return 1;
+		}
 		if (data.value("timeSourcePatch", false)) {
 			auto* source = ResolveComponentTimeSource(*world, target, type);
 			if (!source) return 0;

@@ -141,11 +141,11 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 				const auto shaderID = ShaderGraphArtifactCache::MakeParticleGPUShaderID(material.material->shaderGraph);
 				pipeline = context.pipelineCache->GetORCreateComposed(graphics.GetDXObject(), *context.assetLibrary,
 					material.pass->pipeline, pipelineID, shaderID, PipelineVariantKind::GraphicsVertex,
-					context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, nullptr, false);
+					context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, nullptr, false, context.renderSettings);
 			} else {
 				pipeline = context.pipelineCache->GetORCreate(graphics.GetDXObject(), *context.assetLibrary,
 					pipelineID, PipelineVariantKind::GraphicsVertex, context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures,
-					nullptr, false, nullptr, {}, false);
+					nullptr, false, nullptr, {}, false, context.renderSettings);
 			}
 			if (!pipeline) return;
 			constants.phaseIndex = phase;

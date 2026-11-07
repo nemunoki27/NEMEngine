@@ -274,6 +274,7 @@ void Engine::from_json(
 	component.randomSeed = in.value("randomSeed", 0u);
 	component.drawEmitterShape = in.value("drawEmitterShape", false);
 	component.visible = in.value("visible", true);
+	if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 }
 
 void Engine::to_json(
@@ -295,4 +296,5 @@ void Engine::to_json(
 	out["randomSeed"] = component.randomSeed;
 	out["drawEmitterShape"] = component.drawEmitterShape;
 	out["visible"] = component.visible;
+	out["renderSettings"] = component.renderSettings;
 }

@@ -46,6 +46,9 @@ namespace Engine::BackendDrawCommon {
 		DefaultMaterialSlot defaultSlot, const std::initializer_list<MaterialPassKind>& passKinds,
 		ResolvedMaterialPass& outResolved);
 
+	// Renderer設定を適用する描画パスか
+	bool UsesRendererSettings(const RenderDrawContext& context);
+
 	// パイプラインを取得、outVariantを渡すと解決済みバリアントも受け取れる
 	// forceDepthTestWriteを立てると深度テスト+書き込みを強制した別PSOを取得する
 	const PipelineState* ResolveGraphicsPipeline(const RenderDrawContext& context,
@@ -108,6 +111,9 @@ namespace Engine::BackendDrawCommon {
 		const MaterialParameterSet* overrides,
 		PipelineBindingCache& bindCache, PipelineBindingCache::SlotID slot,
 		ID3D12GraphicsCommandList* commandList);
+
+	// Rendererの描画状態を同じバッチへまとめられるか
+	bool CanBatchRenderSettings(const RenderItem& first, const RenderItem& next);
 
 	// 描画アイテムがバッチ可能か
 	bool CanBatchBasic(const RenderItem& first, const RenderItem& next);

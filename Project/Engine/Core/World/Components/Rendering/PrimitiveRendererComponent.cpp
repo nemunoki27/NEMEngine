@@ -166,6 +166,7 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveRendererComponent& com
 	ReadMaterialInstance(in.value("materialInstance", nlohmann::json::object()), component.materialInstance);
 
 	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 	ReadMeshRenderFlags(in, component.renderFlags);
 	component.receiveDecals = in.value("receiveDecals", component.receiveDecals);
 	component.renderingLayerMask =
@@ -191,6 +192,7 @@ void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& comp
 	out["materialInstance"] = WriteMaterialInstance(component.materialInstance);
 
 	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
+	out["renderSettings"] = component.renderSettings;
 	WriteMeshRenderFlags(out, component.renderFlags);
 	out["receiveDecals"] = component.receiveDecals;
 	out["renderingLayerMask"] =

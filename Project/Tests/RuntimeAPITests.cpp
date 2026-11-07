@@ -1,4 +1,6 @@
 #include "RuntimeAPITests.h"
+#include "RendererRenderSettingsTests.h"
+#include "RendererPipelineSettingsTests.h"
 
 //============================================================================
 //	include
@@ -170,6 +172,6 @@ namespace {
 
 bool NEMTests::TestRuntimeAPIContracts() {
 
-	return CheckBindings() && CheckPendingParticleSettings() && CheckMaterialNames() &&
+	return TestRendererRenderSettings() && TestRendererPipelineSettings() && CheckBindings() && CheckPendingParticleSettings() && CheckMaterialNames() &&
 		CheckRuntimeAssetRestore() && CheckTextAssetTypes();
 }

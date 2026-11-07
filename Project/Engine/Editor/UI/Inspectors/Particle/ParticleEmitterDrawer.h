@@ -5,6 +5,9 @@
 //============================================================================
 #include "ParticleSettingsEditSession.h"
 
+// c++
+#include <functional>
+
 namespace Engine {
 
 	//============================================================================
@@ -19,7 +22,8 @@ namespace Engine {
 
 		ParticleEmitterDrawer(ParticleSettingsEditSession& session, std::string& status);
 		// 編集結果を呼出元のsessionへ返す
-		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget);
+		bool Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget,
+			const std::function<void()>& drawRenderSettings);
 	private:
 		//========================================================================
 		//	private Methods

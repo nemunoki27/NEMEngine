@@ -60,17 +60,25 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	if (hullOutline && outlineMetrics.hasScreenPixelWidth) {
 		canCull = false;
 	}
+	// 個別の背面描画やステンシル失敗処理をカリングで省略しない
+	const auto* settings = BackendDrawCommon::UsesRendererSettings(drawContext) ? drawContext.renderSettings : nullptr;
+	const bool individualSettings = settings && !settings->inheritMaterial;
+	const bool stencilEnabled = individualSettings && settings->stencilEnabled;
+	const bool normalConeCompatible = !individualSettings || settings->cullMode == RendererCullMode::BACK;
+	const bool occlusionCompatible = !individualSettings || (settings->depthTest && !stencilEnabled &&
+		(settings->depthComparison == RendererDepthComparison::LESS ||
+			settings->depthComparison == RendererDepthComparison::LESS_EQUAL));
 	const bool frustumCullingEnabled =
 		canCull &&
 		drawContext.runtimeFeatures.useFrustumCulling;
 	const bool contributionCullingEnabled =
-		!hullOutline && canCull &&
+		!hullOutline && canCull && !stencilEnabled &&
 		drawContext.runtimeFeatures.useContributionCulling;
 	const bool normalConeCullingEnabled =
-		!hullOutline && canCull && normalConeAllowed && maxDisplacement == 0.0f &&
+		!hullOutline && canCull && normalConeAllowed && normalConeCompatible && maxDisplacement == 0.0f &&
 		drawContext.runtimeFeatures.useNormalConeCulling;
 	const bool occlusionCullingEnabled =
-		!hullOutline && canCull &&
+		!hullOutline && canCull && occlusionCompatible &&
 		drawContext.passKind != MaterialPassKind::ZPrepass &&
 		drawContext.passKind != MaterialPassKind::EditorPicking &&
 		drawContext.runtimeFeatures.useOcclusionCulling &&

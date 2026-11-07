@@ -34,14 +34,14 @@ Engine::TextureUploadService::~TextureUploadService() {
 	Finalize();
 }
 
-void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
+void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* queue) {
 
 	Finalize();
 	InitCacheTracking(device);
 
 	srvDescriptor_ = srvDescriptor;
 
-	uploader_.Init(device, srvDescriptor);
+	uploader_.Init(device, srvDescriptor, queue);
 	acceptingDecodes_ = true;
 
 	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());

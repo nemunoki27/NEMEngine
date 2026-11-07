@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPayloadArena.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPhase.h>
@@ -135,6 +136,9 @@ namespace Engine {
 		Vector3 sortPosition = Vector3::AnyInit(0.0f);
 		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
 		uint32_t motionFrameSerial = 0;
+
+		// Rendererごとの描画状態
+		RendererRenderSettings renderSettings{};
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;

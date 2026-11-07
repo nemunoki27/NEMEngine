@@ -54,6 +54,7 @@ namespace Engine {
 			item.world = &world;
 			item.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 			item.renderPhase = renderer.queue;
+			item.renderSettings = renderer.renderSettings;
 			if constexpr (requires { renderer.renderingLayerMask; }) {
 				item.renderingLayerMask = renderer.renderingLayerMask &
 					kRenderingLayerMaskBits;

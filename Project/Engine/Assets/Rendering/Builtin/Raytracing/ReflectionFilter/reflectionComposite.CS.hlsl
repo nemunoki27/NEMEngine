@@ -31,11 +31,10 @@ float4 CompositeReflection(uint2 pixel, uint2 outputSize, float4 sourceColor) {
 		float2(outputSize) * float2(reflectionSize) - 0.5f;
 	int2 basePixel = int2(floor(reflectionPosition));
 	float2 fractionValue = frac(reflectionPosition);
-	float centerDepth = gSourceDepth.Load(int3(pixel, 0));
-	if (centerDepth >= 1.0f) {
+	uint surfaceFlags = gSourceFlags.Load(int3(pixel, 0));
+	if ((surfaceFlags & kReflectionFilterSurface) == 0u) {
 		return sourceColor;
 	}
-	uint surfaceFlags = gSourceFlags.Load(int3(pixel, 0));
 	float roughness = clamp(gSourceMaterial.Load(
 		int3(pixel, 0)).g, 0.04f, 1.0f);
 	float roughnessFadeStart = max(
@@ -51,6 +50,7 @@ float4 CompositeReflection(uint2 pixel, uint2 outputSize, float4 sourceColor) {
 		gSourceNormal.Load(int3(pixel, 0)).xyz);
 	float3 centerPosition =
 		gSourcePosition.Load(int3(pixel, 0)).xyz;
+	float centerDepth = ProjectReflectionSurfaceDepth(centerPosition);
 
 	float4 reflection = 0.0f.xxxx;
 	float totalWeight = 0.0f;
@@ -68,11 +68,11 @@ float4 CompositeReflection(uint2 pixel, uint2 outputSize, float4 sourceColor) {
 			}
 			uint2 geometryPixel = MapPixelToTexture(
 				uint2(samplePixel), reflectionSize, outputSize);
-			float sampleDepth = gSourceDepth.Load(int3(geometryPixel, 0));
 			float3 sampleNormal = DecodeGBufferNormal(
 				gSourceNormal.Load(int3(geometryPixel, 0)).xyz);
 			float3 samplePosition =
 				gSourcePosition.Load(int3(geometryPixel, 0)).xyz;
+			float sampleDepth = ProjectReflectionSurfaceDepth(samplePosition);
 			// 半解像度側の被覆率を現在画素のラフネス被覆率へ補正する
 			float sampleVisibility = max(sampleReflection.a, 0.05f);
 			sampleReflection.rgb *= roughnessVisibility / sampleVisibility;

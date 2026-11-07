@@ -1,24 +1,5 @@
 #include "reflectionFilterCommon.hlsli"
 
-cbuffer PostProcessFrameConstants : register(b0) {
-
-	float2 resolution;
-	float2 invResolution;
-	float time;
-	float deltaTime;
-	uint frameIndex;
-	float _framePad0;
-	float cameraNear;
-	float cameraFar;
-	float2 framePadding;
-	float3 cameraWorldPos;
-	float _framePad2;
-	float4x4 cameraView;
-	float4x4 cameraViewInverse;
-	float4x4 cameraProjection;
-	float4x4 cameraProjectionInverse;
-};
-
 cbuffer PostProcessParameters : register(b1) {
 
 	float historyWeight;
@@ -191,14 +172,13 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	}
 
 	uint2 geometrySize;
-	gSourceDepth.GetDimensions(geometrySize.x, geometrySize.y);
+	gSourcePosition.GetDimensions(geometrySize.x, geometrySize.y);
 	uint2 geometryPixel = MapPixelToTexture(
 		dispatchThreadID.xy, outputSize, geometrySize);
 	float2 uv = (float2(dispatchThreadID.xy) + 0.5f) /
 		float2(outputSize);
-	float depth = gSourceDepth.Load(int3(geometryPixel, 0));
-	float3 worldPosition =
-		gSourcePosition.Load(int3(geometryPixel, 0)).xyz;
+	float4 surfacePosition = gSourcePosition.Load(int3(geometryPixel, 0));
+	float3 worldPosition = surfacePosition.xyz;
 	float3 worldNormal = DecodeGBufferNormal(
 		gSourceNormal.Load(int3(geometryPixel, 0)).xyz);
 
@@ -210,7 +190,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		// 現在画素が反射対象外なら過去の反射を持ち越さない
 		gDestColor[dispatchThreadID.xy] = 0.0f.xxxx;
 		gHistoryGeometryOutput[dispatchThreadID.xy] = float4(
-			worldPosition, depth < 1.0f ? 1.0f : 0.0f);
+			worldPosition, surfacePosition.w > 0.0f ? 1.0f : 0.0f);
 		gHistoryNormalOutput[dispatchThreadID.xy] =
 			EncodeOctahedralNormal(worldNormal);
 		gHistoryHitGeometryOutput[dispatchThreadID.xy] =
@@ -239,7 +219,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		currentColor.rgb, historyColor.rgb, temporalWeight);
 	gDestColor[dispatchThreadID.xy] = filtered;
 	gHistoryGeometryOutput[dispatchThreadID.xy] = float4(
-		worldPosition, depth < 1.0f ? 1.0f : 0.0f);
+		worldPosition, surfacePosition.w > 0.0f ? 1.0f : 0.0f);
 	gHistoryNormalOutput[dispatchThreadID.xy] =
 		EncodeOctahedralNormal(worldNormal);
 	gHistoryHitGeometryOutput[dispatchThreadID.xy] =

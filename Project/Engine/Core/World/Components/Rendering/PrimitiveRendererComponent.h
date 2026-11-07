@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 
@@ -191,6 +192,8 @@ namespace Engine {
 		int32_t order = 0;
 		// 表示フラグ
 		bool visible = true;
+		// マテリアルから継承する描画設定
+		RendererRenderSettings renderSettings{};
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;

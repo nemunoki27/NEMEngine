@@ -62,6 +62,13 @@ bool Engine::BackendDrawCommon::ResolveMaterialPass(const RenderDrawContext& con
 	return true;
 }
 
+bool Engine::BackendDrawCommon::UsesRendererSettings(const RenderDrawContext& context) {
+
+	return !context.forceTwoSidedRasterizer &&
+		(context.passKind == MaterialPassKind::Draw || context.passKind == MaterialPassKind::Masked ||
+			context.passKind == MaterialPassKind::Transparent || context.passKind == MaterialPassKind::ZPrepass);
+}
+
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const RenderDrawContext& context, const MaterialPassBinding& passBinding,
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
@@ -79,7 +86,8 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
 		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides,
-		passBinding.shaderOverride, context.forceTwoSidedRasterizer);
+		passBinding.shaderOverride, context.forceTwoSidedRasterizer,
+		UsesRendererSettings(context) ? context.renderSettings : nullptr);
 }
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(
@@ -89,7 +97,7 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsP
 	return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, geometryPipeline, passBinding.shaderOverride, desiredKind,
 		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant,
-		context.forceTwoSidedRasterizer);
+		context.forceTwoSidedRasterizer, UsesRendererSettings(context) ? context.renderSettings : nullptr);
 }
 
 ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(const RenderDrawContext& context,
@@ -103,6 +111,11 @@ ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(con
 	pipelineState.BindGlobalDescriptorTablesGraphics(commandList,
 		context.graphicsCore->GetSRVDescriptor().GetGPUHandle(0));
 	commandList->SetPipelineState(pipelineState.GetGraphicsPipeline(blendMode));
+	if (UsesRendererSettings(context)) {
+		const auto* settings = context.renderSettings;
+		commandList->OMSetStencilRef(settings && !settings->inheritMaterial && settings->stencilEnabled
+			? settings->stencilReference : 0u);
+	}
 
 	return commandList;
 }
@@ -283,6 +296,12 @@ void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDraw
 	}
 }
 
+bool Engine::BackendDrawCommon::CanBatchRenderSettings(const RenderItem& first, const RenderItem& next) {
+
+	return (first.renderSettings.inheritMaterial && next.renderSettings.inheritMaterial) ||
+		first.renderSettings == next.renderSettings;
+}
+
 bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const RenderItem& next) {
 
 	return first.sortingLayer == next.sortingLayer &&
@@ -292,7 +311,8 @@ bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const Ren
 		first.material == next.material &&
 		first.blendMode == next.blendMode &&
 		first.surfaceMode == next.surfaceMode &&
-		first.batchKey == next.batchKey;
+		first.batchKey == next.batchKey &&
+		CanBatchRenderSettings(first, next);
 }
 
 

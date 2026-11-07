@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RendererRenderSettings.h>
 
 // c++
 #include <span>
@@ -51,6 +52,8 @@ namespace Engine {
 		int32_t order = 0;
 		// 表示フラグ
 		bool visible = true;
+		// マテリアルから継承する描画設定
+		RendererRenderSettings renderSettings{.cullMode = RendererCullMode::NONE, .depthWrite = false};
 		// RenderFeatureとLightが参照する描画レイヤー
 		uint32_t renderingLayerMask = 1u;
 

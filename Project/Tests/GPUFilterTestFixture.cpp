@@ -128,7 +128,7 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 	parameters[1].InitAsDescriptorTable(1, &ranges[1]);
 	parameters[2].InitAsConstants(static_cast<UINT>(constants.size()), layout ? layout->constantRegister : 1);
 	const bool useFrameConstants = layout && !layout->frameConstants.empty();
-	if (useFrameConstants) parameters[3].InitAsConstants(static_cast<UINT>(layout->frameConstants.size()), 0);
+	if (useFrameConstants) parameters[3].InitAsConstantBufferView(0);
 	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(useFrameConstants ? 4u : 3u, parameters);
 	ComPtr<ID3DBlob> signature, errors;
 	Require(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &errors));
@@ -225,8 +225,17 @@ std::vector<NEMTests::FilterTestTexture> NEMTests::RunFilterShader(ID3D12Device*
 	commands->SetComputeRootDescriptorTable(0, heap->GetGPUDescriptorHandleForHeapStart());
 	commands->SetComputeRootDescriptorTable(1, CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->GetGPUDescriptorHandleForHeapStart(), 26, stride));
 	commands->SetComputeRoot32BitConstants(2, static_cast<UINT>(constants.size()), constants.data(), 0);
-	if (useFrameConstants) commands->SetComputeRoot32BitConstants(3,
-		static_cast<UINT>(layout->frameConstants.size()), layout->frameConstants.data(), 0);
+	ComPtr<ID3D12Resource> frameConstants;
+	if (useFrameConstants) {
+		const size_t bytes = (layout->frameConstants.size_bytes() + 255u) & ~size_t(255u);
+		DxUtils::CreateUploadBufferResource(device, frameConstants, bytes);
+		void* mapped = nullptr;
+		Require(frameConstants->Map(0, &noRead, &mapped));
+		std::memset(mapped, 0, bytes);
+		std::memcpy(mapped, layout->frameConstants.data(), layout->frameConstants.size_bytes());
+		frameConstants->Unmap(0, nullptr);
+		commands->SetComputeRootConstantBufferView(3, frameConstants->GetGPUVirtualAddress());
+	}
 	ComPtr<ID3D12QueryHeap> queries;
 	ComPtr<ID3D12Resource> timestamps;
 	if (gpuMs) {

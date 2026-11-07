@@ -62,7 +62,7 @@ namespace Engine {
 		~TextureUploadService();
 
 		// 初期化
-		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor);
+		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* queue = nullptr);
 
 		// 毎フレーム主スレッド更新
 		void TickFinalize();

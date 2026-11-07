@@ -34,6 +34,7 @@ void Engine::ParticleRenderItemExtractor::Extract(
 
 			RenderItem item{};
 			item.entity = entity;
+			item.renderSettings = component.renderSettings;
 			item.world = &world;
 			item.sceneInstanceID =
 				SceneObjectUtility::GetSceneInstanceID(world, entity);

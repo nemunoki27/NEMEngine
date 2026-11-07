@@ -33,11 +33,11 @@ void ParticleRenderBackend::DrawGPUTrails(const RenderDrawContext& context, cons
 		const auto shaderID = ShaderGraphArtifactCache::MakeParticleGPUShaderID(material.material->shaderGraph);
 		pipeline = context.pipelineCache->GetORCreateComposed(platform, *context.assetLibrary, material.pass->pipeline,
 			pipelineID, shaderID, PipelineVariantKind::GraphicsVertex, context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures,
-			nullptr, false);
+			nullptr, false, context.renderSettings);
 	} else {
 		pipeline = context.pipelineCache->GetORCreate(platform, *context.assetLibrary, pipelineID,
 			PipelineVariantKind::GraphicsVertex, context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures,
-			nullptr, false, nullptr, {}, false);
+			nullptr, false, nullptr, {}, false, context.renderSettings);
 	}
 	if (!pipeline) return;
 	const auto viewAllocation = constantBufferAllocator_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), constants);

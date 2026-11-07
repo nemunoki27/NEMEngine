@@ -23,7 +23,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		void Init(ID3D12Device* device, SRVDescriptor* descriptor);
+		void Init(ID3D12Device* device, SRVDescriptor* descriptor, ID3D12CommandQueue* queue = nullptr);
 		void Finalize();
 		// 待機を省いた候補は転送完了後に公開する
 		GPUTextureResource UploadSolidColor1x1(uint8_t r, uint8_t g, uint8_t b, uint8_t a, bool deferCompletion = false);

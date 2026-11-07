@@ -51,6 +51,8 @@ namespace NEMTests {
 		const std::filesystem::path& path, uint32_t width, uint32_t height, std::span<const FilterTestTexture> inputs,
 		std::span<const DXGI_FORMAT> outputFormats, std::span<const float> constants, double* gpuMs = nullptr,
 		const FilterTestLayout* layout = nullptr, FilterShaderCache* shaderCache = nullptr);
+	// 深度を書き込まない面の反射と履歴を確認する
+	bool CheckReflectionSurfaceDepth(ID3D12Device* device, ID3D12CommandQueue* queue);
 	// 指定した比較元と現在のShaderが同じ結果を返すか調べる
 	bool TestGPUFilterEquivalence();
 	// 重複と端数を含む一括遷移の状態と発行数を調べる

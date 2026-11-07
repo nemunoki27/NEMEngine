@@ -54,25 +54,21 @@ void Engine::InvertedHullOutlinePass::Execute(GraphicsCore& graphicsCore,
 
 		DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 
-		// SceneMainのstencilだけを0でclearし深度値は消さない
-		if (sceneDepth) {
-
-			sceneDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-			MultiRenderTargetClearDesc clear{};
-			clear.clearColor = false;
-			clear.clearDepth = false;
-			clear.clearStencil = true;
-			clear.clearStencilValue = 0;
-			sceneMain->Clear(*dxCommand, clear);
-		}
+		// 通常描画のステンシルを保持し、輪郭だけの作業領域へ分離する
+		if (!sceneDepth) return;
+		DepthTexture2D* outlineDepth = context.resources->GetOutlineDepthSnapshot().Copy(graphicsCore, *sceneDepth);
+		if (!outlineDepth) return;
+		outlineDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		dxCommand->GetCommandList()->ClearDepthStencilView(outlineDepth->GetDSVCPUHandle(),
+			D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		hullBinding.depthOverride = outlineDepth;
 
 		ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 		commandList->OMSetStencilRef(kOutlineStencilReference);
 
 		// 元メッシュ形状でsilhouetteをstencilへREPLACE書き込みする(RTVなし/深度のみ)
 		RenderPassExecutionHelper::Execute(graphicsCore, context, groups.stencilItems, deps_,
-			sceneMain, MaterialPassKind::OutlineStencilWrite, false, true);
+			RenderPassSurfaceBinding{sceneMain, outlineDepth}, MaterialPassKind::OutlineStencilWrite, false, true);
 
 		// stencilがreferenceと異なる箇所だけHullを描いて内部や重なりを抑制する
 		RenderPassExecutionHelper::Execute(graphicsCore, context, groups.stencilItems, deps_,

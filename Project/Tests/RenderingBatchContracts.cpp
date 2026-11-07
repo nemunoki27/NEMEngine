@@ -1,5 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
 #include <Engine/Core/Rendering/Core/GraphicsFeatureSelection.h>
@@ -48,6 +49,43 @@
 #include <unordered_map>
 
 namespace {
+
+	// 設定変更の再抽出とステンシル参照値ごとのバッチ分離を確認する
+	bool TestRendererSettingsBatchInvalidation() {
+
+		using namespace Engine;
+		ECSWorld world(ECSWorldKind::Runtime);
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "RendererSettings");
+		world.AddComponent<PrimitiveRendererComponent>(entity);
+		RenderExtractorRegistry extractors;
+		extractors.Register(std::make_unique<PrimitiveRenderItemExtractor>());
+		RenderSceneBatch batch;
+		extractors.BuildBatch(world, batch);
+		if (batch.GetItems().size() != 1 || !batch.GetItems().front().renderSettings.inheritMaterial) return false;
+		auto& settings = world.GetComponent<PrimitiveRendererComponent>(entity).renderSettings;
+		settings.inheritMaterial = false;
+		settings.fillMode = RendererFillMode::WireFrame;
+		settings.stencilEnabled = true;
+		settings.stencilReference = 17;
+		world.MarkComponentModified<PrimitiveRendererComponent>(entity);
+		extractors.BuildBatch(world, batch);
+		if (batch.GetItems().size() != 1 || batch.GetItems().front().renderSettings != settings) return false;
+		const RenderItem first = batch.GetItems().front();
+		RenderItem second = first;
+		if (!BackendDrawCommon::CanBatchBasic(first, second)) return false;
+		second.renderSettings.stencilReference = 18;
+		if (BackendDrawCommon::CanBatchBasic(first, second)) return false;
+		RenderItem inherited = first;
+		inherited.renderSettings.inheritMaterial = second.renderSettings.inheritMaterial = true;
+		if (!BackendDrawCommon::CanBatchBasic(inherited, second)) return false;
+		RenderDrawContext context;
+		if (!BackendDrawCommon::UsesRendererSettings(context)) return false;
+		context.passKind = MaterialPassKind::OutlineStencilTest;
+		if (BackendDrawCommon::UsesRendererSettings(context)) return false;
+		context.passKind = MaterialPassKind::ZPrepass;
+		context.forceTwoSidedRasterizer = true;
+		return !BackendDrawCommon::UsesRendererSettings(context);
+	}
 
 	// UVの変更だけで実際の描画キャッシュが更新されることを確認する
 	bool TestAnimatedUVBatchInvalidation() {
@@ -112,6 +150,10 @@ namespace NEMTests {
 	bool TestMeshBatchInvalidation() {
 
 		using namespace Engine;
+		if (!TestRendererSettingsBatchInvalidation()) {
+			std::cerr << "Renderer settings batch update failed\n";
+			return false;
+		}
 		if (!TestAnimatedUVBatchInvalidation()) {
 			std::cerr << "Flipbook UV cache update failed\n";
 			return false;

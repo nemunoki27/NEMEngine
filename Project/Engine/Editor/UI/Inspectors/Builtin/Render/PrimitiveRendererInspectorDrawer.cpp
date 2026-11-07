@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -64,6 +65,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
+	PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
 	// 描画パラメータ
 	InspectorDrawerCommon::DrawCommonRenderFields(context,
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },

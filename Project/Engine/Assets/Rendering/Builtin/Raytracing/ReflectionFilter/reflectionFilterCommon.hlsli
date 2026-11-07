@@ -1,7 +1,18 @@
 #ifndef NEM_REFLECTION_FILTER_COMMON_HLSLI
 #define NEM_REFLECTION_FILTER_COMMON_HLSLI
 
+#include "../../PostProcess/Common/postProcessFrame.hlsli"
+
+static const uint kReflectionFilterSurface = 1u;
 static const uint kReflectionFilterReceiveReflection = 1u << 4;
+
+// 深度を書き込まない面も、GBufferの位置から同じ投影深度で比較する
+float ProjectReflectionSurfaceDepth(float3 worldPosition) {
+
+	float4 clipPosition = mul(mul(float4(worldPosition, 1.0f),
+		cameraView), cameraProjection);
+	return saturate(clipPosition.z / max(abs(clipPosition.w), 1e-6f));
+}
 
 float3 DecodeGBufferNormal(float3 encodedNormal) {
 

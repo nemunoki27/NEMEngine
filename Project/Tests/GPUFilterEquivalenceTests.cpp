@@ -271,7 +271,7 @@ namespace {
 		using namespace NEMTests;
 		const uint32_t geometryWidth = width * scale + 1u, geometryHeight = height * scale + 1u;
 		const auto position = [](uint32_t x, uint32_t y) {
-			return std::array<float, 4>{ float(x) * 0.01f, float(y) * 0.01f, 0.0f, 1.0f };
+			return std::array<float, 4>{ float(x) * 0.01f, float(y) * 0.01f, 0.0f, x % 11u == 0u ? 0.0f : 1.0f };
 		};
 		const auto mappedPosition = [&](uint32_t x, uint32_t y) {
 			return position(uint32_t((float(x) + 0.5f) / width * geometryWidth),
@@ -361,7 +361,11 @@ namespace {
 			MakeTexture(width, height, DXGI_FORMAT_R32_FLOAT, [](uint32_t x, uint32_t) {
 				return std::array<float, 4>{ 1.0f + x * 0.05f, 0, 0, 0 };
 			}),
-			MakeTexture(width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Position),
+			MakeTexture(width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, [=](uint32_t x, uint32_t y) {
+			auto value = Position(x, y);
+			value[2] = composite && (x + y) % 11u == 0u ? 1.0f : 0.5f + x * 0.0001f;
+			return value;
+		}),
 			MakeTexture(width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t x, uint32_t) {
 				return std::array<float, 4>{ 0, x % 3u == 0u ? 0.02f : 0.7f, 0, 0 };
 			}) };
@@ -384,7 +388,7 @@ namespace {
 				return std::array<float, 4>{ 0, (x + y) % 5u == 0u ? 1.0f : 0.7f, 0, 0 };
 			});
 			inputs.push_back(MakeTexture(width, height, DXGI_FORMAT_R32_UINT, [](uint32_t x, uint32_t y) {
-				return std::array<float, 4>{ std::bit_cast<float>((x + y) % 11u == 0u ? 0u : 16u), 0, 0, 0 };
+				return std::array<float, 4>{ std::bit_cast<float>((x + y) % 11u == 0u ? 0u : 17u), 0, 0, 0 };
 			}));
 		}
 		const std::array formats{ DXGI_FORMAT_R32G32B32A32_FLOAT };
@@ -392,15 +396,21 @@ namespace {
 			antiFirefly ? 1.0f : 0.0f, 2.0f, 1.0f, 0.0f };
 		if (composite) constants = { 0.85f, 0.15f };
 		const auto relative = composite ? "Raytracing/ReflectionFilter/reflectionComposite.CS.hlsl" : "Raytracing/ReflectionFilter/reflectionSpatial.CS.hlsl";
+		std::array<float, 80> frame{};
+		for (size_t matrix = 16; matrix < frame.size(); matrix += 16) {
+			for (size_t diagonal = 0; diagonal < 16; diagonal += 5) frame[matrix + diagonal] = 1;
+		}
+		const std::array<uint32_t, 7> slots{0, 1, 2, 3, 4, 5, 6};
+		FilterTestLayout layout{.inputSlots = std::span(slots).first(inputs.size()), .frameConstants = frame};
 		double beforeMs = 0.0, afterMs = 0.0;
 		const auto expected = RunFilterShader(device, queue, reference / relative, width, height, inputs, formats, constants,
-			performance ? &beforeMs : nullptr, nullptr, &shaderCache);
+			performance ? &beforeMs : nullptr, &layout, &shaderCache);
 		const auto actual = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin") / relative,
-			width, height, inputs, formats, constants, performance ? &afterMs : nullptr, nullptr, &shaderCache);
+			width, height, inputs, formats, constants, performance ? &afterMs : nullptr, &layout, &shaderCache);
 		std::vector<FilterTestTexture> inPlace;
 		if (composite && !performance) {
-			const std::array<uint32_t, 7> slots{0, 1, 2, 3, 4, 5, 6};
-			FilterTestLayout layout{.inputSlots = slots, .entry = L"mainInPlace", .inPlaceSourceSlot = 0};
+			layout.entry = L"mainInPlace";
+			layout.inPlaceSourceSlot = 0;
 			inPlace = RunFilterShader(device, queue, Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin") / relative,
 				width, height, inputs, formats, constants, nullptr, &layout, &shaderCache);
 		}
@@ -423,6 +433,102 @@ namespace {
 		}
 		return true;
 	}
+}
+
+bool NEMTests::CheckReflectionSurfaceDepth(ID3D12Device* device, ID3D12CommandQueue* queue) {
+
+	FilterShaderCache shaders;
+	constexpr uint32_t width = 7, height = 5;
+	const auto texture = [](DXGI_FORMAT format, const auto& fill) {
+		return MakeTexture(width, height, format, fill);
+	};
+	const auto color = texture(DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t x, uint32_t y) {
+		return std::array<float, 4>{float(x + y) * 0.2f, 0.5f, 0.25f, x == 0 ? 0.0f : 1.0f};
+	});
+	const auto position = texture(DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t x, uint32_t y) {
+		return std::array<float, 4>{x * 0.01f, y * 0.01f, 0.5f + x * 0.01f, x == 0 ? 0.0f : 1.0f};
+	});
+	const auto depth = texture(DXGI_FORMAT_R32_FLOAT, [](uint32_t x, uint32_t) {
+		return std::array<float, 4>{x == 0 ? 1.0f : 0.5f + x * 0.01f, 0, 0, 0};
+	});
+	const auto normal = texture(DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t, uint32_t) {
+		return std::array<float, 4>{0.5f, 0.5f, 1.0f, 1.0f};
+	});
+	const auto material = texture(DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t, uint32_t) {
+		return std::array<float, 4>{0.5f, 0.6f, 0, 0};
+	});
+	const auto hit = texture(DXGI_FORMAT_R32G32B32A32_FLOAT, [](uint32_t x, uint32_t y) {
+		return std::array<float, 4>{x * 0.01f, y * 0.01f, 5.0f, 1.0f};
+	});
+	std::array<float, 80> frame{};
+	for (size_t matrix = 16; matrix < frame.size(); matrix += 16) {
+		for (size_t diagonal = 0; diagonal < 16; diagonal += 5) frame[matrix + diagonal] = 1;
+	}
+	const std::array<uint32_t, 10> slots{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+	const auto directory = Engine::RuntimePaths::GetEngineAssetPath("Rendering/Builtin/Raytracing/ReflectionFilter");
+	// 見えている面は固定し、Zバッファだけ背景や別の面へ変えて比較する
+	const auto compare = [&](const char* name, std::vector<FilterTestTexture> inputs, size_t depthSlot,
+		std::span<const DXGI_FORMAT> formats, std::span<const float> parameters, bool inPlace = false) {
+
+		FilterTestLayout layout{.inputSlots = std::span(slots).first(inputs.size()),
+			.entry = inPlace ? L"mainInPlace" : L"main", .frameConstants = frame,
+			.inPlaceSourceSlot = inPlace ? 0 : -1};
+		const auto expected = RunFilterShader(device, queue, directory / name, width, height,
+			inputs, formats, parameters, nullptr, &layout, &shaders);
+		if (expected[0].pixels[4] <= 0.0f) return false;
+		if (formats.size() > 1) {
+			for (size_t pixel = 0; pixel < width * height; ++pixel) {
+				if (expected[1].pixels[pixel * 4 + 3] != (pixel % width == 0 ? 0.0f : 1.0f)) return false;
+			}
+		}
+		for (uint32_t mode = 0; mode < 2; ++mode) {
+			for (size_t pixel = 0; pixel < inputs[depthSlot].pixels.size(); ++pixel) {
+				inputs[depthSlot].pixels[pixel] = mode == 0 ? 1.0f : float(pixel % 5) * 0.2f;
+			}
+			const auto actual = RunFilterShader(device, queue, directory / name, width, height,
+				inputs, formats, parameters, nullptr, &layout, &shaders);
+			for (size_t image = 0; image < expected.size(); ++image) {
+				for (size_t value = 0; value < expected[image].pixels.size(); ++value) {
+					if (!std::isfinite(actual[image].pixels[value]) ||
+						std::abs(actual[image].pixels[value] - expected[image].pixels[value]) > 0.00001f) {
+						std::cerr << "Reflection surface depth: " << name << " output=" << image << " index=" << value << '\n';
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	};
+	const auto motion = texture(DXGI_FORMAT_R32G32_FLOAT, [](uint32_t, uint32_t) {
+		return std::array<float, 4>{0, 0, 0, 0};
+	});
+	const auto historyNormal = texture(DXGI_FORMAT_R32G32_FLOAT, [](uint32_t, uint32_t) {
+		return std::array<float, 4>{0.5f, 0.5f, 0, 0};
+	});
+	const std::array temporalFormats{DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT,
+		DXGI_FORMAT_R32G32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT};
+	const std::array temporalParameters{0.9f, 0.15f, 0.2f, 0.0f, 0.8f, 1.5f, 0.0f, 0.0f, 0.25f, 0.0f, 0.0f, 0.0f};
+	if (!compare("reflectionTemporal.CS.hlsl", {color, color, depth, position, motion, normal,
+		position, historyNormal, hit, hit}, 2, temporalFormats, temporalParameters)) return false;
+	const auto hitDistance = texture(DXGI_FORMAT_R32_FLOAT, [](uint32_t, uint32_t) {
+		return std::array<float, 4>{5.0f, 0, 0, 0};
+	});
+	const std::array formats{DXGI_FORMAT_R32G32B32A32_FLOAT};
+	for (float antiFirefly : {0.0f, 1.0f}) {
+		const std::array parameters{64.0f, 32.0f, 8.0f, 1.0f, 4.0f, 8.0f, 0.0f, 0.0f,
+			antiFirefly, 2.0f, 1.0f, 0.0f};
+		if (!compare("reflectionSpatial.CS.hlsl", {color, depth, normal, hitDistance, position, material},
+			1, formats, parameters)) return false;
+	}
+	const auto flags = texture(DXGI_FORMAT_R32_UINT, [](uint32_t x, uint32_t) {
+		return std::array<float, 4>{std::bit_cast<float>(x == 0 ? 0u : 17u), 0, 0, 0};
+	});
+	const std::array parameters{0.85f, 0.15f, 0.0f, 0.0f};
+	for (bool inPlace : {false, true}) {
+		if (!compare("reflectionComposite.CS.hlsl", {color, color, depth, normal, position, material, flags},
+			2, formats, parameters, inPlace)) return false;
+	}
+	return true;
 }
 
 bool NEMTests::TestGPUFilterEquivalence() {

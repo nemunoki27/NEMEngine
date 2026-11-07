@@ -57,7 +57,8 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
-	textureUploadService_->Init(device, srvDescriptor_.get());
+	// 描画と同じQueueで全Mipの状態遷移から参照までの順序を保つ
+	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetCommandQueue()->GetQueue());
 	fontRenderService_ = std::make_unique<FontRenderService>(*textureUploadService_);
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);

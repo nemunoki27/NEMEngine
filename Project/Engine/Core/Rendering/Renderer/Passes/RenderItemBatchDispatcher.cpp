@@ -4,8 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 
 //============================================================================
 //	RenderItemBatchDispatcher classMethods
@@ -77,6 +79,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 		drawContext.dsvFormat = boundDepth ? boundDepth->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
 	}
 
+	const DepthTexture2D* activeDepth = boundDepth;
 	size_t begin = 0;
 	while (begin < items.size()) {
 
@@ -100,11 +103,35 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 			}
 
 			if (next->backendID != first->backendID ||
+				!BackendDrawCommon::CanBatchRenderSettings(*first, *next) ||
 				!backend->CanBatch(*first, *next, drawContext.runtimeFeatures)) {
 				break;
 			}
 			++end;
 		}
+		drawContext.renderSettings = BackendDrawCommon::UsesRendererSettings(drawContext)
+			? &first->renderSettings : nullptr;
+		// 2Dの個別深度は3Dの深度空間と共有しない
+		const DepthTexture2D* batchDepth = boundDepth;
+		const auto* settings = drawContext.renderSettings;
+		if (!depthOnly && surface && sceneContext.resources && settings && !settings->inheritMaterial &&
+			(settings->depthTest || settings->stencilEnabled) && first->cameraDomain != RenderCameraDomain::Perspective) {
+			batchDepth = sceneContext.resources->GetRendererDepthAttachments().Prepare(
+				graphicsCore, surface, first->cameraDomain == RenderCameraDomain::Screen ? 1u : 0u,
+				surface->GetWidth(), surface->GetHeight());
+		}
+		if (batchDepth != activeDepth) {
+			auto& commands = *graphicsCore.GetDXObject().GetDxCommand();
+			std::array<RenderTarget, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> targets{};
+			size_t count = 0;
+			for (uint32_t i = 0; surface && i < surface->GetColorCount(); ++i) {
+				if (auto* color = surface->GetColorTexture(i)) targets[count++] = color->GetRenderTarget();
+			}
+			commands.BindRenderTargets(std::span<const RenderTarget>(targets.data(), count),
+				batchDepth ? std::optional<D3D12_CPU_DESCRIPTOR_HANDLE>(batchDepth->GetDSVCPUHandle()) : std::nullopt);
+			activeDepth = batchDepth;
+		}
+		drawContext.dsvFormat = batchDepth ? batchDepth->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
 		// バッチングしたアイテムを描画
 		backend->DrawBatch(drawContext, std::span(items.data() + begin, end - begin));
 		// 次のアイテムへ

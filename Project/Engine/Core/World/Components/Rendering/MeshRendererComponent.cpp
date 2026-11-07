@@ -19,6 +19,7 @@ namespace {
 		component.material = Engine::ParseAssetID(in, "material");
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		if (const auto it = in.find("renderSettings"); it != in.end()) Engine::from_json(*it, component.renderSettings);
 		component.enableZPrepass =
 			in.value("enableZPrepass", component.enableZPrepass);
 		Engine::ReadMeshRenderFlags(in, component.renderFlags);
@@ -36,6 +37,7 @@ namespace {
 		out["material"] = Engine::ToAssetReferenceJson(component.material);
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderSettings"] = component.renderSettings;
 		out["enableZPrepass"] = component.enableZPrepass;
 		Engine::WriteMeshRenderFlags(out, component.renderFlags);
 		out["receiveDecals"] = component.receiveDecals;

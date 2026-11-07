@@ -27,7 +27,8 @@ using Engine::ParticleGUI::MakeDragSetting;
 ParticleEmitterDrawer::ParticleEmitterDrawer(ParticleSettingsEditSession& session, std::string& status) :
 	session_(session), statusMessage_(status) {}
 
-bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget) {
+bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSystemSettings& group, ParticleSimulationTarget simulationTarget,
+	const std::function<void()>& drawRenderSettings) {
 
 	AssetDatabase* assetDatabase = context.editorContext->assetDatabase;
 	bool changed = false;
@@ -155,6 +156,7 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 					}
 				}
 			}
+			drawRenderSettings();
 			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::BlendMode), group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::RenderQueue), group.queue).valueChanged;
 			// ビルボード軸

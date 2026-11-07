@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -68,7 +69,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			}
 			return result;
 		});
-		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("Zプリパス", draft.enableZPrepass); });
+		PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings, &draft.enableZPrepass), anyItemActive);
 	}
 
 	//============================================================================

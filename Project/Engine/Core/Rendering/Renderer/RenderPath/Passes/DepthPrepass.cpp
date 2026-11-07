@@ -89,6 +89,11 @@ void Engine::DepthPrepass::CollectItems(const SceneExecutionContext& context, co
 		if (!item) {
 			continue;
 		}
+		const auto& settings = item->renderSettings;
+		if (!settings.inheritMaterial && (!settings.depthTest || !settings.depthWrite || settings.stencilEnabled ||
+			settings.depthComparison != RendererDepthComparison::LESS_EQUAL)) {
+			continue;
+		}
 		// メッシュ以外は深度描画なし
 		if (item->backendID != RenderBackendID::Mesh) {
 			continue;
