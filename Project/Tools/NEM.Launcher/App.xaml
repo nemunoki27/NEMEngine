@@ -6,6 +6,46 @@
     </DataTemplate>
     <SolidColorBrush x:Key="BackgroundBrush" Color="#151515" />
     <SolidColorBrush x:Key="PanelBrush" Color="#202020" />
+    <Style x:Key="LauncherScrollThumbStyle" TargetType="Thumb">
+      <Setter Property="Background" Value="#929292"/><Setter Property="MinHeight" Value="20"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+        <Border Background="{TemplateBinding Background}" CornerRadius="4" Margin="3"/>
+      </ControlTemplate></Setter.Value></Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#BDBDBD"/></Trigger>
+        <Trigger Property="IsDragging" Value="True"><Setter Property="Background" Value="#E0E0E0"/></Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="LauncherScrollPageStyle" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False"/><Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton">
+        <Border Background="Transparent"/>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <!-- 一覧とダイアログのスクロールバーを同じ配色へ揃える -->
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="16"/><Setter Property="Background" Value="#292929"/>
+      <Setter Property="Focusable" Value="False"/><Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+        <Border Background="{TemplateBinding Background}">
+          <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
+            <Track.DecreaseRepeatButton><RepeatButton x:Name="Decrease" Style="{StaticResource LauncherScrollPageStyle}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
+            <Track.Thumb><Thumb x:Name="ScrollThumb" Style="{StaticResource LauncherScrollThumbStyle}"/></Track.Thumb>
+            <Track.IncreaseRepeatButton><RepeatButton x:Name="Increase" Style="{StaticResource LauncherScrollPageStyle}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
+          </Track>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="Orientation" Value="Horizontal">
+            <Setter Property="Width" Value="Auto"/><Setter Property="Height" Value="16"/>
+            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+            <Setter TargetName="Decrease" Property="Command" Value="ScrollBar.PageLeftCommand"/>
+            <Setter TargetName="Increase" Property="Command" Value="ScrollBar.PageRightCommand"/>
+            <Setter TargetName="ScrollThumb" Property="MinHeight" Value="0"/><Setter TargetName="ScrollThumb" Property="MinWidth" Value="20"/>
+          </Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ScrollThumb" Property="Opacity" Value="0.35"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <!-- 派生Windowにも同じ配色を明示する -->
     <Style x:Key="LauncherWindowStyle" TargetType="Window"><Setter Property="Background" Value="{StaticResource BackgroundBrush}"/><Setter Property="Foreground" Value="#EEEEEE"/><Setter Property="FontFamily" Value="Yu Gothic UI"/><Setter Property="FontSize" Value="14"/></Style>
     <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#202020" />

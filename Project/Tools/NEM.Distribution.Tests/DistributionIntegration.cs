@@ -143,12 +143,13 @@ internal static class DistributionIntegration {
         }
         string path = Path.Combine(game, "Library/IntegrationBuild.json");
         var descriptor = JsonNode.Parse(File.ReadAllText(project.Descriptor))!;
+        var startup = JsonNode.Parse(File.ReadAllText(Path.Combine(game, "ProjectSettings/Runtime/StartupScene.json")))!;
         DistributionStorage.Write(path, new {
             schemaVersion = 2, prebuiltRuntime = true, projectPath = project.Descriptor, gameRoot = game,
             sourceRuntime = Path.Combine(engine.Root, "Runtime/Release"), runtimeExecutable = "NEMPlayer.exe",
             buildToolProject = "", buildToolExecutable = Path.Combine(engine.Root, "Tools/NEMBuildTool/NEMBuildTool.exe"),
             toolchainRoot = engine.ToolchainRoot, outputRoot = output, productName = "LauncherSmoke", executableName = "LauncherSmoke.exe",
-            projectGuid = descriptor["projectGuid"]!.GetValue<string>(), startupScene = "4e454d50524f4a4543544d41494e0001",
+            projectGuid = descriptor["projectGuid"]!.GetValue<string>(), startupScene = startup["activeScene"]!.GetValue<string>(),
             startupFullscreen = false, gameWidth = 640, gameHeight = 360, packages = Array.Empty<object>(), files,
             confirmedWarnings = Array.Empty<object>(), cookHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature.ToString()))).ToLowerInvariant()
         });

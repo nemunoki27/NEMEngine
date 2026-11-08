@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = '0.1.9',
+    [string]$Version = '0.1.0',
     [string]$ToolchainRoot = '',
     [string]$OutputDirectory = '',
     [string]$BaseUrl = '',
@@ -169,7 +169,7 @@ try {
     }
     $toolchainInfo = New-PackageInfo $sdkStage "dotnet-$sdkVersion-win-x64" "toolchains/dotnet-$sdkVersion-win-x64.zip" $true
     Write-Utf8Json (Join-Path $archiveRoot "release-$Version.json") ([ordered]@{
-        version = $Version; notes = '太陽と月の昼夜サイクル・開発者用テンプレート管理・サンプルプロジェクトとアセット配布'; minimumLauncherVersion = '0.1.10'; toolchainVersion = $sdkVersion; engine = $engineInfo; toolchain = $toolchainInfo
+        version = $Version; notes = 'エンジンデフォルト'; minimumLauncherVersion = '0.1.11'; toolchainVersion = $sdkVersion; engine = $engineInfo; toolchain = $toolchainInfo
     })
     # アーカイブと検証情報を一組で公開する
     Move-Item -LiteralPath $archiveRoot -Destination $releaseDirectory
