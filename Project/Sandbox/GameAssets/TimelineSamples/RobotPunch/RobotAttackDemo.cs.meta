@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "guid": "b346cdfeb895486cbb80de736195e1a9",
+  "type": "Script",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "settings": {},
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.RobotAttackDemo",
+      "scriptTypeId": "a62942e0-aaf0-457f-8fd0-9edc86b45830",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "55a0624e-604d-4aee-98c8-897444fe0503",
+          "name": "frameCameraOnPlay",
+          "type": "bool",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

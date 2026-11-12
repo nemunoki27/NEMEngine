@@ -8,6 +8,7 @@
 #include <Engine/Editor/Core/EditorViewportSizing.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
+#include <Engine/Editor/Utility/EditorManualNavigation.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Editor/Assets/Project/EditorSceneDefaults.h>
@@ -53,6 +54,28 @@ namespace {
 		if (ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
 			ProjectAssetFileKind::AnimationClip, "Orphan", diagnostic) ||
 			std::filesystem::exists(directory.GetPath() / "Orphan.animclip.json")) return false;
+
+		const auto nested = ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::AnimationClip,
+			virtualDirectory + "/Sample/playbackSpeed");
+		if (!nested.success || nested.assetPath != virtualDirectory + "/Sample/playbackSpeed.animClip.json" ||
+			std::filesystem::exists(nested.fullPath.parent_path())) return false;
+		const AssetID nestedID = ProjectAssetFileUtility::CreateRegisteredAsset(database, virtualDirectory,
+			ProjectAssetFileKind::AnimationClip, "Sample/playbackSpeed.animClip.json", diagnostic);
+		if (!nestedID || !LoadAnimationClipAsset(database.ResolveFullPath(nestedID), clip) || clip.name != "playbackSpeed") return false;
+		if (ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::AnimationClip, nested.assetPath).success) return false;
+		const auto timeline = ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::Timeline,
+			virtualDirectory + "/子フォルダー/攻撃.timeline.json");
+		if (!timeline.success || timeline.assetPath != virtualDirectory + "/子フォルダー/攻撃.timeline.json") return false;
+		const auto slash = ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::Timeline, virtualDirectory + "/Anims\\Sample");
+		if (!slash.success || slash.assetPath != virtualDirectory + "/Anims/Sample.timeline.json") return false;
+		for (const auto* invalid : {"../Outside", "Sample/../Outside", "C:/Outside", "/Outside", "Sample/", "CON", "Sample/LPT1", ".timeline.json"})
+			if (ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::Timeline, invalid).success) return false;
+		for (const auto kind : {ProjectAssetFileKind::Material, ProjectAssetFileKind::ShaderGraph})
+			if (!ProjectAssetFileUtility::PlanToolAsset(kind, virtualDirectory + "/Sample/新規").success) return false;
+		if (EditorManualNavigation::GetComponentPage("TimelinePlayer") != "/components/timeline-player" ||
+			EditorManualNavigation::GetComponentPage("Rigidbody2D") != "/components/rigidbody2-d" ||
+			EditorManualNavigation::GetComponentPage("UISelectable") != "/components/ui-selectable" ||
+			EditorManualNavigation::GetComponentPage("Script") != "/manual/scripting") return false;
 
 		// 複合拡張子だけを除き、名前の途中のピリオドを保つ
 		return ProjectAssetPath::SplitAssetFileName(Algorithm::PathFromUTF8("火花.v2.prefab.json")).first == "火花.v2" &&

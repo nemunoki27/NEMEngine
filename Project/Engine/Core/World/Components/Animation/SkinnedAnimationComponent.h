@@ -38,6 +38,15 @@ namespace Engine {
 		int32_t repeatCount = 0;
 		// GPUスキニング結果を更新するポーズ世代
 		uint64_t poseGeneration = 0;
+		// 外部の時刻評価中も通常再生の時計を保持する
+		bool timelineControlled = false;
+		std::string timelineClip;
+		float timelineTime = 0;
+		float timelineDuration = 0;
+		bool timelineFinished = false;
+		bool timelineInTransition = false;
+		bool timelinePlaying = false;
+		Skeleton timelineScratchSkeleton{};
 
 		Skeleton bindSkeleton{};
 		Skeleton skeleton{};

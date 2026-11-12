@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
+#include <Engine/Editor/Tools/Builtin/Timeline/TimelineTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
@@ -53,6 +54,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
+	RegisterBuiltinEditorTool<TimelineTool>();
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();

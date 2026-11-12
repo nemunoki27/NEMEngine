@@ -4,7 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Animation/Motion/MotionAnimationEvaluation.h>
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
+#include <Engine/Core/Animation/Clips/AnimationClipAssetOverride.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
@@ -113,7 +115,7 @@ namespace {
 		const auto* clip = world.TryGetComponent<AnimationClipPlayerComponent>(entity);
 		if (clip && clip->enabled && (context.mode != WorldMode::Edit || clip->playInEditMode) &&
 			(clip->runtimePlaying || clip->runtimePaused || clip->runtimeApplied) && context.assetDatabase && context.animationClipManager) {
-			if (const auto* asset = context.animationClipManager->GetOrLoad(*context.assetDatabase, clip->clip))
+			if (const auto* asset = ResolveAnimationClipAsset(world, *context.animationClipManager, *context.assetDatabase, clip->clip))
 				for (const auto& track : asset->curveTracks) check(track.binding);
 		}
 	}
@@ -121,16 +123,7 @@ namespace {
 	// 親の継承設定を反映してワールド姿勢を適用する
 	bool ApplyPose(ECSWorld& world, Entity entity, Vector3 position, Quaternion rotation, bool applyPosition, bool applyRotation) {
 
-		if (!applyPosition && !applyRotation) return true;
-		auto* transform = world.TryGetComponent<TransformComponent>(entity);
-		ResolvedWorldTransform parent;
-		if (!transform || !TransformWorldUtility::ResolveParentFollowTransform(world, entity, parent)) return false;
-		Matrix4x4 inverse;
-		if (!Matrix4x4::TryInverse(parent.matrix, inverse)) return false;
-		if (applyPosition) transform->localPos = Vector3::Transform(position, inverse);
-		if (applyRotation) transform->localRotation = (Quaternion::Inverse(parent.rotation) * rotation).Normalize();
-		MarkTransformSubtreeDirty(world, entity);
-		return true;
+		return TransformWorldUtility::ApplyWorldPose(world, entity, position, rotation, applyPosition, applyRotation);
 	}
 
 	// 競合していない項目だけを適用する
@@ -141,6 +134,8 @@ namespace {
 		auto& runtime = record.runtime;
 		bool conflictPosition = false, conflictRotation = false;
 		FindConflicts(world, entity, context, conflictPosition, conflictRotation);
+		conflictPosition |= IsTimelineControlled(world, entity, "Transform", "localPos");
+		conflictRotation |= IsTimelineControlled(world, entity, "Transform", "localRotation");
 		if ((settings.applyPosition && conflictPosition) || (settings.applyRotation && conflictRotation))
 			runtime.diagnostic = "他のアニメーションと適用先が競合しています";
 		if (!ApplyPose(world, entity, position, rotation,
@@ -182,6 +177,13 @@ void MotionAnimationSystem::Update(ECSWorld& world, SystemContext& context) {
 	world.ForEach<MotionAnimationComponent>([&](Entity entity, MotionAnimationComponent&) {
 		auto* record = TryGetMotionAnimation(world, entity);
 		if (!record || context.IsUpdateInterrupted()) return;
+		if (record->settings.autoApply &&
+			((record->settings.applyPosition && IsTimelineControlled(world, entity, "Transform", "localPos")) ||
+			 (record->settings.applyRotation && IsTimelineControlled(world, entity, "Transform", "localRotation")))) {
+			record->runtime.deltaPosition = {};
+			record->runtime.deltaRotation = Quaternion::Identity();
+			return;
+		}
 		if (!record->settings.enabled || !IsEntityActiveInHierarchy(world, entity) ||
 			(context.mode == WorldMode::Edit && !record->settings.playInEditMode)) {
 			RestoreMotionAnimationPreview(world, entity, record->runtime);

@@ -1,4 +1,12 @@
 #include "TestSuite.h"
+#include "TimelineTests.h"
+#include "TimelineEditorTests.h"
+#include "TimelineEditorIntegrationTests.h"
+#include "TimelineRuntimeEditingTests.h"
+#include "AnimationRecordingTests.h"
+#include "TimelineBuiltinTests.h"
+#include "TimelineGateTests.h"
+#include "TimelineManagedTests.h"
 #include "RuntimeAPITests.h"
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
@@ -28,6 +36,13 @@ using namespace NEMTests;
 
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
+
+	if (!RunTest("TestTimeline", TestTimeline) || !RunTest("TestTimelineBuiltins", TestTimelineBuiltins) ||
+		!RunTest("TestTimelineCollisionGates", TestTimelineCollisionGates)) return 90;
+	if (!RunTest("TestTimelineEditor", TestTimelineEditor) || !RunTest("TestAnimationRecording", TestAnimationRecording) ||
+		!RunTest("TestTimelineRuntimeEditing", TestTimelineRuntimeEditing) ||
+		!RunTest("TestTimelineEditorIntegration", TestTimelineEditorIntegration)) return 90;
+	if (!RunTest("TestTimelineManagedIntegration", TestTimelineManagedIntegration)) return 91;
 
 	if (!RunTest("TestRuntimeAPIContracts", TestRuntimeAPIContracts)) return 74;
 

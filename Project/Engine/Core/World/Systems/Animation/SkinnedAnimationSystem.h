@@ -33,14 +33,5 @@ namespace Engine {
 		// システムの表示名を取得する
 		const char* GetName() const override { return "SkinnedAnimationSystem"; }
 
-	private:
-		//============================================================================
-		//	private Methods
-		//============================================================================
-
-		//--------- functions ----------------------------------------------------
-
-		// 初期クリップの名前を解決
-		std::string ResolveInitialClip(const SkinnedMeshAnimationSet& animationSet, const std::string& requestedClip);
 	};
 } // Engine

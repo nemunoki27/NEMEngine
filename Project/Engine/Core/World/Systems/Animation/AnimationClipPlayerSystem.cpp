@@ -5,6 +5,7 @@
 //============================================================================
 #include "AnimationEventCollection.h"
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
+#include <Engine/Core/Animation/Clips/AnimationClipAssetOverride.h>
 #include <Engine/Core/Animation/Evaluation/AnimationPropertySnapshot.h>
 #include <Engine/Core/Animation/Properties/MaterialAnimationPropertyCatalog.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -63,14 +64,20 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 	auto& state = world.GetStorage().Get<PlaybackStorage>().values[world.GetUUID(entity)];
 	state.visited = true;
 	state.edit = context.mode == WorldMode::Edit;
-	const auto* clip = context.animationClipManager->GetOrLoad(*context.assetDatabase, player.clip);
-	if (state.clip != player.clip || state.revision != context.animationClipManager->GetRevision(player.clip)) {
+	const auto* clip = ResolveAnimationClipAsset(world, *context.animationClipManager, *context.assetDatabase, player.clip);
+	const auto revision = GetResolvedAnimationClipAssetRevision(world, *context.animationClipManager, player.clip);
+	const bool refreshed = state.clip == player.clip && state.revision != revision && state.initialized && clip;
+	if (state.clip != player.clip || state.revision != revision) {
 		player.runtimeApplied |= !state.base.empty();
 		AnimationPropertySnapshot::Restore(world, entity, state.base);
 		state.base.clear();
-		state.initialized = false;
+		if (refreshed) {
+			AnimationPropertySnapshot::CaptureClip(world, entity, *clip, clip->relativeTransform, state.base);
+			state.playback.time = (std::min)(state.playback.time, clip->duration);
+			state.playback.eventStartPending = false;
+		} else state.initialized = false;
 		state.clip = player.clip;
-		state.revision = context.animationClipManager->GetRevision(player.clip);
+		state.revision = revision;
 	}
 	player.runtimeDiagnostic = clip ? "" : "アニメーションクリップを設定してください";
 	if (!clip) { player.runtimePlaying = false; return; }
@@ -78,7 +85,7 @@ void Engine::AnimationClipPlayerSystem::UpdatePlayer(ECSWorld& world, Entity ent
 	player.runtimeDuration = clip->duration;
 	const int32_t request = std::exchange(player.runtimeRequest, 0);
 	auto& runtime = state.playback;
-	bool evaluate = false;
+	bool evaluate = refreshed;
 	if (!state.initialized || request == 1 || request == 5) {
 		player.runtimeApplied |= !state.base.empty();
 		AnimationPropertySnapshot::Restore(world, entity, state.base);

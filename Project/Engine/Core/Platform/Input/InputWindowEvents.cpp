@@ -1,9 +1,27 @@
-#include "InputWindowEvents.h"
+﻿#include "InputWindowEvents.h"
 
 using namespace Engine;
 
 // windows
 #include <Windows.h>
+
+void InputWindowEvents::RegisterWindow(HWND hwnd) {
+
+	if (hwnd) windows_.insert(hwnd);
+}
+
+void InputWindowEvents::UnregisterWindow(HWND hwnd) {
+
+	windows_.erase(hwnd);
+	if (focusedWindow_ == hwnd) SetFocusedWindow(nullptr);
+}
+
+void InputWindowEvents::SetFocusedWindow(HWND hwnd) {
+
+	focusedWindow_ = windows_.contains(hwnd) ? hwnd : nullptr;
+	hasFocus_ = focusedWindow_ != nullptr;
+	if (!hasFocus_) pendingWide_.clear();
+}
 
 void InputWindowEvents::CommitText() {
 

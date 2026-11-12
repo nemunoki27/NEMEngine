@@ -95,6 +95,11 @@ public sealed class AnimationClip : Asset {
     internal AnimationClip(AssetGUID id) : base(id) { }
 }
 
+[NativeAssetType("Timeline")]
+public sealed class TimelineAsset : Asset {
+    internal TimelineAsset(AssetGUID id) : base(id) { }
+}
+
 [NativeAssetType("ShaderGraph")]
 public sealed class ShaderGraph : Asset {
     internal ShaderGraph(AssetGUID id) : base(id) { }

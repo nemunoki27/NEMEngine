@@ -62,5 +62,7 @@ namespace Engine::EditorShell {
 	bool OpenWithSystemDefault(const std::filesystem::path& file);
 	// 指定したディレクトリをエクスプローラーで開く
 	bool OpenDirectory(const std::filesystem::path& directory);
+	// URLを既定のブラウザーで開く
+	bool OpenURL(const std::string& url);
 
 } // Engine::EditorShell

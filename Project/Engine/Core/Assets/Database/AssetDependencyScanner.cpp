@@ -68,6 +68,7 @@ namespace Engine::AssetDependencyScanner {
 
 			{ "renderPasses", Engine::AssetType::RenderPasses },
 			{ "animationClip", Engine::AssetType::AnimationClip },
+			{ "timeline", Engine::AssetType::Timeline },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },
 			{ "assetId", Engine::AssetType::Unknown },
@@ -113,6 +114,18 @@ namespace Engine::AssetDependencyScanner {
 		IDReferences& outIDs, PathReferences& outPaths, bool includeUnclassified) {
 
 		if (node.is_object()) {
+
+			// トラックの種類からクリップ固有のアセット参照を解決する
+			if (node.contains("kind") && node["kind"].is_string() && node.contains("clips") && node["clips"].is_array()) {
+				const auto& kind = node["kind"].get_ref<const std::string&>();
+				const auto type = kind == "Prefab" ? AssetType::Prefab : kind == "Audio" ? AssetType::Audio :
+					kind == "Property" ? AssetType::AnimationClip : AssetType::Unknown;
+				if (type != AssetType::Unknown) for (const auto& clip : node["clips"]) {
+					const auto data = clip.find("data");
+					if (data != clip.end() && data->is_object() && data->contains("asset"))
+						TryCollectReference((*data)["asset"], type, outIDs, outPaths);
+				}
+			}
 
 			// clip名を使うSkinnedAnimationとAsset参照を区別する
 			if (node.contains("clip")) {

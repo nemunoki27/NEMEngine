@@ -49,8 +49,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		// ウィンドウ表示状態
-		bool openWindow_ = false;
 		// 設定に未保存の編集があるか
 		bool dirty_ = false;
 		// 削除コンボで選択中のCollisionタイプindex

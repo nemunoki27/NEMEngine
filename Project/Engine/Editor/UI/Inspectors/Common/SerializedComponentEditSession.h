@@ -6,6 +6,7 @@
 #include "InspectorDrawerCommon.h"
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
+#include <Engine/Editor/Animation/AnimationPropertyEditCapture.h>
 
 namespace Engine {
 
@@ -177,6 +178,8 @@ namespace Engine {
 		}
 		nlohmann::json afterData;
 		hooks.SerializeDraft(world, entity, afterComponent, afterData);
+		if (AnimationPropertyEditCapture::Commit(world, entity, componentTypeName_))
+			world.SerializeComponentToJson(entity, componentTypeName_, afterData);
 
 		// シリアライズ後のデータが同じならコミットしない
 		if (beforeData == afterData) {
@@ -212,6 +215,7 @@ namespace Engine {
 		}
 
 		if (!previewActive_) {
+			AnimationPropertyEditCapture::Begin(world, entity, componentTypeName_);
 			previewBeginComponent_ = world.GetComponent<T>(entity);
 			if (!world.SerializeComponentToJson(entity, componentTypeName_, previewBeginData_)) {
 				return;
@@ -251,6 +255,7 @@ namespace Engine {
 		if (previewActive_ && lifetime && lifetime->IsAlive() && editingWorldPointer_) {
 			const Entity entity = editingWorldPointer_->FindByUUID(editingEntityStableUUID_);
 			if (editingWorldPointer_->IsAlive(entity) && editingWorldPointer_->HasComponent<T>(entity)) {
+				AnimationPropertyEditCapture::Cancel(*editingWorldPointer_, entity, componentTypeName_);
 				// World切替やPanel破棄では未確定値を残さない
 				editingWorldPointer_->ApplyComponentJson(entity, componentTypeName_, previewBeginData_);
 			}

@@ -49,8 +49,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		// ウィンドウ表示状態
-		bool openWindow_ = false;
 		// 追加するタグ名の入力
 		char addBuffer_[128]{};
 		// リネーム中のタグ名、空ならリネームしていない

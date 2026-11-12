@@ -220,21 +220,21 @@ void Engine::CollisionDebugDraw::DrawWorld([[maybe_unused]] ECSWorld& world) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// World内の有効なCollision形状をすべて描画する
-	world.ForEach<CollisionComponent, TransformComponent>([&world](Entity entity, CollisionComponent& collision,
-															  [[maybe_unused]] TransformComponent& transform) {
-		if (!collision.enabled || !IsEntityActiveInHierarchy(world, entity)) {
-			return;
-		}
-		if (!collision.shape.enabled) {
-			return;
-		}
-		// 衝突判定と同じWorld形状を描く
-		ResolvedWorldTransform resolved{};
-		if (!TransformWorldUtility::ResolveWorldTransform(world, entity, resolved)) {
-			return;
-		}
-		const CollisionShapeInstance instance = CollisionShapeUtility::BuildShapeInstance(entity, collision.shape, 0, resolved);
-		DrawCollisionShape(instance, IsCollisionColliding(world, entity));
+	world.ForEach<CollisionComponent, TransformComponent>([&world](Entity entity,
+		[[maybe_unused]] CollisionComponent& collision, [[maybe_unused]] TransformComponent& transform) {
+		DrawEntity(world, entity);
 	});
+#endif
+}
+
+void Engine::CollisionDebugDraw::DrawEntity([[maybe_unused]] ECSWorld& world, [[maybe_unused]] Entity entity) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	const auto* collision = world.TryGetComponentForBinding<CollisionComponent>(entity);
+	if (!collision || !collision->enabled || !collision->shape.enabled || !IsEntityActiveInHierarchy(world, entity)) return;
+	ResolvedWorldTransform resolved;
+	if (!TransformWorldUtility::ResolveWorldTransform(world, entity, resolved)) return;
+	const auto instance = CollisionShapeUtility::BuildShapeInstance(entity, collision->shape, 0, resolved);
+	DrawCollisionShape(instance, IsCollisionColliding(world, entity));
 #endif
 }

@@ -6,7 +6,7 @@ namespace NEMEngine;
 internal static class ManagedABI {
 
     // NativeとManagedを同じ版で接続する
-    internal const uint Version = 71;
+    internal const uint Version = 72;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -156,6 +156,7 @@ public struct NativeSkinnedAnimationRuntimeState {
     public int initialized;
     public int finished;
     public int inTransition;
+    public int playing;
 }
 
 // Nativeと共通のUI選択状態

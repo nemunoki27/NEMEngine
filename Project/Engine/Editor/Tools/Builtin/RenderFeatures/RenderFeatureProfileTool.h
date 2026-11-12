@@ -93,7 +93,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		bool openWindow_ = false;										  // 編集画面の表示状態
 		bool requestCameraProfile_ = false;								  // メニューから開くときのCamera設定選択
 		bool pendingClose_ = false;										  // 未保存確認後の終了要求
 		std::optional<AssetID> pendingAsset_{};							  // 選択解除を含む未保存確認後の切替先

@@ -343,7 +343,7 @@ namespace {
 		if (Engine::Input::TryGetInstance()) {
 			return false;
 		}
-		Engine::WindowInputBridge::NotifyFocus(false);
+		Engine::WindowInputBridge::NotifyFocus(nullptr);
 		Engine::WindowInputBridge::AppendCharacter(L'A');
 		if (Engine::Input::TryGetInstance()) {
 			return false;

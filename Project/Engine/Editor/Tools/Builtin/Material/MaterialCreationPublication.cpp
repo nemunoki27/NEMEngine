@@ -1,5 +1,7 @@
 #include "MaterialCreationSession.h"
 #include "MaterialCreationDocument.h"
+#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
+#include <Engine/Editor/Assets/Project/ProjectAssetPath.h>
 
 //============================================================================
 //	include
@@ -19,6 +21,7 @@
 // c++
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -56,22 +59,13 @@ bool Engine::MaterialCreationSession::CreateMaterialAssets(const EditorToolConte
 		return false;
 	}
 
-	// 入力パスからファイル名を取り出す
-	std::string relativePath = draft_.createRelativePath;
-	while (!relativePath.empty() && (relativePath.front() == '/' || relativePath.front() == '\\')) {
-		relativePath.erase(relativePath.begin());
-	}
-	while (!relativePath.empty() && (relativePath.back() == '/' || relativePath.back() == '\\')) {
-		relativePath.pop_back();
-	}
-	if (relativePath.empty()) {
-		draft_.createMessage = "出力パスを入力してください";
+	const auto plan = ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::Material, draft_.createRelativePath);
+	if (!plan.success) {
+		draft_.createMessage = plan.message;
 		return false;
 	}
-	std::string baseName = relativePath;
-	if (const size_t pos = relativePath.find_last_of("/\\"); pos != std::string::npos) {
-		baseName = relativePath.substr(pos + 1);
-	}
+	const std::string baseName = ProjectAssetPath::SplitAssetFileName(plan.fullPath).first;
+	const std::string basePath = plan.assetPath.substr(0, plan.assetPath.size() - std::string_view(".material.json").size());
 
 	const bool useMeshShader = (draft_.createType == MaterialCreateType::Mesh) && static_cast<bool>(draft_.createMS);
 	const bool useGeometryShader = (draft_.createType == MaterialCreateType::Line);
@@ -79,11 +73,11 @@ bool Engine::MaterialCreationSession::CreateMaterialAssets(const EditorToolConte
 	const int numRenderTargets = draft_.createType == MaterialCreateType::Mesh ? 3 : 1;
 
 	// ShaderとPipelineとMaterialの保存先を揃える
-	const std::string shaderLogical = "GameAssets/Materials/" + relativePath + ".shader.json";
-	const std::string pipelineLogical = "GameAssets/Materials/" + relativePath + ".pipeline.json";
-	const std::string transparentShaderLogical = "GameAssets/Materials/" + relativePath + "Transparent.shader.json";
-	const std::string transparentPipelineLogical = "GameAssets/Materials/" + relativePath + "Transparent.pipeline.json";
-	const std::string materialLogical = "GameAssets/Materials/" + relativePath + ".material.json";
+	const std::string shaderLogical = basePath + ".shader.json";
+	const std::string pipelineLogical = basePath + ".pipeline.json";
+	const std::string transparentShaderLogical = basePath + "Transparent.shader.json";
+	const std::string transparentPipelineLogical = basePath + "Transparent.pipeline.json";
+	const std::string materialLogical = plan.assetPath;
 
 	// 保存前に取込元の用途とParameterを確認する
 	nlohmann::json sourceParameters;
@@ -112,6 +106,11 @@ bool Engine::MaterialCreationSession::CreateMaterialAssets(const EditorToolConte
 	std::vector<AssetDocumentChange> changes;
 	changes.reserve(createMeshTransparent ? 5 : 3);
 	const auto prepareAsset = [&](const std::string& logicalPath, nlohmann::json data, AssetType type) {
+		const auto path = assetDatabase->ResolveAssetPath(logicalPath);
+		if (std::filesystem::exists(path) || std::filesystem::exists(ProjectAssetPath::MakeMetaPath(path))) {
+			draft_.createMessage = "同名のアセットが存在します: " + logicalPath;
+			return AssetID{};
+		}
 		AssetDocumentChange change;
 		if (!AssetDocumentPublication::Prepare(*assetDatabase, logicalPath, type, change, draft_.createMessage)) {
 			return AssetID{};

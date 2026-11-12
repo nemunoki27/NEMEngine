@@ -41,6 +41,8 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 		return "Material";
 	case ProjectAssetFileKind::AnimationClip:
 		return "AnimationClip";
+	case ProjectAssetFileKind::Timeline:
+		return "Timeline";
 	case ProjectAssetFileKind::Shader:
 		return "Shader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -74,6 +76,8 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 		return "NewMaterial";
 	case ProjectAssetFileKind::AnimationClip:
 		return "NewAnimation";
+	case ProjectAssetFileKind::Timeline:
+		return "NewTimeline";
 	case ProjectAssetFileKind::Shader:
 		return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline:
@@ -128,6 +132,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(Proje
 		const std::string requestedPath = kind == ProjectAssetFileKind::Folder ? baseName : baseName + suffix;
 		const std::filesystem::path preferredPath = directory / Algorithm::PathFromUTF8(requestedPath);
 		const std::filesystem::path createPath = makeUnique ? ProjectAssetPath::MakeUniquePath(preferredPath) : preferredPath;
+		result.fullPath = createPath;
+		result.assetPath = ProjectAssetPath::ToAssetPath(createPath);
 		std::filesystem::path metaPath = createPath;
 		metaPath += ".meta";
 		if (!makeUnique && (std::filesystem::exists(createPath) || std::filesystem::exists(metaPath))) {
@@ -189,13 +195,17 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 Engine::AssetID Engine::ProjectAssetFileUtility::CreateRegisteredAsset(AssetDatabase& database,
 	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& name, std::string& diagnostic) {
 
-	// 不正な名前を別名へ置き換えず入力欄へ戻す
-	if (name.empty() || ProjectAssetPath::SanitizeFileName(name) != name || name.back() == '.' ||
-		std::any_of(name.begin(), name.end(), [](unsigned char character) { return character < 32; })) {
-		diagnostic = "作成名が無効です";
+	std::string input = name;
+	std::replace(input.begin(), input.end(), '\\', '/');
+	const std::string path = Algorithm::ToLower(input).starts_with("gameassets/") ? input : directoryVirtualPath + "/" + input;
+	const auto plan = PlanToolAsset(kind, path);
+	if (!plan.success) {
+		diagnostic = plan.message;
 		return {};
 	}
-	const auto result = Create(ProjectAssetSource::Game, directoryVirtualPath, kind, name, false);
+	const auto result = Create(ProjectAssetSource::Game,
+		plan.assetPath.substr(0, plan.assetPath.find_last_of('/')), kind,
+		Algorithm::PathToUTF8(plan.fullPath.filename()), false);
 	if (!result.success) {
 		diagnostic = result.message;
 		return {};

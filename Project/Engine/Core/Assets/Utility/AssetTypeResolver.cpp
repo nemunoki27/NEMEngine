@@ -32,6 +32,7 @@ namespace {
 		CompoundAssetSuffix{ ".font.json", Engine::AssetType::Font },
 		CompoundAssetSuffix{ ".msdf.json", Engine::AssetType::Font },
 		CompoundAssetSuffix{ ".animclip.json", Engine::AssetType::AnimationClip },
+		CompoundAssetSuffix{ ".timeline.json", Engine::AssetType::Timeline },
 		CompoundAssetSuffix{ ".execonfig.json", Engine::AssetType::DefaultAsset },
 		CompoundAssetSuffix{ ".materialsettings.json", Engine::AssetType::DefaultAsset },
 		CompoundAssetSuffix{ ".actor.json", Engine::AssetType::DefaultAsset },
@@ -96,6 +97,7 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (extension == ".animclip") {
 		return AssetType::AnimationClip;
 	}
+	if (extension == ".timeline") return AssetType::Timeline;
 	if (extension == ".csv" || extension == ".json" || extension == ".txt") {
 		return AssetType::Text;
 	}
@@ -118,6 +120,7 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::Prefab:
 	case AssetType::Material:
 	case AssetType::AnimationClip:
+	case AssetType::Timeline:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
 	case AssetType::ShaderGraph:
@@ -140,5 +143,5 @@ bool Engine::AssetTypeResolver::IsJsonAssetFile(AssetType type, const std::files
 	}
 	return extension == ".json" || extension == ".scene" || extension == ".prefab" ||
 		extension == ".material" || extension == ".shadergraph" ||
-		extension == ".shader" || extension == ".animclip";
+		extension == ".shader" || extension == ".animclip" || extension == ".timeline";
 }

@@ -161,7 +161,7 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 
 		// 既存マテリアルをドロップするとそのパイプライン設定を下の編集欄へ取り込む
 		AssetID sourceMaterial = creationSession_.GetDraft().createSourceMaterial;
-		if (MyGUI::AssetReferenceField("設定取り込み元 任意", sourceMaterial,
+		if (MyGUI::AssetReferenceField("設定をインポート", sourceMaterial,
 			assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 			creationSession_.GetDraft().createSourceMaterial = sourceMaterial;
@@ -225,21 +225,23 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	}
 	ImGui::EndDisabled();
 
-	// 出力先、GameAssets/Materials/固定でそれ以降をファイル名込みで入力する
 	ImGui::SeparatorText("作成");
-	MyGUI::InputText("GameAssets/Materials/", creationSession_.GetDraft().createRelativePath);
 
 	const bool needsVS = creationSession_.GetDraft().createType != MaterialCreateType::Particle;
 	const bool needsTransparentPS = creationSession_.GetDraft().createType == MaterialCreateType::Mesh && creationSession_.GetDraft().createTransparentPass;
 	const bool canCreate = (!needsVS || static_cast<bool>(creationSession_.GetDraft().createVS)) &&
 		static_cast<bool>(creationSession_.GetDraft().createPS) && (!needsTransparentPS || static_cast<bool>(creationSession_.GetDraft().createTransparentPS)) &&
-		!creationSession_.GetDraft().createPSEntry.empty() && (!needsTransparentPS || !creationSession_.GetDraft().createTransparentPSEntry.empty()) &&
-		!creationSession_.GetDraft().createRelativePath.empty();
+		!creationSession_.GetDraft().createPSEntry.empty() && (!needsTransparentPS || !creationSession_.GetDraft().createTransparentPSEntry.empty());
 	ImGui::BeginDisabled(!canCreate);
-	if (ImGui::Button("作成", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		creationSession_.CreateMaterialAssets(context);
-	}
+	if (ImGui::Button("新規作成", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) creationDialog_.Open();
 	ImGui::EndDisabled();
+	creationDialog_.Draw("マテリアルを作成", ProjectAssetFileKind::Material,
+		[&](const std::string& path, std::string& diagnostic) {
+			creationSession_.GetDraft().createRelativePath = path;
+			const bool success = creationSession_.CreateMaterialAssets(context);
+			diagnostic = creationSession_.GetDraft().createMessage;
+			return success;
+		});
 
 	if (!creationSession_.GetDraft().createMessage.empty()) {
 		ImGui::TextWrapped("%s", creationSession_.GetDraft().createMessage.c_str());

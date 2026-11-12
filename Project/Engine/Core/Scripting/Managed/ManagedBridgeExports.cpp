@@ -60,5 +60,11 @@ bool Engine::ManagedBridgeExports::Load(DotnetHostResolver& host, const std::fil
 	success &= loadRequired(invokeCollisionStay_, L"InvokeCollisionStay");
 	success &= loadRequired(invokeCollisionExit_, L"InvokeCollisionExit");
 	success &= loadRequired(invokeAnimationEvent_, L"InvokeAnimationEvent");
+	success &= loadRequired(createTimelineClip_, L"CreateTimelineClip");
+	success &= loadRequired(updateTimelineClipConfiguration_, L"UpdateTimelineClipConfiguration");
+	success &= loadRequired(evaluateTimelineClip_, L"EvaluateTimelineClip");
+	success &= loadRequired(updateTimelineClipContext_, L"UpdateTimelineClipContext");
+	success &= loadRequired(releaseTimelineClip_, L"ReleaseTimelineClip");
+	success &= loadRequired(copyTimelineClipTypes_, L"CopyTimelineClipTypes");
 	return success;
 }

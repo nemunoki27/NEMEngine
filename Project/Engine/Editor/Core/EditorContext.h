@@ -19,6 +19,7 @@ namespace Engine {
 	class SceneAssetStorage;
 	class SceneInstanceManager;
 	class ManagedScriptBuildService;
+	struct SystemContext;
 
 	//============================================================================
 	//	EditorContext struct
@@ -65,6 +66,8 @@ namespace Engine {
 		ECSWorld* editWorld = nullptr;
 		// アセットデータベース
 		AssetDatabase* assetDatabase = nullptr;
+		// ツールの描画中だけ借用する共通の実行サービス
+		SystemContext* systemContext = nullptr;
 		// 編集セッションが所有するScene保存状態
 		std::shared_ptr<SceneAssetStorage> sceneStorage;
 		// managed scriptingのEditor向けサービス境界でread-only snapshot + request interface

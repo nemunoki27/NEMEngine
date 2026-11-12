@@ -9,9 +9,9 @@ namespace Engine {
 
 	enum class TimeChannel : uint32_t {
 		SkinnedAnimation = 1, Particle = 2, SimpleAnimation = 4,
-		AnimationClip = 8, Flipbook = 16, MotionAnimation = 32, Timer = 64, DayNightCycle = 128
+		AnimationClip = 8, Flipbook = 16, MotionAnimation = 32, Timer = 64, DayNightCycle = 128, Timeline = 256
 	};
-	inline constexpr uint32_t kTimeChannelMask = 255;
+	inline constexpr uint32_t kTimeChannelMask = 511;
 	enum class TimeSourceMode : uint8_t { Hierarchy, Explicit, Global, Unscaled };
 
 	struct TimeSourceSettings {

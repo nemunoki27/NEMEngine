@@ -6,7 +6,7 @@ namespace NEMEngine;
 [Flags]
 public enum TimeChannel : uint {
     SkinnedAnimation = 1, Particle = 2, SimpleAnimation = 4,
-    AnimationClip = 8, Flipbook = 16, MotionAnimation = 32, Timer = 64, DayNightCycle = 128, All = 255
+    AnimationClip = 8, Flipbook = 16, MotionAnimation = 32, Timer = 64, DayNightCycle = 128, Timeline = 256, All = 511
 }
 public enum TimeSourceMode { Hierarchy, Explicit, Global, Unscaled }
 

@@ -46,6 +46,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		static constexpr size_t GetAttributeBytesPerParticle() { return decltype(columns_)::kElementBytes; }
+		uint64_t GetSnapshotMemoryBytes() const { return size_ * GetAttributeBytesPerParticle() + moduleStates_.size() * sizeof(Vector3); }
 		Particle operator[](size_t index) const;
 		Particle GetMutable(size_t index);
 		size_t size() const { return size_; }

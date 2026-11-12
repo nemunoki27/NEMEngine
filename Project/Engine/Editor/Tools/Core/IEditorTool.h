@@ -2,6 +2,7 @@
 
 #include <Engine/Core/Tools/Core/ITool.h>
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
+#include <Engine/Editor/UI/Inspectors/Core/EditorInspectionTarget.h>
 #include "EditorToolRenderResources.h"
 
 namespace Engine {
@@ -34,9 +35,14 @@ namespace Engine {
 		void EndEditorToolFrame();
 
 		// ToolPanelの一覧からツールを開く
-		virtual void OpenEditorTool() {}
+		virtual void OpenEditorTool() { openWindow_ = true; }
 		// 独立したエディタウィンドウを描画する
 		virtual void DrawEditorTool(const EditorToolContext& context) = 0;
+		// Inspectorから渡された永続IDの有効性を調べる
+		virtual bool IsInspectionTargetValid([[maybe_unused]] const EditorInspectionTarget& target) const { return false; }
+		// 共通Inspectorへ選択したツール項目を描く
+		virtual bool DrawSelectionInspector([[maybe_unused]] const EditorPanelContext& context,
+			[[maybe_unused]] const EditorInspectionTarget& target) { return false; }
 		virtual bool HasPendingEdits() const { return false; }
 		// Sceneの保存とWorld切替の前にプレビューを戻す
 		virtual void EndScenePreview() {}
@@ -44,10 +50,23 @@ namespace Engine {
 		virtual EditorToolCloseResult ConsumePendingEditCloseResult() {
 			return EditorToolCloseResult::None;
 		}
+
+		//--------- accessor -----------------------------------------------------
+
+		bool IsEditorToolOpen() const { return openWindow_; }
+		// レイアウトから開閉状態を復元する
+		void SetEditorToolOpen(bool open);
 	protected:
 		//============================================================================
 		//	protected Methods
 		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		bool openWindow_ = false;
+
+		//--------- functions ----------------------------------------------------
+
 		// 表示名と内部IDを分け、以前のウィンドウ配置を引き継ぐ
 		std::string MakeWindowName(const char* identity, const char* previousName = nullptr) const;
 		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す

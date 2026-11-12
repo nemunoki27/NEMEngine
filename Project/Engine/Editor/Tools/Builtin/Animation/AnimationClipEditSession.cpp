@@ -34,7 +34,7 @@ void AnimationClipEditSession::AddPropertyTrack(
 	}
 
 	const AnimationPropertyBinding binding{desc.componentName, desc.propertyPath, desc.valueType};
-	if (std::any_of(clip_.curveTracks.begin(), clip_.curveTracks.end(), [&](const auto& track) {
+	if (std::any_of(document_->GetClip().curveTracks.begin(), document_->GetClip().curveTracks.end(), [&](const auto& track) {
 		return AnimationValueOperations::SameBinding(track.binding, binding);
 	})) return;
 
@@ -53,8 +53,8 @@ void AnimationClipEditSession::AddPropertyTrack(
 	// 現在値を初期値へ写し、任意軸の回転は軸キーも保持する
 	SetupTrackInitialValue(track, currentValue);
 	NormalizeAnimationTrackChannels(track);
-	selectedTrackIndex_ = static_cast<int>(clip_.curveTracks.size());
-	clip_.curveTracks.emplace_back(std::move(track));
+	selectedTrackIndex_ = static_cast<int>(document_->GetClip().curveTracks.size());
+	document_->GetClip().curveTracks.emplace_back(std::move(track));
 	// 追加したPropertyの開始値を保持する
 	CachePreviewBaseValues(world, entity);
 	LoadSelectedTrackEditorView();
@@ -110,23 +110,23 @@ AnimationClipEditDimension AnimationClipEditSession::GetEffectiveEditDimension(c
 
 void AnimationClipEditSession::NormalizeSelectedTrackIndex() {
 
-	if (clip_.curveTracks.empty()) {
+	if (document_->GetClip().curveTracks.empty()) {
 		selectedTrackIndex_ = -1;
 		return;
 	}
-	if (selectedTrackIndex_ < 0 || static_cast<int>(clip_.curveTracks.size()) <= selectedTrackIndex_) {
+	if (selectedTrackIndex_ < 0 || static_cast<int>(document_->GetClip().curveTracks.size()) <= selectedTrackIndex_) {
 		selectedTrackIndex_ = 0;
 	}
 }
 
 void AnimationClipEditSession::StoreSelectedTrackEditorView() {
 
-	if (editorViewTrackIndex_ < 0 || static_cast<int>(clip_.curveTracks.size()) <= editorViewTrackIndex_) {
+	if (editorViewTrackIndex_ < 0 || static_cast<int>(document_->GetClip().curveTracks.size()) <= editorViewTrackIndex_) {
 		return;
 	}
 
 	// Trackを切り替えても、各Propertyごとの表示範囲を保持する
-	AnimationTrackEditorView& view = clip_.curveTracks[static_cast<size_t>(editorViewTrackIndex_)].editorView;
+	AnimationTrackEditorView& view = document_->GetClip().curveTracks[static_cast<size_t>(editorViewTrackIndex_)].editorView;
 	view.timeMin = curveState_.visibleTimeMin;
 	view.timeMax = curveState_.visibleTimeMax;
 	view.valueMin = curveState_.visibleValueMin;
@@ -135,12 +135,12 @@ void AnimationClipEditSession::StoreSelectedTrackEditorView() {
 
 void AnimationClipEditSession::LoadSelectedTrackEditorView() {
 
-	if (selectedTrackIndex_ < 0 || static_cast<int>(clip_.curveTracks.size()) <= selectedTrackIndex_) {
+	if (selectedTrackIndex_ < 0 || static_cast<int>(document_->GetClip().curveTracks.size()) <= selectedTrackIndex_) {
 		editorViewTrackIndex_ = -1;
 		return;
 	}
 
-	const AnimationTrackEditorView& view = clip_.curveTracks[static_cast<size_t>(selectedTrackIndex_)].editorView;
+	const AnimationTrackEditorView& view = document_->GetClip().curveTracks[static_cast<size_t>(selectedTrackIndex_)].editorView;
 	curveState_.visibleTimeMin = view.timeMin;
 	curveState_.visibleTimeMax = (std::max)(view.timeMax, view.timeMin + 0.001f);
 	curveState_.visibleValueMin = view.valueMin;
@@ -159,15 +159,15 @@ void AnimationClipEditSession::SyncCurveStateTime() {
 		return;
 	}
 
-	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
+	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(document_->GetClip()));
 	curveState_.currentTime = previewTime_;
 }
 
 void AnimationClipEditSession::UpdateAutoDurationAndPreview(const EditorToolContext& context) {
 
 	// 再生時間とプレビューを編集結果に合わせる
-	UpdateAnimationClipAutoDuration(clip_);
-	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(clip_));
+	UpdateAnimationClipAutoDuration(document_->GetClip());
+	previewTime_ = (std::clamp)(previewTime_, 0.0f, AnimationClipEvaluator::GetPlaybackDuration(document_->GetClip()));
 	curveState_.currentTime = previewTime_;
 	MarkClipDirty();
 	ApplyPreviewAtCurrentTime(context, true);
@@ -175,33 +175,33 @@ void AnimationClipEditSession::UpdateAutoDurationAndPreview(const EditorToolCont
 
 void AnimationClipEditSession::CommitHistory() {
 
-	if (!hasClip_ || (!historyPending_ && !historyState_.empty())) return;
-	historyPending_ = false;
-	const std::string state = nlohmann::json(clip_).dump();
-	if (state == historyState_) return;
-	if (!historyState_.empty()) {
-		undo_.emplace_back(std::move(historyCurrent_));
-		if (undo_.size() > 128) undo_.pop_front();
-	}
-	historyCurrent_ = clip_;
-	historyState_ = state;
-	redo_.clear();
+	if (hasClip_) document_->CommitHistory();
 }
 
 bool AnimationClipEditSession::RestoreHistory(bool redo) {
 
-	auto& source = redo ? redo_ : undo_;
-	auto& destination = redo ? undo_ : redo_;
-	if (source.empty()) return false;
 	EndPreviewAndRestore();
-	destination.emplace_back(std::move(historyCurrent_));
-	historyCurrent_ = std::move(source.back());
-	source.pop_back();
-	clip_ = historyCurrent_;
-	historyState_ = nlohmann::json(clip_).dump();
-	MarkClipDirty();
+	if (!document_->RestoreHistory(redo)) return false;
 	NormalizeSelectedTrackIndex();
 	curveState_.ClearSelection();
 	editorViewTrackIndex_ = -1;
 	return true;
+}
+
+void AnimationClipEditSession::AttachDocument(std::shared_ptr<AnimationClipDocument> document) {
+
+	if (!document || document_ == document) return;
+	EndPreviewAndRestore();
+	previewBaseValues_.clear();
+	document_ = std::move(document);
+	clipAssetID_ = document_->GetClip().guid;
+	loadedClipAssetID_ = clipAssetID_;
+	hasClip_ = true;
+	editorViewTrackIndex_ = -1;
+	selectedTrackIndex_ = document_->GetClip().curveTracks.empty() ? -1 : 0;
+	previewTime_ = (std::clamp)(previewTime_, 0.0f, document_->GetClip().duration);
+	curveState_.currentTime = previewTime_;
+	curveState_.visibleTimeMax = (std::max)(curveState_.visibleTimeMax, document_->GetClip().duration);
+	curveState_.ClearSelection();
+	LoadSelectedTrackEditorView();
 }

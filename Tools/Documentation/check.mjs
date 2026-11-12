@@ -22,6 +22,16 @@ function covers(expected, entries, label) {
 	for (const id of expected) check(actual.has(id), `${label}の掲載漏れ: ${id}`);
 }
 covers(data.editors.map(component => component.name), coverage.components, 'Inspector');
+
+// Editorから開く全ページと公開先を確認する
+const manualSource = fs.readFileSync(path.join(root, 'Project/Engine/Editor/Utility/EditorManualNavigation.cpp'), 'utf8');
+const publish = JSON.parse(fs.readFileSync(path.join(root, 'Tools/Documentation/publish.config.json'), 'utf8'));
+check(manualSource.includes(`https://${publish.projectName}.pages.dev`), 'Editorのマニュアル公開先が一致しません');
+for (const editor of data.editors) {
+	const entry = coverage.components.find(component => component.id === editor.name);
+	check(entry && fs.existsSync(path.join(website, entry.page.slice(1) + '.md')), `Editorから開くページがありません: ${editor.name}`);
+}
+check(fs.existsSync(path.join(website, 'manual/scripting.md')), '自作スクリプトのマニュアルがありません');
 covers(data.tools.map(tool => tool.name), coverage.tools, 'Tool');
 covers(data.modules.map(module => module.id), coverage.modules, 'Particle Module');
 covers(data.components.flatMap(component => (component.properties || []).map(property => `${component.registryName}.${property.managedName}`)), coverage.fields, 'Componentプロパティ');

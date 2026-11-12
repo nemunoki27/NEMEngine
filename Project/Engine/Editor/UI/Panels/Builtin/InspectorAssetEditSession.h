@@ -51,6 +51,7 @@ namespace Engine {
 		AssetID pendingAssetSelection_{};
 		// 切替先の選択種別
 		EditorSelectionKind pendingSelectionKind_ = EditorSelectionKind::None;
+		EditorInspectionTarget pendingInspectionTarget_{};
 		// 切替先のEntity集合
 		std::vector<Entity> pendingSelectedEntities_{};
 		// 切替先のSubMesh番号

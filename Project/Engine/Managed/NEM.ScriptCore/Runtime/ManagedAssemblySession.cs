@@ -6,6 +6,7 @@ internal sealed unsafe class ManagedAssemblySession {
 
     internal readonly ScriptTypeRegistry registry = new();
     internal readonly ScriptFieldCodec codec;
+    internal readonly TimelineClipRegistry timelineClips = new();
 
     // ゲーム側DLLをアンロード可能にする専用LoadContext
     internal GameScriptLoadContext? gameLoadContext;
@@ -35,6 +36,7 @@ internal sealed unsafe class ManagedAssemblySession {
             gameLoadContext = new GameScriptLoadContext(path);
             registry.gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
             registry.RebuildScriptTypes(codec);
+            timelineClips.Load(registry.gameAssembly);
             // 新しいAssemblyの予約処理と購読を開始する
             ScriptRuntimeLifetime.BeginAssemblyLifetime();
             NativeApplicationAPI.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={registry.scriptTypeEntries.Count}");
@@ -52,6 +54,7 @@ internal sealed unsafe class ManagedAssemblySession {
 
         // 型を解放する前に予約処理と購読を終了する
         ScriptRuntimeLifetime.EndAssemblyLifetime();
+        timelineClips.Clear();
 
         // 個体を解放して参照の世代を進める
         instances.ReleaseAllSlots();

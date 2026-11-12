@@ -1,0 +1,376 @@
+{
+    "bindings": [
+        {
+            "component": "SkinnedAnimation",
+            "id": "75950ffc06c75ba0",
+            "name": "Actor"
+        },
+        {
+            "component": "Collision",
+            "id": "7e5d3b5d1714027e",
+            "name": "Hitbox"
+        },
+        {
+            "component": "ParticleSystem",
+            "id": "41b93031c3685103",
+            "name": "Effect"
+        }
+    ],
+    "duration": 1.6,
+    "durationMode": "FixedLength",
+    "frameRate": 60.0,
+    "name": "RobotPunch",
+    "parameters": [],
+    "schemaVersion": 1,
+    "tracks": [
+        {
+            "binding": "75950ffc06c75ba0",
+            "branchGroup": "",
+            "clips": [
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.05000000000000002,
+                    "clipIn": 0.0,
+                    "data": {
+                        "clip": "Idle",
+                        "loop": true
+                    },
+                    "duration": 0.18333333333333335,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "2dea36fc8adebf42",
+                    "name": "待機 Idle",
+                    "sourceDuration": 0.2,
+                    "speed": 1.0,
+                    "start": 0.0
+                },
+                {
+                    "blendIn": 0.05000000000000002,
+                    "blendOut": 0.06666666666666665,
+                    "clipIn": 0.0,
+                    "data": {
+                        "clip": "Punch",
+                        "loop": false
+                    },
+                    "duration": 0.8333333333333334,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "b766aeeb518adb28",
+                    "name": "パンチ Punch",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 0.13333333333333333
+                },
+                {
+                    "blendIn": 0.06666666666666665,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "clip": "Idle",
+                        "loop": true
+                    },
+                    "duration": 0.7,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "09f8841040f972b4",
+                    "name": "待機へ戻る Idle",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 0.9
+                }
+            ],
+            "conditions": [],
+            "conditionsAll": true,
+            "duration": 0.0,
+            "fallback": false,
+            "id": "669b35063bb13f62",
+            "kind": "SkinnedAnimation",
+            "locked": false,
+            "muted": false,
+            "name": "01 待機 → パンチ → 待機",
+            "parent": "",
+            "start": 0.0
+        },
+        {
+            "binding": "75950ffc06c75ba0",
+            "branchGroup": "",
+            "clips": [
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "settings": {
+                            "angle": 0,
+                            "applyPosition": true,
+                            "applyRotation": false,
+                            "autoApply": true,
+                            "axis": {
+                                "x": 0,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "cycleCount": 0,
+                            "delay": 0,
+                            "drawDebug": true,
+                            "duration": 1.6,
+                            "easing": 0,
+                            "enabled": true,
+                            "euler": {
+                                "x": 0,
+                                "y": 0,
+                                "z": 0
+                            },
+                            "mode": 2,
+                            "offset": {
+                                "x": 0,
+                                "y": 0,
+                                "z": 0.6
+                            },
+                            "plane": 1,
+                            "playInEditMode": false,
+                            "playOnStart": false,
+                            "repeat": 0,
+                            "rotation": 0,
+                            "rotationEdit": 1,
+                            "segments": [
+                                {
+                                    "duration": 0.15,
+                                    "easing": 0,
+                                    "offset": {
+                                        "x": 0,
+                                        "y": 0,
+                                        "z": 0
+                                    }
+                                },
+                                {
+                                    "duration": 0.25,
+                                    "easing": 0,
+                                    "offset": {
+                                        "x": 0,
+                                        "y": 0,
+                                        "z": 0.6
+                                    }
+                                },
+                                {
+                                    "duration": 0.6,
+                                    "easing": 0,
+                                    "offset": {
+                                        "x": 0,
+                                        "y": 0,
+                                        "z": 0.6
+                                    }
+                                },
+                                {
+                                    "duration": 0.45,
+                                    "easing": 0,
+                                    "offset": {
+                                        "x": 0,
+                                        "y": 0,
+                                        "z": 0
+                                    }
+                                },
+                                {
+                                    "duration": 0.15,
+                                    "easing": 0,
+                                    "offset": {
+                                        "x": 0,
+                                        "y": 0,
+                                        "z": 0
+                                    }
+                                }
+                            ],
+                            "speed": 1,
+                            "spline": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "splineEnd": 1,
+                            "splineStart": 0,
+                            "stoppingDistance": 1,
+                            "target": {
+                                "kind": "Scene",
+                                "localFileId": "",
+                                "sourceAsset": ""
+                            },
+                            "timeSource": {
+                                "mode": "Hierarchy",
+                                "source": {
+                                    "kind": "Scene",
+                                    "localFileId": "",
+                                    "sourceAsset": ""
+                                }
+                            },
+                            "trackTarget": false
+                        },
+                        "splineBinding": "",
+                        "targetBinding": ""
+                    },
+                    "duration": 1.6,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "814e49c2b67fd1cb",
+                    "name": "踏み込み 0.6 → 保持 → 戻る",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 0.0
+                }
+            ],
+            "conditions": [],
+            "conditionsAll": true,
+            "duration": 0.0,
+            "fallback": false,
+            "id": "ff2d4f3fdae0edcb",
+            "kind": "Motion",
+            "locked": false,
+            "muted": false,
+            "name": "02 正面へ踏み込み・元の位置へ戻る",
+            "parent": "",
+            "start": 0.0
+        },
+        {
+            "binding": "7e5d3b5d1714027e",
+            "branchGroup": "",
+            "clips": [
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "debug": true
+                    },
+                    "duration": 0.73,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "a540fdc9b2b581ec",
+                    "name": "パンチが当たる区間",
+                    "sourceDuration": 0.23,
+                    "speed": 1.0,
+                    "start": 0.17000000000000004
+                }
+            ],
+            "conditions": [],
+            "conditionsAll": true,
+            "duration": 0.0,
+            "fallback": false,
+            "id": "4ec1a40cd7bb5821",
+            "kind": "Collision",
+            "locked": false,
+            "muted": false,
+            "name": "03 右手の攻撃判定",
+            "parent": "",
+            "start": 0.0
+        },
+        {
+            "binding": "41b93031c3685103",
+            "branchGroup": "",
+            "clips": [
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "clearOnCancel": true,
+                        "oneShot": true,
+                        "randomSeed": 7,
+                        "stopEmittingOnEnd": true
+                    },
+                    "duration": 0.8,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "b3ce1964eeab508a",
+                    "name": "火花を1回発生",
+                    "sourceDuration": 0.4,
+                    "speed": 1.0,
+                    "start": 0.4
+                }
+            ],
+            "conditions": [],
+            "conditionsAll": true,
+            "duration": 0.0,
+            "fallback": false,
+            "id": "fd82fbbf1975af6c",
+            "kind": "Particle",
+            "locked": false,
+            "muted": false,
+            "name": "04 パンチの火花",
+            "parent": "",
+            "start": 0.0
+        },
+        {
+            "binding": "75950ffc06c75ba0",
+            "branchGroup": "",
+            "clips": [
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "floatParam": 0,
+                        "intParam": 0,
+                        "name": "AttackStart",
+                        "stringParam": "攻撃開始"
+                    },
+                    "duration": 0.016666666666666666,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "311d4d30a93c48c9",
+                    "name": "攻撃開始",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 0.0
+                },
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "floatParam": 1,
+                        "intParam": 0,
+                        "name": "Impact",
+                        "stringParam": "打撃タイミング（命中判定とは別）"
+                    },
+                    "duration": 0.016666666666666666,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "21fa6a80cb45ba12",
+                    "name": "打撃タイミング",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 0.4
+                },
+                {
+                    "blendIn": 0.0,
+                    "blendOut": 0.0,
+                    "clipIn": 0.0,
+                    "data": {
+                        "floatParam": 0,
+                        "intParam": 0,
+                        "name": "AttackEnd",
+                        "stringParam": "攻撃終了"
+                    },
+                    "duration": 0.016666666666666666,
+                    "easing": "Linear",
+                    "enabled": true,
+                    "id": "7eb0b943584522e1",
+                    "name": "攻撃終了",
+                    "sourceDuration": 0.0,
+                    "speed": 1.0,
+                    "start": 1.55
+                }
+            ],
+            "conditions": [],
+            "conditionsAll": true,
+            "duration": 0.0,
+            "fallback": false,
+            "id": "d9d7cbdc4c600bf6",
+            "kind": "Event",
+            "locked": false,
+            "muted": false,
+            "name": "05 C#への時刻通知",
+            "parent": "",
+            "start": 0.0
+        }
+    ]
+}

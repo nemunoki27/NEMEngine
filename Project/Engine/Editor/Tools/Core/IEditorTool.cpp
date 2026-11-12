@@ -17,6 +17,17 @@ void Engine::IEditorTool::EndEditorToolFrame() {
 	renderResources_.EndEditorToolFrame();
 }
 
+void Engine::IEditorTool::SetEditorToolOpen(bool open) {
+
+	if (openWindow_ == open) return;
+	if (open) {
+		OpenEditorTool();
+		return;
+	}
+	EndScenePreview();
+	openWindow_ = false;
+}
+
 std::string Engine::IEditorTool::MakeWindowName(const char* identity, const char* previousName) const {
 
 	const std::string name = EditorWindowPresentation::MakeWindowName(GetDescriptor().name, identity, GetDescriptor().id);

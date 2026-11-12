@@ -42,6 +42,8 @@ namespace Engine {
 		// ファイルを書かず作成先と結果のパスを決める
 		static ProjectAssetFileResult PlanCreate(ProjectAssetSource source, const std::string& directoryVirtualPath,
 			ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique = true);
+		// ツール共通の入力からGameAssets内の作成先を決める
+		static ProjectAssetFileResult PlanToolAsset(ProjectAssetFileKind kind, const std::string& path);
 		// 指定ディレクトリにアセットまたはフォルダを作成する
 		static ProjectAssetFileResult Create(ProjectAssetSource source, const std::string& directoryVirtualPath,
 			ProjectAssetFileKind kind, const std::string& requestedName, bool makeUnique = true);

@@ -22,6 +22,7 @@ namespace Engine {
 		Prefab,
 		Material,
 		AnimationClip,
+		Timeline,
 		Shader,
 		RenderPipeline,
 		ShaderGraph,

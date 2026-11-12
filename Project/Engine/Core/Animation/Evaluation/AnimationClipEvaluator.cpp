@@ -5,6 +5,7 @@
 //============================================================================
 #include "AnimationValueOperations.h"
 #include "AnimationTrackSampling.h"
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
@@ -171,6 +172,8 @@ bool Engine::AnimationClipEvaluator::ApplyTrack(ECSWorld& world, const Entity& e
 	const AnimationCurveTrack& track, const AnimationClipAsset& clip,
 	const AnimationResolvedTime& time, const AnimationPropertyValue* baseValueOrNull) {
 
+	if (IsTimelineControlled(world, entity, track.binding.componentName, track.binding.propertyPath)) return false;
+
 	// 静的/動的どちらのPropertyも解決する、Missing Propertyは編集を止めずにスキップする
 	const std::optional<AnimationPropertyDescriptor> descOpt = ResolveProperty(world, entity, track.binding);
 	if (!descOpt) {
@@ -263,6 +266,8 @@ void Engine::AnimationClipEvaluator::WriteValues(ECSWorld& world, const Entity& 
 	}
 
 	for (const AnimationEvaluatedValue& value : values) {
+
+		if (IsTimelineControlled(world, entity, value.binding.componentName, value.binding.propertyPath)) continue;
 
 		const std::optional<AnimationPropertyDescriptor> descOpt = AnimationPropertyRegistry::GetInstance().ResolveProperty(
 			world, entity, value.binding.componentName, value.binding.propertyPath, value.binding.valueType);

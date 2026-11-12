@@ -41,6 +41,13 @@ namespace Engine {
 		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
 		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t,
 			const char*);
+		using CreateTimelineClipFn = ManagedStatus(__cdecl*)(ManagedNativeEntity, const char*, const char*, int32_t, uint64_t*);
+		using UpdateTimelineClipConfigurationFn = ManagedStatus(__cdecl*)(uint64_t, const char*, const char*, int32_t);
+		using EvaluateTimelineClipFn = ManagedStatus(__cdecl*)(uint64_t, const ManagedTimelineFrame*);
+		using UpdateTimelineClipContextFn = ManagedStatus(__cdecl*)(uint64_t, const ManagedTimelineBindingUpdate*, int32_t,
+			const ManagedTimelineParameterUpdate*, int32_t);
+		using ReleaseTimelineClipFn = ManagedStatus(__cdecl*)(uint64_t, int32_t);
+		using CopyTimelineClipTypesFn = int32_t(__cdecl*)(char*, int32_t);
 
 		using TickFrameFn = ManagedStatus(__cdecl*)(int32_t);
 		// Assemblyの解放状態を直接返す接続
@@ -91,6 +98,12 @@ namespace Engine {
 
 		// アニメーションイベント呼び出し関数
 		InvokeAnimationEventFn invokeAnimationEvent_ = nullptr;
+		CreateTimelineClipFn createTimelineClip_ = nullptr;
+		UpdateTimelineClipConfigurationFn updateTimelineClipConfiguration_ = nullptr;
+		EvaluateTimelineClipFn evaluateTimelineClip_ = nullptr;
+		UpdateTimelineClipContextFn updateTimelineClipContext_ = nullptr;
+		ReleaseTimelineClipFn releaseTimelineClip_ = nullptr;
+		CopyTimelineClipTypesFn copyTimelineClipTypes_ = nullptr;
 
 		// 必須exportを順に取得する
 		bool Load(DotnetHostResolver& host, const std::filesystem::path& assemblyPath);

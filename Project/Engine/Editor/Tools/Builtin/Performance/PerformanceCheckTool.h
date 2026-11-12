@@ -71,8 +71,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		bool openWindow_ = false;
-
 		int32_t gridCountXZ_ = 10;
 		int32_t gridCountY_ = 1;
 		float gridWidth_ = 2.0f;

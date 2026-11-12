@@ -77,6 +77,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Audio].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "audio.dds");
 	defaultIcons_[AssetType::AnimationClip].textureKey = "animationClip.dds";
 	defaultIcons_[AssetType::AnimationClip].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "animationClip.dds");
+	defaultIcons_[AssetType::Timeline].textureKey = "timeline.png";
+	defaultIcons_[AssetType::Timeline].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "timeline.png");
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "unknown.dds");
 	// 設定アセットは型の有無にかかわらず同じ歯車アイコンへ揃える

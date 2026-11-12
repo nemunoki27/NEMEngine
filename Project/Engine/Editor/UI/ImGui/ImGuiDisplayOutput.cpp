@@ -1,4 +1,4 @@
-#include "ImGuiDisplayOutput.h"
+﻿#include "ImGuiDisplayOutput.h"
 
 //============================================================================
 //	include
@@ -23,19 +23,22 @@ void ImGuiDisplayOutput::Init(GraphicsCore& graphicsCore, ImGui_ImplDX12_InitInf
 	info.WindowOutputFn = ConfigureWindow;
 	info.RenderOutputFn = RenderWindow;
 	info.DestroyOutputFn = DestroyWindow;
-	Begin();
 }
 
 void ImGuiDisplayOutput::Begin() {
 
 	// UI操作中の変更は次のフレームでまとめて使用する
 	requested_ = graphicsCore_->GetDXObject().GetFeatureController().GetPreferences().displayOutput;
-	ImGuiViewport* main = ImGui::GetMainViewport();
-	auto& window = windows_[main->ID];
+	auto& window = windows_[WinApp::GetHwnd()];
 	window.hwnd = WinApp::GetHwnd();
 	window.state = graphicsCore_->GetDisplayOutputState();
 	const auto& desc = graphicsCore_->GetSwapChainDesc();
 	SyncComposition(window, desc.Width, desc.Height);
+}
+
+HWND ImGuiDisplayOutput::GetWindowHandle(const ImGuiViewport* viewport) {
+
+	return static_cast<HWND>(viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw : viewport->PlatformHandle);
 }
 
 ImGui_ImplDX12_OutputConfig ImGuiDisplayOutput::BuildConfig(const WindowOutput& window) {
@@ -77,8 +80,8 @@ bool ImGuiDisplayOutput::ConfigureWindow(ImGui_ImplDX12_InitInfo* info, ImGuiVie
 	IDXGISwapChain3* swapChain, ImGui_ImplDX12_OutputConfig* config, int operation) {
 
 	auto& owner = *static_cast<ImGuiDisplayOutput*>(info->OutputUserData);
-	auto& window = owner.windows_[viewport->ID];
-	window.hwnd = static_cast<HWND>(viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw : viewport->PlatformHandle);
+	auto& window = owner.windows_[GetWindowHandle(viewport)];
+	window.hwnd = GetWindowHandle(viewport);
 	bool result = true;
 	if (operation == 0) {
 
@@ -107,7 +110,7 @@ void ImGuiDisplayOutput::Draw(ID3D12GraphicsCommandList* commandList) {
 void ImGuiDisplayOutput::DrawWindow(ImGuiViewport* viewport, ID3D12GraphicsCommandList* commandList,
 	const RenderTarget& target) {
 
-	auto& window = windows_.at(viewport->ID);
+	auto& window = windows_.at(GetWindowHandle(viewport));
 	ImGui_ImplDX12_OutputConfig config = BuildConfig(window);
 	config.RTVFormat = target.format;
 	if (window.state.GetSettings().mode == DisplayOutputMode::SDR) config.UIFormat = target.format;
@@ -138,7 +141,7 @@ void ImGuiDisplayOutput::RenderWindow(ImGui_ImplDX12_InitInfo* info, ImGuiViewpo
 	ID3D12GraphicsCommandList* commandList, D3D12_CPU_DESCRIPTOR_HANDLE target) {
 
 	auto& owner = *static_cast<ImGuiDisplayOutput*>(info->OutputUserData);
-	const auto& window = owner.windows_.at(viewport->ID);
+	const auto& window = owner.windows_.at(GetWindowHandle(viewport));
 	const auto format = DisplayOutputState::ResolveFormat(window.state.GetSettings().mode);
 	RenderTarget renderTarget{};
 	renderTarget.width = static_cast<uint32_t>(viewport->Size.x);
@@ -152,14 +155,13 @@ void ImGuiDisplayOutput::DestroyWindow(ImGui_ImplDX12_InitInfo* info, ImGuiViewp
 
 	// 使用中の合成画像は既存の回収窓口へ渡す
 	auto& owner = *static_cast<ImGuiDisplayOutput*>(info->OutputUserData);
-	owner.windows_.erase(viewport->ID);
+	owner.windows_.erase(GetWindowHandle(viewport));
 }
 
 DisplayOutputSettings ImGuiDisplayOutput::GetSettings(HWND hwnd) const {
 
-	for (const auto& [id, window] : windows_) {
-		if (window.hwnd == hwnd) return window.state.GetSettings();
-	}
+	const auto found = windows_.find(hwnd);
+	if (found != windows_.end()) return found->second.state.GetSettings();
 	return graphicsCore_->GetDisplayOutputSettings();
 }
 

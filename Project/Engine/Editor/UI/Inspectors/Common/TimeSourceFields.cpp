@@ -3,9 +3,19 @@
 //============================================================================
 //	include
 //============================================================================
+#include "InspectorPresentation.h"
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
+
+Engine::ValueEditResult Engine::DrawPlaybackStartFields(const EditorPanelContext& context, ECSWorld& world,
+	Entity owner, TimeSourceSettings& settings, bool& playInEditMode, bool* playOnStart) {
+
+	auto result = DrawTimeSourceField(context, world, owner, settings);
+	if (playOnStart) result.Merge(MyGUI::CheckboxField(GetInspectorLabel(InspectorFieldID::PlayOnStart), *playOnStart));
+	result.Merge(MyGUI::CheckboxField(GetInspectorLabel(InspectorFieldID::PlayInEditMode), playInEditMode));
+	return result;
+}
 
 Engine::ValueEditResult Engine::DrawTimeSourceField([[maybe_unused]] const EditorPanelContext& context,
 	ECSWorld& world, Entity owner, TimeSourceSettings& settings) {

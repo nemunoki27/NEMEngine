@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderGraphAssetAuthoring.h"
+#include <Engine/Editor/UI/Common/AssetCreationDialog.h>
 
 namespace Engine {
 
@@ -27,7 +28,7 @@ namespace Engine {
 		// 別Assetの設定を取り込む
 		virtual void ImportGraphSettings(const EditorToolContext& context, AssetID source) = 0;
 		// 未保存状態を確認して作成する
-		virtual void RequestGraphCreation(const EditorToolContext& context) = 0;
+		virtual bool RequestGraphCreation(const EditorToolContext& context) = 0;
 		// 表示位置を確定して保存する
 		virtual bool SaveGraph(const EditorToolContext& context) = 0;
 		// 保存してShaderをコンパイルする
@@ -64,5 +65,6 @@ namespace Engine {
 
 		// 新規Graphの作成入力
 		ShaderGraphCreationRequest creation_;
+		AssetCreationDialog creationDialog_;
 	};
 } // Engine

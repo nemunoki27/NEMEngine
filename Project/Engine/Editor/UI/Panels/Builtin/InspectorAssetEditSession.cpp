@@ -81,6 +81,7 @@ bool Engine::InspectorAssetEditSession::ResolvePendingAssetEdit(const EditorPane
 		pendingAssetEditPrompt_ = true;
 		pendingAssetSelection_ = state.selectedAsset;
 		pendingSelectionKind_ = state.selectionKind;
+		pendingInspectionTarget_ = state.inspectionTarget;
 		pendingSelectedEntities_ = state.selectedEntities;
 		pendingSubMeshIndex_ = state.selectedSubMeshIndex;
 		pendingSubMeshStableID_ = state.selectedSubMeshStableID;
@@ -149,6 +150,11 @@ void Engine::InspectorAssetEditSession::ApplyPendingSelection(EditorState& state
 	pendingSelectedEntities_.clear();
 	if (kind == EditorSelectionKind::Asset) {
 		state.SelectAsset(asset);
+		return;
+	}
+	if (kind == EditorSelectionKind::Tool) {
+		state.SelectInspectionTarget(pendingInspectionTarget_);
+		pendingInspectionTarget_ = {};
 		return;
 	}
 	state.SetSelectedEntities(entities);

@@ -41,6 +41,29 @@ namespace Engine {
 		void Init(GraphicsCore& graphics, uint32_t capacity, uint32_t phaseCount, uint32_t trailSegmentCapacity);
 	};
 
+	struct ParticleGPUCheckpointBudget {
+
+		static constexpr uint64_t kMemoryBudget = 128ull * 1024 * 1024;
+		uint64_t allocated = 0;
+		std::vector<std::pair<GraphicsSubmissionTicket, uint64_t>> retired;
+
+		void Collect(uint64_t completedFence);
+		void Release(uint64_t bytes, GraphicsSubmissionTicket submission);
+	};
+
+	struct ParticleGPUCheckpointResources {
+
+		std::weak_ptr<ParticleGPUCheckpoint> owner;
+		GraphicsResourceRetirement* retirement = nullptr;
+		std::vector<ComPtr<ID3D12Resource>> buffers;
+		Matrix4x4 emitterWorld = Matrix4x4::Identity();
+		uint64_t memoryBytes = 0;
+		std::shared_ptr<ParticleGPUCheckpointBudget> budget;
+		GraphicsSubmissionTicket lastUse;
+
+		~ParticleGPUCheckpointResources();
+	};
+
 	// 再生要求の所有がなくなったら回収窓口へ資源を渡す
 	struct ParticleGPUInstance {
 
@@ -62,6 +85,8 @@ namespace Engine {
 		StructuredInstanceBuffer<ParticleParentGPU> parents;
 		std::array<ParticleGPUReadback, kGraphicsFrameContextCount + 1> readbacks;
 		std::unordered_map<std::string, std::unique_ptr<ParticleGPUViewResources>> views;
+		std::unordered_map<const ParticleGPUCheckpoint*, std::unique_ptr<ParticleGPUCheckpointResources>> checkpoints;
+		std::shared_ptr<ParticleGPUCheckpointBudget> checkpointBudget;
 		std::shared_ptr<const ParticleSystemDefinition> uploadedDefinition;
 		std::array<std::shared_ptr<const ParticleSystemDefinition>, kGraphicsFrameContextCount> frameDefinitions;
 		std::vector<ParticleParentGPU> lastParents;
@@ -86,4 +111,13 @@ namespace Engine {
 	void BindParticleGPUViewCompute(ID3D12GraphicsCommandList* commands, const PipelineState& pipeline,
 		D3D12_GPU_VIRTUAL_ADDRESS constants, ParticleGPUInstance& instance, ParticleGPUViewResources& view,
 		uint32_t input, uint32_t output, bool trail);
+	// 同じCommandList内で途中状態の複製と復元を完了する
+	void CaptureParticleGPUCheckpoint(GraphicsCore& graphics, ParticleGPUInstance& instance,
+		const std::shared_ptr<ParticleGPUCheckpoint>& checkpoint);
+	bool RestoreParticleGPUCheckpoint(GraphicsCore& graphics, ParticleGPUInstance& instance,
+		const std::shared_ptr<const ParticleGPUCheckpoint>& checkpoint);
+	void CaptureParticleGPUCheckpoint(ID3D12Device* device, DxCommand& commands, GraphicsResourceRetirement& retirement,
+		ParticleGPUInstance& instance, const std::shared_ptr<ParticleGPUCheckpoint>& checkpoint, uint64_t completedFence);
+	bool RestoreParticleGPUCheckpoint(DxCommand& commands, ParticleGPUInstance& instance,
+		const std::shared_ptr<const ParticleGPUCheckpoint>& checkpoint);
 }

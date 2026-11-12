@@ -41,6 +41,7 @@ namespace Engine {
 		RenderPasses = 16,
 		DefaultAsset,
 		Text,
+		Timeline,
 	};
 
 	// アセット参照の診断種別

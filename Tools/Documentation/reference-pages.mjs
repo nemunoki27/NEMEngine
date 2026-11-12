@@ -4,6 +4,7 @@ import { root, output, website, read, write, walk, formatDocumentation } from '.
 import { describeProperty } from './component-notes.mjs';
 import { names, modules } from './api-notes.mjs';
 import { launcherGuide } from './launcher-guide.mjs';
+import { timelineGuide } from './timeline-guide.mjs';
 
 const slug = value => value.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2').replace(/([a-z\d])([A-Z])/g, '$1-$2').replace(/[^\w-]+/g, '-').toLowerCase();
 const escape = value => String(value ?? '').replaceAll('|', '&#124;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', ' ');
@@ -11,6 +12,7 @@ const table = (headers, rows) => `| ${headers.join(' | ')} |\n| ${headers.map(()
 const save = (file, title, text) => write(path.join(website, file), formatDocumentation(`# ${title}\n\n${text}\n`));
 
 const toolGuides = {
+	TimelineTool: ['animation', 'ツール → アニメーション → タイムライン', '時間軸へトラックとクリップを置き、再生対象と割り当てを設定してプレビューします。TimelinePlayerへ同じアセットを設定するとゲーム中に再生できます。'],
 
 	SceneViewCameraController: ['project-settings', 'プロジェクト設定 → シーンカメラ設定', '制作用Cameraの移動・回転・感度と保存状態を調整します。ゲームCameraの設定とは別です。'],
 	CollisionManagerTool: ['physics', 'プロジェクト設定 → 衝突設定', '衝突タイプを定義し、接触を許可する組み合わせを表で設定します。表示レイヤーとは別です。'],
@@ -24,6 +26,19 @@ const toolGuides = {
 	ScriptProfilerTool: ['performance', 'ツール → スクリプト → スクリプトプロファイラー', 'Scriptコールバックと計測Scopeの時間を比較します。GPU Passの時間とは別です。'],
 	InputDeviceTool: ['input', 'プロジェクト設定 → 入力デバイス', 'Playerの操作機器と機器側の入力条件を設定します。Action名の定義と現在の入力値も合わせて確認します。'],
 };
+
+// 作成画面の共通操作を専用ツールの説明へ載せる
+function creationGuide(tool) {
+	const suffix = {AnimationClipTool: '.animClip.json', TimelineTool: '.timeline.json',
+		MaterialEditorTool: '.material.json', ShaderGraphEditorTool: '.shadergraph.json'}[tool];
+	if (!suffix) return '';
+	const importing = tool === 'MaterialEditorTool' ?
+		'設定をインポートの参照欄へ既存マテリアルをドロップすると、新しく作るマテリアルの描画設定を引き継ぎます。必要ならシェーダーもインポートします。元のアセットは変更しません。' :
+		'設定をインポートの参照欄へ対応アセットをドロップすると、編集中の設定を読み込みます。保存先アセット自体の識別子は変わりません。内容を確認して保存してください。';
+	return `## 新規作成と設定のインポート\n\n新規作成を押すと共通ポップアップが開きます。初期の保存先はGameAssets直下です。名前欄へ\`Anims/Sample\`と入力すると、上に\`GameAssets/Anims/Sample${suffix}\`が表示されます。存在しない子フォルダーは作成時に用意します。拡張子を入力しても二重に付きません。\n\n` +
+		'保存先を確認して作成を押します。同名アセットがある場合は上書きせず、名前を変更するまで作成できません。未保存編集があるツールでは保存・破棄・キャンセルを選びます。\n\n' +
+		importing + '\n\n';
+}
 
 const moduleDetails = {
 
@@ -81,7 +96,7 @@ export function referencePages(data, api, coverage) {
 		const fields = data.ui.filter(field => field.file.startsWith(path.posix.dirname(tool.source) + '/'));
 		const target = `/reference/tools/${slug(tool.name)}`;
 		save(`reference/tools/${slug(tool.name)}.md`, tool.label,
-			`**開き方：${menu}**\n\n${summary}\n\n## 操作手順\n\n[${tool.label}の使い方](/manual/${guide})を参照してください。\n\n## 設定欄\n\n` +
+			`**開き方：${menu}**\n\n${summary}\n\n${tool.name === 'TimelineTool' ? timelineGuide() : ''}${creationGuide(tool.name)}## 操作手順\n\n[${tool.label}の使い方](/manual/${guide})を参照してください。\n\n## 設定欄\n\n` +
 			(fields.length ? table(['項目', '説明'], [...new Map(fields.map(field => [field.label, field])).values()].map(field => [field.label, describeWidget(field)])) : '表示中の対象と診断結果を確認します。\n') +
 			'\n## 保存と切替\n\n保存するAsset・Project設定と、Previewや実行値を区別します。保存ボタンがある場合は変更を確定して保存し、未保存確認では保存・破棄・キャンセルを選びます。\n');
 		coverage.tools.push({ id: tool.name, page: target });

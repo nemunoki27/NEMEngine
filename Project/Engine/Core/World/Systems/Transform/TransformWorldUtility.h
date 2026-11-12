@@ -40,5 +40,8 @@ namespace Engine {
 		// エンティティの継承設定を反映した親追従Transformを解決する
 		bool ResolveParentFollowTransform(ECSWorld& world, const Entity& entity,
 			ResolvedWorldTransform& outTransform, bool includePending = false);
+		// 親とジョイントの継承を反映してワールド姿勢をローカル値へ適用する
+		bool ApplyWorldPose(ECSWorld& world, Entity entity, Vector3 position, Quaternion rotation,
+			bool applyPosition = true, bool applyRotation = true);
 	}
 } // Engine

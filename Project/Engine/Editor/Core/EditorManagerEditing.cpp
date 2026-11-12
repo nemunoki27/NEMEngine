@@ -5,6 +5,7 @@
 //============================================================================
 #include "EditorSelectionOperations.h"
 #include <Engine/Editor/Commands/Core/EditorCommandExecution.h>
+#include <Engine/Editor/Animation/AnimationPropertyEditCapture.h>
 
 bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand> command) {
 
@@ -22,6 +23,9 @@ bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand>
 
 bool Engine::EditorManager::UndoEditorCommand() {
 
+	if (currentRenderContext_ && currentRenderContext_->activeWorld &&
+		AnimationPropertyEditCapture::HasRecorder(*currentRenderContext_->activeWorld))
+		return AnimationPropertyEditCapture::RestoreHistory(*currentRenderContext_->activeWorld, false);
 	// Play中はEdit Worldの履歴を操作しない
 	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
 		return false;
@@ -33,6 +37,9 @@ bool Engine::EditorManager::UndoEditorCommand() {
 
 bool Engine::EditorManager::RedoEditorCommand() {
 
+	if (currentRenderContext_ && currentRenderContext_->activeWorld &&
+		AnimationPropertyEditCapture::HasRecorder(*currentRenderContext_->activeWorld))
+		return AnimationPropertyEditCapture::RestoreHistory(*currentRenderContext_->activeWorld, true);
 	// Play中はEdit Worldの履歴を操作しない
 	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
 		return false;

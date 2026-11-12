@@ -47,7 +47,6 @@ namespace Engine {
 		};
 
 		TextSearchFilter searchFilter_;
-		bool openWindow_ = false;
 		bool dirty_ = false;
 	};
 } // Engine

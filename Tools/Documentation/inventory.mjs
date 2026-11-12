@@ -77,6 +77,14 @@ export function inventory() {
 	for (const editor of editors) {
 		editor.category = presentation.overrides.get(editor.name) || editor.category;
 		editor.categoryLabel = presentation.categories.get(editor.category) || editor.category;
+		const source = files.find(file => file.file === editor.source)?.source || '';
+		const playback = /DrawPlaybackStartFields\([^;]*?\b(\w+)\.timeSource,\s*\1\.playInEditMode(?:,\s*&\1\.playOnStart)?\)/.exec(source);
+		if (playback) {
+			const keys = ['PlayInEditMode', ...(playback[0].includes('.playOnStart') ? ['PlayOnStart'] : [])];
+			for (const fieldKey of keys) ui.push({label:presentation.fields.get(fieldKey), fieldKey,
+				value:`draft.${fieldKey[0].toLowerCase() + fieldKey.slice(1)}`, widget:'CommonPlaybackField', owner:editor.name,
+				file:editor.source, line:source.slice(0, playback.index).split('\n').length, options:''});
+		}
 		const component = manifest.components.find(component => component.registryName === editor.name);
 		const block = new RegExp('BindInspectorCommonFields\\(' + component?.nativeType + '& value\\) \\{([^]*?)\\n\\}').exec(bindings);
 		if (!block) continue;

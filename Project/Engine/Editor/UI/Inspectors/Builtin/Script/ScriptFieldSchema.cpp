@@ -51,6 +51,7 @@ namespace Engine::ScriptFieldInspector {
 		if (name == "Audio") { return Engine::AssetType::Audio; }
 		if (name == "Font") { return Engine::AssetType::Font; }
 		if (name == "AnimationClip") { return Engine::AssetType::AnimationClip; }
+		if (name == "TimelineAsset" || name == "Timeline") { return Engine::AssetType::Timeline; }
 		if (name == "RenderPipeline") { return Engine::AssetType::RenderPipeline; }
 		return Engine::AssetType::Unknown;
 	}

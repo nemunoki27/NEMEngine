@@ -9,6 +9,7 @@
 #include "ParticleDepthSnapshotTests.h"
 #include "ParticleFeedbackTests.h"
 #include "ParticleGPUSourceSpawnTests.h"
+#include "ParticleGPUCheckpointTests.h"
 #include "TestRunner.h"
 
 //============================================================================
@@ -485,6 +486,7 @@ bool NEMTests::TestParticleGPUHardware() {
 		RunTest("ParticleDepthSnapshot", [&] { return CheckParticleDepthSnapshot(fixture); }) &&
 		RunTest("ParticleFeedback", [&] { return CheckParticleFeedback(fixture); }) &&
 		RunTest("ParticleGPUSourceSpawn", [&] { return CheckParticleGPUSourceSpawn(fixture); }) &&
+		RunTest("ParticleGPUCheckpoints", [&] { return CheckParticleGPUCheckpoints(fixture); }) &&
 		RunTest("ParticleGPUPartialGroups", [&] {
 			return CheckSimulation(fixture, *simulate, 255) && CheckSimulation(fixture, *simulate, 257);
 		}) &&

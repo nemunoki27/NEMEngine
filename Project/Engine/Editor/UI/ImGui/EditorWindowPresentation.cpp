@@ -7,6 +7,10 @@
 
 namespace {
 
+	constexpr float kHeaderFontSize = 14.0f;
+	const ImVec2 kHeaderPadding(6.0f, 4.0f);
+	constexpr ImU32 kHeaderTextColor = IM_COL32(200, 200, 200, 255);
+
 	struct WindowIcon {
 
 		std::string_view key;
@@ -24,6 +28,7 @@ namespace {
 		{ "engine.sceneViewCamera", "\xef\x80\xb0" },
 		{ "engine.collision_manager", "\xef\x89\x87" },
 		{ "engine.animation_clip", "\xef\x80\x88" },
+		{ "engine.timeline", "\xee\x8a\x9c" },
 		{ "engine.render_features", "\xef\x97\xbd" },
 		{ "engine.material_editor", "\xef\x94\xbf" },
 		{ "engine.shader_graph", "\xef\x95\x82" },
@@ -94,9 +99,9 @@ std::string Engine::EditorWindowPresentation::MakeWindowName(
 
 Engine::EditorWindowPresentation::HeaderScope::HeaderScope() {
 
-	ImGui::PushFont(nullptr, 14.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 4.0f));
-	ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(200, 200, 200, 255));
+	ImGui::PushFont(nullptr, kHeaderFontSize);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, kHeaderPadding);
+	ImGui::PushStyleColor(ImGuiCol_Text, kHeaderTextColor);
 }
 
 Engine::EditorWindowPresentation::HeaderScope::~HeaderScope() {
@@ -104,6 +109,28 @@ Engine::EditorWindowPresentation::HeaderScope::~HeaderScope() {
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar();
 	ImGui::PopFont();
+}
+
+void Engine::EditorWindowPresentation::FrameStyle::NewFrame() {
+
+	auto& style = ImGui::GetStyle();
+	bodyFontSize_ = style.FontSizeBase > 0.0f ? style.FontSizeBase : ImGui::GetDefaultFont()->LegacySize;
+	const ImVec2 bodyPadding = style.FramePadding;
+	const ImVec4 bodyTextColor = style.Colors[ImGuiCol_Text];
+	style.FontSizeBase = kHeaderFontSize;
+	style.FramePadding = kHeaderPadding;
+	style.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(kHeaderTextColor);
+	ImGui::NewFrame();
+	style.FramePadding = bodyPadding;
+	style.Colors[ImGuiCol_Text] = bodyTextColor;
+	ImGui::PushFont(nullptr, bodyFontSize_);
+}
+
+void Engine::EditorWindowPresentation::FrameStyle::Render() {
+
+	ImGui::PopFont();
+	ImGui::Render();
+	ImGui::GetStyle().FontSizeBase = bodyFontSize_;
 }
 
 bool Engine::EditorWindowPresentation::Begin(const char* name, bool* open, ImGuiWindowFlags flags) {

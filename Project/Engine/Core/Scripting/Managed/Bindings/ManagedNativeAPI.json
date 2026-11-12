@@ -971,6 +971,51 @@
       "name": "getLocalTimeScale",
       "nativeType": "GetLocalTimeCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, uint, float>"
+    },
+    {
+      "name": "timelineCommand",
+      "nativeType": "TimelineCommandCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, double, int>"
+    },
+    {
+      "name": "getTimelineState",
+      "nativeType": "GetTimelineStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeTimelineState*, int>"
+    },
+    {
+      "name": "getTimelineBinding",
+      "nativeType": "GetTimelineBindingCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeEntity>"
+    },
+    {
+      "name": "setTimelineBinding",
+      "nativeType": "SetTimelineBindingCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeEntity, int>"
+    },
+    {
+      "name": "getTimelineParameter",
+      "nativeType": "GetTimelineParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeTimelineValue*, int>"
+    },
+    {
+      "name": "setTimelineParameter",
+      "nativeType": "SetTimelineParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeTimelineValue*, int>"
+    },
+    {
+      "name": "isTimelineWindowOpen",
+      "nativeType": "IsTimelineWindowOpenCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int>"
+    },
+    {
+      "name": "copyTimelineStringParameter",
+      "nativeType": "CopyTimelineStringParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, byte*, int, int>"
+    },
+    {
+      "name": "setTimelineStringParameter",
+      "nativeType": "SetTimelineStringParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, byte*, int>"
     }
   ],
   "layouts": [
@@ -1145,7 +1190,7 @@
     {
       "nativeType": "ManagedSkinnedAnimationRuntimeState",
       "managedType": "NativeSkinnedAnimationRuntimeState",
-      "size": 28,
+      "size": 32,
       "members": {
         "currentTime": 0,
         "currentDuration": 4,
@@ -1153,7 +1198,8 @@
         "repeatCount": 12,
         "initialized": 16,
         "finished": 20,
-        "inTransition": 24
+        "inTransition": 24,
+        "playing": 28
       }
     },
     {
@@ -1246,6 +1292,72 @@
         "profile": 32,
         "revision": 48,
         "passID": 56
+      }
+    },
+    {
+      "nativeType": "ManagedTimelineState",
+      "size": 40,
+      "members": {
+        "time": 0,
+        "duration": 8,
+        "playing": 16,
+        "paused": 20,
+        "finished": 24,
+        "preparationProgress": 28,
+        "preparing": 32,
+        "eventCount": 36
+      },
+      "managedType": "NativeTimelineState"
+    },
+    {
+      "nativeType": "ManagedTimelineValue",
+      "size": 24,
+      "members": {
+        "kind": 0,
+        "integer": 4,
+        "scalar": 8,
+        "x": 12,
+        "y": 16,
+        "z": 20
+      },
+      "managedType": "NativeTimelineValue"
+    },
+    {
+      "nativeType": "ManagedTimelineFrame",
+      "size": 56,
+      "members": {
+        "time": 0,
+        "localTime": 8,
+        "deltaTime": 16,
+        "duration": 24,
+        "weight": 32,
+        "evaluationMode": 36,
+        "phase": 40,
+        "exitReason": 44,
+        "isScrubbing": 48
+      },
+      "managedType": "NativeTimelineFrame"
+    },
+    {
+      "nativeType": "ManagedTimelineBindingUpdate",
+      "managedType": "NativeTimelineBindingUpdate",
+      "size": 24,
+      "members": {
+        "id": 0,
+        "worldIndex": 8,
+        "worldGeneration": 12,
+        "index": 16,
+        "generation": 20
+      }
+    },
+    {
+      "nativeType": "ManagedTimelineParameterUpdate",
+      "managedType": "NativeTimelineParameterUpdate",
+      "size": 40,
+      "members": {
+        "id": 0,
+        "value": 8,
+        "stringValue": 32
       }
     }
   ]

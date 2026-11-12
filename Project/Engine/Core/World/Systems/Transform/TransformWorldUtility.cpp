@@ -134,3 +134,18 @@ bool Engine::TransformWorldUtility::ResolveParentFollowTransform(ECSWorld& world
 	context.stack.emplace_back(entity);
 	return ResolveParentFollowTransformInternal(world, entity, outTransform, context);
 }
+
+bool Engine::TransformWorldUtility::ApplyWorldPose(ECSWorld& world, Entity entity, Vector3 position,
+	Quaternion rotation, bool applyPosition, bool applyRotation) {
+
+	if (!applyPosition && !applyRotation) return true;
+	auto* transform = world.TryGetComponentForBinding<TransformComponent>(entity);
+	ResolvedWorldTransform parent;
+	if (!transform || !ResolveParentFollowTransform(world, entity, parent, true)) return false;
+	Matrix4x4 inverse;
+	if (!Matrix4x4::TryInverse(parent.matrix, inverse)) return false;
+	if (applyPosition) transform->localPos = Vector3::Transform(position, inverse);
+	if (applyRotation) transform->localRotation = (Quaternion::Inverse(parent.rotation) * rotation).Normalize();
+	MarkTransformSubtreeDirty(world, entity);
+	return true;
+}

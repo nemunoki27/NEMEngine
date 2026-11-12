@@ -83,9 +83,9 @@ void MotionAnimationInspectorDrawer::DrawFields(const EditorPanelContext& contex
 		DrawField(active, [&] { return MyGUI::DragFloat(label, value, {.dragSpeed = 0.01f, .minValue = minimum, .maxValue = 1000000.0f}); });
 	};
 	check(GetInspectorLabel(InspectorFieldID::Enabled), settings.enabled);
-	check(GetInspectorLabel(InspectorFieldID::PlayOnStart), settings.playOnStart);
-	check(GetInspectorLabel(InspectorFieldID::PlayInEditMode), settings.playInEditMode);
-	DrawField(active, [&] { return DrawTimeSourceField(context, world, entity, settings.timeSource); });
+	DrawField(active, [&] {
+		return DrawPlaybackStartFields(context, world, entity, settings.timeSource, settings.playInEditMode, &settings.playOnStart);
+	});
 	const char* modes[]{"開始姿勢からの移動", "対象へ接近", "区間ごとの移動", "Splineの距離移動"};
 	DrawField(active, [&] { return Select("移動方式", settings.mode, modes); });
 	const char* planes[]{"3D", "地面 XZ・高さを維持", "2D XY"};
@@ -153,8 +153,9 @@ void MotionAnimationInspectorDrawer::DrawFields(const EditorPanelContext& contex
 			}
 		}
 	}
-	const char* repeats[]{"Once", "Loop", "PingPong"};
-	DrawField(active, [&] { return Select("繰り返し", settings.repeat, repeats); });
+	number(GetInspectorLabel(InspectorFieldID::PlaybackSpeed), settings.speed);
+	number(GetInspectorLabel(InspectorFieldID::StartDelay), settings.delay);
+	DrawField(active, [&] { return MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::PlaybackMode), settings.repeat); });
 	if (settings.repeat != SimpleAnimationRepeat::Once) {
 		int cycles = static_cast<int>((std::min)(settings.cycleCount, 1000000u));
 		DrawField(active, [&] {
@@ -163,22 +164,16 @@ void MotionAnimationInspectorDrawer::DrawFields(const EditorPanelContext& contex
 			return edit;
 		});
 	}
-	number("開始遅延", settings.delay);
-	number("再生速度", settings.speed);
 	check("自動適用", settings.autoApply);
 	check("デバッグ描画", settings.drawDebug);
 	ImGui::Separator();
 	auto* record = TryGetMotionAnimation(world, entity);
 	if (!record) return;
 	auto& runtime = record->runtime;
-	const char* controls[]{"再生", "一時停止", "再開", "停止", "リセット"};
-	const float width = MyGUI::CalcEqualItemWidth(5);
 	const bool previewDisabled = !context.IsPlaying() && !settings.playInEditMode;
+	const auto action = DrawInspectorPlaybackControls(!previewDisabled);
+	if (action != InspectorPlaybackAction::None) runtime.request = static_cast<int32_t>(action);
 	ImGui::BeginDisabled(previewDisabled);
-	for (int i = 0; i < 5; ++i) {
-		if (i) ImGui::SameLine();
-		if (ImGui::Button(controls[i], ImVec2(width, 0))) runtime.request = i + 1;
-	}
 	float time = static_cast<float>(runtime.time);
 	if (MyGUI::DragFloat("再生時刻", time, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1000000.0f}).valueChanged) {
 		runtime.seekTime = time;
@@ -188,6 +183,7 @@ void MotionAnimationInspectorDrawer::DrawFields(const EditorPanelContext& contex
 	if (previewDisabled) MyGUI::Text("操作", "編集中も再生を有効にしてください");
 	SimpleAnimationFields::DrawCurrentValue("現在位置", runtime.position);
 	SimpleAnimationFields::DrawCurrentValue("現在回転", Quaternion::ToEulerDegrees(runtime.rotation));
-	MyGUI::Text("状態", runtime.paused ? "一時停止" : runtime.playing ? "再生中" : runtime.finished ? "完了" : "停止");
+	MyGUI::Text(GetInspectorLabel(InspectorFieldID::PlaybackState),
+		GetInspectorPlaybackState(runtime.playing, runtime.paused, runtime.finished));
 	if (!runtime.diagnostic.empty()) MyGUI::Text("適用状態", runtime.diagnostic);
 }

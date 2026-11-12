@@ -6117,6 +6117,19 @@
           "id": 18
         }
       ]
+    },
+    {
+      "id": 76,
+      "registryName": "TimelinePlayer",
+      "nativeType": "TimelinePlayerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/TimelinePlayerComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.TimelinePlayer",
+      "reason": "Timelineの対象と条件および再生制御を公開する",
+      "managedType": "TimelinePlayer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
     }
   ]
 }

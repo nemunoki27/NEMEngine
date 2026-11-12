@@ -6,6 +6,7 @@
 #include "ProjectAssetPath.h"
 #include "EditorSceneDefaults.h"
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Animation/Timeline/TimelineAsset.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
@@ -42,6 +43,8 @@ namespace Engine {
 			return ".material.json";
 		case ProjectAssetFileKind::AnimationClip:
 			return ".animClip.json";
+		case ProjectAssetFileKind::Timeline:
+			return ".timeline.json";
 		case ProjectAssetFileKind::Shader:
 			return ".shader.json";
 		case ProjectAssetFileKind::RenderPipeline:
@@ -135,6 +138,8 @@ namespace Engine {
 			return std::format("{{\n  \"guid\": \"\",\n  \"name\": \"{}\",\n  \"duration\": 1.0,\n  \"curveTracks\": [],\n  "
 							   "\"events\": []\n}}\n",
 				assetName);
+		case ProjectAssetFileKind::Timeline:
+			return JsonAdapter::SerializeCanonical(nlohmann::json(CreateDefaultTimelineAsset(assetName)), 2);
 		case ProjectAssetFileKind::Shader:
 			return std::format("{{\n  \"name\": \"{}\",\n  \"stages\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::RenderPipeline:

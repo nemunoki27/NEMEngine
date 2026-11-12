@@ -40,6 +40,7 @@ ParticleGPUFixture::~ParticleGPUFixture() {
 		queue.ExecuteCommandList(commands.GetCommandList());
 	}
 	queue.SignalAndWait();
+	commands.SetCurrentFrameFenceValue(queue.GetLastSignaledFenceValue());
 	constants.Release();
 	retirement.Seal(queue.GetLastSignaledFenceValue());
 	retirement.Collect(queue.GetCompletedFenceValue());
@@ -106,6 +107,7 @@ void ParticleGPUFixture::Finish() {
 	commands.CloseCommandList();
 	queue.ExecuteCommandList(commands.GetCommandList());
 	queue.SignalAndWait();
+	commands.SetCurrentFrameFenceValue(queue.GetLastSignaledFenceValue());
 	retirement.Seal(queue.GetLastSignaledFenceValue());
 	retirement.Collect(queue.GetCompletedFenceValue());
 	frameIndex_ = (frameIndex_ + 1) % GraphicsFrameState::GetActiveCount();
@@ -136,6 +138,7 @@ void ParticleGPUFixture::ChangeFrameCount(uint32_t count) {
 	commands.CloseCommandList();
 	queue.ExecuteCommandList(commands.GetCommandList());
 	queue.SignalAndWait();
+	commands.SetCurrentFrameFenceValue(queue.GetLastSignaledFenceValue());
 	auto allocator = commands.PrepareFrameContextCount(count);
 	retirement.ReleaseInactiveFrameResources(count);
 	GraphicsFrameState::SetActiveCount(count);

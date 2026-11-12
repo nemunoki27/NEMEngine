@@ -22,6 +22,52 @@ const camera = [
 ];
 
 export const componentDetails = {
+	TimelinePlayer: [
+		both('有効・時間源・再生開始', 'Enabled, TimeSource, PlayOnStart, PlayInEditMode', '時間源の後に自動再生と編集時再生を設定します。指定TimeScaleを使う場合はそのGameObjectも設定します。'),
+		both('タイムライン・再生速度・開始待ち・繰り返し', 'Timeline, Speed, StartDelay, Loop', '.timeline.jsonを指定し、再生速度の倍率、再生開始までの秒数、最終時刻から先頭へ戻るかを設定します。'),
+		both('優先度・割り当て・パラメーター', 'Priority, SetBinding, GetBinding, SetFloat, SetBool, SetInt', '複数の再生元が同じ項目を操作する場合の優先度を決めます。割り当てには各トラックが必要とするコンポーネントを持つGameObjectを指定します。'),
+		both('再生・一時停止・再開・停止・リセット・シーク', 'Play, Pause, Resume, Stop, Reset, Seek', 'Playで再生し、Pauseで一時停止、Resumeで再開します。Seekは秒で指定します。編集中のボタン操作には編集時再生を有効にします。'),
+		reading('再生状態', 'GetState, CurrentTime, Duration, IsPlaying, IsPaused, IsFinished', '実行時刻と再生・一時停止・完了状態を確認します。設定の値と実行結果の値を混同しないようにします。'),
+		code('素材の準備状態', 'IsPreparing, PreparationProgress', '素材を準備しているかと進捗をC#から確認できます。Editorの通常画面には進捗を表示しません。'),
+		editor('タイムラインを編集', '設定したアセットをタイムラインツールで開き、このGameObjectを再生対象として割り当てを編集します。'),
+	],
+	MotionAnimation: [
+		both('移動・回転・時間・繰り返しの設定', 'GetSettings, SetSettings, TimeSource', '設定を取得して必要な値を変更し、SetSettingsでまとめて適用します。移動量は開始姿勢からの相対値です。'),
+		both('対象とSpline', 'SetTarget, SetSpline', '接近先のGameObjectまたはSplineを持つGameObjectを指定します。停止距離と対象位置の追従有無も設定します。'),
+		both('再生操作と開始姿勢', 'Play, Pause, Resume, Stop, Reset, Seek, RecaptureOrigin, FreezeTarget, CaptureTarget', '再生時の開始姿勢から動かします。RecaptureOriginで原点を取り直し、FreezeTargetで接近先を固定します。'),
+		reading('現在値と差分', 'CurrentPosition, CurrentRotation, DeltaPosition, DeltaRotation, CurrentTime, IsPlaying, IsPaused, IsFinished', '当フレームの姿勢と前フレームからの差分を読み取れます。自動適用を無効にした場合も、自分の移動処理へ結果を渡せます。'),
+		editor('デバッグ描画', '経路や接近先をSceneViewのラインで確認します。不要な場合はデバッグ描画を無効にします。'),
+	],
+	TimeScale: [
+		both('有効・倍率', 'Enabled, Scale', '1は通常速度、0.5は半速、0は停止です。グローバル倍率と組み合わせた結果は受信側の時間源設定で決まります。'),
+		both('子への適用・親からの継承', 'ApplyToChildren, InheritParentScale', '親子階層を使って影響するGameObjectをまとめます。子だけを通常速度にする場合は継承と時間源の設定を確認します。'),
+		both('適用チャンネル', 'ChannelMask', 'スキニング、パーティクル、アニメーションなど、影響させたい処理のビットを選びます。すべてのスクリプト更新を自動的に停止する機能ではありません。'),
+	],
+	Timer: [
+		both('有効・時間源・自動再生', 'Enabled, TimeSource, PlayOnStart, PlayInEditMode', 'どの時間を計測するかと、自動で開始するかを設定します。非スケール時間ならスローモーション中も通常速度で計測します。'),
+		both('秒数・フレーム数・基準FPS', 'Mode, TargetSeconds, TargetFrames, BaseFPS', '秒数または基準FPSに換算したフレーム数を目標にします。描画フレーム数の直接カウントではありません。'),
+		both('開始・一時停止・再開・停止・リセット', 'Play, Start, Pause, Resume, Stop, Reset', '開始は現在値を0へ戻します。一時停止した計測を続けるときはResumeを使います。'),
+		reading('現在時間・現在フレーム・目標到達', 'CurrentSeconds, CurrentFrames, IsReached, IsPlaying, IsPaused', 'IsReachedで目標到達を判定します。完了時に1回だけ処理する場合は、処理済みフラグをスクリプト側で持ちます。'),
+	],
+	SkyAtmosphere: [
+		both('太陽と月', 'SunEntity, Moon', 'それぞれDirectionalLightを持つGameObjectを割り当てます。太陽の方向と明るさが空の散乱に使われます。'),
+		both('大気の高さと散乱', 'PlanetRadiusKm, AtmosphereHeightKm, RayleighScattering, MieScattering, MieAbsorption, MieAnisotropy', '大気の厚み、青い空の散乱、太陽付近のかすみを調整します。高さのkm単位と、シーン内の距離の単位を区別します。'),
+		both('空気遠近と環境光', 'AerialPerspectiveDistance, AerialPerspectiveStrength, IblIntensity, GroundAlbedo', '遠景へかかる空の色と環境光を調整します。SkyboxRendererとの併用時は環境の設定を確認します。'),
+		both('月の円盤', 'MoonDiskEnabled, MoonAngularRadius, MoonDiskColor, MoonDiskBrightness', '月の見かけの大きさと明るさを設定します。月明かりとして物体を照らす強さは参照したDirectionalLight側で調整します。'),
+	],
+	DayNightCycle: [
+		both('太陽・月・空の適用先', 'Sun, Moon, Atmosphere', '太陽と月は別々のDirectionalLight、空はSkyAtmosphereを指定します。1つの光源を太陽と月で共用しないようにします。'),
+		both('固定時刻・開始時刻・1日の長さ', 'FixedTime, StartHour, DayDurationSeconds, PlayInEditMode', 'StartHourは0〜24時、DayDurationSecondsはゲーム内の1日が経過する実時間の秒数です。固定時刻では自動進行しません。'),
+		both('軌道と正午の高さ', 'OrbitAzimuth, NoonAltitude, MoonTimeOffset', '太陽が通る方角、正午の高度、月と太陽の時間差を設定し、シーンの向きに合わせます。'),
+		both('再生と時刻移動', 'Play, Pause, Resume, Stop, Reset, SetTime, TimeSource', 'SetTimeで指定時刻へ移動します。編集中に進める場合は編集時再生を有効にし、固定時刻を解除します。'),
+		reading('現在時刻と診断', 'CurrentHour, CurrentTime, SunDirection, MoonDirection, Diagnostic', '時刻の結果と競合を確認します。適用先の競合は、同じ光源や空を制御する別のDayNightCycleを外して解消します。'),
+	],
+	ExponentialHeightFog: [
+		both('密度・高さ減衰・色', 'Density, HeightFalloff, Color', '密度で霧の濃さ、高さ減衰で上方への薄まり方を指定します。霧の基準位置はGameObjectのTransformで決まります。'),
+		both('開始距離・不透明度・打ち切り距離', 'StartDistance, MaxOpacity, CutoffDistance', 'カメラの近くへ霧をかけない距離と濃さの上限を設定します。背景の空に過剰な霧がかかる場合は打ち切り距離も確認します。'),
+		both('方向散乱・空の寄与', 'DirectionalColor, DirectionalExponent, DirectionalStartDistance, DirectionalIntensity, SkyContribution', '光源方向へ向いたときの霧の明るさと、空から取り込む色を調整します。光の筋を作るLight Shaftとは役割が異なります。'),
+		both('第2層', 'SecondDensity, SecondHeightFalloff, SecondHeightOffset', '密度と基準高さの異なる霧を重ね、低地の濃い霧などを表現します。値を0にすれば第2層は寄与しません。'),
+	],
 	SimpleAnimation: [
 		both('有効・開始時再生・編集時再生', 'Enabled, PlayOnStart, PlayInEditMode', '通常はPlay中だけ進みます。編集中も再生を有効にするとInspectorで確認できます。編集時の適用値は保存前・プレビュー終了時に戻します。'),
 		both('型・補間・Sin・Cos', 'GetSettings, SetSettings', 'float/int/Vector2/3/4/Color3/4/Quaternionに対応します。InterpolateはA→B、Sin/Cosは中心＋振幅で変化します。Quaternionの振幅は度単位のEuler角です。intは四捨五入（中間値は0から遠い側）します。'),
@@ -274,6 +320,13 @@ export const componentDetails = {
 };
 
 export const componentExamples = {
+	TimelinePlayer: ['TimelineAttack.cs', '攻撃タイムラインを入力で再生', 'TimelinePlayerのタイムラインと割り当て先をInspectorで設定してから、このスクリプトを同じGameObjectへ追加します。'],
+	MotionAnimation: ['MotionDash.cs', '入力時の姿勢から短く踏み込む', '移動方式を開始姿勢からの移動に設定します。正面の軸はモデルの向きに合わせてOffsetを変更してください。'],
+	TimeScale: ['LocalSlowMotion.cs', 'プレイヤーだけをスローモーションにする', '時間を遅くしたい処理の時間源を自身・親階層にし、TimeScaleの適用チャンネルを確認します。'],
+	Timer: ['TimerCountdown.cs', 'カウントダウンの到達を1回通知', 'Timerの計測方式を秒数に設定します。非スケール時間を選べば、ゲーム内のスローモーションから独立した待ち時間にできます。'],
+	DayNightCycle: ['DayNightPreview.cs', '昼夜を進めて夜へ移動', '別々の太陽・月用DirectionalLightとSkyAtmosphereをInspectorで割り当てます。'],
+	SkyAtmosphere: ['AtmosphereFog.cs', '空の環境光と霧の濃さを変更', 'SkyAtmosphereとExponentialHeightFogを同じGameObjectへ追加します。太陽参照はDirectionalLightを持つGameObjectです。'],
+	ExponentialHeightFog: ['AtmosphereFog.cs', '入力で遠景の霧を切り替え', '霧の基準位置を配置し、StartDistanceで手前に霧をかけない距離を指定します。'],
 	SimpleAnimation: ['FloatingItem.cs', 'アイテムを上下に揺らす', '表示用のGameObjectへSimpleAnimationとこのScriptを追加します。自動適用を使わず、計算結果をLateUpdateでTransformへ渡す例です。'],
 	Transform: ['FirstMover.cs', '入力で物体を移動する', 'このGameObjectへ追加し、Play中に左右キーで移動します。物理のDynamic Bodyを直接動かす例ではありません。'],
 	Spline: ['SplinePatrol.cs', '経路に沿って物体を動かす', 'Splineの制御点をEditorで用意し、移動する物体のpathObjectへSplineのGameObjectを設定します。'],

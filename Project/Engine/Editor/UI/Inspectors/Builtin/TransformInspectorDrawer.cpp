@@ -4,7 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
+#include <Engine/Editor/Animation/AnimationPropertyEditCapture.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
@@ -43,8 +45,9 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 
 	// 折り畳み中でも編集元を開けるようにする
 	const bool headerOpen = MyGUI::CollapsingHeader("Transform");
-	if (EditorSourceNavigation::IsEngineSourceProject() && ImGui::BeginPopupContextItem()) {
+	if (ImGui::BeginPopupContextItem()) {
 		InspectorDrawerCommon::DrawComponentSourceMenu(GetEditorSourceFile());
+		InspectorDrawerCommon::DrawComponentManualMenu("Transform");
 		ImGui::EndPopup();
 	}
 	if (!headerOpen) {
@@ -183,7 +186,11 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	//	行列
 	//============================================================================
 
-	MyGUI::TextMatrix4x4("ワールド行列", draftTransform_.worldMatrix);
+	const auto& currentTransform = world.GetComponent<TransformComponent>(entity);
+	ResolvedWorldTransform resolved;
+	const Matrix4x4& worldMatrix = currentTransform.isDirty &&
+		TransformWorldUtility::ResolveWorldTransform(world, entity, resolved) ? resolved.matrix : currentTransform.worldMatrix;
+	MyGUI::TextMatrix4x4("ワールド行列", worldMatrix);
 
 	// アイテムを操作している場合は編集状態にする
 	isEditing_ = anyItemActive;
@@ -253,12 +260,21 @@ void Engine::TransformInspectorDrawer::CommitTransformIfNeeded(
 	// トランスフォームが変更されていない場合はコマンドを実行せず、ドラフトをワールドから再同期する
 	if (SetTransformCommand::NearlyEqualTransform(beforeTransform, afterTransform)) {
 
+		AnimationPropertyEditCapture::Cancel(world, entity, "Transform");
 		previewActive_ = false;
 		draftTransform_ = afterTransform;
 		return;
 	}
 
 	// コマンドを作成して実行
+	if (AnimationPropertyEditCapture::Commit(world, entity, "Transform")) {
+		afterTransform = world.GetComponent<TransformComponent>(entity);
+		if (SetTransformCommand::NearlyEqualTransform(beforeTransform, afterTransform)) {
+			previewActive_ = false;
+			draftTransform_ = afterTransform;
+			return;
+		}
+	}
 	context.host->ExecuteEditorCommand(std::make_unique<SetTransformCommand>(entity, beforeTransform, afterTransform));
 	previewActive_ = false;
 	if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
@@ -282,6 +298,7 @@ void Engine::TransformInspectorDrawer::ApplyPreviewIfNeeded(ECSWorld& world, con
 	}
 	// プレビューがアクティブでない場合はプレビュー開始時のトランスフォームを保存する
 	if (!previewActive_) {
+		AnimationPropertyEditCapture::Begin(world, entity, "Transform");
 		previewBeginTransform_ = world.GetComponent<TransformComponent>(entity);
 		previewActive_ = true;
 	}
@@ -302,6 +319,7 @@ void Engine::TransformInspectorDrawer::RestorePreview() {
 	if (previewActive_ && lifetime && lifetime->IsAlive() && editingWorldPointer_) {
 		const Entity entity = editingWorldPointer_->FindByUUID(editingEntityStableUUID_);
 		if (editingWorldPointer_->IsAlive(entity) && editingWorldPointer_->HasComponent<TransformComponent>(entity)) {
+			AnimationPropertyEditCapture::Cancel(*editingWorldPointer_, entity, "Transform");
 			// World切替やPanel破棄では未確定値を残さない
 			TransformEditUtility::ApplyImmediate(*editingWorldPointer_, entity, previewBeginTransform_);
 		}

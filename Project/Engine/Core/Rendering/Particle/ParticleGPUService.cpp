@@ -19,7 +19,7 @@
 
 using namespace Engine;
 
-ParticleGPUService::ParticleGPUService() = default;
+ParticleGPUService::ParticleGPUService() : checkpointBudget_(std::make_shared<ParticleGPUCheckpointBudget>()) {}
 ParticleGPUService::~ParticleGPUService() {
 
 	if (indexedSignature_) retirement_->Retire(std::move(indexedSignature_));
@@ -96,6 +96,7 @@ void ParticleGPUService::UpdateWorld(GraphicsCore& graphics, ECSWorld& world,
 			auto& instance = instances_[&state];
 			if (!instance) {
 				auto candidate = std::make_unique<ParticleGPUInstance>();
+				candidate->checkpointBudget = checkpointBudget_;
 				candidate->Init(graphics, runtime->instance.emitter.gpu);
 				instance = std::move(candidate);
 			}
@@ -131,6 +132,8 @@ void ParticleGPUService::UpdateWorld(GraphicsCore& graphics, ECSWorld& world,
 			const auto& sourceStep = state.pending.empty() ? retained : state.pending.back();
 			if (extended && !instance->source.Prepare(graphics, world, entity, sourceStep, assets, pipelines, inputs, environment.deltaTime)) {
 				state.diagnostic = instance->source.GetDiagnostic();
+				// 時刻指定の再生は全入力が揃ってから同じ要求列を完了する
+				if (state.deterministicReplay) return;
 				// 発生元の準備待ちでも消去と初期化を先に反映する
 				if (instance->epoch != state.epoch) {
 					auto pending = std::move(state.pending);

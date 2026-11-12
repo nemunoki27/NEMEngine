@@ -37,22 +37,7 @@ namespace {
 	}
 
 	Engine::ToolContext MakeToolContext(const Engine::EditorPanelContext& context) {
-		Engine::ToolContext result{};
-		if (!context.editorContext) {
-			return result;
-		}
-
-		const auto& editor = *context.editorContext;
-		result.world = editor.activeWorld;
-		result.assetDatabase = editor.assetDatabase;
-		result.sceneInstances = editor.sceneInstances;
-		result.activeSceneHeader = editor.activeSceneHeader;
-		result.activeSceneAsset = editor.activeSceneAsset;
-		result.activeSceneInstanceID = editor.activeSceneInstanceID;
-		result.activeScenePath = editor.activeScenePath;
-		result.isPlaying = editor.isPlaying;
-		result.canEditScene = context.CanEditScene();
-		return result;
+		return Engine::MakeEditorToolContext(context).toolContext;
 	}
 
 	std::vector<std::shared_ptr<Engine::IEditorTool>> CollectEditorTools() {
@@ -255,6 +240,43 @@ void Engine::EditorToolUI::DrawWindows(const EditorPanelContext& context) {
 	}
 }
 
+bool Engine::EditorToolUI::IsInspectionTargetValid(const EditorInspectionTarget& target) {
+
+	if (!target.IsSet()) return false;
+	const auto tool = std::dynamic_pointer_cast<IEditorTool>(ToolRegistry::GetInstance().Acquire(target.providerID));
+	return tool && IsRegistered(tool) && tool->IsInspectionTargetValid(target);
+}
+
+bool Engine::EditorToolUI::DrawInspection(const EditorPanelContext& context, const EditorInspectionTarget& target) {
+
+	if (!target.IsSet()) return false;
+	const auto tool = std::dynamic_pointer_cast<IEditorTool>(ToolRegistry::GetInstance().Acquire(target.providerID));
+	if (!tool || !IsRegistered(tool) || !tool->IsInspectionTargetValid(target)) return false;
+	EditorToolContext editor;
+	editor.panelContext = &context;
+	editor.toolContext = MakeToolContext(context);
+	EditorToolFrameScope frame(*tool, editor);
+	return tool->DrawSelectionInspector(context, target);
+}
+
+std::vector<Engine::EditorToolLayoutSnapshot> Engine::EditorToolUI::CaptureLayoutState() {
+
+	std::vector<EditorToolLayoutSnapshot> result;
+	for (const auto& tool : CollectEditorTools()) {
+		if (IsRegistered(tool)) result.push_back({tool->GetDescriptor().id, tool->IsEditorToolOpen()});
+	}
+	return result;
+}
+
+void Engine::EditorToolUI::ApplyLayoutState(const std::vector<EditorToolLayoutSnapshot>& tools) {
+
+	for (const auto& tool : CollectEditorTools()) {
+		if (!IsRegistered(tool)) continue;
+		const auto found = std::ranges::find(tools, tool->GetDescriptor().id, &EditorToolLayoutSnapshot::toolID);
+		tool->SetEditorToolOpen(found != tools.end() && found->open);
+	}
+}
+
 bool Engine::EditorToolUI::HasPendingEdits() {
 
 	const auto tools = CollectEditorTools();
@@ -269,6 +291,12 @@ void Engine::EditorToolUI::EndScenePreviews() {
 	for (const auto& tool : CollectEditorTools()) {
 		if (IsRegistered(tool)) tool->EndScenePreview();
 	}
+}
+
+void Engine::EditorToolUI::EndOtherScenePreviews(std::string_view exceptID) {
+
+	for (const auto& tool : CollectEditorTools())
+		if (IsRegistered(tool) && tool->GetDescriptor().id != exceptID) tool->EndScenePreview();
 }
 
 void Engine::EditorToolUI::RequestResolvePendingEdits() {

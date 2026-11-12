@@ -15,7 +15,7 @@ void Engine::ImGuiAppearance::ConfigureFont(ImGuiIO& io) {
 	// ImGuiのフォント設定
 	ImFontConfig cfg{};
 	cfg.FontNo = 0;
-	static constexpr ImWchar iconRange[] = { 0xf000, 0xf8ff, 0 };
+	static constexpr ImWchar iconRange[] = { 0xe29c, 0xe29c, 0xf000, 0xf8ff, 0 };
 	cfg.GlyphExcludeRanges = iconRange;
 
 	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";

@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include "CameraControllerUpdate.h"
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -32,6 +33,7 @@ void CameraControllerSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	float deltaTime = isPlay ? context.deltaTime : context.unscaledDeltaTime;
 	world.ForEach<CameraControllerComponent, TransformComponent>([&](
 		Entity entity, CameraControllerComponent& controller, TransformComponent& transform) {
+			if (IsTimelineControlled(world, entity, "Camera") || IsTimelineControlled(world, entity, "Transform")) return;
 
 			// 無効再生中なら処理しない
 			if (!controller.enabled || (!isPlay && !controller.editorPreview)) {

@@ -75,9 +75,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		// ウィンドウ表示状態
-		bool openWindow_ = false;
-
 		// 閉じた時に保存するカメラパス
 		std::string savePath_ = "";
 		bool persistSettings_ = true;

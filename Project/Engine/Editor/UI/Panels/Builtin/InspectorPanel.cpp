@@ -8,6 +8,7 @@
 #include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -41,6 +42,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 
 nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
 
+	if (lockedInspection_.IsSet()) return {{"mode", "LockedTool"}, {"inspectionTarget", lockedInspection_}};
 	return {
 		{"mode", lockedEntityUUID_ ? "LockedEntity" : "FollowSelection"},
 		{"lockedEntityUUID", lockedEntityUUID_ ? ToString(lockedEntityUUID_) : std::string{}},
@@ -50,6 +52,12 @@ nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
 void Engine::InspectorPanel::LoadLayoutState(const nlohmann::json& state) {
 
 	lockedEntityUUID_ = {};
+	lockedInspection_ = {};
+	if (state.is_object() && state.value("mode", std::string{}) == "LockedTool") {
+		const auto found = state.find("inspectionTarget");
+		if (found != state.end()) lockedInspection_ = found->get<EditorInspectionTarget>();
+		return;
+	}
 	if (!state.is_object() || state.value("mode", std::string{}) != "LockedEntity") {
 		return;
 	}
@@ -58,6 +66,9 @@ void Engine::InspectorPanel::LoadLayoutState(const nlohmann::json& state) {
 
 nlohmann::json Engine::InspectorPanel::MakeDuplicateState(const EditorPanelContext& context) const {
 
+	if (lockedInspection_.IsSet()) return {{"mode", "LockedTool"}, {"inspectionTarget", lockedInspection_}};
+	if (!lockedEntityUUID_ && context.editorState && context.editorState->selectionKind == EditorSelectionKind::Tool)
+		return {{"mode", "LockedTool"}, {"inspectionTarget", context.editorState->inspectionTarget}};
 	UUID targetUUID = lockedEntityUUID_;
 	ECSWorld* world = context.GetWorld();
 	const Entity selected = context.editorState ? context.editorState->ResolveComponentSelection(world) : Entity::Null();
@@ -73,6 +84,9 @@ nlohmann::json Engine::InspectorPanel::MakeDuplicateState(const EditorPanelConte
 
 bool Engine::InspectorPanel::CanDuplicate(const EditorPanelContext& context) const {
 
+	if (lockedInspection_.IsSet()) return EditorToolUI::IsInspectionTargetValid(lockedInspection_);
+	if (!lockedEntityUUID_ && context.editorState && context.editorState->selectionKind == EditorSelectionKind::Tool)
+		return EditorToolUI::IsInspectionTargetValid(context.editorState->inspectionTarget);
 	ECSWorld* world = context.GetWorld();
 	if (!world) {
 		return false;
@@ -114,6 +128,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	ECSWorld* world = context.GetWorld();
 	Entity lockedEntity = Entity::Null();
 	std::string displayName = "Inspector";
+	if (lockedInspection_.IsSet()) displayName = "Inspector: タイムライン";
 	if (lockedEntityUUID_) {
 
 		lockedEntity = world ? world->FindByUUID(lockedEntityUUID_) : Entity::Null();
@@ -138,6 +153,18 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 	DrawTitleBarContextMenu(context);
+
+	if (lockedInspection_.IsSet() || (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Tool)) {
+
+		if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
+			context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Tool);
+		ImGui::SetWindowFontScale(fontScale_);
+		const auto& target = lockedInspection_.IsSet() ? lockedInspection_ : context.editorState->inspectionTarget;
+		if (!EditorToolUI::DrawInspection(context, target)) MyGUI::Text("選択", "編集対象が見つかりません");
+		ImGui::SetWindowFontScale(1.0f);
+		ImGui::End();
+		return;
+	}
 
 	if (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Asset) {
 

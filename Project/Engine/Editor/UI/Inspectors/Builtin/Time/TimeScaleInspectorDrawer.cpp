@@ -16,8 +16,8 @@ void Engine::TimeScaleInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField("親の時間倍率を継承", draft.inheritParentScale); });
 	ImGui::SeparatorText("適用するコンポーネント");
 	const char* labels[]{"SkinnedAnimation", "ParticleSystem", "SimpleAnimation", "AnimationClipPlayer",
-		"FlipbookAnimation", "MotionAnimation", "Timer", "DayNightCycle"};
-	for (uint32_t index = 0; index < 8; ++index) {
+		"FlipbookAnimation", "MotionAnimation", "Timer", "DayNightCycle", "TimelinePlayer"};
+	for (uint32_t index = 0; index < 9; ++index) {
 		DrawField(anyItemActive, [&] {
 			const uint32_t bit = 1u << index;
 			bool enabled = (draft.channels & bit) != 0;

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include "AnimationClipEditSession.h"
+#include <Engine/Editor/UI/Common/AssetCreationDialog.h>
 
 // c++
 #include <optional>
@@ -59,14 +60,12 @@ namespace Engine {
 			.order = 2,
 		};
 
-		// ウィンドウの表示状態
-		bool openWindow_ = false;
 		// 未保存確認後の切替先
 		std::optional<AssetID> pendingClip_;
 		// 確認後に実行する新規作成と取り込み
 		std::optional<std::string> pendingCreate_;
 		std::optional<AssetID> pendingImport_;
-		std::string createName_;
+		AssetCreationDialog creationDialog_;
 		// 終了要求と確認結果
 		bool pendingClose_ = false;
 		bool resolvingClose_ = false;

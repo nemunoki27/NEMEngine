@@ -181,6 +181,9 @@ namespace Engine {
 		if (Engine::Algorithm::EndsWith(assetPath, ".animclip.json") || extension == ".animclip") {
 			return AssetType::AnimationClip;
 		}
+		if (Engine::Algorithm::EndsWith(assetPath, ".timeline.json") || extension == ".timeline") {
+			return AssetType::Timeline;
+		}
 		return AssetType::Unknown;
 	}
 

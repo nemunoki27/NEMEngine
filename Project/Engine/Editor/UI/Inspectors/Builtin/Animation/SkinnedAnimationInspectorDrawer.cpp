@@ -10,10 +10,9 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&] { return DrawTimeSourceField(context, world, entity, draft.timeSource); });
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode);
-		});
+	DrawField(anyItemActive, [&] {
+		return DrawPlaybackStartFields(context, world, entity, draft.timeSource, draft.playInEditMode);
+	});
 	const SkinnedAnimationRuntimeData* runtime =
 		TryGetSkinnedAnimationRuntime(world, entity);
 
@@ -32,11 +31,11 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 				});
 		}
 		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
-			});
-		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), draft.playbackSpeed,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::Loop), draft.loop);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("遷移時間", draft.transitionDuration,
@@ -46,8 +45,6 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
 			return InspectorDrawerCommon::DrawCheckboxField("骨表示", draft.isDisplayBone);
 			});
 	}
-
-	ImGui::Separator();
 
 	//============================================================================
 	//	デバッグ表示

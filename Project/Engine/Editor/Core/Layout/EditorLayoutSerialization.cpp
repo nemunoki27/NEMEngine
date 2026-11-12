@@ -47,6 +47,11 @@ nlohmann::json Engine::EditorLayoutSerialization::MakeLayoutJson(const Engine::E
 			});
 	}
 
+	nlohmann::json tools = nlohmann::json::array();
+	for (const auto& tool : layout.tools) {
+		tools.push_back({ { "toolID", tool.toolID }, { "open", tool.open } });
+	}
+
 	return {
 		{ "layoutID", layout.layoutID },
 		{ "displayName", layout.displayName },
@@ -55,6 +60,7 @@ nlohmann::json Engine::EditorLayoutSerialization::MakeLayoutJson(const Engine::E
 		{ "imported", imported },
 		{ "visibility", MakeVisibilityJson(layout.visibility) },
 		{ "panels", panels },
+		{ "tools", tools },
 		{ "imguiIniData", layout.imguiIniData },
 	};
 }
@@ -77,6 +83,7 @@ bool Engine::EditorLayoutSerialization::ReadLayout(const nlohmann::json& data, E
 	outLayout.visibility = ReadVisibility(data.value("visibility", nlohmann::json::object()));
 	outLayout.imguiIniData = data.value("imguiIniData", std::string{});
 	outLayout.panels.clear();
+	outLayout.tools.clear();
 
 	const nlohmann::json panels = data.value("panels", nlohmann::json::array());
 	if (panels.is_array()) {
@@ -96,6 +103,17 @@ bool Engine::EditorLayoutSerialization::ReadLayout(const nlohmann::json& data, E
 			panel.open = panelData.value("open", true);
 			panel.state = panelData.value("state", nlohmann::json::object());
 			outLayout.panels.emplace_back(std::move(panel));
+		}
+	}
+	const auto tools = data.find("tools");
+	if (tools != data.end() && tools->is_array()) {
+		for (const auto& tool : *tools) {
+			if (!tool.is_object()) continue;
+			const auto id = tool.find("toolID");
+			const auto open = tool.find("open");
+			if (id == tool.end() || !id->is_string() || id->get_ref<const std::string&>().empty() ||
+				open == tool.end() || !open->is_boolean()) continue;
+			outLayout.tools.push_back({id->get<std::string>(), open->get<bool>()});
 		}
 	}
 	return true;

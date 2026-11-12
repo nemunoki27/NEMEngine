@@ -73,13 +73,13 @@ namespace Engine {
 			.order = 2,
 		};
 
-		// ウィンドウの表示と切替予約
-		bool openWindow_ = false;
+		// アセットの切替予約
 		AssetID pendingAsset_{};
 		AssetID requestedAsset_{};
 		bool requestAssetSwitch_ = false;
 		bool requestGraphCreate_ = false;
 		bool requestWindowClose_ = false;
+		bool resolvingClose_ = false;
 		bool requestUnsavedPrompt_ = false;
 		EditorToolCloseResult pendingEditCloseResult_ = EditorToolCloseResult::None;
 		// 保存用の編集状態
@@ -132,7 +132,7 @@ namespace Engine {
 		// 別アセットの設定を検証して一括置換する
 		void ImportGraphSettings(const EditorToolContext& context, AssetID source) override;
 		// 未保存状態を確認してGraph作成を要求する
-		void RequestGraphCreation(const EditorToolContext& context) override;
+		bool RequestGraphCreation(const EditorToolContext& context) override;
 		// 表示位置を確定してGraphを保存する
 		bool SaveGraph(const EditorToolContext& context) override;
 		// 初期Graphを作成して開く

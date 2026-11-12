@@ -6,11 +6,13 @@
 #include "ManagedScriptUtility.h"
 #include "ManagedCameraSettings.h"
 #include "ManagedMotionAnimationSettings.h"
+#include "ManagedTimelineSettings.h"
 #include "ManagedRendererSettings.h"
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/MotionAnimationComponent.h>
+#include <Engine/Core/World/Components/Animation/TimelinePlayerComponent.h>
 #include <Engine/Core/World/Components/Time/TimerComponent.h>
 #include <Engine/Core/World/Components/Lighting/DayNightCycleComponent.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
@@ -41,6 +43,7 @@ namespace {
 		case 71: if (auto* component = world.TryGetComponentForBinding<TimerComponent>(entity)) return &component->timeSource; break;
 		case 75: if (auto* component = world.TryGetComponentForBinding<DayNightCycleComponent>(entity)) return &component->timeSource; break;
 		case 72: if (auto* record = TryGetMotionAnimation(world, entity)) return &record->settings.timeSource; break;
+		case 76: if (auto* record = TryGetTimelinePlayer(world, entity)) return &record->settings.timeSource; break;
 		}
 		return nullptr;
 	}
@@ -103,6 +106,8 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			const auto* component = world->TryGetComponentForBinding<TimerComponent>(target);
 			if (!component) return -1;
 			data = *component;
+		} else if (type == 76) {
+			if (!ReadTimelinePlayerSettings(*world, target, data)) return -1;
 		} else if (type == 75) {
 			const auto* component = world->TryGetComponentForBinding<DayNightCycleComponent>(target);
 			if (!component) return -1;
@@ -175,6 +180,11 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			*source = candidate;
 			ClearLegacyUnscaledTime(*world, target, type);
 			world->MarkComponentModified(target, type);
+			return 1;
+		}
+		if (type == 76) {
+			if (!ApplyTimelinePlayerSettings(*world, target, data)) return 0;
+			restoreTimeSource();
 			return 1;
 		}
 		if (type == 75) {

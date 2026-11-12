@@ -8,6 +8,23 @@ const bindings = read('Project/Engine/Editor/UI/Inspectors/Common/InspectorCommo
 const failures = [];
 const rows = [];
 
+// 再生開始の共通順序と専用Inspectorへの接続を確認する
+const playbackFields = read('Project/Engine/Editor/UI/Inspectors/Common/TimeSourceFields.cpp');
+const playbackBody = playbackFields.slice(playbackFields.indexOf('Engine::DrawPlaybackStartFields'), playbackFields.indexOf('Engine::DrawTimeSourceField('));
+if (!(playbackBody.indexOf('DrawTimeSourceField(') < playbackBody.indexOf('InspectorFieldID::PlayOnStart') &&
+    playbackBody.indexOf('InspectorFieldID::PlayOnStart') < playbackBody.indexOf('InspectorFieldID::PlayInEditMode')))
+  failures.push('再生開始項目の共通順序が異なります');
+for (const name of ['SimpleAnimation', 'SkinnedAnimation', 'AnimationClipPlayer', 'MotionAnimation', 'TimelinePlayer']) {
+  const file = `Project/Engine/Editor/UI/Inspectors/Builtin/Animation/${name}InspectorDrawer.cpp`;
+  const source = read(file);
+  if (!source.includes('DrawPlaybackStartFields(')) failures.push(`${name}: 共通の再生開始項目を使っていません`);
+  if (/"(?:Once|Loop|PingPong|開始遅延)"/.test(source)) failures.push(`${name}: 再生項目の旧表記が残っています`);
+}
+for (const name of ['SimpleAnimation', 'AnimationClipPlayer', 'MotionAnimation', 'TimelinePlayer']) {
+  const source = read(`Project/Engine/Editor/UI/Inspectors/Builtin/Animation/${name}InspectorDrawer.cpp`);
+  if (!source.includes('DrawInspectorPlaybackControls(')) failures.push(`${name}: 共通の再生操作を使っていません`);
+}
+
 // 他の型や関数の項目を混ぜずに編集本体を取り出す
 function body(source, signature) {
   const start = source.indexOf(signature);

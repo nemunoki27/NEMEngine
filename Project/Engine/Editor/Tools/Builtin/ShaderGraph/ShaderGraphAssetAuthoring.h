@@ -15,7 +15,7 @@ namespace Engine {
 	// 新規Graphの作成設定
 	struct ShaderGraphCreationRequest {
 
-		std::string path = "GameAssets/Materials/NewShader.shadergraph.json";
+		std::string path = "GameAssets/NewShader.shadergraph.json";
 		ShaderGraphDomain domain = ShaderGraphDomain::Surface;
 		ShaderGraphTarget target = ShaderGraphTarget::Mesh;
 	};

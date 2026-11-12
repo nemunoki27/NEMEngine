@@ -34,6 +34,7 @@ internal static class ScriptSymbolRules {
     // 保存可能な型だけを診断抑制の対象にする
     internal static bool IsSupportedSerializedField(IFieldSymbol field) {
         if (!IsSerializedField(field) || !DerivesFrom(field.ContainingType, "NEMEngine.MonoBehaviour") &&
+            !DerivesFrom(field.ContainingType, "NEMEngine.TimelineClip") &&
             !IsSerializableObjectType(field.ContainingType)) {
             return false;
         }

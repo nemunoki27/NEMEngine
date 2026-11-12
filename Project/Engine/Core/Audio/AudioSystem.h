@@ -40,6 +40,13 @@ namespace Engine {
 		// サウンドをインスタンスID付きで再生
 		uint64_t PlayManaged(const std::string& name, bool loop, float volume = 1.0f,
 			AudioPlaybackOwner owner = AudioPlaybackOwner::Game, float pitch = 1.0f);
+		// 指定したClip位置からVoiceを開始する
+		uint64_t PlayManagedAt(const std::string& name, bool loop, double seconds, float volume = 1.0f,
+			AudioPlaybackOwner owner = AudioPlaybackOwner::Game, float pitch = 1.0f);
+		// 停止理由を保持したままClip内の再生位置を変更する
+		bool SeekVoice(uint64_t voiceID, double seconds);
+		double GetVoicePlaybackTime(uint64_t voiceID);
+		double GetSoundDuration(const std::string& name);
 		// ファイルからサウンドを読み込む
 		bool EnsureLoaded(const std::string& filename, AudioType type = AudioType::SE);
 		bool EnsureLoaded(const std::filesystem::path& filename, AudioType type = AudioType::SE);
@@ -149,7 +156,8 @@ namespace Engine {
 		void Unload();
 
 		// 共通再生
-		uint64_t PlayInternal(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner, float pitch = 1.0f);
+		uint64_t PlayInternal(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner,
+			float pitch = 1.0f, double seconds = 0.0);
 
 		// 終了したVoiceを掃除
 		void CleanupFinishedVoicesLocked(const std::string& key);

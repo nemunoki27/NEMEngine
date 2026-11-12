@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include "MaterialCreationSession.h"
+#include <Engine/Editor/UI/Common/AssetCreationDialog.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
 // c++
@@ -55,10 +56,8 @@ namespace Engine {
 			.order = 1,
 		};
 
-		// ウィンドウ表示状態
-		bool openWindow_ = false;
-
 		MaterialCreationSession creationSession_;
+		AssetCreationDialog creationDialog_;
 		bool typeDefaultsInitialized_ = false;
 
 		//--------- functions ----------------------------------------------------

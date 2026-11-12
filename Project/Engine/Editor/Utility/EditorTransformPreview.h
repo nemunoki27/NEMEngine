@@ -40,7 +40,7 @@ namespace Engine {
 		// 現在値を維持して所有情報を解除する
 		void Release();
 		// 変更した姿勢を一件の履歴へまとめる
-		std::unique_ptr<IEditorCommand> BuildCommand(const ECSWorld& world) const;
+		std::unique_ptr<IEditorCommand> BuildCommand(ECSWorld& world) const;
 
 		//--------- accessor -----------------------------------------------------
 

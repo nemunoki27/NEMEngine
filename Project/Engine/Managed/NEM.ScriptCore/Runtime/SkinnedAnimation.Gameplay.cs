@@ -34,7 +34,7 @@ public sealed partial class SkinnedAnimation {
         NativePlaybackAPI.ReadSkinnedAnimationRuntimeState(native).repeatCount;
 
     // 有効かつ自然終了していないか
-    public bool IsPlaying => Enabled && !Finished;
+    public bool IsPlaying => NativePlaybackAPI.ReadSkinnedAnimationRuntimeState(native).playing != 0;
 
     // 指定クリップの再生時間を返す
     public float GetDuration(string clipName) => NativePlaybackAPI.ReadSkinnedAnimationDuration(native, clipName);

@@ -56,6 +56,20 @@ const char* Engine::GetInspectorPlaybackState(bool playing, bool paused, bool fi
 	return paused ? "一時停止" : playing ? (timer ? "計測中" : "再生中") : finished ? "完了" : "停止中";
 }
 
+Engine::ValueEditResult Engine::DrawInspectorLoopField(bool& loop) {
+
+	ValueEditResult result;
+	if (!MyGUI::BeginPropertyRow(GetInspectorLabel(InspectorFieldID::PlaybackMode))) return result;
+	const char* labels[]{GetInspectorLabel(InspectorFieldID::Once), GetInspectorLabel(InspectorFieldID::Loop)};
+	int selected = loop ? 1 : 0;
+	result.valueChanged = ImGui::Combo("##Repeat", &selected, labels, 2);
+	result.editFinished = result.valueChanged;
+	result.anyItemActive = ImGui::IsItemActive();
+	if (result.valueChanged) loop = selected == 1;
+	MyGUI::EndPropertyRow();
+	return result;
+}
+
 Engine::InspectorIndentScope::InspectorIndentScope(const char* id) : hasID_(id != nullptr) {
 
 	ImGui::Indent();

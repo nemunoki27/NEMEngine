@@ -19,6 +19,7 @@ ParticleGPUDrawData ParticleGPUService::PrepareView(GraphicsCore& graphics,
 
 	const auto found = instances_.find(state.get());
 	if (found == instances_.end() || state->rejected) return {};
+	if (!IsParticleGPUReplayReady(*state, found->second->epoch)) return {};
 	if (state->statisticsValid && state->completedSequence == state->lastSubmittedSequence &&
 		state->statistics.particleCount == 0 && state->statistics.trailCount == 0) return {};
 	auto& instance = *found->second;

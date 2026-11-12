@@ -7,6 +7,7 @@
 #include <Engine/Core/Animation/Evaluation/AnimationPropertySnapshot.h>
 #include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 #include <Engine/Core/Animation/Properties/MaterialAnimationPropertyCatalog.h>
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 
 // c++
 #include <algorithm>
@@ -33,10 +34,10 @@ void AnimationClipEditSession::UpdatePreviewPlayback(const EditorToolContext& co
 	// 再生時間を進める
 	previewTime_ += deltaTime * previewSpeed_;
 	// クリップデータから終了時間を取得
-	float playbackDuration = AnimationClipEvaluator::GetPlaybackDuration(clip_);
+	float playbackDuration = AnimationClipEvaluator::GetPlaybackDuration(document_->GetClip());
 	if (playbackDuration <= previewTime_) {
 		// Loop時はBridge範囲も含めた再生長で折り返す
-		if (clip_.loop && 0.0f < clip_.duration) {
+		if (document_->GetClip().loop && 0.0f < document_->GetClip().duration) {
 
 			previewTime_ = std::fmod(previewTime_, playbackDuration);
 		}
@@ -54,6 +55,7 @@ void AnimationClipEditSession::UpdatePreviewPlayback(const EditorToolContext& co
 
 void AnimationClipEditSession::ApplyPreviewAtCurrentTime(const EditorToolContext& context, bool keepActive) {
 
+	if (externalEvaluation_) return;
 	if (!hasClip_) {
 		return;
 	}
@@ -63,6 +65,8 @@ void AnimationClipEditSession::ApplyPreviewAtCurrentTime(const EditorToolContext
 	if (!world || !world->IsAlive(entity)) {
 		return;
 	}
+	for (const auto& track : document_->GetClip().curveTracks)
+		if (IsTimelineControlled(*world, entity, track.binding.componentName)) return;
 
 	if (previewActive_ && (previewWorld_ != world || previewEntity_ != entity)) {
 		EndPreviewAndRestore();
@@ -75,7 +79,7 @@ void AnimationClipEditSession::ApplyPreviewAtCurrentTime(const EditorToolContext
 		return;
 	}
 
-	AnimationClipEvaluator::ApplyClip(*world, entity, clip_, previewTime_, previewBaseValues_);
+	AnimationClipEvaluator::ApplyClip(*world, entity, document_->GetClip(), previewTime_, previewBaseValues_);
 	if (!keepActive && !previewPlaying_) {
 		EndPreviewAndRestore(context);
 	} else {
@@ -131,7 +135,7 @@ void AnimationClipEditSession::EndPreviewAndRestore() {
 void AnimationClipEditSession::CachePreviewBaseValues(ECSWorld& world, const Entity& entity) {
 
 	// Clipと相対移動が使う開始値をまとめて保持する
-	AnimationPropertySnapshot::CaptureClip(world, entity, clip_, clip_.relativeTransform, previewBaseValues_);
+	AnimationPropertySnapshot::CaptureClip(world, entity, document_->GetClip(), document_->GetClip().relativeTransform, previewBaseValues_);
 }
 
 void AnimationClipEditSession::RestorePreviewBaseValues(ECSWorld& world, const Entity& entity) {
@@ -207,7 +211,7 @@ void AnimationClipEditSession::SyncPreviewBaseFromEntityEdits(const EditorToolCo
 	};
 	// 編集軸の判定に使うTrackを探す
 	const auto findTrack = [&](const AnimationPropertyBinding& binding) -> const AnimationCurveTrack* {
-		for (const AnimationCurveTrack& track : clip_.curveTracks) {
+		for (const AnimationCurveTrack& track : document_->GetClip().curveTracks) {
 			if (track.binding.componentName == binding.componentName && track.binding.propertyPath == binding.propertyPath &&
 				track.binding.valueType == binding.valueType) {
 				return &track;
@@ -317,7 +321,7 @@ void AnimationClipEditSession::SetPreviewTarget(const EditorToolContext& context
 	EndPreviewAndRestore(context);
 	previewBaseValues_.clear();
 	targetEntityUUID_ = nextTargetUUID;
-	previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, clip_.duration) : 0.0f;
+	previewTime_ = hasClip_ ? (std::clamp)(previewTime_, 0.0f, document_->GetClip().duration) : 0.0f;
 	curveState_.currentTime = previewTime_;
 	ApplyPreviewAtCurrentTime(context, true);
 }
@@ -336,7 +340,7 @@ void AnimationClipEditSession::TogglePreviewPlayback(const EditorToolContext& co
 		previewPlaying_ = false;
 	} else {
 		// 終端でPlayした時は、AnimationClipの先頭から再生し直す
-		if (clip_.duration <= previewTime_) {
+		if (document_->GetClip().duration <= previewTime_) {
 			previewTime_ = 0.0f;
 			curveState_.currentTime = previewTime_;
 		}

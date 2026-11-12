@@ -46,7 +46,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		bool openWindow_ = false;
 		bool showErrors_ = true;
 		bool showWarnings_ = true;
 		bool latestBuildOnly_ = true;

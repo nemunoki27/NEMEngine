@@ -341,23 +341,28 @@ Quaternion Engine::Quaternion::FromEulerDegrees(const Vector3& eulerDegrees) {
 
 Vector3 Engine::Quaternion::ToEulerRadians(const Quaternion& quaternion) {
 
-	// 回転行列から各軸の角度を取得
+	// 特異姿勢の桁落ちを避けて回転行列から角度を求める
 	const Quaternion q = Normalize(quaternion);
-	const Matrix4x4 m = MakeRotateMatrix(q);
+	const double x = q.x, y = q.y, z = q.z, w = q.w;
+	const double m00 = w * w + x * x - y * y - z * z;
+	const double m01 = 2.0 * (x * y + w * z);
+	const double m02 = 2.0 * (x * z - w * y);
+	const double m11 = w * w - x * x + y * y - z * z;
+	const double m12 = 2.0 * (y * z + w * x);
+	const double m21 = 2.0 * (y * z - w * x);
+	const double m22 = w * w - x * x - y * y + z * z;
 
 	Vector3 angles{};
 
-	const float sy = std::clamp(-m.m[0][2], -1.0f, 1.0f);
-	angles.y = std::asin(sy);
-
-	const float cy = std::cos(angles.y);
+	const double cy = std::hypot(m00, m01);
+	angles.y = static_cast<float>(std::atan2(-m02, cy));
 
 	if (std::fabs(cy) > 1e-6f) {
-		angles.x = std::atan2(m.m[1][2], m.m[2][2]);
-		angles.z = std::atan2(m.m[0][1], m.m[0][0]);
+		angles.x = static_cast<float>(std::atan2(m12, m22));
+		angles.z = static_cast<float>(std::atan2(m01, m00));
 	} else {
 		// 特異姿勢ではZ回転を固定
-		angles.x = std::atan2(-m.m[2][1], m.m[1][1]);
+		angles.x = static_cast<float>(std::atan2(-m21, m11));
 		angles.z = 0.0f;
 	}
 	return angles;

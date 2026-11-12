@@ -8,6 +8,7 @@
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Editor/Animation/AnimationPropertyEditCapture.h>
 
 // c++
 #include <algorithm>
@@ -62,6 +63,8 @@ bool Engine::EditorTransformPreview::Begin(ECSWorld& world, std::span<const Enti
 	lifetime_ = lifetime;
 	snapshots_ = std::move(snapshots);
 	runtimeOnly_ = runtimeOnly;
+	if (!runtimeOnly) for (const auto& [uuid, transform] : snapshots_)
+		AnimationPropertyEditCapture::Begin(world, world.FindByUUID(uuid), "Transform");
 	return true;
 }
 
@@ -82,6 +85,7 @@ void Engine::EditorTransformPreview::Cancel() {
 			break;
 		}
 		TransformEditUtility::ApplyImmediate(*world, world->FindByUUID(uuid), transform);
+		AnimationPropertyEditCapture::Cancel(*world, world->FindByUUID(uuid), "Transform");
 	}
 }
 
@@ -93,7 +97,7 @@ void Engine::EditorTransformPreview::Release() {
 	runtimeOnly_ = false;
 }
 
-std::unique_ptr<Engine::IEditorCommand> Engine::EditorTransformPreview::BuildCommand(const ECSWorld& world) const {
+std::unique_ptr<Engine::IEditorCommand> Engine::EditorTransformPreview::BuildCommand(ECSWorld& world) const {
 
 	if (runtimeOnly_ || !BelongsTo(world)) {
 		return {};
@@ -102,6 +106,7 @@ std::unique_ptr<Engine::IEditorCommand> Engine::EditorTransformPreview::BuildCom
 	std::vector<std::unique_ptr<IEditorCommand>> commands;
 	for (const auto& [uuid, before] : snapshots_) {
 		const Entity entity = world.FindByUUID(uuid);
+		AnimationPropertyEditCapture::Commit(world, entity, "Transform");
 		const auto* after = world.TryGetComponent<TransformComponent>(entity);
 		if (!after) {
 			continue;

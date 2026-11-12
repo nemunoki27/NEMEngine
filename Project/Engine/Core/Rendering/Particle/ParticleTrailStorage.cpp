@@ -81,6 +81,28 @@ void ParticleTrailStorage::clear() {
 	for (uint32_t i = 0; i < capacity_; ++i) freePointSlots_.push_back(i);
 }
 
+void ParticleTrailStorage::CopyFrom(const ParticleTrailStorage& source,
+	std::vector<std::pair<ParticleTrailHandle, ParticleTrailHandle>>& handles) {
+
+	if (this == &source) return;
+	clear();
+	capacity_ = source.capacity_;
+	pointCapacity_ = source.pointCapacity_;
+	points_ = source.points_;
+	freePointSlots_ = source.freePointSlots_;
+	overflowCount_ = source.overflowCount_;
+	if (!pool_) pool_ = std::make_unique<Pool>();
+	handles.clear();
+	handles.reserve(source.handles_.size());
+	for (const auto old : source.handles_) {
+		const auto* value = source.TryGet(old);
+		if (!value) continue;
+		const auto replacement = pool_->Emplace(*value);
+		handles_.push_back(replacement);
+		handles.emplace_back(old, replacement);
+	}
+}
+
 ParticleTrailRuntime* ParticleTrailStorage::TryGet(ParticleTrailHandle handle) {
 
 	return pool_ ? pool_->TryGet(handle) : nullptr;

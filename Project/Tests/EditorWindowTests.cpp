@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include <Engine/Editor/UI/ImGui/ImGuiAppearance.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
+#include <Engine/Editor/Core/Layout/EditorLayoutSerialization.h>
 
 // c++
 #include <cmath>
@@ -14,10 +15,117 @@
 // imgui
 #include <imgui_internal.h>
 
+namespace {
+
+	// ツールの開閉状態と配置を同じレイアウトへ保存する
+	bool CheckToolLayoutRoundTrip() {
+
+		using namespace Engine;
+		EditorLayoutSnapshot layout;
+		layout.layoutID = "tool.layout";
+		layout.displayName = "ツール編集用";
+		layout.imguiIniData = "[Window][Tool]\nPos=2100,100\nSize=600,450\nCollapsed=0\nDockId=0x1111,0\n";
+		layout.tools = { {"engine.animation_clip", true}, {"engine.timeline", true},
+			{"engine.sceneViewCamera", false}, {"extension.tool", false} };
+		const auto saved = EditorLayoutSerialization::MakeLayoutJson(layout, false);
+		EditorLayoutSnapshot restored;
+		bool imported = false;
+		if (!EditorLayoutSerialization::ReadLayout(saved, restored, imported) ||
+			saved != EditorLayoutSerialization::MakeLayoutJson(restored, imported)) return false;
+
+		// 不正な項目を読み飛ばして有効なツールと配置を維持する
+		auto invalid = saved;
+		for (const auto& entry : nlohmann::json::array({nullptr, 10, "tool", nlohmann::json::object(),
+			{{"toolID", 10}, {"open", true}}, {{"toolID", ""}, {"open", true}},
+			{{"toolID", "missing.open"}}, {{"toolID", "invalid.open"}, {"open", "true"}}})) {
+			invalid["tools"].push_back(entry);
+		}
+		if (!EditorLayoutSerialization::ReadLayout(invalid, restored, imported) ||
+			saved != EditorLayoutSerialization::MakeLayoutJson(restored, imported)) return false;
+
+		// 旧形式を読む際は直前に読み込んだツールの状態を持ち越さない
+		auto legacy = saved;
+		legacy.erase("tools");
+		if (!EditorLayoutSerialization::ReadLayout(legacy, restored, imported) || !restored.tools.empty() ||
+			restored.imguiIniData != layout.imguiIniData) return false;
+		for (const auto& value : {nlohmann::json(nullptr), nlohmann::json::object(), nlohmann::json("invalid")}) {
+			invalid = saved;
+			invalid["tools"] = value;
+			if (!EditorLayoutSerialization::ReadLayout(invalid, restored, imported) || !restored.tools.empty()) return false;
+		}
+		return true;
+	}
+
+	// 外部Windowの生成とタブの分離をImGuiの通常の更新経路で確認する
+	bool CheckExternalDocking(Engine::EditorWindowPresentation::FrameStyle& frameStyle,
+		ImGuiID nodeID, const char* first, const char* second) {
+
+		using namespace Engine::EditorWindowPresentation;
+		auto& io = ImGui::GetIO();
+		auto& platform = ImGui::GetPlatformIO();
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports | ImGuiBackendFlags_RendererHasViewports;
+		io.ConfigDpiScaleFonts = true;
+		platform.Platform_CreateWindow = [](ImGuiViewport* viewport) { viewport->PlatformHandle = viewport; };
+		platform.Platform_DestroyWindow = [](ImGuiViewport* viewport) { viewport->PlatformHandle = nullptr; };
+		platform.Platform_ShowWindow = [](ImGuiViewport*) {};
+		platform.Platform_SetWindowPos = [](ImGuiViewport*, ImVec2) {};
+		platform.Platform_GetWindowPos = [](ImGuiViewport* viewport) { return viewport->Pos; };
+		platform.Platform_SetWindowSize = [](ImGuiViewport*, ImVec2) {};
+		platform.Platform_GetWindowSize = [](ImGuiViewport* viewport) { return viewport->Size; };
+		platform.Platform_SetWindowTitle = [](ImGuiViewport*, const char*) {};
+		platform.Platform_GetWindowDpiScale = [](ImGuiViewport* viewport) { return viewport->Pos.x >= 1920 ? 1.5f : 1.0f; };
+		const Engine::ScopedCleanup cleanup([]() noexcept { ImGui::DestroyPlatformWindows(); });
+		for (int monitorIndex = 0; monitorIndex < 2; ++monitorIndex) {
+			ImGuiPlatformMonitor monitor;
+			monitor.MainPos = monitor.WorkPos = ImVec2(static_cast<float>(monitorIndex * 1920), 0);
+			monitor.MainSize = monitor.WorkSize = ImVec2(1920, 1080);
+			monitor.DpiScale = monitorIndex == 0 ? 1.0f : 1.5f;
+			platform.Monitors.push_back(monitor);
+		}
+		ImGui::GetMainViewport()->PlatformHandle = ImGui::GetMainViewport();
+		ImGui::UpdatePlatformWindows();
+		ImGui::DockBuilderSetNodePos(nodeID, ImVec2(2100, 100));
+		auto drawFrame = [&]() {
+			frameStyle.NewFrame();
+			PrepareDockNodes();
+			for (const char* title : {first, second}) {
+				Begin(title);
+				ImGui::TextUnformatted("本文の表示");
+				ImGui::End();
+			}
+			frameStyle.Render();
+			ImGui::UpdatePlatformWindows();
+		};
+		for (int frame = 0; frame < 5; ++frame) drawFrame();
+		const auto* node = ImGui::DockBuilderGetNode(nodeID);
+		if (!node || !node->HostWindow || !node->HostWindow->ViewportOwned || !node->TabBar ||
+			std::abs(node->HostWindow->FontRefSize - 21.0f) > 0.01f ||
+			std::abs(node->TabBar->BarRect.GetHeight() - 29.0f) > 0.01f) {
+			std::cerr << "External dock header DPI style changed\n";
+			return false;
+		}
+		const auto* viewport = node->HostWindow->Viewport;
+		const ImGuiID previousID = viewport->ID;
+		void* handle = viewport->PlatformHandle;
+		ImGui::DockContextQueueUndockWindow(ImGui::GetCurrentContext(), ImGui::FindWindowByName(second));
+		for (int frame = 0; frame < 3; ++frame) drawFrame();
+		const auto* remaining = ImGui::FindWindowByName(first);
+		const auto* detached = ImGui::FindWindowByName(second);
+		if (!handle || remaining->Viewport->PlatformHandle != handle || remaining->Viewport->ID == previousID ||
+			remaining->Viewport->ID != remaining->ID || detached->DockId != 0) {
+			std::cerr << "External dock viewport transfer failed\n";
+			return false;
+		}
+		return true;
+	}
+}
+
 bool NEMTests::TestEditorWindows() {
 
 	using namespace Engine;
 	using namespace EditorWindowPresentation;
+	if (!CheckToolLayoutRoundTrip()) return false;
 	ImGui::CreateContext();
 	const ScopedCleanup cleanup([]() noexcept { ImGui::DestroyContext(); });
 	ImGuiIO& io = ImGui::GetIO();
@@ -40,7 +148,8 @@ bool NEMTests::TestEditorWindows() {
 		"engine.performance_check", "engine.script_execution_order", "engine.script_profiler", "engine.input_device",
 		"engine.script_build_diagnostics", "engine.script_exception_list",
 	};
-	ImGui::NewFrame();
+	FrameStyle frameStyle;
+	frameStyle.NewFrame();
 	for (const char* key : keys) {
 		const auto name = MakeWindowName(key, key, key);
 		if (ImHashStr(name.c_str()) != ImHashStr(key) || std::string_view(GetIcon(key)) == GetIcon("unknown")) return false;
@@ -87,18 +196,18 @@ bool NEMTests::TestEditorWindows() {
 	Begin("New tool###new-tool", &open);
 	const auto initialSize = ImGui::GetWindowSize();
 	ImGui::End();
-	ImGui::Render();
+	frameStyle.Render();
 	if (!restored || !open || initialSize.x != 600.0f || initialSize.y != 450.0f) return false;
 	// タイトルをドラッグしても共通の外観が移動操作を妨げないことを確認する
 	for (int frame = 0; frame < 4; ++frame) {
 		io.AddMousePosEvent(frame < 2 ? 150.0f : 350.0f, frame < 2 ? 110.0f : 210.0f);
 		if (frame == 1) io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
 		if (frame == 3) io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-		ImGui::NewFrame();
+		frameStyle.NewFrame();
 		Begin(first.c_str(), &open);
 		ImGui::TextUnformatted("パネル内の表示");
 		ImGui::End();
-		ImGui::Render();
+		frameStyle.Render();
 	}
 	const auto* moved = ImGui::FindWindowByName(first.c_str());
 	if (!moved || moved->Pos.x < 250.0f || moved->Pos.y < 150.0f) {
@@ -121,7 +230,7 @@ bool NEMTests::TestEditorWindows() {
 	ImGui::DockBuilderDockWindow(duplicate.c_str(), nodeID);
 	ImGui::DockBuilderFinish(nodeID);
 	for (int frame = 0; frame < 4; ++frame) {
-		ImGui::NewFrame();
+		frameStyle.NewFrame();
 		PrepareDockNodes();
 		Begin(renamed.c_str(), &open);
 		ImGui::TextUnformatted("固定Inspector");
@@ -129,15 +238,22 @@ bool NEMTests::TestEditorWindows() {
 		Begin(duplicate.c_str(), &open);
 		ImGui::TextUnformatted("複製Inspector");
 		ImGui::End();
-		ImGui::Render();
+		frameStyle.Render();
 	}
 	const auto* docked = ImGui::FindWindowByName(renamed.c_str());
 	const auto* copied = ImGui::FindWindowByName(duplicate.c_str());
 	if (!docked || !copied || docked->DockId != nodeID || copied->DockId != nodeID ||
 		!node->TabBar || node->TabBar->Tabs.Size != 2) return false;
+	if (!node->HostWindow || node->HostWindow->FontRefSize != 14.0f ||
+		std::abs(node->TabBar->BarRect.GetHeight() - 22.0f) > 0.01f ||
+		ImGui::GetStyle().FontSizeBase != bodyFont) {
+		std::cerr << "Floating dock header or body style changed\n";
+		return false;
+	}
 	const std::string saved = ImGui::SaveIniSettingsToMemory();
 	if (saved.find("Inspector:inspector.primary") == std::string::npos ||
 		saved.find("Inspector:duplicate") == std::string::npos) return false;
+	if (!CheckExternalDocking(frameStyle, nodeID, renamed.c_str(), duplicate.c_str())) return false;
 	std::cout << "Editor windows: icons, alignment, IDs, body style, DPI sizes, title drag, docking and layout passed\n";
 	return true;
 }

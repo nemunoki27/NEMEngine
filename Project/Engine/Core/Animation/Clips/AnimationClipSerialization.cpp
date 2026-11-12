@@ -190,7 +190,7 @@ void Engine::from_json(const nlohmann::json& in, AnimationPropertyBinding& bindi
 	binding.propertyPath = in.value("property", in.value("propertyPath", binding.propertyPath));
 
 	AnimationValueType type = binding.valueType;
-	if (TryParseAnimationValueType(in.value("type", "Float"), type)) {
+	if (TryParseAnimationValueType(in.value("type", in.value("valueType", "Float")), type)) {
 		binding.valueType = type;
 	}
 }

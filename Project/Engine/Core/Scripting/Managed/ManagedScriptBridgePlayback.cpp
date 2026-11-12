@@ -91,7 +91,7 @@ namespace Engine {
 			world && world->IsAlive(resolved) ?
 			TryGetSkinnedAnimationRuntime(*world, resolved) : nullptr;
 		return CopyStringToBuffer(
-			runtime ? runtime->currentClip : std::string{}, buffer, capacity);
+			runtime ? (runtime->timelineControlled ? runtime->timelineClip : runtime->currentClip) : std::string{}, buffer, capacity);
 	}
 
 	int32_t ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback(
@@ -113,13 +113,16 @@ namespace Engine {
 		}
 
 		// C#へ固定長の実行状態をコピー
-		outState->currentTime = runtime->time;
-		outState->currentDuration = runtime->currentDuration;
+		outState->currentTime = runtime->timelineControlled ? runtime->timelineTime : runtime->time;
+		outState->currentDuration = runtime->timelineControlled ? runtime->timelineDuration : runtime->currentDuration;
 		outState->blendTime = runtime->blendTime;
 		outState->repeatCount = runtime->repeatCount;
 		outState->initialized = runtime->initialized ? 1 : 0;
-		outState->finished = runtime->animationFinished ? 1 : 0;
-		outState->inTransition = runtime->inTransition ? 1 : 0;
+		outState->finished = (runtime->timelineControlled ? runtime->timelineFinished : runtime->animationFinished) ? 1 : 0;
+		outState->inTransition = (runtime->timelineControlled ? runtime->timelineInTransition : runtime->inTransition) ? 1 : 0;
+		const auto* component = world->TryGetComponentForBinding<SkinnedAnimationComponent>(resolved);
+		outState->playing = (runtime->timelineControlled ? runtime->timelinePlaying :
+			(component && component->enabled && !runtime->animationFinished)) ? 1 : 0;
 		return 1;
 	}
 

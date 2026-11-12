@@ -21,9 +21,12 @@ void Engine::AnimationClipPlayerInspectorDrawer::DrawFields(const EditorPanelCon
 	const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&] { if (draft.unscaledTime) draft.timeSource.mode = TimeSourceMode::Unscaled; auto result = DrawTimeSourceField(context, world, entity, draft.timeSource); if (result.valueChanged) draft.unscaledTime = false; return result; });
-	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayOnStart), draft.playOnStart); });
-	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode); });
+	DrawField(anyItemActive, [&] {
+		if (draft.unscaledTime) draft.timeSource.mode = TimeSourceMode::Unscaled;
+		auto result = DrawPlaybackStartFields(context, world, entity, draft.timeSource, draft.playInEditMode, &draft.playOnStart);
+		if (result.valueChanged) draft.unscaledTime = false;
+		return result;
+	});
 	DrawField(anyItemActive, [&] { return MyGUI::AssetReferenceField("クリップ", draft.clip,
 		context.editorContext->assetDatabase, {AssetType::AnimationClip}); });
 	DrawField(anyItemActive, [&] { return MyGUI::DragFloat(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), draft.speed, {.dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f}); });

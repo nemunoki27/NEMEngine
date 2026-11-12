@@ -10,6 +10,7 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <stdexcept>
 
 using namespace Engine;
 
@@ -48,7 +49,7 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 		constants.operation = operation;
 		if (pipeline.FindBindingByName("ParticleGPUEventConstants", ShaderBindingKind::CBV)) {
 			// 子粒子を含む更新ごとに重ならない発生番号を割り当てる
-			const uint64_t birth = step.sequence << 20;
+			const uint64_t birth = (step.randomSequence == UINT64_MAX ? step.sequence : step.randomSequence) << 20;
 			constants.birthLow = static_cast<uint32_t>(birth);
 			constants.birthHigh = static_cast<uint32_t>(birth >> 32);
 		}
@@ -57,7 +58,7 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 		instance.worldInputs.Bind(list, pipeline, instance.collisionDepth);
 		instance.source.Bind(graphics, pipeline);
 		if (environment_ && pipeline.FindBindingByName("ParticleGPUEventConstants", ShaderBindingKind::CBV))
-			environment_->feedback.BindSource(graphics, pipeline, state, step.deltaTime > 0 || step.spawnCount > 0);
+			environment_->feedback.BindSource(graphics, pipeline, state, !step.suppressFeedback && (step.deltaTime > 0 || step.spawnCount > 0));
 		list->Dispatch(operation == 3 || operation == 5 ? 1 : (instance.capacity + 255) / 256, 1, 1);
 		commands.UAVBarrierAll();
 	};
@@ -75,14 +76,23 @@ void ParticleGPUService::Simulate(GraphicsCore& graphics, ParticleGPUInstance& i
 	}
 	for (const auto& step : state.pending) {
 		const auto& program = *step.program;
+		if (step.restoreCheckpoint) {
+			if (!RestoreParticleGPUCheckpoint(graphics, instance, step.restoreCheckpoint))
+				throw std::runtime_error("GPU粒子の途中状態を復元できません");
+			UploadProgram(instance, step, program);
+			CaptureParticleGPUCheckpoint(graphics, instance, step.captureCheckpoint);
+			state.lastSubmittedSequence = step.sequence;
+			continue;
+		}
 		instance.lastEmitterWorld = step.emitterWorld;
 		UploadProgram(instance, step, program);
 		dispatch(step, step.deltaTime > 0 ? 1 : 4);
 		dispatch(step, 3);
 		dispatch(step, 2);
-		if (environment_ && environment_->feedbackUpdate && (step.deltaTime > 0 || step.spawnCount > 0))
+		if (environment_ && environment_->feedbackUpdate && !step.suppressFeedback && (step.deltaTime > 0 || step.spawnCount > 0))
 			environment_->feedback.ConsumeChildren(state);
 		if (trailPipeline) UpdateTrails(graphics, instance, *trailPipeline, ribbonPipeline, step, false);
+		CaptureParticleGPUCheckpoint(graphics, instance, step.captureCheckpoint);
 		state.lastSubmittedSequence = step.sequence;
 	}
 	if (state.pending.empty()) {

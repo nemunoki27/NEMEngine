@@ -81,6 +81,8 @@ namespace Engine {
 
 		// 完成した定義の世代を共有して取得する
 		std::shared_ptr<const SkinnedMeshAnimationSet> Find(AssetID meshAssetID) const;
+		// 読込待ちと、更新まで再試行しない失敗を区別する
+		bool HasLoadFailed(AssetID meshAssetID) const;
 
 	private:
 		//============================================================================
@@ -104,6 +106,7 @@ namespace Engine {
 			uint64_t structureRevision = UINT64_MAX; // パスを解決した索引の世代
 			std::filesystem::path fullPath;			 // 要求した読込元のパス
 			uint64_t serial = 0; // 最新の読込要求番号
+			bool failed = false;
 		};
 
 		//--------- variables ----------------------------------------------------

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "AnimationValueOperations.h"
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 
 // c++
 #include <algorithm>
@@ -62,6 +63,7 @@ void Engine::AnimationPropertySnapshot::Restore(ECSWorld& world, const Entity& e
 	for (const auto& value : values) {
 
 		if (!value.restore) continue;
+		if (IsTimelineControlled(world, entity, value.binding.componentName, value.binding.propertyPath)) continue;
 		const auto descriptor = AnimationPropertyRegistry::GetInstance().ResolveProperty(world, entity,
 			value.binding.componentName, value.binding.propertyPath, value.binding.valueType);
 		if (!descriptor || !descriptor->hasComponent || !descriptor->hasComponent(world, entity)) continue;

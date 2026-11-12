@@ -9,6 +9,7 @@
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/Common/EditorIconButton.h>
 
 namespace {
 
@@ -28,21 +29,13 @@ namespace {
 	// 操作状態に合わせてButtonの色を切り替える
 	bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) {
 
-		const ImVec4 normal = active ? ImVec4(0.05f, 0.18f, 0.45f, 1.00f) : ImVec4(0.04f, 0.04f, 0.04f, 0.95f);
-
-		const ImVec4 hovered = active ? ImVec4(0.07f, 0.24f, 0.58f, 1.00f) : ImVec4(0.08f, 0.08f, 0.08f, 0.98f);
-
-		const ImVec4 pressed = active ? ImVec4(0.10f, 0.32f, 0.74f, 1.00f) : ImVec4(0.02f, 0.02f, 0.02f, 1.00f);
-
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 4.0f));
-		ImGui::PushStyleColor(ImGuiCol_Button, normal);
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hovered);
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, pressed);
+		Engine::EditorIconButton::PushColors(active);
 
 		bool result = ImGui::ImageButton(id, textureID, size, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f),
 			ImVec4(0.0f, 0.0f, 0.0f, 0.0f), ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-		ImGui::PopStyleColor(3);
+		Engine::EditorIconButton::PopColors();
 		ImGui::PopStyleVar();
 
 		if (active) {

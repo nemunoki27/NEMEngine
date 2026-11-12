@@ -128,7 +128,8 @@ uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume, Au
 	return PlayInternal(name, loop, volume, owner, pitch);
 }
 
-uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner, float pitch) {
+uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner,
+	float pitch, double seconds) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	Assert::Call(device_.IsInitialized(), "Audio::Playより先にAudio::Initを呼び出してください");
@@ -166,7 +167,7 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume, A
 	if (inst.cursor.reverse) { inst.reversePCM = ReverseAudioPCM(*inst.sound); }
 	inst.playbackState.SetPauseReason(AudioPauseReason::ZeroPitch, inst.pitch == 0.0f);
 	srcVoice->SetFrequencyRatio(std::max(std::abs(inst.pitch), XAUDIO2_MIN_FREQ_RATIO), XAUDIO2_COMMIT_NOW);
-	if (!SubmitVoiceBuffersLocked(inst, 0)) { return 0; }
+	if (!SubmitVoiceBuffersLocked(inst, ResolveAudioSamplePosition(*sound, seconds, loop))) { return 0; }
 
 	ApplyVoiceVolumeLocked(key, inst);
 

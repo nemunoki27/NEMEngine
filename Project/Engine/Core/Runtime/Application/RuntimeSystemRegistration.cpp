@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Systems/Animation/AnimationClipPlayerSystem.h>
 #include <Engine/Core/World/Systems/Animation/SimpleAnimationSystem.h>
 #include <Engine/Core/World/Systems/Animation/MotionAnimationSystem.h>
+#include <Engine/Core/World/Systems/Animation/TimelineSystem.h>
 #include <Engine/Core/World/Systems/Time/TimerSystem.h>
 #include <Engine/Core/World/Systems/Lighting/DayNightCycleSystem.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
@@ -40,6 +41,7 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	scheduler.AddSystem(std::move(uiInputSystem), ++order);
 
 	scheduler.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<TimelineSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<AnimationClipPlayerSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<SimpleAnimationSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<MotionAnimationSystem>(), ++order);
@@ -53,6 +55,7 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	// Transform更新後の座標でJoint拘束を解く
 	scheduler.AddSystem(std::make_unique<JointConstraintSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<ParticleSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<TimelineAttachmentSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<UVTransformSystem>(), ++order);

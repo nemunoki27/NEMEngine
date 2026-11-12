@@ -1,5 +1,14 @@
+import { runtimePropertyNotes } from './runtime-notes.mjs';
+
 // Inspectorの用途と組み合わせを利用者向けにまとめる
 export const components = {
+	MotionAnimation: ['開始姿勢を基準に移動・回転し、対象への接近やSplineに沿う移動を再生します。', '移動方式、移動量、再生時間を設定し、対象へ向かう場合は対象、経路移動ではSplineを持つGameObjectを指定します。', '自動適用を無効にすると計算結果だけを受け取れます。開始姿勢の取り直しと、対象位置を追い続けるか固定するかを区別します。', 'animation'],
+	TimelinePlayer: ['Timelineアセットを再生し、骨アニメーション・エフェクト・衝突判定・カメラ演出などを時間軸で制御します。', 'タイムラインに.timeline.jsonを設定し、各割り当て欄へ必要なコンポーネントを持つGameObjectをドロップします。', '既定のアクター欄は参照名Actorとして保存されます。C#のSetBindingには保存された参照名を使います。編集中のプレビューとPlay中の実行状態は別です。', 'animation'],
+	TimeScale: ['GameObject単位の時間倍率を設定し、アニメーションやパーティクルなどを局所的に遅くします。', 'プレイヤーなどへ追加し、倍率、子への適用、親からの継承、影響するチャンネルを設定します。', '各受信コンポーネントの時間源で、このTimeScaleを使う設定が必要です。非スケール時間を選んだ処理には適用されません。', 'animation'],
+	Timer: ['秒数または基準FPSで換算したフレーム数を計測し、目標への到達を取得します。', '計測方式と目標時間を設定し、開始時に再生または再生ボタンで計測を開始します。', 'フレーム方式は描画回数ではなく、時間源の経過秒数を基準FPSで換算します。Playは先頭から開始、Resumeは一時停止位置から再開します。', 'animation'],
+	SkyAtmosphere: ['大気散乱による空と、遠方に大気の色がかかる空気遠近を描画します。', '太陽欄へDirectionalLightを持つGameObjectを設定します。月も表示する場合は別のDirectionalLightを月欄へ設定します。', '空の光源参照にはモデルやCameraを設定しません。DayNightCycleで時間を動かす場合は、同じ太陽・月・空を指定し、複数の昼夜制御から操作しないようにします。', 'rendering'],
+	DayNightCycle: ['時刻に合わせて太陽と月の向きを更新し、SkyAtmosphereと連動した昼夜を作ります。', '太陽と月へそれぞれDirectionalLight、空へSkyAtmosphereを持つGameObjectを指定し、開始時刻と1日の実時間を設定します。', '固定時刻を有効にすると自動進行しません。同じ太陽・月・空を複数のDayNightCycleへ割り当てると競合するため、制御元を1つにします。', 'rendering'],
+	ExponentialHeightFog: ['高さに応じて密度が変化する霧を描画し、遠景のかすみや低い場所の霧を作ります。', '霧の基準高さをTransformで配置し、密度、高さ減衰、色、開始距離を調整します。', 'メッシュの表面色とは別の画面効果です。第2層で追加の高さ分布を設定できます。描画対象レイヤーとCamera側の設定も確認します。', 'rendering'],
 	SimpleAnimation: ['1つの値をAからBへ補間、またはSin・Cosで周期的に変化させます。', '値の型と再生方法を選び、自動適用を使う場合は適用先と項目を指定します。', '1 Componentで1値を扱います。C#のLateUpdateで当frameの結果を取得できます。', 'animation'],
 
 	Transform: ['位置・回転・拡縮と親子関係を保持します。すべての通常Entityに付いています。', 'HierarchyでEntityを選び、Inspectorの移動・回転・拡縮を変更します。', '位置のワールド値とローカル値を区別します。親のScaleは子にも影響します。', 'scene'],
@@ -48,6 +57,7 @@ export const components = {
 };
 
 export const propertyNotes = {
+	...runtimePropertyNotes,
 	runtimeDuration: 'Clip本体の長さです。単位は秒、読み取り専用です。',
 	unscaledTime: 'TimeScaleの影響を受けず実時間で再生します。', speed: '再生速度の倍率です。0は進行停止、1は等速です。',
 	startDelay: '再生を始めるまでの待ち時間です。単位は秒です。', interval: '繰り返しの間に待つ秒数です。',

@@ -146,6 +146,7 @@ namespace Engine {
 				if (ImGui::MenuItem("コンポーネントを削除")) {
 					removeRequested = true;
 				}
+				InspectorDrawerCommon::DrawComponentManualMenu(GetComponentTypeName());
 				ImGui::EndPopup();
 			}
 			// Popupを閉じてから削除し、このフレームの描画を終了する

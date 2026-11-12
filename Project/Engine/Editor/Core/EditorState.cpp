@@ -71,7 +71,7 @@ bool Engine::IsScenePickDimensionAllowed(ECSWorld& world, const Entity& entity,
 void Engine::EditorState::ValidateSelection(ECSWorld* world) {
 
 	// アセット選択はECSWorldに依存しない
-	if (selectionKind == EditorSelectionKind::Asset) {
+	if (selectionKind == EditorSelectionKind::Asset || selectionKind == EditorSelectionKind::Tool) {
 		return;
 	}
 	if (!world) {
@@ -289,6 +289,12 @@ void Engine::EditorState::SelectAsset(AssetID asset) {
 	selectedEntities.clear();
 	selectedSubMeshIndex = 0;
 	selectedSubMeshStableID = UUID{};
+}
+
+void Engine::EditorState::SelectInspectionTarget(const EditorInspectionTarget& target) {
+
+	inspectionTarget = target;
+	selectionKind = target.IsSet() ? EditorSelectionKind::Tool : EditorSelectionKind::None;
 }
 
 void Engine::EditorState::SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID) {

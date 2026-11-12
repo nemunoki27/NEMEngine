@@ -101,10 +101,18 @@ namespace Engine {
 	}
 
 	float ManagedScriptRuntime::GetTimeScaleCallback() {
-		return timeScale_;
+		return GetRuntimeTimeScale();
 	}
 
 	void ManagedScriptRuntime::SetTimeScaleCallback(float value) {
+		SetRuntimeTimeScale(value);
+	}
+
+	float ManagedScriptRuntime::GetRuntimeTimeScale() {
+		return timeScale_;
+	}
+
+	void ManagedScriptRuntime::SetRuntimeTimeScale(float value) {
 		// サービスが時間スケールの権威で、TimeScaleComponentへは書き戻さない
 		timeScale_ = (!std::isfinite(value)) ? 1.0f : (value < 0.0f ? 0.0f : value);
 	}

@@ -1,4 +1,5 @@
 #include "SimpleAnimationSystem.h"
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 
 //============================================================================
@@ -9,6 +10,7 @@
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
+#include <Engine/Core/Animation/Clips/AnimationClipAssetOverride.h>
 #include <Engine/Core/Animation/Properties/MaterialAnimationPropertyCatalog.h>
 
 // c++
@@ -47,7 +49,7 @@ namespace {
 		}
 		if (const auto* player = world.TryGetComponent<Engine::AnimationClipPlayerComponent>(entity);
 			player && player->enabled && (player->runtimePlaying || player->runtimePaused || player->runtimeApplied) && context.assetDatabase && context.animationClipManager) {
-			if (const auto* clip = context.animationClipManager->GetOrLoad(*context.assetDatabase, player->clip)) {
+			if (const auto* clip = ResolveAnimationClipAsset(world, *context.animationClipManager, *context.assetDatabase, player->clip)) {
 				for (const auto& track : clip->curveTracks) {
 					if (Engine::AnimationValueOperations::SameBinding(track.binding, binding)) return true;
 				}
@@ -201,7 +203,9 @@ void Engine::SimpleAnimationSystem::UpdateEntry(ECSWorld& world, SystemContext& 
 	const double dt = localTime.deltaTime;
 	AdvanceSimpleAnimation(runtime, component.settings, started ? 0.0 : dt);
 	PublishSimpleAnimationValue(component);
-	if (applicable && !conflict && runtime.sample.valid && state.descriptor->setValue && (runtime.playing || runtime.sample.finished || request == 6 || request == 1)) {
+	if (applicable && !conflict && runtime.sample.valid && state.descriptor->setValue &&
+		!IsTimelineControlled(world, entry.target, component.binding.componentName, component.binding.propertyPath) &&
+		(runtime.playing || runtime.sample.finished || request == 6 || request == 1)) {
 		component.runtimeApplied = state.descriptor->setValue(world, entry.target, ToProperty(runtime.sample.value));
 	}
 }

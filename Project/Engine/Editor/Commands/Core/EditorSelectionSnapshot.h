@@ -34,6 +34,7 @@ namespace Engine {
 		SelectionEntity active_;
 		SelectionEntity joint_;
 		AssetID asset_{};
+		EditorInspectionTarget inspection_{};
 		UUID subMeshID_{};
 		uint32_t subMeshIndex_ = 0;
 		int32_t jointIndex_ = -1;

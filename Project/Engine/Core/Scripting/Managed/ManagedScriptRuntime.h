@@ -90,6 +90,16 @@ namespace Engine {
 		// C#側のOnAnimationEventを呼び出す
 		ManagedStatus InvokeAnimationEvent(ManagedScriptInstanceHandle handle, const SystemContext& context, const char* name,
 			float floatParam, int32_t intParam, const char* stringParam);
+		// 独自クリップの生成と時刻評価をManagedへ接続する
+		bool CreateTimelineClip(ECSWorld& world, Entity owner, const SystemContext& context, std::string_view typeName,
+			std::string_view configuration, uint64_t& handle);
+		bool UpdateTimelineClipConfiguration(uint64_t handle, const SystemContext& context,
+			std::string_view typeName, std::string_view configuration);
+		bool EvaluateTimelineClip(uint64_t handle, const SystemContext& context, const ManagedTimelineFrame& frame,
+			const ManagedTimelineBindingUpdate* bindings = nullptr, int32_t bindingCount = 0,
+			const ManagedTimelineParameterUpdate* parameters = nullptr, int32_t parameterCount = 0);
+		void ReleaseTimelineClip(uint64_t handle, const SystemContext& context, int32_t reason);
+		std::string CopyTimelineClipTypes();
 
 		// 複製用の保存値を取得し、失敗時は出力を維持する
 		bool CaptureSavedValueMap(ManagedScriptInstanceHandle handle, ECSWorld& world, nlohmann::json& fields);
@@ -115,6 +125,9 @@ namespace Engine {
 		static void BeginPlayTime(const ECSWorld* playWorld);
 		// 実行中だけ時刻を進めて差分時刻を返す
 		static float AdvanceTime(float rawDeltaTime, float fixedDeltaTime, bool advancing);
+		// C#とTimelineで同じ時間倍率を共有する
+		static float GetRuntimeTimeScale();
+		static void SetRuntimeTimeScale(float value);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -470,6 +483,16 @@ namespace Engine {
 		static int32_t __cdecl CameraRenderPassActionCallback(const ManagedRenderPassHandle* handle, int32_t action, const char* name, uint64_t argument);
 		static int32_t __cdecl CopyComponentSettingsCallback(ManagedNativeEntity entity, int32_t type, char* buffer, int32_t capacity);
 		static int32_t __cdecl ApplyComponentSettingsCallback(ManagedNativeEntity entity, int32_t type, const char* buffer, int32_t size);
+		// Timelineの即時状態を固定長で読み書きする
+		static int32_t __cdecl TimelineCommandCallback(ManagedNativeEntity entity, int32_t command, double time);
+		static int32_t __cdecl GetTimelineStateCallback(ManagedNativeEntity entity, ManagedTimelineState* output);
+		static ManagedNativeEntity __cdecl GetTimelineBindingCallback(ManagedNativeEntity entity, const char* name);
+		static int32_t __cdecl SetTimelineBindingCallback(ManagedNativeEntity entity, const char* name, ManagedNativeEntity target);
+		static int32_t __cdecl GetTimelineParameterCallback(ManagedNativeEntity entity, const char* name, ManagedTimelineValue* output);
+		static int32_t __cdecl SetTimelineParameterCallback(ManagedNativeEntity entity, const char* name, const ManagedTimelineValue* value);
+		static int32_t __cdecl IsTimelineWindowOpenCallback(ManagedNativeEntity entity, const char* name);
+		static int32_t __cdecl CopyTimelineStringParameterCallback(ManagedNativeEntity entity, const char* name, char* output, int32_t capacity);
+		static int32_t __cdecl SetTimelineStringParameterCallback(ManagedNativeEntity entity, const char* name, const char* value);
 		static int32_t __cdecl GetAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID, ManagedMaterialParameterValue* output);
 		static int32_t __cdecl SetAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID, const char* name, const ManagedMaterialParameterValue* value);
 		static int32_t __cdecl ClearAssetRuntimeParameterCallback(ManagedAssetGUID assetID, uint64_t parameterID);

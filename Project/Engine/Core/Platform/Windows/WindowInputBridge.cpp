@@ -5,10 +5,17 @@
 //============================================================================
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-void Engine::WindowInputBridge::NotifyFocus(bool focused) {
+void Engine::WindowInputBridge::NotifyFocus(HWND hwnd) {
 
 	if (Input* input = Input::TryGetInstance()) {
-		input->SetWindowFocus(focused);
+		input->SetFocusedWindow(hwnd);
+	}
+}
+
+void Engine::WindowInputBridge::UnregisterWindow(HWND hwnd) {
+
+	if (Input* input = Input::TryGetInstance()) {
+		input->UnregisterWindow(hwnd);
 	}
 }
 

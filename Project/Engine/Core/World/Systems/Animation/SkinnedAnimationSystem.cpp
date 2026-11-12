@@ -5,6 +5,7 @@
 //============================================================================
 #include "SkeletonPoseEvaluator.h"
 #include "SkeletonPlaybackTime.h"
+#include "SkinnedAnimationSampling.h"
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -25,7 +26,7 @@ using namespace Engine::SkeletonPoseEvaluator;
 void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
 	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent, SkinnedAnimationRuntimeComponent>(
-		[&](const Entity& entity, MeshRendererComponent& renderer, SkinnedAnimationComponent& anim,
+		[&](const Entity& entity, [[maybe_unused]] MeshRendererComponent& renderer, SkinnedAnimationComponent& anim,
 			[[maybe_unused]] SkinnedAnimationRuntimeComponent& runtimeComponent) {
 			if (!IsEntityActiveInHierarchy(world, entity)) {
 				return;
@@ -35,60 +36,13 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			if (!runtime) {
 				return;
 			}
-			// メッシュが無効な場合はアニメーションデータをクリアして終了
-			if (!renderer.mesh) {
-				runtime->palette.clear();
-				runtime->availableClips.clear();
-				runtime->initialized = false;
-				runtime->currentDuration = 0.0f;
-				return;
-			}
-
-			context.skinnedAnimationManager->RequestLoadAsync(*context.assetDatabase, renderer.mesh);
-
-			// メッシュに対応するアニメーションセットを取得
-			const auto animationSet = context.skinnedAnimationManager->Find(renderer.mesh);
-			if (!animationSet || !animationSet->valid || animationSet->clips.empty()) {
-				runtime->palette.clear();
-				runtime->availableClips.clear();
-				runtime->currentDuration = 0.0f;
-				return;
-			}
-
-			// メッシュが切り替わったか
-			bool meshChanged = (!runtime->initialized || runtime->mesh != renderer.mesh ||
-								runtime->definitionGeneration != animationSet->generation);
-			if (meshChanged) {
-
-				// 初期クリップの名前を取得
-				runtime->currentClip = ResolveInitialClip(*animationSet, anim.clip);
-
-				runtime->mesh = renderer.mesh;
-				runtime->definitionGeneration = animationSet->generation;
-				runtime->initialized = true;
-				runtime->bindSkeleton = animationSet->skeleton;
-				runtime->skeleton = runtime->bindSkeleton;
-				runtime->palette.resize(animationSet->skeleton.joints.size());
-				runtime->fromClip.clear();
-				runtime->toClip.clear();
-				runtime->time = anim.playbackSpeed < 0.0f ? animationSet->clips.at(runtime->currentClip).duration : 0.0f;
-				runtime->fromTime = 0.0f;
-				runtime->blendTime = 0.0f;
-				runtime->inTransition = false;
-				runtime->animationFinished = false;
-				runtime->repeatCount = 0;
-
-				// クリップ一覧を作り直す
-				runtime->availableClips.clear();
-				runtime->availableClips.reserve(animationSet->clipOrder.size());
-				for (const std::string& clipName : animationSet->clipOrder) {
-
-					runtime->availableClips.emplace_back(clipName);
-				}
-			}
+			if (runtime->timelineControlled) return;
+			bool meshChanged = false;
+			const auto animationSet = PrepareSkinnedAnimation(world, entity, context, meshChanged);
+			if (!animationSet) return;
 
 			// 再生するクリップの名前を取得
-			std::string desiredClip = ResolveInitialClip(*animationSet, anim.clip);
+			std::string desiredClip = ResolveSkinnedAnimationClip(*animationSet, anim.clip);
 			bool clipChanged = false;
 			if (!desiredClip.empty() && desiredClip != runtime->currentClip && !runtime->inTransition) {
 
@@ -184,24 +138,4 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			BuildPalette(runtime->skeleton, animationSet->skinCluster, runtime->palette);
 			++runtime->poseGeneration;
 		});
-}
-
-std::string Engine::SkinnedAnimationSystem::ResolveInitialClip(
-	const SkinnedMeshAnimationSet& animationSet, const std::string& requestedClip) {
-
-	if (!requestedClip.empty()) {
-		if (animationSet.clips.contains(requestedClip)) {
-			return requestedClip;
-		}
-	}
-	if (animationSet.clips.contains("Default")) {
-		return "Default";
-	}
-	if (!animationSet.clipOrder.empty()) {
-		return animationSet.clipOrder.front();
-	}
-	if (!animationSet.clips.empty()) {
-		return animationSet.clips.begin()->first;
-	}
-	return {};
 }

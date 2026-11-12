@@ -352,6 +352,10 @@ namespace Engine::CurveEditorUtility {
 		state.gridTimeStep = NiceStep(80.0f / state.pixelsPerSecond);
 
 		// 値範囲の最小幅と表示倍率を揃える
+		const double valuePadding = (std::max)({0.1, (static_cast<double>(valueMax) - valueMin) * 0.08,
+			(std::max)(std::abs(static_cast<double>(valueMin)), std::abs(static_cast<double>(valueMax))) * 0.00001});
+		state.visibleValueMin = FiniteFloat(valueMin - valuePadding);
+		state.visibleValueMax = FiniteFloat(valueMax + valuePadding);
 		UpdateVerticalZoomFromRange(graphRect, state);
 	}
 } // Engine::CurveEditorUtility

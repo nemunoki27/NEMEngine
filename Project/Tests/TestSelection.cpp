@@ -1,7 +1,16 @@
 #include "TestSelection.h"
+#include "TimelineTests.h"
+#include "TimelineEditorTests.h"
+#include "TimelineEditorIntegrationTests.h"
+#include "TimelineRuntimeEditingTests.h"
+#include "AnimationRecordingTests.h"
+#include "TimelineBuiltinTests.h"
+#include "TimelineGateTests.h"
+#include "TimelineManagedTests.h"
 #include "HeightFogGPUTests.h"
 #include "RendererRenderSettingsGPUTests.h"
 #include "EditorWindowTests.h"
+#include "InputConfigurationTests.h"
 #include "InspectorPresentationTests.h"
 #include "TimerTests.h"
 #include "DayNightCycleTests.h"
@@ -50,6 +59,18 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--timeline") {
+		return RunTest("TestTimeline", TestTimeline) && RunTest("TestTimelineBuiltins", TestTimelineBuiltins) &&
+			RunTest("TestTimelineCollisionGates", TestTimelineCollisionGates) &&
+			RunTest("TestTimelineEditor", TestTimelineEditor) && RunTest("TestAnimationRecording", TestAnimationRecording) &&
+			RunTest("TestTimelineRuntimeEditing", TestTimelineRuntimeEditing) &&
+			RunTest("TestTimelineEditorIntegration", TestTimelineEditorIntegration) ? 0 : 90;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--timeline-managed") {
+		return RunTest("TestTimelineManagedIntegration", TestTimelineManagedIntegration) ? 0 : 91;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--editor-templates") {
 		return RunTest("TestEditorTemplates", TestEditorTemplates) ? 0 : 89;
 	}
@@ -67,7 +88,7 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			RunTest("TestAssetDependencyCandidates", TestAssetDependencyCandidates) ? 0 : 86;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor-windows") {
-		return RunTest("TestEditorWindows", TestEditorWindows) ? 0 : 85;
+		return RunTest("TestEditorWindows", TestEditorWindows) && RunTest("TestInputConfiguration", TestInputConfiguration) ? 0 : 85;
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--local-time") {

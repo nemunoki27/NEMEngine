@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 //============================================================================
 //	include
@@ -63,10 +63,12 @@ namespace Engine {
 		GraphicsCore* graphicsCore_ = nullptr;
 		RenderPipelineRunner* renderer_ = nullptr;
 		DisplayOutputSettings requested_{};
-		std::unordered_map<ImGuiID, WindowOutput> windows_;
+		std::unordered_map<HWND, WindowOutput> windows_;
 
 		//--------- functions ----------------------------------------------------
 
+		// 内部IDの変更に依存しない出力先を取得する
+		static HWND GetWindowHandle(const ImGuiViewport* viewport);
 		// 出力形式とUI輝度をBackendへ渡す
 		static ImGui_ImplDX12_OutputConfig BuildConfig(const WindowOutput& window);
 		// HDR10の合成画像だけを必要なサイズで保持する

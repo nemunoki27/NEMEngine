@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameResources.h>
 #include <Engine/Editor/Core/EditorShortcutState.h>
 #include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
+#include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 
 // c++
 #include <cstdint>
@@ -74,6 +75,7 @@ namespace Engine {
 		bool initialized_ = false;
 		EditorShortcutState shortcutState_;
 		ImGuiDisplayOutput displayOutput_;
+		EditorWindowPresentation::FrameStyle frameStyle_;
 		// 初期化できた段階だけ終了する
 		bool contextCreated_ = false;
 		bool platformInitialized_ = false;
@@ -115,8 +117,6 @@ namespace Engine {
 		static void SetPlatformWindowTitle(ImGuiViewport* viewport, const char* title);
 		// 外部ウィンドウの元のプロシージャを復元する
 		void RestorePlatformWindowProcedures();
-		// 指定ウィンドウがエディターの管理対象か
-		bool IsEditorWindow(HWND hwnd) const;
 		// メインWindowの入力を受け取る
 		static LRESULT ForwardWindowMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 		// 外部ウィンドウのメッセージを処理する

@@ -41,7 +41,8 @@ namespace {
 //	AnimationClipEditorUI
 //============================================================================
 
-void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& session, const EditorToolContext& context) {
+void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& session, const EditorToolContext& context,
+	const CurveEditSetting* setting) {
 
 	if (!session.GetHasClip()) {
 		return;
@@ -74,6 +75,7 @@ void Engine::AnimationClipEditorUI::DrawCurveEditorUI(AnimationClipEditSession& 
 	curveSetting.showSidePanels = false;
 	curveSetting.snap = true;
 	curveSetting.snapInterval = 0.001f;
+	if (setting) curveSetting = *setting;
 	CurveEditResult result{};
 	// 選択Trackを値型ごとのCurveで編集する
 	switch (track.binding.valueType) {

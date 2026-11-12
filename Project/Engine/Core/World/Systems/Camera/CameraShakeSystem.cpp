@@ -1,4 +1,5 @@
 #include "CameraShakeSystem.h"
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 
 using namespace Engine;
 
@@ -23,6 +24,7 @@ void CameraShakeSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 	world.ForEach<CameraShakeComponent, CameraShakeRuntimeComponent, TransformComponent>(
 		[&](Entity entity, CameraShakeComponent& shake,
 			CameraShakeRuntimeComponent& runtime, TransformComponent& transform) {
+			if (IsTimelineControlled(world, entity, "Camera") || IsTimelineControlled(world, entity, "Transform")) return;
 
 			// 前フレームの揺れを除去して基準座標へ戻す
 			if (runtime.offset != Vector3{}) {

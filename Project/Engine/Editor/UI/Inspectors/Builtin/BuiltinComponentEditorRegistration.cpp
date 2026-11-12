@@ -34,6 +34,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SimpleAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/MotionAnimationInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/TimelinePlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Time/TimerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Time/TimeScaleInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
@@ -193,6 +194,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	}
 	registry.Register(MakeComponentEditorDescriptor<MotionAnimationInspectorDrawer>(
 		"MotionAnimation", "MotionAnimation", "Animation", "UI/Inspectors/Builtin/Animation/MotionAnimationInspectorDrawer.cpp"));
+	registry.Register(MakeComponentEditorDescriptor<TimelinePlayerInspectorDrawer>(
+		"TimelinePlayer", "TimelinePlayer", "Animation", "UI/Inspectors/Builtin/Animation/TimelinePlayerInspectorDrawer.cpp"));
 	registry.Register(MakeComponentEditorDescriptor<TimeScaleInspectorDrawer>(
 		"TimeScale", "TimeScale", "Time", "UI/Inspectors/Builtin/Time/TimeScaleInspectorDrawer.cpp"));
 	registry.Register(MakeComponentEditorDescriptor<TimerInspectorDrawer>(

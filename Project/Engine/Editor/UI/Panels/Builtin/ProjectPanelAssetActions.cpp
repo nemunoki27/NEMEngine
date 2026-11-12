@@ -15,6 +15,7 @@
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
+#include <Engine/Editor/Tools/Builtin/Timeline/TimelineTool.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -142,6 +143,18 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 	};
 	renderPasses.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(renderPasses));
+
+	// Timelineは時間軸ツールで開く
+	AssetActionDescriptor timeline{};
+	timeline.type = AssetType::Timeline;
+	timeline.displayName = "Timeline";
+	timeline.iconResolver = ResolveDefaultAssetIcon;
+	timeline.onDoubleClick = [](const EditorPanelContext&, const ProjectAssetEntry& asset) {
+		if (auto* editor = dynamic_cast<TimelineTool*>(ToolRegistry::GetInstance().Find("engine.timeline")))
+			editor->OpenAsset(asset.assetID);
+	};
+	timeline.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(timeline));
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {

@@ -47,6 +47,5 @@ namespace Engine {
 		double lastRefresh_ = -1;
 		int sort_ = 1;
 		bool instances_ = false;
-		bool openWindow_ = false;
 	};
 }

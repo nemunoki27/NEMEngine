@@ -21,4 +21,7 @@ namespace Engine {
 		bool CanEditScene() const { return toolContext.canEditScene; }
 		bool IsPlaying() const { return toolContext.isPlaying; }
 	};
+
+	// PanelとToolで同じ実行状態を使用する
+	EditorToolContext MakeEditorToolContext(const EditorPanelContext& context);
 } // Engine

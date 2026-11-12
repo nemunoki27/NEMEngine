@@ -148,6 +148,14 @@ namespace {
 		if (!graphOverlayUIBlocking) {
 			HandleGraphInput(graphRect, channels, state, result, quaternionAxisKeys);
 		}
+		ImGui::SetCursorScreenPos(topRulerRect.Min);
+		ImGui::InvisibleButton("##CurveTimeInput", topRulerRect.GetSize());
+		if (ImGui::IsItemActive() || (ImGui::IsItemDeactivated() && ImGui::IsMouseReleased(ImGuiMouseButton_Left))) {
+			const float time = ScreenToWorld(graphRect, state, ImGui::GetIO().MousePos).x;
+			state.currentTime = setting.fixedTimeRange ? std::clamp(time, setting.fixedTimeMin, setting.fixedTimeMax) :
+				(std::max)(0.0f, time);
+			result.anyItemActive = true;
+		}
 		RefreshGridStepsOnly(graphRect, state);
 
 		ImGui::EndGroup();

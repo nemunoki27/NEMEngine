@@ -25,9 +25,12 @@ void Engine::SimpleAnimationInspectorDrawer::DrawFields(const EditorPanelContext
 	const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
-	DrawField(anyItemActive, [&] { if (draft.settings.unscaledTime) draft.timeSource.mode = TimeSourceMode::Unscaled; auto result = DrawTimeSourceField(context, world, entity, draft.timeSource); if (result.valueChanged) draft.settings.unscaledTime = false; return result; });
-	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayOnStart), draft.playOnStart); });
-	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlayInEditMode), draft.playInEditMode); });
+	DrawField(anyItemActive, [&] {
+		if (draft.settings.unscaledTime) draft.timeSource.mode = TimeSourceMode::Unscaled;
+		auto result = DrawPlaybackStartFields(context, world, entity, draft.timeSource, draft.playInEditMode, &draft.playOnStart);
+		if (result.valueChanged) draft.settings.unscaledTime = false;
+		return result;
+	});
 	DrawField(anyItemActive, [&] { return SimpleAnimationFields::DrawSettings(draft.settings, true, false); });
 	DrawField(anyItemActive, [&] { return InspectorDrawerCommon::DrawCheckboxField("自動適用", draft.autoApply); });
 	if (draft.autoApply) {

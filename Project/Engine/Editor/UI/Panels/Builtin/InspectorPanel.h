@@ -62,6 +62,8 @@ namespace Engine {
 		UUID editingNameEntityStableUUID_{};
 		// 複製時に固定したエンティティ
 		UUID lockedEntityUUID_{};
+		// 複製したツールInspectorの選択先
+		EditorInspectionTarget lockedInspection_{};
 
 		// Materialの編集セッション
 		InspectorMaterialSession materialSession_;

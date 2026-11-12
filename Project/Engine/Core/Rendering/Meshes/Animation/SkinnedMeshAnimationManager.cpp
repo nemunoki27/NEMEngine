@@ -110,7 +110,9 @@ void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(AssetDatabase& assetD
 		}
 		// 読込中に再更新された要求は別の番号で保持する
 		request.serial = nextSerial_++;
+		request.failed = false;
 		if (request.fullPath.empty()) {
+			request.failed = true;
 			return;
 		}
 		job = {meshAssetID, request.fullPath, request.serial};
@@ -121,7 +123,7 @@ void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(AssetDatabase& assetD
 		std::scoped_lock lock(mutex_);
 		const auto found = requests_.find(meshAssetID);
 		if (found != requests_.end() && found->second.serial == serial) {
-			requests_.erase(found);
+			found->second.failed = true;
 		}
 	}
 }
@@ -139,6 +141,13 @@ std::shared_ptr<const Engine::SkinnedMeshAnimationSet> Engine::SkinnedMeshAnimat
 		return nullptr;
 	}
 	return it->second;
+}
+
+bool Engine::SkinnedMeshAnimationManager::HasLoadFailed(AssetID meshAssetID) const {
+
+	std::scoped_lock lock(mutex_);
+	const auto found = requests_.find(meshAssetID);
+	return found != requests_.end() && found->second.failed;
 }
 
 void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_unused]] uint32_t workerIndex) {
@@ -164,6 +173,7 @@ void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_un
 	{
 		std::scoped_lock lock(mutex_);
 		const auto request = requests_.find(job.meshAssetID);
+		if (request != requests_.end() && request->second.serial == job.serial) request->second.failed = !succeeded;
 		if (succeeded && request != requests_.end() && request->second.serial == job.serial) {
 
 			// 完成した世代を公開し、共有中の旧世代は保持する

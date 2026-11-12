@@ -53,6 +53,9 @@ namespace {
 		if (Engine::Algorithm::EndsWith(fileName, ".animclip.json") || extension == ".animclip") {
 			return Engine::AssetType::AnimationClip;
 		}
+		if (Engine::Algorithm::EndsWith(fileName, ".timeline.json") || extension == ".timeline") {
+			return Engine::AssetType::Timeline;
+		}
 		return Engine::AssetType::Unknown;
 	}
 }

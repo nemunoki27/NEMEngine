@@ -9,6 +9,7 @@
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include "EditorViewportSizing.h"
+#include <Engine/Editor/UI/Inspectors/Core/EditorInspectionTarget.h>
 
 // c++
 #include <vector>
@@ -81,6 +82,7 @@ namespace Engine {
 		MeshSubMesh,
 		Asset,
 		Joint,
+		Tool,
 	};
 
 	// 1つのSRT軸のスナップ設定、グリッド単位と絶対スナップの有無を持つ
@@ -152,6 +154,9 @@ namespace Engine {
 		AssetID selectedAsset{};
 		// アセット選択操作が行われるたびに進むカウンタ
 		uint64_t assetSelectionRevision = 0;
+		// ツールの選択とアニメーションクリップの共有編集値
+		EditorInspectionTarget inspectionTarget{};
+		std::shared_ptr<class AnimationClipDocumentStore> animationClipDocuments;
 
 		// 現在選択しているオブジェクトの種類
 		EditorSelectionKind selectionKind = EditorSelectionKind::None;
@@ -238,6 +243,8 @@ namespace Engine {
 		// 特定のジョイントが選択されているか
 		bool IsJointSelected(const Entity& skinnedEntity, int32_t jointIndex) const;
 		void SelectAsset(AssetID asset);
+		// シーンの選択を保ってツールの詳細を表示する
+		void SelectInspectionTarget(const EditorInspectionTarget& target);
 		void SelectFromScenePick(const Entity& entity, uint32_t subMeshIndex, UUID stableID = UUID{});
 		// 保留中のクリック選択をピック候補で確定する、候補が無ければ選択解除する
 		void CommitScenePick(ECSWorld& world);

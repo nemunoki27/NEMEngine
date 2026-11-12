@@ -37,6 +37,13 @@ namespace Engine {
 		nlohmann::json state = nlohmann::json::object();
 	};
 
+	// ツールの表示状態
+	struct EditorToolLayoutSnapshot {
+
+		std::string toolID;
+		bool open = false;
+	};
+
 	// 1つのエディターレイアウト
 	struct EditorLayoutSnapshot {
 
@@ -46,6 +53,7 @@ namespace Engine {
 		bool builtinDefault = false;
 		EditorPanelVisibility visibility{};
 		std::vector<EditorPanelLayoutSnapshot> panels;
+		std::vector<EditorToolLayoutSnapshot> tools;
 		std::string imguiIniData;
 	};
 

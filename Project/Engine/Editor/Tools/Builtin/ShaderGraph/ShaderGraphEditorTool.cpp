@@ -145,6 +145,7 @@ void Engine::ShaderGraphEditorTool::RequestResolvePendingEdits() {
 		return;
 	}
 	openWindow_ = true;
+	resolvingClose_ = true;
 	requestAssetSwitch_ = false;
 	requestGraphCreate_ = false;
 	requestWindowClose_ = true;
@@ -191,6 +192,7 @@ void Engine::ShaderGraphEditorTool::DrawUnsavedPrompt(const EditorToolContext& c
 		requestGraphCreate_ = false;
 		requestWindowClose_ = false;
 		requestedAsset_ = {};
+		resolvingClose_ = false;
 		openWindow_ = true;
 		pendingEditCloseResult_ = EditorToolCloseResult::Cancelled;
 		ImGui::CloseCurrentPopup();
@@ -407,7 +409,8 @@ void Engine::ShaderGraphEditorTool::ApplyPendingTransition(const EditorToolConte
 			editSession_.Load(context, editSession_.GetAssetID());
 		}
 		requestWindowClose_ = false;
-		openWindow_ = false;
+		openWindow_ = resolvingClose_;
+		resolvingClose_ = false;
 	}
 }
 
@@ -461,17 +464,17 @@ void Engine::ShaderGraphEditorTool::DrawAppearancePanel() {
 	}
 }
 
-void Engine::ShaderGraphEditorTool::RequestGraphCreation(const EditorToolContext& context) {
+bool Engine::ShaderGraphEditorTool::RequestGraphCreation(const EditorToolContext& context) {
 
 	if (!editSession_.IsDirty()) {
-		CreateGraph(context);
-		return;
+		return CreateGraph(context);
 	}
 	// 未保存のGraphを解決してから作成する
 	requestGraphCreate_ = true;
 	requestAssetSwitch_ = false;
 	requestWindowClose_ = false;
 	requestUnsavedPrompt_ = true;
+	return true;
 }
 
 bool Engine::ShaderGraphEditorTool::SaveGraph(const EditorToolContext& context) {

@@ -9,6 +9,7 @@
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
 #include <Engine/Editor/Animation/Curves/CurveGenerator.h>
+#include <Engine/Editor/Animation/AnimationClipDocument.h>
 
 // c++
 #include <memory>
@@ -83,16 +84,20 @@ namespace Engine {
 		void CommitHistory();
 		// Clipの編集を戻す、またはやり直す
 		bool RestoreHistory(bool redo);
+		// 共有編集元を参照して対象を切り替える
+		void AttachDocument(std::shared_ptr<AnimationClipDocument> document);
 
 		//--------- accessor -----------------------------------------------------
 
 		AssetID& GetClipAssetID() { return clipAssetID_; }
 		const AssetID& GetClipAssetID() const { return clipAssetID_; }
-		AnimationClipAsset& GetClip() { return clip_; }
-		const AnimationClipAsset& GetClip() const { return clip_; }
+		AnimationClipAsset& GetClip() { return document_->GetClip(); }
+		const AnimationClipAsset& GetClip() const { return document_->GetClip(); }
 		bool GetHasClip() const { return hasClip_; }
-		void MarkClipDirty() { clipDirty_ = true; historyPending_ = true; }
-		bool GetClipDirty() const { return clipDirty_; }
+		void MarkClipDirty() { document_->MarkDirty(); }
+		bool GetClipDirty() const { return document_->IsDirty(); }
+		std::shared_ptr<AnimationClipDocument> GetDocument() const { return document_; }
+		void SetExternalEvaluation(bool external) { externalEvaluation_ = external; }
 		const std::string& GetClipErrorText() const { return clipErrorText_; }
 		const UUID& GetTargetEntityUUID() const { return targetEntityUUID_; }
 		CurveEditorState& GetCurveState() { return curveState_; }
@@ -121,14 +126,9 @@ namespace Engine {
 		// Entity参照を含めない編集対象Clip
 		AssetID clipAssetID_{};
 		AssetID loadedClipAssetID_{};
-		AnimationClipAsset clip_{};
-		AnimationClipAsset historyCurrent_{};
-		std::string historyState_;
-		bool historyPending_ = true;
-		std::deque<AnimationClipAsset> undo_;
-		std::deque<AnimationClipAsset> redo_;
+		std::shared_ptr<AnimationClipDocument> document_ = std::make_shared<AnimationClipDocument>();
 		bool hasClip_ = false;
-		bool clipDirty_ = false;
+		bool externalEvaluation_ = false;
 		std::string clipErrorText_;
 
 		// Clipに保存しないプレビュー対象
@@ -163,8 +163,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 読込済みの編集値とプレビュー状態を差し替える
-		void ApplyLoadedClip(const EditorToolContext& context, AnimationClipAsset loaded, bool dirty);
 		// 対象Entityの描画次元を調べる
 		AnimationClipDetectedDimension DetectTargetDimension(const EditorToolContext& context) const;
 		// Curve表示時刻を同期する

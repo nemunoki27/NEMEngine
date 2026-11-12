@@ -22,6 +22,7 @@ void Engine::EditorSelectionSnapshot::Capture(const EditorCommandContext& contex
 		candidate.active_ = CaptureEntity(world, state.selectedEntity);
 		candidate.joint_ = CaptureEntity(world, state.selectedJointSkinnedEntity);
 		candidate.asset_ = state.selectedAsset;
+		candidate.inspection_ = state.inspectionTarget;
 		candidate.subMeshID_ = state.selectedSubMeshStableID;
 		candidate.subMeshIndex_ = state.selectedSubMeshIndex;
 		candidate.jointIndex_ = state.selectedJointIndex;
@@ -69,6 +70,9 @@ bool Engine::EditorSelectionSnapshot::Restore(const EditorCommandContext& contex
 		break;
 	case EditorSelectionKind::Asset:
 		state.SelectAsset(asset_);
+		break;
+	case EditorSelectionKind::Tool:
+		state.SelectInspectionTarget(inspection_);
 		break;
 	case EditorSelectionKind::None:
 	default:

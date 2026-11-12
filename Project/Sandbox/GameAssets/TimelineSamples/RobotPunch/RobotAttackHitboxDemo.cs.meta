@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "guid": "1b4fb79a4fd44a2ba4734a23fed97dfd",
+  "type": "Script",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "settings": {},
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.RobotAttackHitboxDemo",
+      "scriptTypeId": "826da8f6-6fb9-4839-a043-06ba3c19cbf8",
+      "formerNames": [],
+      "fields": []
+    }
+  ]
+}

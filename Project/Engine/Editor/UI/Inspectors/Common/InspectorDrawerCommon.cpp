@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Editor/Utility/EditorSourceNavigation.h>
+#include <Engine/Editor/Utility/EditorManualNavigation.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -39,6 +40,12 @@ void Engine::InspectorDrawerCommon::DrawComponentSourceMenu(const std::string& s
 	if (ImGui::MenuItem("コンポーネント編集.cppを開く", nullptr, false, !source.empty())) {
 		EditorSourceNavigation::OpenComponentEditor(sourceFile);
 	}
+}
+
+void Engine::InspectorDrawerCommon::DrawComponentManualMenu(std::string_view component) {
+
+	ImGui::Separator();
+	if (ImGui::MenuItem("マニュアルを開く")) EditorManualNavigation::OpenComponent(component);
 }
 
 Engine::AssetID Engine::InspectorDrawerCommon::ResolveDefaultMaterial(

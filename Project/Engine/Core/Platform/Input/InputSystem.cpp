@@ -272,6 +272,8 @@ void Input::Init(WinApp* winApp) {
 
 	winApp_ = winApp;
 	hardware_.Init(*winApp_);
+	RegisterWindow(winApp_->GetHwnd());
+	SetFocusedWindow(GetForegroundWindow());
 	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
 		vibrations_[i].SetGamepadIndex(i);
 	}
@@ -280,6 +282,7 @@ void Input::Init(WinApp* winApp) {
 
 void Input::Update() {
 
+	SetFocusedWindow(GetForegroundWindow());
 	// フォーカス復帰時は押下状態だけ復元
 	suppressEdgesThisFrame_ = suppressEdgesOnNextUpdate_;
 	suppressEdgesOnNextUpdate_ = false;
@@ -297,12 +300,23 @@ void Input::Update() {
 	hardware_.PollMouse(*winApp_);
 }
 
-void Input::SetWindowFocus(bool focused) {
+void Input::RegisterWindow(HWND hwnd) {
 
-	if (focused && !windowEvents_.HasWindowFocus()) {
-		suppressEdgesOnNextUpdate_ = true;
-	}
-	windowEvents_.SetWindowFocus(focused);
+	windowEvents_.RegisterWindow(hwnd);
+}
+
+void Input::UnregisterWindow(HWND hwnd) {
+
+	windowEvents_.UnregisterWindow(hwnd);
+	hardware_.SetCooperativeWindow(windowEvents_.GetFocusedWindow());
+}
+
+void Input::SetFocusedWindow(HWND hwnd) {
+
+	const bool hadFocus = windowEvents_.HasWindowFocus();
+	windowEvents_.SetFocusedWindow(hwnd);
+	if (!hadFocus && windowEvents_.HasWindowFocus()) suppressEdgesOnNextUpdate_ = true;
+	hardware_.SetCooperativeWindow(windowEvents_.GetFocusedWindow());
 }
 
 void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vector2& dstSize, const Vector2& srcSize,

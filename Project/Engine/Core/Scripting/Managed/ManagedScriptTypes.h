@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Scripting/Managed/ManagedTimelineTypes.h>
 // c++
 #include <cstdint>
 #include <cstddef>
@@ -14,7 +15,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 71;
+	inline constexpr uint32_t kManagedABIVersion = 72;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {
@@ -216,6 +217,7 @@ namespace Engine {
 		int32_t initialized = 0;
 		int32_t finished = 0;
 		int32_t inTransition = 0;
+		int32_t playing = 0;
 	};
 
 	// C#へ返すUI選択のフレーム状態
@@ -483,6 +485,15 @@ namespace Engine {
 		using SetCameraRenderPassParameterCallback = int32_t(__cdecl*)(const ManagedRenderPassHandle*, uint64_t, const char*, const ManagedMaterialParameterValue*);
 		using CameraRenderPassActionCallback = int32_t(__cdecl*)(const ManagedRenderPassHandle*, int32_t, const char*, uint64_t);
 		using CopyComponentSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, char*, int32_t);
+		using TimelineCommandCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, double);
+		using GetTimelineStateCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedTimelineState*);
+		using GetTimelineBindingCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity, const char*);
+		using SetTimelineBindingCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedNativeEntity);
+		using GetTimelineParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedTimelineValue*);
+		using SetTimelineParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, const ManagedTimelineValue*);
+		using IsTimelineWindowOpenCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*);
+		using CopyTimelineStringParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, char*, int32_t);
+		using SetTimelineStringParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, const char*);
 		using ApplyComponentSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, const char*, int32_t);
 		using GetAssetRuntimeParameterCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint64_t, ManagedMaterialParameterValue*);
 		using SetAssetRuntimeParameterCallback = int32_t(__cdecl*)(ManagedAssetGUID, uint64_t, const char*, const ManagedMaterialParameterValue*);

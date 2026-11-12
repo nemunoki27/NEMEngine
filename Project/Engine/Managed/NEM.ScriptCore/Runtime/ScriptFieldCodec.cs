@@ -220,6 +220,12 @@ internal sealed unsafe class ScriptFieldCodec {
     // 保存Fieldと参照型のJSON変換を構成する
     private JsonSerializerOptions CreateJSONOptions() {
 
+        return CreateJSONOptions(referenceContext);
+    }
+
+    // 独自クリップにも同じ参照と値の変換規則を使う
+    internal static JsonSerializerOptions CreateJSONOptions(ScriptReferenceContext referenceContext) {
+
         var options = new JsonSerializerOptions {
             IncludeFields = true,
             // 読取専用の計算値を保存対象から除く

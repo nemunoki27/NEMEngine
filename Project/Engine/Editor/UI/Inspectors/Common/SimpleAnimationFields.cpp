@@ -161,14 +161,14 @@ Engine::ValueEditResult Engine::SimpleAnimationFields::DrawSettings(SimpleAnimat
 		MyGUI::EndPropertyRow();
 		return edit;
 	});
-	field([&] { return Select(GetInspectorLabel(InspectorFieldID::PlaybackMode), settings.repeat, std::array{GetInspectorLabel(InspectorFieldID::Once), GetInspectorLabel(InspectorFieldID::Loop), GetInspectorLabel(InspectorFieldID::PingPong)}); });
+	number(GetInspectorLabel(InspectorFieldID::PlaybackSpeed), settings.speed);
+	number(GetInspectorLabel(InspectorFieldID::StartDelay), settings.delay);
+	field([&] { return MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::PlaybackMode), settings.repeat); });
 	if (settings.repeat != SimpleAnimationRepeat::Once) {
 		int32_t count = static_cast<int32_t>((std::min)(settings.cycleCount, uint32_t(INT32_MAX)));
 		field([&] { auto edit = MyGUI::DragInt("回数・0は無制限", count, {.minValue = 0});
 			if (edit.valueChanged) settings.cycleCount = static_cast<uint32_t>(count); return edit; });
 	}
-	number(GetInspectorLabel(InspectorFieldID::StartDelay), settings.delay);
-	number(Engine::GetInspectorLabel(Engine::InspectorFieldID::PlaybackSpeed), settings.speed);
 	if (settings.mode != SimpleAnimationMode::Interpolate) number("切替補間時間", settings.blendDuration);
 	if (showTimeSource) field([&] { return InspectorDrawerCommon::DrawCheckboxField(Engine::GetInspectorLabel(Engine::InspectorFieldID::UnscaledTime), settings.unscaledTime); });
 	return result;

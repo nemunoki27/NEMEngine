@@ -19,4 +19,6 @@ namespace Engine {
 
 	// チャンネルを保持してPCMのサンプル順だけを反転する
 	std::vector<uint8_t> ReverseAudioPCM(const AudioSoundData& sound);
+	// 秒数を音源の有効なPCM位置へ変換する
+	uint32_t ResolveAudioSamplePosition(const AudioSoundData& sound, double seconds, bool loop);
 }

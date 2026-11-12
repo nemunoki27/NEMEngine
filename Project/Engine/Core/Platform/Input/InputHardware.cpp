@@ -1,4 +1,4 @@
-#include "InputHardware.h"
+﻿#include "InputHardware.h"
 
 //============================================================================
 //	include
@@ -66,6 +66,29 @@ void InputHardware::Init(WinApp& winApp) {
 	keyboard_ = std::move(keyboard);
 	mouse_ = std::move(mouse);
 	state_ = {};
+	cooperativeWindow_ = winApp.GetHwnd();
+	resetMouseDelta_ = true;
+}
+
+void InputHardware::SetCooperativeWindow(HWND hwnd) {
+
+	if (hwnd == cooperativeWindow_) return;
+	keyboard_->Unacquire();
+	mouse_->Unacquire();
+	cooperativeWindow_ = nullptr;
+	resetMouseDelta_ = true;
+	if (!hwnd) {
+		state_.key.fill(0);
+		state_.keyPre.fill(0);
+		state_.mouseButtons.fill(false);
+		state_.mousePreButtons.fill(false);
+		state_.mouseState = {};
+		state_.wheelValue = 0.0f;
+		return;
+	}
+	if (FAILED(keyboard_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY)) ||
+		FAILED(mouse_->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE))) return;
+	cooperativeWindow_ = hwnd;
 }
 
 void InputHardware::BeginFrame() {
@@ -78,17 +101,12 @@ void InputHardware::BeginFrame() {
 void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 
 	auto& state = state_;
-	HRESULT hr;
-
-	// キーボード情報の取得開始
-	hr = keyboard_->Acquire();
-
 	// 前回のキー入力を保存
 	std::memcpy(state.keyPre.data(), state.key.data(), state.key.size());
 
 	// 取得失敗時は前frameの押下を残さない
-	hr = keyboard_->GetDeviceState(static_cast<DWORD>(state.key.size()), state.key.data());
-	if (FAILED(hr)) {
+	if (cooperativeWindow_) keyboard_->Acquire();
+	if (!cooperativeWindow_ || FAILED(keyboard_->GetDeviceState(static_cast<DWORD>(state.key.size()), state.key.data()))) {
 		state.key.fill(0);
 	}
 
@@ -169,17 +187,12 @@ void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 void InputHardware::PollMouse(WinApp& winApp) {
 
 	auto& state = state_;
-	HRESULT hr;
-	// マウス情報の取得開始
-	hr = mouse_->Acquire();
-	if (FAILED(hr)) {
-		if (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED) {
-
-			mouse_->Acquire();
-		}
+	// 前面Windowがない間は入力機器を取得しない
+	HRESULT hr = DIERR_NOTACQUIRED;
+	if (cooperativeWindow_) {
+		mouse_->Acquire();
+		hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &state.mouseState);
 	}
-
-	hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &state.mouseState);
 
 	POINT screenPoint{};
 	if (GetCursorPos(&screenPoint)) {
@@ -199,6 +212,11 @@ void InputHardware::PollMouse(WinApp& winApp) {
 		state.wheelValue = 0.0f;
 	} else {
 
+		// Window切替直後の相対移動を持ち越さない
+		if (resetMouseDelta_) {
+			state.mouseState.lX = state.mouseState.lY = state.mouseState.lZ = 0;
+			resetMouseDelta_ = false;
+		}
 		// マウスボタンの状態を保存
 		state.mouseButtons[0] = (state.mouseState.rgbButtons[0] & 0x80) != 0;
 		state.mouseButtons[1] = (state.mouseState.rgbButtons[1] & 0x80) != 0;

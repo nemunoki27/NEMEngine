@@ -121,6 +121,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			if (ImGui::MenuItem("スクリプトを削除")) {
 				removeIndex = static_cast<int32_t>(i);
 			}
+			InspectorDrawerCommon::DrawComponentManualMenu("Script");
 			ImGui::EndPopup();
 		}
 		if (headerOpen) {

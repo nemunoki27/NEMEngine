@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Editor/UI/Panels/Builtin/BuiltinEditorPanelRegistration.h>
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -114,6 +115,7 @@ void Engine::EditorManager::DrawPanelsByPhase(const EditorPanelContext& context,
 void Engine::EditorManager::EndPanelPreviews() {
 
 	for (const auto& panel : panels_) { panel->EndPreview(); }
+	EditorToolUI::EndScenePreviews();
 }
 
 Engine::EditorLayoutSnapshot Engine::EditorManager::CaptureEditorLayout() const {
@@ -134,6 +136,7 @@ Engine::EditorLayoutSnapshot Engine::EditorManager::CaptureEditorLayout() const 
 	layout.visibility.showSceneView = layoutState_.showSceneView;
 	layout.visibility.showGameView = layoutState_.showGameView;
 	layout.visibility.showToolbar = layoutState_.showToolbar;
+	layout.tools = EditorToolUI::CaptureLayoutState();
 
 	for (const auto& panel : panels_) {
 
@@ -213,6 +216,7 @@ void Engine::EditorManager::ApplyEditorLayout(const EditorLayoutSnapshot& layout
 	} else {
 		requestBuildDefaultDockLayout_ = layout.builtinDefault;
 	}
+	EditorToolUI::ApplyLayoutState(layout.tools);
 }
 
 void Engine::EditorManager::ApplyPendingEditorLayout(GraphicsCore& graphicsCore) {

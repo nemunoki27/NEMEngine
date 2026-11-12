@@ -6,6 +6,8 @@
 //============================================================================
 #include <Engine/Core/Platform/Input/InputDeviceConfiguration.h>
 #include <Engine/Core/Platform/Input/InputDeviceState.h>
+#include <Engine/Core/Platform/Input/InputWindowEvents.h>
+#include <Engine/Core/Platform/Input/InputViewMapping.h>
 #include <Engine/Core/Platform/Input/InputVibrationPlayer.h>
 
 // c++
@@ -18,6 +20,44 @@ namespace NEMTests {
 
 	// 不正な保存設定で確定済みの入力設定を変更しない
 	bool TestInputConfiguration() {
+
+		// Window間の移動とアプリ外への移動と破棄を区別する
+		InputWindowEvents windows;
+		const auto main = reinterpret_cast<HWND>(1);
+		const auto detached = reinterpret_cast<HWND>(2);
+		windows.RegisterWindow(main);
+		windows.RegisterWindow(detached);
+		for (const auto hwnd : {main, detached, main, detached}) {
+			windows.SetFocusedWindow(hwnd);
+			if (!windows.HasWindowFocus() || windows.GetFocusedWindow() != hwnd) return false;
+		}
+		windows.UnregisterWindow(main);
+		if (!windows.HasWindowFocus() || windows.GetFocusedWindow() != detached) return false;
+		windows.SetFocusedWindow(main);
+		if (windows.HasWindowFocus() || windows.GetFocusedWindow()) return false;
+		windows.SetFocusedWindow(detached);
+		windows.AppendTextInputUtf16(L'A');
+		windows.UnregisterWindow(detached);
+		windows.CommitText();
+		if (windows.HasWindowFocus() || windows.GetFocusedWindow() || !windows.FrameTextInput().empty()) return false;
+		windows.RegisterWindow(detached);
+		windows.SetFocusedWindow(detached);
+		if (!windows.HasWindowFocus()) return false;
+		windows.SetFocusedWindow(nullptr);
+		if (windows.HasWindowFocus()) return false;
+
+		// 左側や上側のモニターでもView座標とメインWindow座標を混同しない
+		InputViewMapping mapping;
+		InputDeviceState pointer;
+		pointer.mousePos = Vector2(100.0f, 50.0f);
+		pointer.mouseScreenPos = Vector2(-1750.0f, -750.0f);
+		for (const auto view : {InputViewArea::Scene, InputViewArea::Game}) {
+			mapping.SetViewRect(view, Vector2(-1800.0f, -800.0f), Vector2(200.0f, 100.0f),
+				Vector2(400.0f, 200.0f), InputViewCoordinateSpace::Screen);
+			if (mapping.GetMousePosInView(view, pointer) != Vector2(100.0f, 100.0f)) return false;
+			mapping.ClearViewRect(view);
+			if (mapping.GetMousePosInView(view, pointer)) return false;
+		}
 
 		// 重いframeの間に解放した操作も一度だけ取り出す
 		EditorShortcutState shortcut;

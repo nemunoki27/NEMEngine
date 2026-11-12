@@ -43,9 +43,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		// ウィンドウ表示状態
-		bool openWindow_ = false;
-
 		//--------- functions ----------------------------------------------------
 
 		void DrawWindow();

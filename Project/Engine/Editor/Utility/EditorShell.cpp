@@ -18,6 +18,16 @@
 //============================================================================
 //	EditorShell methods
 //============================================================================
+bool Engine::EditorShell::OpenURL(const std::string& url) {
+
+	if (!url.starts_with("https://") && !url.starts_with("http://")) return false;
+	const std::wstring address = Algorithm::ConvertString(url);
+	const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", address.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	if (reinterpret_cast<INT_PTR>(result) > 32) return true;
+	Logger::Output(LogType::Engine, spdlog::level::warn, "[EditorShell] ブラウザーでURLを開けません: {}", url);
+	return false;
+}
+
 bool Engine::EditorShell::OpenWithSystemDefault(const std::filesystem::path& file) {
 
 	std::error_code ec{};

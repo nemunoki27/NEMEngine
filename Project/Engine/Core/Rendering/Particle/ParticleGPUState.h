@@ -54,6 +54,13 @@ namespace Engine {
 	};
 	static_assert(sizeof(ParticleStatisticsGPU) == 16);
 
+	// 実体は描画側で所有し、要求側には複製の完了だけを返す
+	struct ParticleGPUCheckpoint {
+
+		bool available = false;
+		uint64_t memoryBytes = 0;
+	};
+
 	// Worldの更新1回に対応するGPU要求
 	struct ParticleGPUSimulationStep {
 
@@ -66,6 +73,10 @@ namespace Engine {
 		uint32_t spawnCount = 0;
 		uint32_t seed = 0;
 		float deltaTime = 0.0f;
+		uint64_t randomSequence = UINT64_MAX;
+		std::shared_ptr<ParticleGPUCheckpoint> captureCheckpoint;
+		std::shared_ptr<const ParticleGPUCheckpoint> restoreCheckpoint;
+		bool suppressFeedback = false;
 	};
 
 	// Worldは要求と遅延した結果を持ち、描画側はGPU資源を所有する
@@ -83,9 +94,17 @@ namespace Engine {
 		uint64_t emissionEndSequence = UINT64_MAX;
 		bool statisticsValid = false;
 		bool rejected = false;
+		bool deterministicReplay = false;
+		bool suppressFeedback = false;
 		std::string diagnostic;
 
 		// 実行不可の理由を残して保留要求を破棄する
 		void Reject(const std::string& reason);
 	};
+
+	inline bool IsParticleGPUReplayReady(const ParticleGPUState& state, uint64_t epoch) {
+
+		return !state.deterministicReplay || (state.pending.empty() && state.epoch == epoch &&
+			state.lastSubmittedSequence == state.nextSequence);
+	}
 }

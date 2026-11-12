@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
+#include <Engine/Core/Platform/Windows/WindowInputBridge.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
@@ -141,7 +142,7 @@ void ImGuiManager::Begin() {
 	ImGui_ImplDX12_SyncDisplayOutputs();
 	CheckGPUFailure();
 	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
+	frameStyle_.NewFrame();
 }
 
 void ImGuiManager::End() {
@@ -150,7 +151,7 @@ void ImGuiManager::End() {
 		return;
 	}
 
-	ImGui::Render();
+	frameStyle_.Render();
 	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		ImGui::UpdatePlatformWindows();
 		CheckGPUFailure();
@@ -292,7 +293,7 @@ void ImGuiManager::RegisterPlatformWindows() {
 	for (int32_t index = 1; index < platformIO.Viewports.Size; ++index) {
 
 		ImGuiViewport* viewport = platformIO.Viewports[index];
-		HWND hwnd = static_cast<HWND>(viewport->PlatformHandleRaw);
+		HWND hwnd = static_cast<HWND>(viewport->PlatformHandleRaw ? viewport->PlatformHandleRaw : viewport->PlatformHandle);
 		if (!hwnd || platformWindowProcedures_.contains(hwnd)) {
 			continue;
 		}
@@ -303,6 +304,7 @@ void ImGuiManager::RegisterPlatformWindows() {
 			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&ImGuiManager::PlatformWindowProc)));
 		if (previous) {
 			platformWindowProcedures_.emplace(hwnd, previous);
+			if (Input* input = Input::TryGetInstance()) input->RegisterWindow(hwnd);
 		}
 	}
 }
@@ -315,16 +317,12 @@ void ImGuiManager::SetPlatformWindowTitle(ImGuiViewport* viewport, const char* t
 void ImGuiManager::RestorePlatformWindowProcedures() {
 
 	for (const auto& [hwnd, procedure] : platformWindowProcedures_) {
+		WindowInputBridge::UnregisterWindow(hwnd);
 		if (IsWindow(hwnd)) {
 			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(procedure));
 		}
 	}
 	platformWindowProcedures_.clear();
-}
-
-bool ImGuiManager::IsEditorWindow(HWND hwnd) const {
-
-	return hwnd == WinApp::GetHwnd() || platformWindowProcedures_.contains(hwnd);
 }
 
 LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
@@ -342,15 +340,17 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam,
 
 	switch (message) {
 	case WM_SETFOCUS:
-		if (Input* input = Input::TryGetInstance()) {
-			input->SetWindowFocus(true);
-		}
+		WindowInputBridge::NotifyFocus(hwnd);
 		break;
 	case WM_KILLFOCUS:
 		instance_->shortcutState_.Reset();
-		if (Input* input = Input::TryGetInstance()) {
-			input->SetWindowFocus(instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
-		}
+		WindowInputBridge::NotifyFocus(reinterpret_cast<HWND>(wparam));
+		break;
+	case WM_CHAR:
+		WindowInputBridge::AppendCharacter(wparam);
+		break;
+	case WM_DESTROY:
+		WindowInputBridge::UnregisterWindow(hwnd);
 		break;
 	case WM_DROPFILES:
 		WinApp::HandleExternalFileDrop(hwnd, wparam);

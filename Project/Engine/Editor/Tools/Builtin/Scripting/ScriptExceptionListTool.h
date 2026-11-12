@@ -44,7 +44,6 @@ namespace Engine {
 			.order = 0,
 		};
 
-		bool openWindow_ = false; // 一覧の表示状態
 		char textFilter_[128]{};  // 検索文字列
 
 		//--------- functions ----------------------------------------------------

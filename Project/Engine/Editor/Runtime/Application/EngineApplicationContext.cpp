@@ -73,6 +73,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 		editorContext_.activeWorld = world;
 		editorContext_.editWorld = &worldManager_.GetEditWorld();
 		editorContext_.assetDatabase = &assetDatabase_;
+		editorContext_.systemContext = &systemContext_;
 		editorContext_.sceneStorage = sceneSystem_.GetStorage();
 		editorContext_.scriptBuildService = &scriptBuildService_;
 

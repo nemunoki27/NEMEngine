@@ -222,7 +222,7 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(const EditorToolC
 			}
 			ClearSelection();
 		}
-		if (pendingClose_) {
+		if (pendingClose_ && !resolvePendingEdits_) {
 			openWindow_ = false;
 		}
 		pendingAsset_.reset();

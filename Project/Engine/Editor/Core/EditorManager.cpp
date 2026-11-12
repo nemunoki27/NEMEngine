@@ -12,6 +12,9 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
+#include <Engine/Editor/Animation/AnimationClipDocument.h>
+#include <Engine/Editor/Animation/AnimationPropertyEditCapture.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
@@ -80,6 +83,13 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 	// 編集中のSceneまたはPrefabを保存する
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S)) {
 
+		if (context.activeWorld && AnimationPropertyEditCapture::HasRecorder(*context.activeWorld)) {
+			if (editorState_.animationClipDocuments && context.assetDatabase &&
+				!editorState_.animationClipDocuments->SaveDirty(*context.assetDatabase,
+					context.systemContext ? context.systemContext->animationClipManager : nullptr))
+				Logger::Output(LogType::Engine, spdlog::level::err, "記録したアニメーションクリップを保存できません");
+			return;
+		}
 		if (context.isPrefabEditing) {
 			RequestSavePrefab();
 		} else {

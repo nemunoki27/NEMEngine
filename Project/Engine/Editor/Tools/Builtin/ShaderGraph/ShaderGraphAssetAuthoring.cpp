@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderGraphPublication.h"
+#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -19,20 +20,13 @@ using namespace Engine::ShaderGraphPublication;
 AssetID Engine::ShaderGraphAssetAuthoring::Create(
 	AssetDatabase& database, const ShaderGraphCreationRequest& request, std::string& status) {
 
-	if (request.path.empty()) {
-		status = "作成先を設定してください";
-		return {};
-	}
 	// 保存先と種類を検証してGraphを作成する
-	const std::filesystem::path path = database.ResolveAssetPath(request.path);
-	if (path.empty()) {
-		status = "GameAssets内を指定してください";
+	const auto plan = ProjectAssetFileUtility::PlanToolAsset(ProjectAssetFileKind::ShaderGraph, request.path);
+	if (!plan.success) {
+		status = plan.message;
 		return {};
 	}
-	if (std::filesystem::exists(path)) {
-		status = "同名のグラフが存在します";
-		return {};
-	}
+	const auto& path = plan.fullPath;
 
 	const std::string name = GraphFileStem(path);
 	ShaderGraphAsset graph{};

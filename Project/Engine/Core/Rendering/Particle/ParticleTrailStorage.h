@@ -45,6 +45,9 @@ namespace Engine {
 		void Expire(ParticleTrailRuntime& trail, float deltaTime, float lifetime);
 		// 全Trailを消す
 		void clear();
+		// 点列を独立して複製し、粒子が保持する参照の対応を返す
+		void CopyFrom(const ParticleTrailStorage& source,
+			std::vector<std::pair<ParticleTrailHandle, ParticleTrailHandle>>& handles);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -56,6 +59,7 @@ namespace Engine {
 		uint32_t GetCapacity() const { return capacity_; }
 		uint32_t GetPointCapacity() const { return pointCapacity_; }
 		uint64_t GetMemoryBytes() const { return uint64_t(points_.size()) * sizeof(ParticleTrailPoint); }
+		uint64_t GetSnapshotMemoryBytes() const { return GetMemoryBytes() + handles_.size() * sizeof(ParticleTrailRuntime); }
 		uint64_t GetOverflowCount() const { return overflowCount_; }
 		bool empty() const { return handles_.empty(); }
 	private:

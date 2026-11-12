@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 //============================================================================
 //	include
@@ -22,6 +22,8 @@ namespace Engine {
 
 		// 入力機器を初期化
 		void Init(WinApp& winApp);
+		// 入力を取得する前面Windowを切り替える
+		void SetCooperativeWindow(HWND hwnd);
 		// 前frameのマウス状態を保存
 		void BeginFrame();
 		// キーボードとゲームパッドを取得
@@ -43,5 +45,7 @@ namespace Engine {
 		ComPtr<IDirectInputDevice8> keyboard_;
 		ComPtr<IDirectInputDevice8> mouse_; // マウスデバイス
 		InputDeviceState state_;
+		HWND cooperativeWindow_ = nullptr;
+		bool resetMouseDelta_ = true;
 	};
 }

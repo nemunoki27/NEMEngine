@@ -174,26 +174,26 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			// 非アクティブ：必ず解除＆表示
 			ClipCursor(nullptr);
 			cursor_.ForceShowCursor(true);
-			WindowInputBridge::NotifyFocus(false);
+			WindowInputBridge::NotifyFocus(reinterpret_cast<HWND>(lparam));
 		} else {
 
 			cursor_.ApplyCursorVisibilityIfNeeded();
 			cursor_.ApplyCursorClipIfNeeded();
-			WindowInputBridge::NotifyFocus(true);
+			WindowInputBridge::NotifyFocus(hwnd);
 		}
 		return 0;
 	case WM_SETFOCUS:
 
 		cursor_.ApplyCursorVisibilityIfNeeded();
 		cursor_.ApplyCursorClipIfNeeded();
-		WindowInputBridge::NotifyFocus(true);
+		WindowInputBridge::NotifyFocus(hwnd);
 		return 0;
 
 	case WM_KILLFOCUS:
 
 		ClipCursor(nullptr);
 		cursor_.ForceShowCursor(true);
-		WindowInputBridge::NotifyFocus(false);
+		WindowInputBridge::NotifyFocus(reinterpret_cast<HWND>(wparam));
 		return 0;
 
 	case WM_CHAR:
@@ -242,6 +242,7 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 	case WM_DESTROY:
 
+		WindowInputBridge::UnregisterWindow(hwnd);
 		// 念のため安全復帰
 		ClipCursor(nullptr);
 		cursor_.ForceShowCursor(true);

@@ -1,4 +1,5 @@
 import { describeProperty } from './component-notes.mjs';
+import { runtimeMemberDescription } from './runtime-notes.mjs';
 
 export const hiddenTypes = /^(?:Native(?!AssetTypeAttribute$)|Managed|HostBridge$|ScriptTypeDescriptor$|ScriptRuntimeLifetime$|UUIDJsonConverter$|IComponentRef$|IBufferElementData$)/;
 export const hiddenReason = 'Native接続・ABI・Assembly登録に使う基盤です。ゲームコードで直接使用するAPIには含めません。';
@@ -14,7 +15,7 @@ export function guideFor(type) {
 	if (/Graphics|DisplayOutput|Screen|Antialiasing/.test(name)) return 'project-settings';
 	if (/Input|KeyCode|Gamepad|MouseButton/.test(name)) return 'input';
 	if (/Audio/.test(name)) return 'audio';
-	if (/Animation|Animator|Skinned/.test(name)) return 'animation';
+	if (/Animation|Animator|Skinned|Timeline|TimeScale|TimeSource|TimeChannel|Timer|DayNight/.test(name)) return 'animation';
 	if (/Collision|Physics|Rigidbody|Joint|Ray|ForceMode/.test(name)) return 'physics';
 	if (/Canvas|^UI|IUIButton/.test(name)) return 'ui';
 	if (/Material/.test(name)) return 'materials';
@@ -306,6 +307,8 @@ export const names = {
 const moduleNames = { AlphaReference: 'AlphaClip閾値', ColorOverLifetime: '寿命による色', ColorUV: '色UV', CurlNoise: 'Curl Noise', CustomData: 'Shader用データ', CustomShaderParameter: 'Shader Parameter', Emissive: '発光', Flipbook: 'Flipbook', Gravity: '重力', GravityForce: '重力', LookToVelocity: '移動方向への向き合わせ', NoiseForce: 'ノイズ力', NoiseUV: 'UVノイズ', PendulumMovement: '振り子運動', Rotation: '回転', ScaleOverLifetime: '拡縮', ShapeOverLifetime: '形状変化', SizeOverLifetime: '大きさ', SpiralMovement: 'らせん運動', ForceField: '力場', VectorField: 'Vector Field', SplineMovement: 'Spline移動', Collision: '衝突' };
 
 export function memberDescription(type, member, binding) {
+	const runtimeNote = runtimeMemberDescription(type.name, member.name);
+	if (runtimeNote) return runtimeNote;
 	if (type.name === 'GraphicsSettingsData') {
 		const description = {
 			antialiasing: 'なし・FXAAから選ぶアンチエイリアス方式です。',

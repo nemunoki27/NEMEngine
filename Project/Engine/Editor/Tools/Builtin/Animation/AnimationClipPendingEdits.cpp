@@ -65,7 +65,7 @@ void Engine::AnimationClipTool::DrawPendingEdits(const EditorToolContext& contex
 			session_.GetClipAssetID() = *pendingClip_;
 			session_.LoadClipFromSelectedAsset(context);
 		}
-		if (pendingClose_) openWindow_ = false;
+		if (pendingClose_ && !resolvingClose_) openWindow_ = false;
 		pendingClip_.reset();
 		pendingCreate_.reset();
 		pendingImport_.reset();

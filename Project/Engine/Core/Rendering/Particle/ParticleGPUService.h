@@ -22,6 +22,7 @@ namespace Engine {
 	struct ParticleGPUEnvironment;
 	struct ParticleGPUInstance;
 	struct ParticleGPUViewResources;
+	struct ParticleGPUCheckpointBudget;
 
 	struct ParticleGPUDrawData {
 
@@ -72,6 +73,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::unordered_map<const ParticleGPUState*, std::unique_ptr<ParticleGPUInstance>> instances_;
+		std::shared_ptr<ParticleGPUCheckpointBudget> checkpointBudget_;
 		FrameConstantBufferAllocator constants_;
 		std::unique_ptr<ParticleGPUEnvironment> environment_;
 		uint64_t feedbackRevision_ = 0;

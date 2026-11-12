@@ -221,5 +221,14 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.setAssetRuntimeParameter = &ManagedScriptRuntime::SetAssetRuntimeParameterCallback;
 	callbacks.clearAssetRuntimeParameter = &ManagedScriptRuntime::ClearAssetRuntimeParameterCallback;
 	callbacks.copyParticleModuleDefaults = &ManagedScriptRuntime::CopyParticleModuleDefaultsCallback;
+	callbacks.timelineCommand = &ManagedScriptRuntime::TimelineCommandCallback;
+	callbacks.getTimelineState = &ManagedScriptRuntime::GetTimelineStateCallback;
+	callbacks.getTimelineBinding = &ManagedScriptRuntime::GetTimelineBindingCallback;
+	callbacks.setTimelineBinding = &ManagedScriptRuntime::SetTimelineBindingCallback;
+	callbacks.getTimelineParameter = &ManagedScriptRuntime::GetTimelineParameterCallback;
+	callbacks.setTimelineParameter = &ManagedScriptRuntime::SetTimelineParameterCallback;
+	callbacks.isTimelineWindowOpen = &ManagedScriptRuntime::IsTimelineWindowOpenCallback;
+	callbacks.copyTimelineStringParameter = &ManagedScriptRuntime::CopyTimelineStringParameterCallback;
+	callbacks.setTimelineStringParameter = &ManagedScriptRuntime::SetTimelineStringParameterCallback;
 	return callbacks;
 }

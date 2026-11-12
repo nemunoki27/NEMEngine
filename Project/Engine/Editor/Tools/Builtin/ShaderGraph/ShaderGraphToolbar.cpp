@@ -33,10 +33,9 @@ void Engine::ShaderGraphToolbar::Draw(
 	if (creation_.domain == ShaderGraphDomain::Surface) {
 		MyGUI::EnumCombo("作成対象", creation_.target);
 	}
-	MyGUI::InputText("作成先", creation_.path);
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("新規作成", ImVec2(buttonWidth, 0.0f))) {
-		actions.RequestGraphCreation(context);
+		creationDialog_.Open();
 	}
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!session.IsLoaded());
@@ -49,6 +48,13 @@ void Engine::ShaderGraphToolbar::Draw(
 		actions.SaveAndCompile(context);
 	}
 	ImGui::EndDisabled();
+	creationDialog_.Draw("シェーダーグラフを作成", ProjectAssetFileKind::ShaderGraph,
+		[&](const std::string& path, std::string& diagnostic) {
+			creation_.path = path;
+			const bool success = actions.RequestGraphCreation(context);
+			diagnostic = session.GetStatusMessage();
+			return success;
+		});
 
 	const float historyButtonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 	ImGui::BeginDisabled(!session.IsLoaded() || !session.CanUndo());

@@ -88,7 +88,7 @@ namespace Engine {
 		bool createImportShaders = false;
 		// Shader Graph Materialの描画状態はGraph側でのみ編集する
 		bool createSourceUsesShaderGraph = false;
-		// GameAssets/以降のパスでファイル名込み、拡張子は付けない
+		// 共通作成画面で確定したマテリアルの仮想パス
 		std::string createRelativePath{};
 		// 不透明描画用のPipeline設定
 		PipelineCreateSettings createPipeline{};

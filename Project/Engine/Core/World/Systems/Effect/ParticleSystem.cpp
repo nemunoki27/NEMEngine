@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUState.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
@@ -27,6 +28,7 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 			ParticleSystemRuntimeData* runtime =
 				TryGetParticleSystemRuntime(world, entity);
+			if (IsTimelineControlled(world, entity, "ParticleSystem")) return;
 			if (!runtime) {
 				return;
 			}

@@ -151,7 +151,9 @@ namespace Engine {
 		bool HasWindowFocus() const { return windowEvents_.HasWindowFocus(); }
 		// Windowの文字入力とフォーカスを通知
 		void AppendTextInputUtf16(wchar_t code) { windowEvents_.AppendTextInputUtf16(code); }
-		void SetWindowFocus(bool focused);
+		void RegisterWindow(HWND hwnd);
+		void UnregisterWindow(HWND hwnd);
+		void SetFocusedWindow(HWND hwnd);
 
 		// 外部エクスプローラーからのファイルドロップを画面座標で積む
 		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint);

@@ -61,6 +61,7 @@ void AnimationClipTool::DrawEditorTool(const EditorToolContext& context) {
 
 	// GizmoとUndoによる外部編集を検出する
 	session_.UpdateExternalEdits(context);
+	if (const auto store = GetAnimationClipDocumentStore(context); store && context.GetWorld()) store->Publish(*context.GetWorld());
 
 	//============================================================================
 	//	AnimationClip編集UI
@@ -280,13 +281,9 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 
 void Engine::AnimationClipTool::DrawAssetActions(const EditorToolContext& context) {
 
-	MyGUI::InputText("GameAssets/Animations/Clips/", createName_);
-	ImGui::BeginDisabled(createName_.empty());
-	if (ImGui::Button("新規作成")) {
-		if (session_.GetClipDirty()) pendingCreate_ = createName_;
-		else session_.CreateClip(context, createName_);
-	}
-	ImGui::EndDisabled();
+	const float createWidth = (ImGui::CalcTextSize("新規作成").x + ImGui::GetStyle().FramePadding.x * 2.0f) * 2.0f;
+	if (ImGui::Button("新規作成", ImVec2(createWidth, 0.0f))) creationDialog_.Open();
+	ImGui::Separator();
 
 	// 同種のアセットから編集中の設定だけ取り込む
 	ImGui::BeginDisabled(!session_.GetHasClip());
@@ -297,6 +294,13 @@ void Engine::AnimationClipTool::DrawAssetActions(const EditorToolContext& contex
 		else session_.ImportSettings(context, source);
 	}
 	ImGui::EndDisabled();
+	creationDialog_.Draw("アニメーションクリップを作成", ProjectAssetFileKind::AnimationClip,
+		[&](const std::string& path, std::string& diagnostic) {
+			if (session_.GetClipDirty()) { pendingCreate_ = path; return true; }
+			const bool success = session_.CreateClip(context, path);
+			diagnostic = session_.GetClipErrorText();
+			return success;
+		});
 }
 
 void Engine::AnimationClipTool::DrawEditAssetUI(const EditorToolContext& context) {

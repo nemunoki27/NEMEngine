@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/DisplayOutputState.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommandQueue.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
@@ -11,6 +12,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
 #include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
+#include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 
 // c++
 #include <array>
@@ -69,6 +71,7 @@ namespace {
 		HWND hwnd = CreateWindowExW(0, L"STATIC", L"DisplayOutputTest", WS_OVERLAPPEDWINDOW,
 			0, 0, 128, 128, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
 		if (!hwnd) return false;
+		const ScopedCleanup cleanup([hwnd]() noexcept { DestroyWindow(hwnd); });
 		ImGuiViewport viewport;
 		viewport.ID = 0x484452;
 		viewport.Size = ImVec2(64, 64);
@@ -95,8 +98,43 @@ namespace {
 		platform.Renderer_SetWindowSize(&viewport, ImVec2(80, 80));
 		platform.Viewports.pop_back();
 		platform.Renderer_DestroyWindow(&viewport);
-		DestroyWindow(hwnd);
 		return valid;
+	}
+
+	// 同じWindowの内部IDが変わっても作成済みの出力を引き継ぐ
+	bool CheckViewportIdentity(ID3D12GraphicsCommandList* commands, D3D12_CPU_DESCRIPTOR_HANDLE target) {
+
+		GraphicsCore graphics;
+		ImGuiDisplayOutput output;
+		ImGui_ImplDX12_InitInfo callbacks{};
+		output.Init(graphics, callbacks);
+		HWND hwnd = CreateWindowExW(0, L"STATIC", L"ViewportIdentityTest", WS_OVERLAPPEDWINDOW,
+			0, 0, 128, 128, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+		if (!hwnd) return false;
+		const ScopedCleanup cleanup([hwnd]() noexcept { DestroyWindow(hwnd); });
+		ImGuiViewport viewport;
+		viewport.ID = 0x100;
+		viewport.Size = ImVec2(64, 64);
+		viewport.PlatformHandleRaw = hwnd;
+		viewport.DrawData = ImGui::GetDrawData();
+		ImGui_ImplDX12_OutputConfig config{};
+		// SDRへ復帰する窓口から作成して実際の描画窓口で引継ぎを確認する
+		callbacks.WindowOutputFn(&callbacks, &viewport, nullptr, &config, 2);
+		for (ImGuiID id = 0x101; id < 0x111; ++id) {
+			viewport.ID = id;
+			callbacks.RenderOutputFn(&callbacks, &viewport, commands, target);
+			if (output.GetSettings(hwnd).mode != DisplayOutputMode::SDR) return false;
+		}
+		viewport.PlatformHandle = hwnd;
+		viewport.PlatformHandleRaw = nullptr;
+		callbacks.RenderOutputFn(&callbacks, &viewport, commands, target);
+		callbacks.DestroyOutputFn(&callbacks, &viewport);
+		callbacks.DestroyOutputFn(&callbacks, &viewport);
+		callbacks.WindowOutputFn(&callbacks, &viewport, nullptr, &config, 2);
+		callbacks.RenderOutputFn(&callbacks, &viewport, commands, target);
+		callbacks.DestroyOutputFn(&callbacks, &viewport);
+		output.Finalize();
+		return true;
 	}
 
 	// UIとView画像の基準白を描画結果から比較する
@@ -150,6 +188,7 @@ namespace {
 		ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
 		commands->SetDescriptorHeaps(1, heaps);
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.Get(), &output);
+		if (format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && !CheckViewportIdentity(commands.Get(), targetHandle)) return false;
 
 		// 実際に描かれた半精度画像を読み戻す
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};

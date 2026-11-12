@@ -1,4 +1,5 @@
 #include "ParticleGPUFeedbackWorld.h"
+#include "ParticleGPUReplayIdentity.h"
 
 //============================================================================
 //	include
@@ -112,7 +113,7 @@ void ParticleGPUFeedbackWorld::BeginUpdate(GraphicsCore& graphics, ECSWorld& wor
 		auto* runtime = TryGetParticleSystemRuntime(world, entity);
 		if (!runtime || !runtime->instance.emitter.gpu || !runtime->playing || runtime->paused) return;
 		auto state = runtime->instance.emitter.gpu;
-		if (state->rejected || !state->definition || !state->program) return;
+		if (state->rejected || !ResolveParticleGPUFeedbackEpoch(*state, 0) || !state->definition || !state->program) return;
 		const bool advances = std::any_of(state->pending.begin(), state->pending.end(), [](const auto& step) {
 			return step.deltaTime > 0 || step.spawnCount != 0;
 		});
@@ -132,7 +133,7 @@ void ParticleGPUFeedbackWorld::BeginUpdate(GraphicsCore& graphics, ECSWorld& wor
 		}
 		auto& source = *slot;
 		source.identity.entity = entity;
-		source.identity.epoch = state->epoch;
+		source.identity.epoch = ResolveParticleGPUFeedbackEpoch(*state, source.identity.epoch);
 		source.active = true;
 		source.acceptsChildren = !runtime->instance.emissionStopped;
 		source.childrenConsumed = false;
@@ -358,7 +359,7 @@ void ParticleGPUFeedbackWorld::PrepareSource(GraphicsCore& graphics, ParticleGPU
 void ParticleGPUFeedbackWorld::BindSource(GraphicsCore& graphics, const PipelineState& pipeline, ParticleGPUState& state, bool allowEvents) {
 
 	const auto found = sources_.find(&state);
-	BindEvents(graphics, pipeline, found != sources_.end() ? found->second.get() : nullptr, 0, allowEvents);
+	BindEvents(graphics, pipeline, found != sources_.end() && !state.suppressFeedback ? found->second.get() : nullptr, 0, allowEvents);
 }
 
 void ParticleGPUFeedbackWorld::ConsumeChildren(ParticleGPUState& state) {

@@ -26,6 +26,8 @@ namespace Engine {
 	InspectorPlaybackAction DrawInspectorPlaybackControls(bool enabled, bool timer = false,
 		std::span<const InspectorPlaybackAction> actions = {});
 	const char* GetInspectorPlaybackState(bool playing, bool paused, bool finished = false, bool timer = false);
+	// 往復再生を持たないコンポーネントの繰り返しを編集する
+	ValueEditResult DrawInspectorLoopField(bool& loop);
 
 	enum class InspectorMaskDomain { Rendering, Particle, Collision };
 
