@@ -164,6 +164,7 @@ namespace Engine {
 		bool anyItemActive = false;
 		PushEditResult(DrawInspectorCommonFields(context, BindInspectorCommonFields(GetDraft())), anyItemActive);
 		DrawFields(context, world, entity, anyItemActive);
+		PushEditResult(DrawInspectorCommonFooter(BindInspectorCommonFields(GetDraft())), anyItemActive);
 
 		if (!CanDraw(world, entity)) {
 			SyncPreviewOwner(&world, entity);

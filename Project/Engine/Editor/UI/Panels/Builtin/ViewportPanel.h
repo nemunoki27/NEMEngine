@@ -9,6 +9,7 @@
 #include "ViewportDepthSurface.h"
 #include "ViewportPlacementSession.h"
 #include "ViewportToolbar.h"
+#include "ViewportOrientationGizmo.h"
 
 // c++
 #include <string>
@@ -70,6 +71,7 @@ namespace Engine {
 
 		// Scene操作とアイコンの表示
 		ViewportToolbar toolbar_;
+		ViewportOrientationGizmo orientationGizmo_;
 
 		// ImGuiのWindow名
 		std::string windowName_;

@@ -39,6 +39,8 @@ namespace Engine {
 
 		// 有効フラグ
 		bool enabled = true;
+		// エディターのアイコンと補助線を表示する
+		bool drawDebug = true;
 
 	};
 

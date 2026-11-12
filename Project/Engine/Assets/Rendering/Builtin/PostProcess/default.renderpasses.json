@@ -13,7 +13,7 @@
             "adaptiveResolution": false,
             "adjustmentIntervalFrames": 30,
             "anchor": "AfterTransparent",
-            "enabled": false,
+            "enabled": true,
             "gpuBudgetMs": 2.0,
             "id": "8a4c02174194c718",
             "material": "",
@@ -54,7 +54,7 @@
                     "id": "4a94c51b5f6a6081",
                     "name": "scatter",
                     "semantic": "None",
-                    "value": 0.20999999344348907
+                    "value": 0.4000000059604645
                 },
                 {
                     "id": "7c314e706d951238",

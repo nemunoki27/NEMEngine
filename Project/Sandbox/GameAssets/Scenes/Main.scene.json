@@ -454,6 +454,190 @@
         },
         {
             "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "31d4f90ec37c453f",
+                            "name": "emissiveIntensity",
+                            "semantic": "EmissiveIntensity",
+                            "value": 6.400000095367432
+                        },
+                        {
+                            "id": "c4617cc0ecd319d1",
+                            "name": "emissiveColor",
+                            "semantic": "EmissiveColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 0.0,
+                                "g": 0.0,
+                                "r": 1.0
+                            }
+                        }
+                    ],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "2de415954ba6ba6c",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -6.507582664489746,
+                        "y": 1.8655543327331543,
+                        "z": 6.4519524574279785
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "2de415954ba6ba6c"
+        },
+        {
+            "Components": {
                 "DayNightCycle": {
                     "atmosphereEntity": {
                         "kind": "Scene",
@@ -469,10 +653,10 @@
                         "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
                     },
                     "moonTimeOffset": 12.0,
-                    "noonAltitude": 60.0,
+                    "noonAltitude": 18.0,
                     "orbitAzimuth": 0.0,
                     "playInEditMode": true,
-                    "startHour": 10.0,
+                    "startHour": 16.399999618530273,
                     "sunEntity": {
                         "kind": "Scene",
                         "localFileId": "cd6d892221f79398",
@@ -2090,8 +2274,8 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": 0.48391926288604736,
+                        "y": -0.6736868023872375,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -2323,6 +2507,58 @@
                 }
             },
             "LocalFileID": "77734e874bb72b3a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "2de415954ba6ba6c",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Point"
+                },
+                "PointLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.0,
+                        "g": 0.0,
+                        "r": 1.0
+                    },
+                    "decay": 1.0,
+                    "drawDebug": false,
+                    "enabled": true,
+                    "intensity": 16.0,
+                    "radius": 64.0,
+                    "shadowRadius": 0.05000000074505806,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "92a1b591064201fd",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": -5.995203909459372e-15,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "92a1b591064201fd"
         },
         {
             "Components": {
@@ -2622,10 +2858,16 @@
                             "semantic": "BaseColor",
                             "value": {
                                 "a": 1.0,
-                                "b": 0.20999999344348907,
-                                "g": 0.17000000178813934,
-                                "r": 0.14000000059604645
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
                             }
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 0.0
                         }
                     ],
                     "order": 0,
@@ -2699,7 +2941,7 @@
                     "dimension": 1,
                     "localPos": {
                         "x": 0.0,
-                        "y": -0.15000000596046448,
+                        "y": -0.7766420841217041,
                         "z": 2.0
                     },
                     "localRotation": {
@@ -2709,9 +2951,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 1.2100000381469727,
+                        "y": 1.2100000381469727,
+                        "z": 1.2100000381469727
                     }
                 }
             },
@@ -2731,6 +2973,7 @@
                         "y": -1.0,
                         "z": 0.0
                     },
+                    "drawDebug": true,
                     "enabled": true,
                     "intensity": 1.0,
                     "shadowAngularRadius": 0.27000001072883606,
@@ -2792,9 +3035,9 @@
                     "atmosphereHeightKm": 100.0,
                     "enabled": true,
                     "groundAlbedo": {
-                        "b": 0.02978724241256714,
-                        "g": 0.02978724241256714,
-                        "r": 0.02978724241256714
+                        "b": 0.1106383204460144,
+                        "g": 0.1106383204460144,
+                        "r": 0.1106383204460144
                     },
                     "iblIntensity": 1.0,
                     "mieAbsorption": 0.0004440000047907233,
@@ -2871,10 +3114,11 @@
                         "y": -1.0,
                         "z": 0.0
                     },
+                    "drawDebug": true,
                     "enabled": true,
-                    "intensity": 12.0,
-                    "shadowAngularRadius": 0.2800000011920929,
-                    "shadowStrength": 0.9100000262260437
+                    "intensity": 16.0,
+                    "shadowAngularRadius": 0.47999998927116394,
+                    "shadowStrength": 1.0
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "69787571ec5f1544",
@@ -2982,6 +3226,7 @@
                         }
                     },
                     "cullingMask": -1,
+                    "drawDebug": false,
                     "editorFrustumScale": 0.0020000000949949026,
                     "enabled": true,
                     "farClip": 4000.0,
@@ -3013,15 +3258,15 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 1.7701586484909058,
-                        "z": -6.390993118286133
+                        "x": 1.1366300611825864e-07,
+                        "y": 3.935598373413086,
+                        "z": 16.508981704711914
                     },
                     "localRotation": {
-                        "w": 0.9999756217002869,
-                        "x": -0.006981260143220425,
-                        "y": 0.0,
-                        "z": 0.0
+                        "w": 8.711548105111433e-08,
+                        "x": -4.432065381365646e-08,
+                        "y": 0.9999756217002869,
+                        "z": 0.0069813914597034454
                     },
                     "localScale": {
                         "x": 1.0,

@@ -157,6 +157,16 @@ namespace {
 		if (!correctPick) return false;
 #endif
 
+		// 非表示のアイコンを描画と選択の一覧から除外する
+		world.GetComponent<PointLightComponent>(light).drawDebug = false;
+		collector.Collect(readonly, view, registry, settings, items);
+		if (items.size() != 1 || items[0].entity != camera || items[0].screenCenter.x != 200.0f) return false;
+		world.GetComponent<PerspectiveCameraComponent>(camera).common.drawDebug = false;
+		collector.Collect(readonly, view, registry, settings, items);
+		if (!items.empty()) return false;
+		world.GetComponent<PointLightComponent>(light).drawDebug = true;
+		world.GetComponent<PerspectiveCameraComponent>(camera).common.drawDebug = true;
+
 		// 小さいライトを除外してもカメラの重なり位置を変えない
 		settings.lightIconMaxPixelSize = settings.lightIconMinPixelSize = 16.0f;
 		collector.Collect(readonly, view, registry, settings, items);

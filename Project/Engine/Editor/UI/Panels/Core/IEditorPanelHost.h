@@ -14,6 +14,8 @@
 
 namespace Engine {
 
+	struct SceneViewCameraGizmoCommand;
+
 	enum class EditorCommandPanelKind : uint8_t {
 
 		None,
@@ -63,6 +65,9 @@ namespace Engine {
 		virtual void RequestApplyEditorLayout(const std::string& layoutID) = 0;
 		virtual void RequestDeleteEditorLayout(const std::string& layoutID) = 0;
 		virtual void RequestImportEditorLayouts() = 0;
+
+		// 手動カメラに軸表示の操作を依頼する
+		virtual void RequestSceneViewOrientation(const SceneViewCameraGizmoCommand&) {}
 
 		// プレイ/ストップの切り替え要求
 		virtual void RequestPlayToggle() = 0;

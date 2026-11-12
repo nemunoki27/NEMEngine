@@ -18,6 +18,7 @@ namespace Engine {
 		bool Draw(const EditorPanelContext& context, ImVec2 imagePosition, ImVec2 imageSize);
 		// 未確定の制御点を開始時の保存値へ戻す
 		void EndPreview();
+		bool IsActive() const { return point_ >= 0; }
 	private:
 
 		ECSWorld* world_ = nullptr;

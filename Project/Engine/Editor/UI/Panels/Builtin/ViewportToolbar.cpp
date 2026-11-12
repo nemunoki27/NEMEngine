@@ -1,5 +1,6 @@
 #include "ViewportToolbar.h"
 #include "ViewportCameraSelection.h"
+#include "ViewportOrientationGizmo.h"
 
 //============================================================================
 //	include
@@ -11,45 +12,42 @@
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Common/EditorIconButton.h>
 
+// c++
+#include <algorithm>
+#include <array>
+
 namespace {
 
-	// ツール列に区切りを表示する
-	void DrawToolSeparator(const ImVec2& buttonSize) {
+	enum class ToolAction { None, Translate, Rotate, Scale, Pick, Selection, Dimension, Pivot, Snap, Grid, Manual, Camera, Prefab };
+	struct ToolButton {
 
-		ImGui::Spacing();
+		ToolAction action;
+		const std::string* icon;
+		const char* tooltip;
+		bool selected;
+		int group;
+	};
 
-		const ImVec2 pos = ImGui::GetCursorScreenPos();
-		ImGui::GetWindowDrawList()->AddLine(
-			pos, ImVec2(pos.x + buttonSize.x + buttonSize.x / 2.0f, pos.y), ImGui::GetColorU32(ImGuiCol_Separator));
-		ImGui::Dummy(ImVec2(buttonSize.x, 1.0f));
+	// 三軸のアイコンで軸表示を切り替える
+	void DrawOrientationToggle(Engine::EditorState& state, const ImVec2& size) {
 
-		ImGui::Spacing();
-	}
-
-	// 操作状態に合わせてButtonの色を切り替える
-	bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) {
-
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 4.0f));
-		Engine::EditorIconButton::PushColors(active);
-
-		bool result = ImGui::ImageButton(id, textureID, size, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f),
-			ImVec4(0.0f, 0.0f, 0.0f, 0.0f), ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-
-		Engine::EditorIconButton::PopColors();
-		ImGui::PopStyleVar();
-
-		if (active) {
-
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			drawList->AddRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(26, 82, 190, 255), 4.0f, 0, 2.0f);
+		if (Engine::EditorIconButton::Draw("SceneOrientationToggle", "", "軸表示", state.drawSceneViewOrientation, size)) {
+			state.drawSceneViewOrientation = !state.drawSceneViewOrientation;
+			state.sceneOrientationHovered = state.sceneOrientationActive = false;
+			state.sceneOrientationMin = state.sceneOrientationMax = {};
 		}
-		return result;
+		const ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+		const ImVec2 center((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f + size.y * 0.1f);
+		const float scale = size.y / 24.0f;
+		const ImVec2 ends[]{ImVec2(center.x + 7 * scale, center.y + 3 * scale),
+			ImVec2(center.x, center.y - 8 * scale), ImVec2(center.x - 7 * scale, center.y + 3 * scale)};
+		for (int index = 0; index < 3; ++index) {
+			const ImU32 color = Engine::ViewportOrientationGizmo::GetAxisColor(index);
+			ImGui::GetWindowDrawList()->AddLine(center, ends[index], color, 2 * scale);
+			ImGui::GetWindowDrawList()->AddCircleFilled(ends[index], 2 * scale, color);
+		}
 	}
 }
-
-//============================================================================
-//	ViewportToolbar classMethods
-//============================================================================
 
 Engine::ViewportToolbar::ViewportToolbar(TextureUploadService& textureUploadService)
 	: textureUploadService_(textureUploadService) {
@@ -59,31 +57,104 @@ Engine::ViewportToolbar::ViewportToolbar(TextureUploadService& textureUploadServ
 
 void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 
-	ImGui::BeginGroup();
-	// Prefabの表示範囲を切り替える
-	if (context.editorContext && context.editorContext->isPrefabEditing) {
+	if (!context.editorState) return;
+	auto& state = *context.editorState;
+	std::array<ToolButton, 13> buttons{};
+	size_t count = 0;
+	auto add = [&](ToolAction action, const std::string& icon, const char* tip, bool selected, int group) {
+		buttons[count++] = {action, &icon, tip, selected, group};
+	};
+	if (context.editorContext && context.editorContext->isPrefabEditing)
+		add(ToolAction::Prefab, icons_.prefabExitKey, "In-Context編集の切り替え", context.editorContext->isPrefabInContext, -1);
+	add(ToolAction::None, icons_.noneKey, "マニピュレーター表示なし H", state.sceneViewManipulatorMode == SceneViewManipulatorMode::None, 0);
+	add(ToolAction::Translate, icons_.translateKey, "座標編集 T", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Translate, 0);
+	add(ToolAction::Rotate, icons_.rotateKey, "回転編集 R", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Rotate, 0);
+	add(ToolAction::Scale, icons_.scaleKey, "拡縮編集 S", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Scale, 0);
+	add(ToolAction::Pick, icons_.enablePickKey, "シーンオブジェクト選択の有効・無効", state.enableScenePick, 1);
+	add(ToolAction::Selection, state.selectKind == EditorSelectionKind::Entity ? icons_.entitySelectKey : icons_.subMeshSelectKey,
+		"エンティティ・サブメッシュ選択 E", state.selectKind == EditorSelectionKind::MeshSubMesh, 1);
+	add(ToolAction::Dimension, state.sceneViewPickDimension == SceneViewPickDimension::Type2D ? icons_.selection2DKey :
+		state.sceneViewPickDimension == SceneViewPickDimension::Type3D ? icons_.selection3DKey : icons_.selection2DAnd3DKey,
+		"選択対象の次元 3D・2D・両方", state.sceneViewPickDimension != SceneViewPickDimension::Type3D, 1);
+	add(ToolAction::Pivot, state.gizmoPivotAtCenter ? icons_.gizmoCenterPivotKey : icons_.eachEntityOriginKey,
+		"ピボット 選択中心・各エンティティ原点", state.gizmoPivotAtCenter, 2);
+	add(ToolAction::Snap, icons_.snapEditEntityKey, "スナップ G / 右クリックで設定", state.enableSnapEditEntity, 2);
+	add(ToolAction::Grid, icons_.drawGridKey, "SceneViewグリッド表示", state.drawSceneViewDefaultGrid, 2);
+	add(ToolAction::Manual, icons_.debugCameraKey, "マニュアルカメラ操作", state.sceneViewCamera.mode == SceneViewCameraMode::DebugManual, 3);
+	add(ToolAction::Camera, icons_.entityCameraKey, "エンティティカメラによる制御",
+		state.sceneViewCamera.mode == SceneViewCameraMode::SelectedEntityCamera, 3);
 
-		const bool inContextActive = context.editorContext->isPrefabInContext;
-		if (DrawIconButton("##TogglePrefabInContext", GetTextureID(icons_.prefabExitKey), inContextActive, buttonSize_) &&
-			context.host) {
-			context.host->RequestTogglePrefabInContext();
+	bool cameraPopup = false, snapPopup = false;
+	auto apply = [&](ToolAction action) {
+		switch (action) {
+		case ToolAction::None: state.sceneViewManipulatorMode = SceneViewManipulatorMode::None; break;
+		case ToolAction::Translate: state.sceneViewManipulatorMode = SceneViewManipulatorMode::Translate; break;
+		case ToolAction::Rotate: state.sceneViewManipulatorMode = SceneViewManipulatorMode::Rotate; break;
+		case ToolAction::Scale: state.sceneViewManipulatorMode = SceneViewManipulatorMode::Scale; break;
+		case ToolAction::Pick: state.enableScenePick = !state.enableScenePick; break;
+		case ToolAction::Selection:
+			state.selectKind = state.selectKind == EditorSelectionKind::Entity ? EditorSelectionKind::MeshSubMesh : EditorSelectionKind::Entity;
+			break;
+		case ToolAction::Dimension:
+			state.sceneViewPickDimension = state.sceneViewPickDimension == SceneViewPickDimension::Type3D ? SceneViewPickDimension::Type2D :
+				state.sceneViewPickDimension == SceneViewPickDimension::Type2D ? SceneViewPickDimension::Both : SceneViewPickDimension::Type3D;
+			break;
+		case ToolAction::Pivot: state.gizmoPivotAtCenter = !state.gizmoPivotAtCenter; break;
+		case ToolAction::Snap: state.enableSnapEditEntity = !state.enableSnapEditEntity; break;
+		case ToolAction::Grid: state.drawSceneViewDefaultGrid = !state.drawSceneViewDefaultGrid; break;
+		case ToolAction::Manual:
+			state.sceneViewCamera.mode = SceneViewCameraMode::DebugManual;
+			state.sceneViewCamera.ClearAssignedCameras();
+			break;
+		case ToolAction::Camera:
+			state.sceneViewCamera.mode = SceneViewCameraMode::SelectedEntityCamera;
+			cameraPopup = true;
+			break;
+		case ToolAction::Prefab: if (context.host) context.host->RequestTogglePrefabInContext(); break;
 		}
-		if (ImGui::IsItemHovered()) {
-
-			std::string tooltip = std::string("In-Context編集の切り替え\nオンで元シーンに置いて編集\n現在: ") +
-								  (inContextActive ? "オン" : "オフ");
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-		DrawToolSeparator(buttonSize_);
+	};
+	const float scale = ImGui::GetFontSize() / 20.0f;
+	const ImVec2 size(36.0f * scale, 24.0f * scale);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.025f, 0.025f, 0.025f, 1));
+	ImGui::BeginChild("SceneToolbar", ImVec2(0, size.y), ImGuiChildFlags_None,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	ImGui::PopStyleVar();
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+	const ImVec2 origin = ImGui::GetCursorScreenPos();
+	const float right = origin.x + ImGui::GetContentRegionAvail().x;
+	const float toolsRight = right - size.x;
+	size_t index = 0;
+	for (; index < count; ++index) {
+		const auto& item = buttons[index];
+		if (ImGui::GetCursorScreenPos().x + size.x * (index + 1 < count ? 2 : 1) > toolsRight) break;
+		ImGui::PushID(static_cast<int>(item.action));
+		if (EditorIconButton::DrawImage("Tool", GetTextureID(*item.icon), item.tooltip, item.selected, size)) apply(item.action);
+		if (item.action == ToolAction::Snap && ImGui::IsItemClicked(ImGuiMouseButton_Right)) snapPopup = true;
+		ImGui::PopID();
+		ImGui::SameLine();
 	}
-
-	DrawManipulatorSection(context);
-	DrawToolSeparator(buttonSize_);
-	DrawCameraSection(context);
-	DrawToolSeparator(buttonSize_);
-	DrawGridSection(context);
+	if (index < count && ImGui::GetCursorScreenPos().x + size.x <= toolsRight &&
+		EditorIconButton::Draw("ToolOverflowButton", "...", "その他の操作", false, size)) ImGui::OpenPopup("ToolOverflow");
+	ImGui::SetCursorScreenPos(ImVec2((std::max)(origin.x, toolsRight), origin.y));
+	DrawOrientationToggle(state, ImVec2((std::min)(size.x, right - origin.x), size.y));
+	ImGui::PopStyleVar();
+	if (ImGui::BeginPopup("ToolOverflow")) {
+		for (size_t hidden = index; hidden < count; ++hidden) {
+			const auto& item = buttons[hidden];
+			if (hidden > index && item.group != buttons[hidden - 1].group) ImGui::Separator();
+			if (ImGui::MenuItem(item.tooltip, nullptr, item.selected)) apply(item.action);
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("スナップ設定")) snapPopup = true;
+		ImGui::EndPopup();
+	}
+	if (cameraPopup) ImGui::OpenPopup("##SceneEntityCameraPopup");
+	if (snapPopup) ImGui::OpenPopup("SnapSettingsPopup");
+	DrawSnapSettingsPopup(context);
 	ViewportCameraSelection::DrawPopup(context);
-	ImGui::EndGroup();
+	ImGui::EndChild();
+	ImGui::PopStyleColor();
 }
 
 void Engine::ViewportToolbar::RequestIcons() {
@@ -116,186 +187,6 @@ void Engine::ViewportToolbar::RequestIcons() {
 ImTextureID Engine::ViewportToolbar::GetTextureID(const std::string& key) const {
 
 	return EditorTextureHelper::GetImTextureID(textureUploadService_, key);
-}
-
-void Engine::ViewportToolbar::DrawCameraSection(const EditorPanelContext& context) {
-
-	if (!context.editorState) {
-		return;
-	}
-
-	SceneViewCameraSelection& selection = context.editorState->sceneViewCamera;
-
-	// デバッグカメラを選ぶボタン
-	if (DrawIconButton("##SceneCameraDebug", GetTextureID(icons_.debugCameraKey),
-			selection.mode == SceneViewCameraMode::DebugManual, buttonSize_)) {
-
-		selection.mode = SceneViewCameraMode::DebugManual;
-		selection.ClearAssignedCameras();
-	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("マニュアルカメラ操作");
-	}
-	// 選択エンティティのカメラを選ぶボタン
-	if (DrawIconButton("##SceneCameraSelected", GetTextureID(icons_.entityCameraKey),
-			selection.mode == SceneViewCameraMode::SelectedEntityCamera, buttonSize_)) {
-
-		selection.mode = SceneViewCameraMode::SelectedEntityCamera;
-		ImGui::OpenPopup("##SceneEntityCameraPopup");
-	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("エンティティカメラによる制御");
-	}
-}
-
-void Engine::ViewportToolbar::DrawManipulatorSection(const EditorPanelContext& context) {
-
-	if (!context.editorState) {
-		return;
-	}
-
-	SceneViewManipulatorMode& mode = context.editorState->sceneViewManipulatorMode;
-	// Entity選択を切り替える
-	{
-		if (DrawIconButton(
-				"##EnablePickKey", GetTextureID(icons_.enablePickKey), !context.editorState->enableScenePick, buttonSize_)) {
-
-			context.editorState->enableScenePick = !context.editorState->enableScenePick;
-		}
-		if (ImGui::IsItemHovered()) {
-
-			std::string tooltip = std::string("シーンオブジェクト選択の有効/無効切り替え\n現在の状態: ") +
-								  (context.editorState->enableScenePick ? "有効" : "無効");
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-
-		// 選択対象の次元を順に切り替える
-		SceneViewPickDimension& pickDimension = context.editorState->sceneViewPickDimension;
-		ImTextureID dimensionIcon = GetTextureID(icons_.selection3DKey);
-		if (pickDimension == SceneViewPickDimension::Type2D) {
-			dimensionIcon = GetTextureID(icons_.selection2DKey);
-		} else if (pickDimension == SceneViewPickDimension::Both) {
-			dimensionIcon = GetTextureID(icons_.selection2DAnd3DKey);
-		}
-		if (DrawIconButton("##ScenePickDimension", dimensionIcon, true, buttonSize_)) {
-
-			switch (pickDimension) {
-			case SceneViewPickDimension::Type3D:
-				pickDimension = SceneViewPickDimension::Type2D;
-				break;
-			case SceneViewPickDimension::Type2D:
-				pickDimension = SceneViewPickDimension::Both;
-				break;
-			case SceneViewPickDimension::Both:
-				pickDimension = SceneViewPickDimension::Type3D;
-				break;
-			}
-		}
-		if (ImGui::IsItemHovered()) {
-
-			const char* dimensionLabel = "3Dのみ";
-			if (pickDimension == SceneViewPickDimension::Type2D) {
-				dimensionLabel = "2Dのみ";
-			} else if (pickDimension == SceneViewPickDimension::Both) {
-				dimensionLabel = "2D・3D";
-			} else {
-				dimensionLabel = "3Dのみ";
-			}
-			const std::string tooltip = std::string("選択できるエンティティ次元\n現在の状態: ") + dimensionLabel;
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-		if (DrawIconButton(
-				"##ManipulatorNone", GetTextureID(icons_.noneKey), mode == SceneViewManipulatorMode::None, buttonSize_)) {
-
-			mode = SceneViewManipulatorMode::None;
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("マニュピレーター表示なし H");
-		}
-	}
-	// EntityとSubMeshの選択を切り替える
-	{
-		EditorSelectionKind& kind = context.editorState->selectKind;
-		if (kind == EditorSelectionKind::Entity) {
-			if (DrawIconButton("##SelectEntity", GetTextureID(icons_.entitySelectKey), true, buttonSize_)) {
-
-				kind = EditorSelectionKind::MeshSubMesh;
-			}
-		} else {
-			if (DrawIconButton("##SelectSubMesh", GetTextureID(icons_.subMeshSelectKey), true, buttonSize_)) {
-
-				kind = EditorSelectionKind::Entity;
-			}
-		}
-		if (ImGui::IsItemHovered()) {
-
-			std::string tooltip = std::string("選択対象の切り替え\n現在の対象: ") +
-								  (kind == EditorSelectionKind::Entity ? "エンティティ単位" : "サブメッシュ単位 E");
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-	}
-	DrawToolSeparator(buttonSize_);
-	// 移動・回転・拡縮を選ぶ
-	{
-		if (DrawIconButton("##ManipulatorTranslate", GetTextureID(icons_.translateKey),
-				mode == SceneViewManipulatorMode::Translate, buttonSize_)) {
-
-			mode = SceneViewManipulatorMode::Translate;
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("座標編集 T");
-		}
-		if (DrawIconButton(
-				"##ManipulatorRotate", GetTextureID(icons_.rotateKey), mode == SceneViewManipulatorMode::Rotate, buttonSize_)) {
-
-			mode = SceneViewManipulatorMode::Rotate;
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("回転編集 R");
-		}
-		if (DrawIconButton(
-				"##ManipulatorScale", GetTextureID(icons_.scaleKey), mode == SceneViewManipulatorMode::Scale, buttonSize_)) {
-
-			mode = SceneViewManipulatorMode::Scale;
-		}
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("拡縮編集 S");
-		}
-	}
-	DrawToolSeparator(buttonSize_);
-	// スナップ操作を切り替える
-	{
-		if (DrawIconButton("##EnableSnapEntity", GetTextureID(icons_.snapEditEntityKey),
-				context.editorState->enableSnapEditEntity, buttonSize_)) {
-
-			context.editorState->enableSnapEditEntity = !context.editorState->enableSnapEditEntity;
-		}
-		if (ImGui::IsItemHovered()) {
-
-			std::string tooltip =
-				std::string("エンティティスナップ操作の有効/無効切り替え\n左クリックで切替 右クリックで設定\n現在の状態: ") +
-				(context.editorState->enableSnapEditEntity ? "有効" : "無効 G");
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-		// 右クリックでスナップ単位を編集する
-		ImGui::OpenPopupOnItemClick("SnapSettingsPopup", ImGuiPopupFlags_MouseButtonRight);
-		DrawSnapSettingsPopup(context);
-	}
-	// 複数選択のピボットを切り替える
-	{
-		const std::string& pivotIcon =
-			context.editorState->gizmoPivotAtCenter ? icons_.gizmoCenterPivotKey : icons_.eachEntityOriginKey;
-		if (DrawIconButton("##GizmoPivotMode", GetTextureID(pivotIcon), true, buttonSize_)) {
-
-			context.editorState->gizmoPivotAtCenter = !context.editorState->gizmoPivotAtCenter;
-		}
-		if (ImGui::IsItemHovered()) {
-
-			std::string tooltip = std::string("複数選択ギズモのピボット\n現在: ") +
-								  (context.editorState->gizmoPivotAtCenter ? "選択中心" : "各エンティティ原点");
-			ImGui::SetTooltip("%s", tooltip.c_str());
-		}
-	}
 }
 
 void Engine::ViewportToolbar::DrawSnapSettingsPopup(const EditorPanelContext& context) {
@@ -343,23 +234,4 @@ void Engine::ViewportToolbar::DrawSnapSettingsPopup(const EditorPanelContext& co
 	ImGui::Checkbox("スナップグリッドを表示", &settings.drawSnapGrid);
 
 	ImGui::EndPopup();
-}
-
-void Engine::ViewportToolbar::DrawGridSection(const EditorPanelContext& context) {
-
-	if (!context.editorState) {
-		return;
-	}
-
-	if (DrawIconButton("##SceneViewDefaultGrid", GetTextureID(icons_.drawGridKey),
-			context.editorState->drawSceneViewDefaultGrid, buttonSize_)) {
-
-		context.editorState->drawSceneViewDefaultGrid = !context.editorState->drawSceneViewDefaultGrid;
-	}
-	if (ImGui::IsItemHovered()) {
-
-		std::string tooltip = std::string("SceneViewグリッド表示\n現在の状態: ") +
-							  (context.editorState->drawSceneViewDefaultGrid ? "有効" : "無効");
-		ImGui::SetTooltip("%s", tooltip.c_str());
-	}
 }

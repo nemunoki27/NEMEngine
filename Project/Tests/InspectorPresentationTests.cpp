@@ -19,6 +19,10 @@
 #include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
 #include <Engine/Core/World/Components/Physics/PhysicsJointComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -35,6 +39,22 @@
 #include <unordered_set>
 
 namespace {
+
+	// 既存データと複製でも表示フラグと共通末尾項目を維持する
+	template<typename T>
+	bool CheckDebugDrawSettings() {
+
+		T component;
+		auto fields = Engine::BindInspectorCommonFields(component);
+		if (!fields.drawDebug || !*fields.drawDebug) return false;
+		*fields.drawDebug = false;
+		nlohmann::json saved = component;
+		T restored = saved.get<T>();
+		if (*Engine::BindInspectorCommonFields(restored).drawDebug) return false;
+		saved.erase("drawDebug");
+		from_json(saved, restored);
+		return *Engine::BindInspectorCommonFields(restored).drawDebug;
+	}
 	class EmptyDrawer final : public Engine::IInspectorComponentDrawer {
 	public:
 		void Draw(const Engine::EditorPanelContext&, Engine::ECSWorld&, const Engine::Entity&) override {}
@@ -316,6 +336,10 @@ namespace {
 }
 
 bool NEMTests::TestInspectorPresentation() {
+
+	if (!CheckDebugDrawSettings<Engine::PerspectiveCameraComponent>() ||
+		!CheckDebugDrawSettings<Engine::DirectionalLightComponent>() || !CheckDebugDrawSettings<Engine::PointLightComponent>() ||
+		!CheckDebugDrawSettings<Engine::SpotLightComponent>() || !CheckDebugDrawSettings<Engine::RectLightComponent>()) return false;
 
 	using namespace Engine;
 	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields() || !TestColorEditCompletion()) return false;

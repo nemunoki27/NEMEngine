@@ -51,6 +51,9 @@ void Engine::ViewportPanelSettings::Load(EditorState& state) {
 	if (sceneView.contains("drawDefaultGrid") && sceneView["drawDefaultGrid"].is_boolean()) {
 		state.drawSceneViewDefaultGrid = sceneView["drawDefaultGrid"].get<bool>();
 	}
+	if (sceneView.contains("drawOrientation") && sceneView["drawOrientation"].is_boolean()) {
+		state.drawSceneViewOrientation = sceneView["drawOrientation"].get<bool>();
+	}
 	if (sceneView.contains("enableSnapEditEntity") && sceneView["enableSnapEditEntity"].is_boolean()) {
 		state.enableSnapEditEntity = sceneView["enableSnapEditEntity"].get<bool>();
 	}
@@ -95,6 +98,7 @@ void Engine::ViewportPanelSettings::Save(const EditorState& state) {
 
 	nlohmann::json sceneView = nlohmann::json::object();
 	sceneView["drawDefaultGrid"] = state.drawSceneViewDefaultGrid;
+	sceneView["drawOrientation"] = state.drawSceneViewOrientation;
 	sceneView["showFPS"] = state.showSceneViewFPS;
 	sceneView["showDeltaTime"] = state.showSceneViewDeltaTime;
 	sceneView["enableSnapEditEntity"] = state.enableSnapEditEntity;

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Foundation/Math/Quaternion.h>
 
 // c++
 #include <array>
@@ -14,6 +15,14 @@
 namespace Engine {
 
 	struct SceneViewCameraSettings;
+
+	enum class SceneViewCameraGizmoAction { Align, Orbit };
+	struct SceneViewCameraGizmoCommand {
+
+		SceneViewCameraGizmoAction action = SceneViewCameraGizmoAction::Align;
+		Vector3 axis{};
+		Vector2 delta{};
+	};
 
 	// シーンカメラ全体の操作方式
 	enum class SceneViewCameraControlStyle { UE, Unity, Blender, Maya, Original };
@@ -64,6 +73,13 @@ namespace Engine {
 
 		Vector3 pivot{};
 		bool pivotValid = false;
+		bool aligning = false;
+		Quaternion alignmentStart{}, alignmentEnd{};
+		float alignmentElapsed = 0.0f;
+		float alignmentDistance = 0.0f;
+		Quaternion rotation{};
+		Vector3 rotationEuler{}, alignmentAxis{};
+		bool rotationValid = false;
 	};
 
 	// 重なった操作を設定画面へ返す
@@ -88,6 +104,19 @@ namespace Engine {
 		// 解決済みの入力で位置と回転と速度を更新する
 		void ApplyMotion(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state,
 			const SceneViewCameraNavigationCommand& command, const SceneViewCameraInput& input);
+		// 軸整列と周回の要求を手動カメラへ反映する
+		void ApplyGizmo(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state,
+			const SceneViewCameraGizmoCommand& command);
+		// 注視点を維持して軸整列を進める
+		void UpdateAlignment(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state, float deltaTime);
+		// 周回中心と距離を用意する
+		float PreparePivot(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state);
+		// 設定画面の変更を取り込み回転を取得する
+		Quaternion GetRotation(const SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state);
+		// 姿勢を保持して描画と設定画面へ回転を渡す
+		void SetRotation(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state, const Quaternion& rotation);
+		// 自由視点と周回で同じ回転を適用する
+		void Rotate(SceneViewCameraSettings& settings, SceneViewCameraNavigationState& state, const Vector2& delta, bool orbit);
 	}
 
 	//============================================================================

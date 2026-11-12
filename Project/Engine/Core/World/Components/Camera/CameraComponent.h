@@ -71,6 +71,8 @@ namespace Engine {
 
 		// エディターに表示するフラスタムのサイズ
 		float editorFrustumScale = 0.002f;
+		// エディターのアイコンと補助線を表示する
+		bool drawDebug = true;
 
 		// ランタイム行列
 		Matrix4x4 viewMatrix = Matrix4x4::Identity();

@@ -14,6 +14,8 @@
 // c++
 #include <algorithm>
 #include <cmath>
+// imgui
+#include <imgui.h>
 
 //============================================================================
 //	SceneViewCameraController classMethods
@@ -110,12 +112,20 @@ void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewAre
 	}
 }
 
+void Engine::SceneViewCameraController::ApplyGizmo(const SceneViewCameraGizmoCommand& command) {
+
+	CancelNavigation();
+	focusActive_ = false;
+	SceneViewCameraNavigationUtility::ApplyGizmo(settings_, navigationState_, command);
+}
+
 void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
 
 	if (!IsFinite(worldPosition)) {
 		return;
 	}
 
+	navigationState_.aligning = false;
 	// 回転を保って対象の手前へ寄る
 	const Matrix4x4 rotateMatrix = Matrix4x4::MakeRotateMatrix(settings_.cameraState.transform3D.rotation);
 	const Vector3 forward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotateMatrix);
@@ -127,6 +137,7 @@ void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
 
 void Engine::SceneViewCameraController::UpdateFocus() {
 
+	SceneViewCameraNavigationUtility::UpdateAlignment(settings_, navigationState_, ImGui::GetIO().DeltaTime);
 	if (!focusActive_) {
 		return;
 	}

@@ -106,6 +106,13 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 			navigationState_ = {};
 			CancelNavigation();
 		}
+		if (MyGUI::EnumCombo("投影方式", settings_.cameraState.projectionMode3D).valueChanged) {
+			navigationState_.aligning = false;
+		}
+		if (settings_.cameraState.projectionMode3D == CameraProjectionMode::Orthographic) {
+			MyGUI::DragFloat("平行投影サイズ", settings_.cameraState.orthographicSize3D,
+				{.dragSpeed = 0.1f, .minValue = 0.001f, .maxValue = 10000000.0f});
+		}
 		MyGUI::DragFloat("垂直画角", settings_.cameraState.perspectiveFovY, {.dragSpeed = 0.1f, .minValue = 1.0f, .maxValue = 179.0f});
 		MyGUI::DragFloat("近クリップ", settings_.cameraState.perspectiveNearClip, {.minValue = 0.001f, .maxValue = 1000000.0f});
 		MyGUI::DragFloat("遠クリップ", settings_.cameraState.perspectiveFarClip, {.dragSpeed = 1.0f, .minValue = 0.002f, .maxValue = 10000000.0f});

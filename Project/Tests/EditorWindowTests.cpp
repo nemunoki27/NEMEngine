@@ -5,6 +5,10 @@
 //============================================================================
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 #include <Engine/Editor/UI/ImGui/ImGuiAppearance.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpersInternal.h>
+#include <Engine/Editor/UI/Panels/Builtin/ViewportOrientationGizmo.h>
+#include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
+#include <Engine/Core/Rendering/Renderer/Views/CameraViewProjection.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 #include <Engine/Editor/Core/Layout/EditorLayoutSerialization.h>
 
@@ -16,6 +20,97 @@
 #include <imgui_internal.h>
 
 namespace {
+
+	// 画像へ重ねた操作領域がカーソルと内容サイズを変えないことを確認する
+	bool CheckViewportOverlay() {
+
+		using namespace Engine;
+		ImGuiContext* previous = ImGui::GetCurrentContext();
+		ImGuiContext* gui = ImGui::CreateContext();
+		const ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = ImVec2(1200, 900);
+		io.DeltaTime = 1.0f / 60.0f;
+		unsigned char* pixels;
+		int width, height;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		ImGui::GetStyle().ItemSpacing = ImVec2(4, 8);
+		EditorState state;
+		EditorPanelContext context;
+		context.editorState = &state;
+		ResolvedRenderView view;
+		view.valid = true;
+		view.perspective = CameraViewProjection::BuildManualPerspective(ManualRenderCameraState{}, 800, 450);
+		context.sceneRenderView = &view;
+		ViewportOrientationGizmo gizmo;
+		ImVec2 imagePosition;
+		ViewportOrientationLayout inputLayout;
+		int pressed = 0, activated = 0;
+		int orbits = 0, alignments = 0;
+		Vector2 dragDelta{};
+		bool valid = true;
+		const ImVec2 sizes[]{ImVec2(800, 450), ImVec2(320, 180), ImVec2(144, 81)};
+		for (int frame = 0; frame < 24; ++frame) {
+			if (frame > 0 && frame < 12) io.AddMousePosEvent(imagePosition.x + 24, imagePosition.y + 24);
+			if (frame == 2) io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+			if (frame == 3) io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			if (frame == 13) {
+				io.AddMousePosEvent(inputLayout.position.x + 5, inputLayout.position.y + 5);
+				io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+			}
+			if (frame == 14) io.AddMousePosEvent(inputLayout.position.x + 20, inputLayout.position.y + 20);
+			if (frame == 15) {
+				io.AddMousePosEvent(inputLayout.position.x + 35, inputLayout.position.y + 40);
+				io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			}
+			if (frame == 17) io.AddMousePosEvent(inputLayout.position.x + inputLayout.size * 0.5f,
+				inputLayout.position.y + inputLayout.size * 0.5f);
+			if (frame == 18) io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+			if (frame == 19) io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			ImGui::NewFrame();
+			ImGui::SetNextWindowPos(ImVec2(20, 20));
+			ImGui::SetNextWindowSize(ImVec2(1000, 700));
+			ImGui::Begin("ViewportOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove);
+			const ImVec2 size = sizes[frame / 4 % 3];
+			ImGui::BeginChild("ViewImage", ImVec2(size.x + 16, size.y + 16), ImGuiChildFlags_None,
+				ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+			imagePosition = ImGui::GetCursorScreenPos();
+			ImGui::Image(static_cast<ImTextureID>(1), size);
+			const ImVec2 cursor = ImGui::GetCursorScreenPos();
+			const ImVec2 content = ImGui::GetCurrentWindow()->DC.CursorMaxPos;
+			pressed += DrawOverlayButton("OverlayProbe", ImVec2(imagePosition.x + 12, imagePosition.y + 12), ImVec2(24, 24)) ? 1 : 0;
+			activated += ImGui::IsItemActivated() ? 1 : 0;
+			state.sceneViewCamera.mode = frame >= 4 && frame < 12 ?
+				SceneViewCameraMode::SelectedEntityCamera : SceneViewCameraMode::DebugManual;
+			state.sceneViewPickDimension = frame >= 8 && frame < 12 ? SceneViewPickDimension::Type2D : SceneViewPickDimension::Type3D;
+			state.drawSceneViewOrientation = frame < 20;
+			const auto layout = ViewportOrientationGizmo::GetLayout(context, imagePosition, size);
+			const bool visible = frame < 8 || (frame >= 12 && frame < 20);
+			valid &= visible ? layout.size > 0.0f && layout.size <= ImGui::GetFontSize() * 3.25f : layout.size == 0.0f;
+			state.drawSceneViewOrientation = false;
+			valid &= ViewportOrientationGizmo::GetLayout(context, imagePosition, size).size == 0.0f;
+			state.drawSceneViewOrientation = frame < 20;
+			if (const auto command = gizmo.Draw(context, layout)) {
+				if (command->action == SceneViewCameraGizmoAction::Orbit) { ++orbits; dragDelta += command->delta; }
+				else { ++alignments; }
+			}
+			inputLayout = layout;
+			const auto& dc = ImGui::GetCurrentWindow()->DC;
+			valid &= cursor.x == dc.CursorPos.x && cursor.y == dc.CursorPos.y &&
+				content.x == dc.CursorMaxPos.x && content.y == dc.CursorMaxPos.y && !dc.IsSetPos &&
+				gizmo.IsActive() == (frame == 13 || frame == 14 || frame == 18);
+			ImGui::EndChild();
+			ImGui::End();
+			ImGui::Render();
+		}
+		if (!valid || pressed != 1 || activated != 1 || orbits != 2 || alignments != 1 || dragDelta != Vector2(30, 35)) {
+			std::cerr << "Viewport overlay changed layout or input: " << valid << " / " << pressed << " / " << activated <<
+				" / " << orbits << " / " << alignments << " / " << dragDelta.x << ", " << dragDelta.y << '\n';
+			return false;
+		}
+		return true;
+	}
 
 	// ツールの開閉状態と配置を同じレイアウトへ保存する
 	bool CheckToolLayoutRoundTrip() {
@@ -125,7 +220,7 @@ bool NEMTests::TestEditorWindows() {
 
 	using namespace Engine;
 	using namespace EditorWindowPresentation;
-	if (!CheckToolLayoutRoundTrip()) return false;
+	if (!CheckToolLayoutRoundTrip() || !CheckViewportOverlay()) return false;
 	ImGui::CreateContext();
 	const ScopedCleanup cleanup([]() noexcept { ImGui::DestroyContext(); });
 	ImGuiIO& io = ImGui::GetIO();

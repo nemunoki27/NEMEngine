@@ -117,7 +117,12 @@ void Engine::ViewportPanel::UpdateVisibility(const EditorPanelContext& context, 
 	if (kind_ == ViewportPanelKind::Scene) {
 		context.editorState->sceneViewportVisible = visible;
 		context.editorState->sceneViewportHovered = false;
-		if (!visible) context.editorState->useSceneGizmo = false;
+		context.editorState->sceneOrientationHovered = false;
+		context.editorState->sceneOrientationActive = false;
+		if (!visible) {
+			context.editorState->useSceneGizmo = false;
+			context.editorState->sceneOrientationMin = context.editorState->sceneOrientationMax = {};
+		}
 	} else {
 		context.editorState->gameViewportVisible = visible;
 		context.editorState->gameViewportHovered = false;
@@ -184,15 +189,16 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
 		const float aspect = static_cast<float>((std::max)(gameSize.x, 1)) / static_cast<float>((std::max)(gameSize.y, 1));
 
-		// シーンビューの場合は左側にツールボタンを表示
+		// シーン操作を画像の上に一列で表示
 		if (kind_ == ViewportPanelKind::Scene) {
 
 			toolbar_.Draw(context);
-			ImGui::SameLine(0.0f, 2.0f);
 
-			// ツール列の幅を除いた画像領域を取得する
+			// ツール行の高さを除いた画像領域を取得する
 			avail = ImGui::GetContentRegionAvail();
 		}
+
+		if (avail.x <= 0.0f || avail.y <= 0.0f) { ImGui::EndChild(); return; }
 
 		// 縦横比を保って画像サイズを確定する
 		if (avail.x / avail.y >= aspect) {
@@ -225,10 +231,24 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			ImGui::Image(static_cast<ImTextureID>(imageSRV.ptr), viewSize_);
 		}
 
+		const ViewportOrientationLayout orientation = kind_ == ViewportPanelKind::Scene ?
+			ViewportOrientationGizmo::GetLayout(context, imagePos, viewSize_) : ViewportOrientationLayout{};
+		const bool overOrientation = orientation.size > 0.0f && ImGui::IsMouseHoveringRect(orientation.position,
+			ImVec2(orientation.position.x + orientation.size, orientation.position.y + orientation.size));
+		const bool objectEditing = gizmoSession_.IsActive() || splineGizmo_.IsActive();
+		const bool blockOrientation = (overOrientation || orientationGizmo_.IsActive()) && !objectEditing &&
+			!context.editorState->sceneCameraNavigating;
+		const bool imageHovered = ImGui::IsItemHovered() && !blockOrientation;
+		if (kind_ == ViewportPanelKind::Scene) {
+			context.editorState->sceneOrientationHovered = overOrientation && !objectEditing;
+			context.editorState->sceneOrientationActive = orientationGizmo_.IsActive();
+			context.editorState->sceneOrientationMin = Vector2(orientation.position.x, orientation.position.y);
+			context.editorState->sceneOrientationMax = Vector2(orientation.position.x + orientation.size, orientation.position.y + orientation.size);
+		}
+
 		// 他のUIに隠れていない画像のホバーを記録する
 		if (context.editorState) {
 
-			const bool imageHovered = ImGui::IsItemHovered();
 			if (kind_ == ViewportPanelKind::Scene) {
 				context.editorState->sceneViewportHovered = imageHovered;
 			} else {
@@ -254,7 +274,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 		// 画像へのAsset配置を受け付ける
 		placementSession_.HandleAssetDropPlacement(context, viewKind, imagePos, gameSize.x,
-			gameSize.y, ImGui::IsItemHovered(), viewSize_, kind_ == ViewportPanelKind::Scene);
+			gameSize.y, !blockOrientation, viewSize_, kind_ == ViewportPanelKind::Scene);
 
 		// SceneのGizmoとEntityドラッグを描画する
 		bool blockDragByGizmo = false;
@@ -265,9 +285,13 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
-		DrawViewportEntityDragDropSource(context, blockDragByGizmo);
+		DrawViewportEntityDragDropSource(context, blockDragByGizmo || blockOrientation);
 		if (kind_ == ViewportPanelKind::Scene && context.editorState) {
-			EditorMeasurementDisplay::DrawOverlay(*context.editorState, imagePos, viewSize_);
+			if (const auto command = orientationGizmo_.Draw(context, orientation, !objectEditing)) {
+				context.host->RequestSceneViewOrientation(*command);
+			}
+			EditorMeasurementDisplay::DrawOverlay(*context.editorState, imagePos, viewSize_,
+				orientation.size > 0.0f ? orientation.size + 8.0f : 0.0f);
 		}
 	}
 	ImGui::EndChild();
@@ -275,6 +299,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 
 void Engine::ViewportPanel::EndPreview() {
 
+	orientationGizmo_.Reset();
 	gizmoSession_.EndPreview();
 	splineGizmo_.EndPreview();
 	placementSession_.EndPreview();

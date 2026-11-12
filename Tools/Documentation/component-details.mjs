@@ -112,6 +112,7 @@ export const componentDetails = {
 		both('有効', 'Enabled', '3D音響を聞く位置と向きに、このGameObjectのTransformを使うかを指定します。通常は操作Cameraへ置き、有効なListenerを1つに絞ります。'),
 	],
 	PerspectiveCamera: [
+		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		...camera,
 		both('投影方式・視野角・平行投影サイズ', 'ProjectionMode, FovY, OrthographicSize', 'Perspectiveは遠い物体ほど小さく見える投影、Orthographicは距離で見かけの大きさが変わらない投影です。モードに応じて視野角または平行投影サイズの編集欄へ切り替わります。'),
 		both('反射・AO', 'ReflectionEnabled, ReflectionIntensity, ReflectionMaxDistance, ReflectionQuality, AmbientOcclusionEnabled, AmbientOcclusionIntensity, AmbientOcclusionRadius, AmbientOcclusionQuality', '反射は強さ・最大距離・品質、AOは遮蔽の強さ・半径・品質を調整します。Project側のRay Tracing設定とGPUの対応状況も必要です。'),
@@ -295,19 +296,23 @@ export const componentDetails = {
 		code('再生・一時停止・再開・停止・リセット・時刻', 'Play, Pause, Resume, Stop, Reset, Seek, Time, Duration, IsPlaying, IsPaused, IsFinished', 'Stopは現在値を保ち、Resetは再生前の値に戻します。Seekは秒で指定し、イベントは発火しません。'),
 	],
 	DirectionalLight: [
+		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・方向・強度・有効', 'Color, Direction, Intensity, Enabled', '太陽のように一定方向から照らす光です。Directionは光の進む向きで、Cameraの注視方向や点光源の位置とは別です。'),
 		both('影の強さ・光源角度', 'ShadowStrength, ShadowAngularRadius', '影の濃さと、光源の広がりによる半影を調整します。影の計算方式はProjectのRay Tracing設定にも依存します。'),
 	],
 	PointLight: [
+		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・強度・有効・位置', 'Color, Intensity, Enabled', 'Transformの位置から周囲へ広がる光です。壁灯・爆発・アイテムの点滅などに使います。位置を動かすときはTransformを変更します。'),
 		both('半径・減衰・光源半径・影', 'Radius, Decay, ShadowRadius, ShadowStrength', 'Radiusは照らす範囲、Decayは弱まり方、ShadowRadiusは影計算での光源の大きさです。光源半径を変えることと照射範囲を広げることは異なります。'),
 	],
 	RectLight: [
+		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・総出力・有効・向き', 'Color, Intensity, Enabled', '矩形の面光源です。Transformで位置と向きを決めます。同じ総出力でも光源面の幅・高さを変えると見え方が変わります。'),
 		both('減衰半径・光源幅・光源高さ', 'AttenuationRadius, SourceWidth, SourceHeight', '照射の届く範囲と、発光面の寸法を別々に指定します。窓や照明パネルのような広がった光に使います。'),
 		both('バーンドア角度・長さ・影', 'BarnDoorAngle, BarnDoorLength, ShadowStrength', '光源の縁で照射を制限するための設定です。光源面の寸法と合わせ、単に強度を下げる調整とは区別します。'),
 	],
 	SpotLight: [
+		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・方向・強度・有効', 'Color, Direction, Intensity, Enabled', 'Transformの位置から指定方向の円錐へ照らします。懐中電灯や舞台照明に向いています。'),
 		both('距離・減衰・角度余弦・減衰開始余弦', 'Distance, Decay, CosAngle, CosFalloffStart', '照射距離と円錐の端の弱まり方を指定します。角度欄の値は角度そのものではなくcos値です。度数をそのまま代入しないでください。'),
 		both('光源半径・影の強さ', 'ShadowRadius, ShadowStrength', '光源の大きさによる影の柔らかさと、影の濃さを調整します。照射距離とは別の値です。'),

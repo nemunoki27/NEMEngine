@@ -103,7 +103,7 @@ void Engine::EditorMeasurementDisplay::DrawData() {
 		inputType == InputType::GamePad ? "ゲームパッド" : "キーボード");
 }
 
-void Engine::EditorMeasurementDisplay::DrawOverlay(const EditorState& state, const ImVec2& position, const ImVec2& size) {
+void Engine::EditorMeasurementDisplay::DrawOverlay(const EditorState& state, const ImVec2& position, const ImVec2& size, float topInset) {
 
 	if ((!state.showSceneViewFPS && !state.showSceneViewDeltaTime) || size.x <= 16.0f || size.y <= 16.0f) {
 		return;
@@ -111,7 +111,7 @@ void Engine::EditorMeasurementDisplay::DrawOverlay(const EditorState& state, con
 	const auto& profiler = FrameProfiler::GetInstance();
 	auto* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(position, ImVec2(position.x + size.x, position.y + size.y), true);
-	float y = position.y + 8.0f;
+	float y = position.y + 8.0f + topInset;
 	auto line = [&](const char* text) {
 		const float x = (std::max)(position.x + 8.0f, position.x + size.x - 8.0f - ImGui::CalcTextSize(text).x);
 		draw->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 255), text);

@@ -1685,6 +1685,13 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 3
+        },
+        {
+          "managedName": "DrawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 7
         }
       ]
     },
@@ -2889,6 +2896,13 @@
           "kind": "Float",
           "access": "ReadWrite",
           "id": 47
+        },
+        {
+          "managedName": "DrawDebug",
+          "nativeMember": "common.drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 48
         }
       ]
     },
@@ -2952,6 +2966,13 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 3
+        },
+        {
+          "managedName": "DrawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 8
         }
       ]
     },
@@ -3905,6 +3926,13 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 7
+        },
+        {
+          "managedName": "DrawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 11
         }
       ]
     },
@@ -4909,6 +4937,13 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 5
+        },
+        {
+          "managedName": "DrawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 10
         }
       ]
     },

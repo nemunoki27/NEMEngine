@@ -25,6 +25,8 @@ bool NEMTests::TestSceneViewCameraSettings() {
 	settings.cameraState.orthoFarClip = 20.0f;
 	settings.cameraState.orthographicCullingMask = 2;
 	settings.cameraState.perspectiveFovY = 70.0f;
+	settings.cameraState.projectionMode3D = CameraProjectionMode::Orthographic;
+	settings.cameraState.orthographicSize3D = 12.5f;
 	settings.cameraState.perspectiveNearClip = 0.5f;
 	settings.cameraState.perspectiveFarClip = 100.0f;
 	settings.cameraState.perspectiveCullingMask = 4;
@@ -48,6 +50,7 @@ bool NEMTests::TestSceneViewCameraSettings() {
 		loaded.cameraState.orthographicZoom != 2.0f || loaded.cameraState.orthoNearClip != -10.0f ||
 		loaded.cameraState.orthoFarClip != 20.0f || loaded.cameraState.orthographicCullingMask != 2 ||
 		loaded.cameraState.perspectiveFovY != 70.0f || loaded.cameraState.perspectiveNearClip != 0.5f ||
+		loaded.cameraState.projectionMode3D != CameraProjectionMode::Orthographic || loaded.cameraState.orthographicSize3D != 12.5f ||
 		loaded.cameraState.perspectiveFarClip != 100.0f || loaded.cameraState.perspectiveCullingMask != 4 ||
 		loaded.zoomRate2D != 0.3f || loaded.panSpeed2D != 2.0f || loaded.rotateSpeed != 0.02f || loaded.zoomRate != 0.8f ||
 		loaded.panSpeed != 0.04f || loaded.moveSpeed != 15.0f || loaded.controlStyle != settings.controlStyle ||
@@ -66,6 +69,7 @@ bool NEMTests::TestSceneViewCameraSettings() {
 	if (reset.cameraState.transform2D.pos != settings.cameraState.transform2D.pos || reset.zoomRate2D != settings.zoomRate2D ||
 		reset.cameraState.transform3D.pos != SceneViewCameraDefaults::kDefaultPosition ||
 		reset.cameraState.perspectiveFarClip != SceneViewCameraDefaults::kDefaultFarClip ||
+		reset.cameraState.projectionMode3D != CameraProjectionMode::Perspective || reset.cameraState.orthographicSize3D != 5.0f ||
 		reset.controlStyle != SceneViewCameraControlStyle::Unity || reset.moveSpeed != SceneViewCameraDefaults::kDefaultMoveSpeed) { return false; }
 
 	// 保存できないときは既存ファイルと入力を保つ
@@ -90,10 +94,11 @@ bool NEMTests::TestSceneViewCameraSettings() {
 		return false;
 	}
 	const nlohmann::json invalid = {{"perspectiveFovY", "invalid"}, {"perspectiveCullingMask", 4294967295ULL},
-		{"rotateSpeed", -1.0f}, {"orthographicZoom", 1000.0f}};
+		{"rotateSpeed", -1.0f}, {"orthographicZoom", 1000.0f}, {"projectionMode3D", false}, {"orthographicSize3D", -2.0f}};
 	if (!JsonFile::Save(path, invalid) || !SceneViewCameraSettingsUtility::Load(path.string(), loaded) ||
 		loaded.cameraState.perspectiveFovY != 70.0f || loaded.cameraState.perspectiveCullingMask != 4 ||
-		loaded.rotateSpeed != 0.0f || loaded.cameraState.orthographicZoom != SceneViewCameraDefaults::kMax2DZoom) {
+		loaded.rotateSpeed != 0.0f || loaded.cameraState.projectionMode3D != CameraProjectionMode::Perspective ||
+		loaded.cameraState.orthographicSize3D != 0.001f || loaded.cameraState.orthographicZoom != SceneViewCameraDefaults::kMax2DZoom) {
 		return false;
 	}
 	if (loaded.controlStyle != SceneViewCameraControlStyle::Unity || loaded.moveSpeed != 15.0f) { return false; }

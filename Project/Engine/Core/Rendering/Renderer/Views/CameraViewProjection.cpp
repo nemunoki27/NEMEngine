@@ -6,6 +6,21 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
+namespace {
+
+	// 手動カメラとコンポーネントで3D投影を共有する
+	Engine::Matrix4x4 BuildProjection3D(Engine::CameraProjectionMode mode, float fieldOfView, float size,
+		float aspect, float nearClip, float farClip) {
+
+		if (mode == Engine::CameraProjectionMode::Orthographic) {
+			const float halfHeight = (std::max)(size, 0.001f);
+			const float halfWidth = halfHeight * aspect;
+			return Engine::Matrix4x4::MakeOrthographicMatrix(-halfWidth, halfHeight, halfWidth, -halfHeight, nearClip, farClip);
+		}
+		return Engine::Matrix4x4::MakePerspectiveFovMatrix(fieldOfView, aspect, nearClip, farClip);
+	}
+}
+
 namespace Engine::CameraViewProjection {
 
 	Engine::Matrix4x4 BuildManualWorld(const Engine::ManualRenderCameraTransform& transform) {
@@ -49,17 +64,8 @@ namespace Engine::CameraViewProjection {
 
 		camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 		camera.common.viewMatrix = Engine::Matrix4x4::Inverse(transform.worldMatrix);
-		if (camera.projectionMode == Engine::CameraProjectionMode::Orthographic) {
-
-			// 3Dカメラの中心を基準に平行投影範囲を作る
-			const float halfHeight = (std::max)(camera.orthographicSize, 0.001f);
-			const float halfWidth = halfHeight * camera.common.aspectRatio;
-			camera.common.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(
-				-halfWidth, halfHeight, halfWidth, -halfHeight, camera.nearClip, camera.farClip);
-		} else {
-			camera.common.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(
-				camera.fovY, camera.common.aspectRatio, camera.nearClip, camera.farClip);
-		}
+		camera.common.projectionMatrix = BuildProjection3D(camera.projectionMode, camera.fovY,
+			camera.orthographicSize, camera.common.aspectRatio, camera.nearClip, camera.farClip);
 		camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
 	}
 
@@ -172,7 +178,8 @@ namespace Engine::CameraViewProjection {
 
 		// マニュアルカメラの状態から描画ビューの情報を構築する
 		out.valid = true;
-		out.projectionMode = ResolvedProjectionMode::Perspective;
+		out.projectionMode = state.projectionMode3D == CameraProjectionMode::Orthographic ?
+			ResolvedProjectionMode::Orthographic : ResolvedProjectionMode::Perspective;
 		out.usesManualCamera = true;
 		out.cameraPos = state.transform3D.pos;
 		out.nearClip = (std::max)(state.perspectiveNearClip, 0.001f);
@@ -188,7 +195,8 @@ namespace Engine::CameraViewProjection {
 			world.m[2][2]).Normalize();
 		out.matrices.inverseViewMatrix = world;
 		out.matrices.viewMatrix = Matrix4x4::Inverse(world);
-		out.matrices.projectionMatrix = Matrix4x4::MakePerspectiveFovMatrix(state.perspectiveFovY, aspect, out.nearClip, out.farClip);
+		out.matrices.projectionMatrix = BuildProjection3D(state.projectionMode3D, state.perspectiveFovY,
+			state.orthographicSize3D, aspect, out.nearClip, out.farClip);
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 

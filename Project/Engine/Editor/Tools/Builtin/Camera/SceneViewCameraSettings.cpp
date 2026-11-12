@@ -95,6 +95,8 @@ void Engine::SceneViewCameraSettings::Reset3D() {
 	const SceneViewCameraSettings defaults;
 	cameraState.transform3D = defaults.cameraState.transform3D;
 	cameraState.enablePerspective = defaults.cameraState.enablePerspective;
+	cameraState.projectionMode3D = defaults.cameraState.projectionMode3D;
+	cameraState.orthographicSize3D = defaults.cameraState.orthographicSize3D;
 	cameraState.perspectiveFovY = defaults.cameraState.perspectiveFovY;
 	cameraState.perspectiveNearClip = defaults.cameraState.perspectiveNearClip;
 	cameraState.perspectiveFarClip = defaults.cameraState.perspectiveFarClip;
@@ -165,6 +167,11 @@ bool Engine::SceneViewCameraSettingsUtility::Load(const std::string& filePath, S
 			settings.cameraState.perspectiveFarClip = kDefaultFarClip;
 		}
 	}
+	settings.cameraState.projectionMode3D = CameraProjectionMode::Perspective;
+	if (const auto mode = data.find("projectionMode3D"); mode != data.end() && mode->is_string())
+		settings.cameraState.projectionMode3D = EnumAdapter<CameraProjectionMode>::FromString(mode->get<std::string>())
+			.value_or(CameraProjectionMode::Perspective);
+	settings.cameraState.orthographicSize3D = ReadFiniteFloat(data, "orthographicSize3D", 5.0f);
 	// 欠損した操作速度は現在値を保つ
 	{
 		settings.zoomRate2D = std::max(0.0f, ReadFiniteFloat(data, "zoomRate2D", settings.zoomRate2D));
@@ -199,6 +206,10 @@ bool Engine::SceneViewCameraSettingsUtility::Load(const std::string& filePath, S
 void Engine::SceneViewCameraSettingsUtility::Sanitize(SceneViewCameraSettings& settings) {
 
 	// 非有限値と無効な投影値を補正する
+	if (settings.cameraState.projectionMode3D != CameraProjectionMode::Orthographic)
+		settings.cameraState.projectionMode3D = CameraProjectionMode::Perspective;
+	settings.cameraState.orthographicSize3D = std::clamp(std::isfinite(settings.cameraState.orthographicSize3D) ?
+		settings.cameraState.orthographicSize3D : 5.0f, 0.001f, 10000000.0f);
 	if (!IsFinite(settings.cameraState.transform2D.pos)) {
 		settings.cameraState.transform2D.pos = kDefault2DPosition;
 	}
@@ -274,6 +285,8 @@ bool Engine::SceneViewCameraSettingsUtility::Save(const std::string& filePath, c
 		JsonAdapter::SetVector3(data, "transform3D.pos", settings.cameraState.transform3D.pos);
 		JsonAdapter::SetVector3(data, "transform3D.rotation", settings.cameraState.transform3D.rotation);
 		data["perspectiveFovY"] = settings.cameraState.perspectiveFovY;
+		data["projectionMode3D"] = EnumAdapter<CameraProjectionMode>::ToString(settings.cameraState.projectionMode3D);
+		data["orthographicSize3D"] = settings.cameraState.orthographicSize3D;
 		data["perspectiveNearClip"] = settings.cameraState.perspectiveNearClip;
 		data["perspectiveFarClip"] = settings.cameraState.perspectiveFarClip;
 		data["perspectiveCullingMask"] = settings.cameraState.perspectiveCullingMask;

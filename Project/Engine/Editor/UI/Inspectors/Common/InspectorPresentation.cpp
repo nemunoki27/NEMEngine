@@ -14,7 +14,7 @@
 namespace {
 
 	struct FieldDefinition { const char* key; const char* label; };
-	constexpr std::array<FieldDefinition, 27> kFields{{
+	constexpr std::array<FieldDefinition, 28> kFields{{
 		FieldDefinition{"Enabled", "有効"}, {"Visible", "表示"}, {"DisplayLayer", "表示レイヤー"},
 		{"CameraLayer", "描画対象レイヤー"}, {"ReceiverLayer", "受け取り先レイヤー"}, {"ParticleGroup", "作用グループ"},
 		{"SortLayer", "ソートレイヤー"}, {"DrawOrder", "描画順"}, {"BlendMode", "ブレンドモード"}, {"RenderQueue", "描画キュー"},
@@ -22,7 +22,7 @@ namespace {
 		{"UnscaledTime", "TimeScaleの影響を受けない"}, {"Loop", "ループ再生"}, {"PlaybackSpeed", "再生速度"},
 		{"Restitution", "はね返り率"}, {"Friction", "摩擦"}, {"AllowTopple", "支えが外れたら倒れる"}, {"AlphaThreshold", "アルファ閾値"},
 		{"PlaybackMode", "繰り返し"}, {"Duration", "再生時間"}, {"StartDelay", "開始待ち"},
-		{"PlaybackState", "再生状態"}, {"AxisAngle", "軸＋角度"}, {"Once", "1回"}, {"PingPong", "往復"}
+		{"PlaybackState", "再生状態"}, {"AxisAngle", "軸＋角度"}, {"Once", "1回"}, {"PingPong", "往復"}, {"DrawDebug", "デバッグ描画"}
 	}};
 	struct CategoryDefinition { std::string_view key; const char* label; };
 	constexpr std::array<CategoryDefinition, 11> kCategories{{
@@ -177,4 +177,11 @@ Engine::ValueEditResult Engine::DrawInspectorCommonFields(const EditorPanelConte
 	mask(InspectorFieldID::ReceiverLayer, fields.receiverLayer, InspectorMaskDomain::Rendering);
 	mask(InspectorFieldID::ParticleGroup, fields.particleGroup, InspectorMaskDomain::Particle);
 	return result;
+}
+
+Engine::ValueEditResult Engine::DrawInspectorCommonFooter(const InspectorCommonFields& fields) {
+
+	if (!fields.drawDebug) return {};
+	ImGui::Separator();
+	return MyGUI::CheckboxField(GetInspectorLabel(InspectorFieldID::DrawDebug), *fields.drawDebug);
 }

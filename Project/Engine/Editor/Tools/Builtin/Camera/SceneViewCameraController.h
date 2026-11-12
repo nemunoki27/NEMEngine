@@ -34,12 +34,15 @@ namespace Engine {
 		// 入力対象を失ったときに操作を終了する
 		void CancelNavigation();
 
+		// 軸ギズモからの操作を受け取る
+		void ApplyGizmo(const SceneViewCameraGizmoCommand& command);
+
 		// 指定座標へ滑らかに寄る
 		void FocusOn(const Vector3& worldPosition);
 		// 入力対象でない間もフォーカスを進める
 		void UpdateFocus();
 		// フォーカスで寄っている最中か
-		bool IsFocusing() const { return focusActive_; }
+		bool IsFocusing() const { return focusActive_ || navigationState_.aligning; }
 		bool IsNavigating() const { return navigationActive_; }
 
 		// ToolPanelの一覧からツールを開く

@@ -200,7 +200,7 @@ namespace {
 		Engine::SceneComponentOverlayItemList& outItems) {
 
 		// シーン上で無効なEntityは表示しないが、コンポーネントenabled=falseは半透明表示する
-		if (!Engine::IsEntityActiveInHierarchy(world, entity)) {
+		if (!cameraComponent.common.drawDebug || !Engine::IsEntityActiveInHierarchy(world, entity)) {
 			return;
 		}
 		const auto* registration = registry.Find(Engine::SceneComponentOverlayComponentKind::PerspectiveCamera);
@@ -248,18 +248,22 @@ void Engine::SceneComponentOverlayCollector::Collect(const ECSWorld& world, cons
 
 	// 同一Entityに複数コンポーネントがある場合も、コンポーネントごとに表示アイテムを作る
 	world.ForEach<DirectionalLightComponent>([&](Entity entity, const DirectionalLightComponent& light) {
+		if (!light.drawDebug) return;
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::DirectionalLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
 	});
 	world.ForEach<PointLightComponent>([&](Entity entity, const PointLightComponent& light) {
+		if (!light.drawDebug) return;
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::PointLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
 	});
 	world.ForEach<RectLightComponent>([&](Entity entity, const RectLightComponent& light) {
+		if (!light.drawDebug) return;
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::RectLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
 		});
 	world.ForEach<SpotLightComponent>([&](Entity entity, const SpotLightComponent& light) {
+		if (!light.drawDebug) return;
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::SpotLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
 	});

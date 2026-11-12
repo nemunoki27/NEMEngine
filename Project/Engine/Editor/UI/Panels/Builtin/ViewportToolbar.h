@@ -76,9 +76,6 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 操作Buttonのサイズ
-		const ImVec2 buttonSize_ = ImVec2(24.0f, 24.0f);
-
 		// Applicationが所有するTexture転送窓口
 		TextureUploadService& textureUploadService_;
 		// 操作アイコン
@@ -90,13 +87,7 @@ namespace Engine {
 		void RequestIcons();
 		// アイコンの描画参照を取得する
 		ImTextureID GetTextureID(const std::string& key) const;
-		// Cameraの操作設定を表示する
-		void DrawCameraSection(const EditorPanelContext& context);
-		// 選択とGizmoの操作を表示する
-		void DrawManipulatorSection(const EditorPanelContext& context);
 		// スナップ単位を編集する
 		void DrawSnapSettingsPopup(const EditorPanelContext& context);
-		// Gridの表示を切り替える
-		void DrawGridSection(const EditorPanelContext& context);
 	};
 } // Engine

@@ -26,6 +26,16 @@
 //============================================================================
 //	MyGUI classMethods
 //============================================================================
+bool Engine::DrawOverlayButton(const char* id, const ImVec2& position, const ImVec2& size) {
+
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	if (window->SkipItems || size.x <= 0.0f || size.y <= 0.0f) return false;
+	const ImGuiID itemID = window->GetID(id);
+	const ImRect bounds(position, ImVec2(position.x + size.x, position.y + size.y));
+	if (!ImGui::ItemAdd(bounds, itemID, nullptr, ImGuiItemFlags_NoNav)) return false;
+	return ImGui::ButtonBehavior(bounds, itemID, nullptr, nullptr, ImGuiButtonFlags_MouseButtonLeft);
+}
+
 namespace {
 
 	Engine::ValueEditResult DrawColorValue(const char* id, float* color, ImGuiColorEditFlags flags, bool picker) {

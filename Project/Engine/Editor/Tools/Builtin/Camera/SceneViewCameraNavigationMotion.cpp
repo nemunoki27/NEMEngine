@@ -20,28 +20,18 @@ void Engine::SceneViewCameraNavigationUtility::ApplyMotion(SceneViewCameraSettin
 	if (!command.active) { return; }
 	const auto previousCamera = settings.cameraState.transform3D;
 	const SceneViewCameraNavigationState previousState = state;
-	const Matrix4x4 rotation = Matrix4x4::MakeRotateMatrix(previousCamera.rotation);
+	state.aligning = false;
+	const Matrix4x4 rotation = Quaternion::MakeRotateMatrix(GetRotation(settings, state));
 	const Vector3 forward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotation);
 	const Vector3 right = Vector3::TransferNormal(Vector3(1.0f, 0.0f, 0.0f), rotation);
 	const Vector3 up = Vector3::TransferNormal(Vector3(0.0f, 1.0f, 0.0f), rotation);
-	if (!state.pivotValid || !SceneViewCameraSettingsUtility::IsFinite(state.pivot)) {
-		state.pivot = previousCamera.pos + forward * kDefaultOrbitDistance;
-		state.pivotValid = true;
-	}
+	const float distance = PreparePivot(settings, state);
 	const float minDistance = (std::max)(settings.cameraState.perspectiveNearClip * 1.1f, 0.001f);
-	const float distance = (std::max)((previousCamera.pos - state.pivot).Length(), minDistance);
-	const float rotationSpeed = Math::RadToDeg(settings.rotateSpeed);
 	auto& camera = settings.cameraState.transform3D;
 
 	// 自由視点では位置を保ち、周回では中心と距離を保つ
 	if (command.look || command.orbit) {
-		camera.rotation.x += input.mouseDelta.y * rotationSpeed;
-		camera.rotation.y += input.mouseDelta.x * rotationSpeed;
-		camera.rotation = Math::WrapDegree180(camera.rotation);
-		if (!command.preview) { camera.rotation.x = std::clamp(camera.rotation.x, -89.9f, 89.9f); }
-		const Vector3 nextForward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), Matrix4x4::MakeRotateMatrix(camera.rotation));
-		if (command.orbit) { camera.pos = state.pivot - nextForward * distance; }
-		else { state.pivot = camera.pos + nextForward * distance; }
+		Rotate(settings, state, input.mouseDelta, command.orbit);
 	}
 
 	// パンでは注視点も同じ量だけ動かす
@@ -76,6 +66,9 @@ void Engine::SceneViewCameraNavigationUtility::ApplyMotion(SceneViewCameraSettin
 		const float nextDistance = std::clamp(distance * std::exp(exponent), minDistance, (std::max)(minDistance, 10000000.0f));
 		const Vector3 toward = Vector3::NormalizeOr(state.pivot - camera.pos, forward);
 		camera.pos = state.pivot - toward * nextDistance;
+		if (settings.cameraState.projectionMode3D == CameraProjectionMode::Orthographic)
+			settings.cameraState.orthographicSize3D = std::clamp(
+				settings.cameraState.orthographicSize3D * nextDistance / distance, 0.001f, 10000000.0f);
 	}
 
 	// 無効な入力では最後の正常なカメラを維持する

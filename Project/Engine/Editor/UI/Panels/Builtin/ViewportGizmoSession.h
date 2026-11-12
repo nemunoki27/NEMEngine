@@ -23,6 +23,7 @@ namespace Engine {
 
 		// 未確定の姿勢を戻して操作を終了する
 		void EndPreview();
+		bool IsActive() const { return entityGizmoSession_.active || multiGizmoSession_.active; }
 
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);

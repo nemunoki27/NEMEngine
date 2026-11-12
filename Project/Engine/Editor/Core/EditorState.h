@@ -197,9 +197,14 @@ namespace Engine {
 		void* sceneViewportWindow = nullptr;
 		// SceneView/GameViewのImageが最前面でホバーされているか、ViewportPanelが毎フレーム更新する
 		bool sceneViewportHovered = false;
+		// 軸表示の操作をシーン選択とカメラ入力から分離する
+		bool sceneOrientationHovered = false;
+		bool sceneOrientationActive = false;
+		Vector2 sceneOrientationMin{}, sceneOrientationMax{};
 		bool gameViewportHovered = false;
 		// SceneViewのデフォルトグリッド表示
 		bool drawSceneViewDefaultGrid = false;
+		bool drawSceneViewOrientation = true;
 		// SceneView画像内の計測表示、ユーザー設定として保存
 		bool showSceneViewFPS = false;
 		bool showSceneViewDeltaTime = false;

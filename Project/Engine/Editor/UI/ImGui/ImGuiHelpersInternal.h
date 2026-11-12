@@ -44,6 +44,8 @@ namespace Engine {
 
 	// 値と独立したIDで全文表示とクリックコピーを行う
 	void DrawCopyableValue(const char* id, const std::string& value, float width);
+	// レイアウトを変更せず画像上に透明な操作領域を登録する
+	bool DrawOverlayButton(const char* id, const ImVec2& position, const ImVec2& size);
 
 	// プロパティ行に読み取り専用の数値フィールド群を描画する
 	void DrawTextFields(const char* label, const std::array<char, 4>& axes,

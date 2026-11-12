@@ -18,6 +18,7 @@ void Engine::from_json(const nlohmann::json& in, DirectionalLightComponent& comp
 	component.shadowAngularRadius =
 		in.value("shadowAngularRadius", component.shadowAngularRadius);
 	component.enabled = in.value("enabled", true);
+	component.drawDebug = in.value("drawDebug", true);
 
 }
 
@@ -29,6 +30,7 @@ void Engine::to_json(nlohmann::json& out, const DirectionalLightComponent& compo
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowAngularRadius"] = component.shadowAngularRadius;
 	out["enabled"] = component.enabled;
+	out["drawDebug"] = component.drawDebug;
 
 }
 
@@ -44,6 +46,7 @@ void Engine::from_json(const nlohmann::json& in, PointLightComponent& component)
 	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
+	component.drawDebug = in.value("drawDebug", true);
 
 }
 
@@ -56,6 +59,7 @@ void Engine::to_json(nlohmann::json& out, const PointLightComponent& component) 
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
+	out["drawDebug"] = component.drawDebug;
 
 }
 
@@ -77,6 +81,7 @@ void Engine::from_json(const nlohmann::json& in, RectLightComponent& component) 
 	component.shadowStrength =
 		in.value("shadowStrength", component.shadowStrength);
 	component.enabled = in.value("enabled", component.enabled);
+	component.drawDebug = in.value("drawDebug", true);
 
 }
 
@@ -91,6 +96,7 @@ void Engine::to_json(nlohmann::json& out, const RectLightComponent& component) {
 	out["barnDoorLength"] = component.barnDoorLength;
 	out["shadowStrength"] = component.shadowStrength;
 	out["enabled"] = component.enabled;
+	out["drawDebug"] = component.drawDebug;
 
 }
 
@@ -109,6 +115,7 @@ void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) 
 	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
+	component.drawDebug = in.value("drawDebug", true);
 
 }
 
@@ -124,5 +131,6 @@ void Engine::to_json(nlohmann::json& out, const SpotLightComponent& component) {
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
+	out["drawDebug"] = component.drawDebug;
 
 }

@@ -25,7 +25,7 @@
 using namespace Engine::ViewportTransformUtility;
 
 void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
-	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, [[maybe_unused]] bool imageHovered,
+	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, bool allowPlacement,
 	const ImVec2& imageSize, bool scenePanel) {
 
 	viewSize_ = imageSize;
@@ -35,7 +35,7 @@ void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPane
 
 	// ドラッグ中の画像との重なりを矩形で判定
 	const ImVec2 mousePos = ImGui::GetMousePos();
-	const bool overImage = mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x && mousePos.y >= imagePos.y &&
+	const bool overImage = allowPlacement && mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x && mousePos.y >= imagePos.y &&
 						   mousePos.y <= imagePos.y + viewSize_.y;
 
 	// ドラッグ中のAssetを取得
@@ -93,7 +93,7 @@ void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPane
 	}
 
 	// ドロップ確定、Imageの上で離されたときだけ受理する
-	if (ImGui::BeginDragDropTarget()) {
+	if (allowPlacement && ImGui::BeginDragDropTarget()) {
 
 		if (const ImGuiPayload* accepted = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType)) {
 

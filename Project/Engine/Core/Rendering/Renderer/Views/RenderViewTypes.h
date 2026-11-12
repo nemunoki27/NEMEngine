@@ -62,6 +62,8 @@ namespace Engine {
 
 		// 3D
 		bool enablePerspective = true;
+		CameraProjectionMode projectionMode3D = CameraProjectionMode::Perspective;
+		float orthographicSize3D = 5.0f;
 		float perspectiveFovY = 60.0f;
 		float perspectiveNearClip = 0.01f;
 		float perspectiveFarClip = 4000.0f;

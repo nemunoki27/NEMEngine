@@ -160,3 +160,13 @@ uint64_t Engine::EditorManager::GetSceneDirtyRevision(AssetID sceneAsset, UUID i
 
 	return dirtyState_.GetSceneDirtyRevision(sceneAsset, instanceID);
 }
+
+void Engine::EditorManager::RequestSceneViewOrientation(const SceneViewCameraGizmoCommand& command) {
+
+	if (editorState_.sceneViewCamera.mode != SceneViewCameraMode::DebugManual ||
+		editorState_.sceneViewPickDimension == SceneViewPickDimension::Type2D) return;
+	sceneViewCameraController_->ApplyGizmo(command);
+	editorState_.scenePickPressActive = false;
+	editorState_.scenePickClickPending = false;
+	editorState_.scenePickDragEntity = Entity::Null();
+}

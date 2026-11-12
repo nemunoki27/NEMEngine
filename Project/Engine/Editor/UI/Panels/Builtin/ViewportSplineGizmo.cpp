@@ -51,7 +51,8 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 	const auto* camera = context.sceneRenderView->FindCamera(data->is2D ?
 		RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective);
 	if (!camera || !camera->valid) { EndPreview(); return false; }
-	const bool canEdit = context.CanEditScene() && !navigating;
+	const bool canEdit = context.CanEditScene() && !navigating && !context.editorState->cameraFocusing &&
+		((!context.editorState->sceneOrientationHovered && !context.editorState->sceneOrientationActive) || IsActive());
 	Matrix4x4 inverseWorld;
 	Matrix4x4 inverseView;
 	const auto& viewProjection = camera->matrices.viewProjectionMatrix;

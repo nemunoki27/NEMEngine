@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraSettings.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Rendering/Renderer/Views/CameraViewProjection.h>
 
 // c++
 #include <cmath>
@@ -207,9 +208,110 @@ namespace {
 		ApplyMotion(settings, state, command, input);
 		return (settings.cameraState.transform3D.pos - Vector3(0.2f, -0.1f, 0.4f)).Length() < 0.0001f;
 	}
+	// 六方向の整列と反転で注視点と投影を維持する
+	bool CheckOrientation(CameraProjectionMode mode) {
+
+		const Vector3 axes[]{Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 1, 0),
+			Vector3(0, -1, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)};
+		for (const auto& axis : axes) {
+			auto settings = AxisCamera();
+			settings.cameraState.projectionMode3D = mode;
+			SceneViewCameraNavigationState state;
+			const float initialDistance = PreparePivot(settings, state);
+			const auto before = CameraViewProjection::BuildManualPerspective(settings.cameraState, 800, 600);
+			ApplyGizmo(settings, state, {.axis = axis});
+			const Vector3 pivot = state.pivot;
+			if (!state.aligning || settings.cameraState.projectionMode3D != mode) return false;
+			UpdateAlignment(settings, state, 0.1f);
+			if (!state.aligning || std::abs((settings.cameraState.transform3D.pos - pivot).Length() - initialDistance) > 0.001f) return false;
+			UpdateAlignment(settings, state, 0.1f);
+			const auto view = CameraViewProjection::BuildManualPerspective(settings.cameraState, 800, 600);
+			if (state.aligning || (view.forward + axis).Length() > 0.001f || state.pivot != pivot ||
+				view.projectionMode != before.projectionMode || view.matrices.projectionMatrix != before.matrices.projectionMatrix)
+				return false;
+			if (std::abs(axis.y) > 0.99f && view.matrices.inverseViewMatrix.m[0][0] < 0.999f) return false;
+			ApplyGizmo(settings, state, {.axis = axis});
+			UpdateAlignment(settings, state, 0.2f);
+			const auto opposite = CameraViewProjection::BuildManualPerspective(settings.cameraState, 800, 600);
+			if ((opposite.forward - axis).Length() > 0.001f) return false;
+			ApplyGizmo(settings, state, {.axis = -axis});
+			UpdateAlignment(settings, state, 0.2f);
+			if ((CameraViewProjection::BuildManualPerspective(settings.cameraState, 800, 600).forward + axis).Length() > 0.001f)
+				return false;
+			const float previousDistance = (settings.cameraState.transform3D.pos - pivot).Length();
+			SceneViewCameraNavigationCommand zoom;
+			zoom.active = true;
+			zoom.zoomWheel = 1.0f;
+			ApplyMotion(settings, state, zoom, Press(0));
+			if (!((settings.cameraState.transform3D.pos - pivot).Length() < previousDistance) || state.pivot != pivot) return false;
+			const float distance = (settings.cameraState.transform3D.pos - pivot).Length();
+			auto widgetSettings = settings;
+			auto widgetState = state;
+			SceneViewCameraNavigationCommand orbit;
+			orbit.active = orbit.orbit = true;
+			auto input = Press(0);
+			input.mouseDelta = Vector2(20, 10);
+			ApplyMotion(settings, state, orbit, input);
+			ApplyGizmo(widgetSettings, widgetState, {.action = SceneViewCameraGizmoAction::Orbit, .delta = input.mouseDelta});
+			if (settings.cameraState.projectionMode3D != mode ||
+				!SceneViewCameraSettingsUtility::IsFinite(settings.cameraState.transform3D.rotation) ||
+				std::abs((settings.cameraState.transform3D.pos - pivot).Length() - distance) > 0.002f ||
+				(settings.cameraState.transform3D.pos - widgetSettings.cameraState.transform3D.pos).Length() > 0.001f ||
+				!Quaternion::NearlyEqual(GetRotation(settings, state), GetRotation(widgetSettings, widgetState))) return false;
+			if (CameraViewProjection::BuildManualOrthographic(settings.cameraState, 800, 600).cameraPos !=
+				settings.cameraState.transform2D.pos) return false;
+		}
+		return true;
+	}
+
+	// 極を越える回転と補間途中の操作で姿勢を連続させる
+	bool CheckRotationContinuity() {
+
+		for (const auto axis : {Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 1, 0),
+			Vector3(0, -1, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)}) {
+			auto settings = AxisCamera();
+			settings.rotateSpeed = 0.01f;
+			SceneViewCameraNavigationState state;
+			ApplyGizmo(settings, state, {.axis = axis});
+			UpdateAlignment(settings, state, 0.1f);
+			const Vector3 midway = settings.cameraState.transform3D.pos;
+			const Quaternion rotation = GetRotation(settings, state);
+			const Vector3 pivot = state.pivot;
+			SceneViewCameraNavigationCommand orbit;
+			orbit.active = orbit.orbit = true;
+			auto input = Press(0);
+			input.mouseDelta = {};
+			ApplyMotion(settings, state, orbit, input);
+			if (state.aligning || (settings.cameraState.transform3D.pos - midway).Length() > 0.001f ||
+				std::abs(Quaternion::Dot(rotation, GetRotation(settings, state))) < 0.99999f) return false;
+			const float distance = (midway - pivot).Length();
+			for (int step = 0; step < 720; ++step) {
+				const Quaternion previous = GetRotation(settings, state);
+				input.mouseDelta = Vector2(0, 2);
+				ApplyMotion(settings, state, orbit, input);
+				const float dot = std::abs(Quaternion::Dot(previous, GetRotation(settings, state)));
+				const auto view = CameraViewProjection::BuildManualPerspective(settings.cameraState, 800, 600);
+				const Vector3 expected = Vector3::TransferNormal(Vector3(0, 0, 1), Quaternion::MakeRotateMatrix(state.rotation));
+				if (dot > 0.99999f || dot < 0.9998f || state.pivot != pivot ||
+					std::abs((settings.cameraState.transform3D.pos - pivot).Length() - distance) > 0.01f ||
+					(view.forward - expected).Length() > 0.001f) return false;
+			}
+			const Vector3 position = settings.cameraState.transform3D.pos;
+			settings.cameraState.transform3D.rotation = Vector3(35, 120, 15);
+			input.mouseDelta = {};
+			orbit.orbit = false;
+			orbit.look = true;
+			ApplyMotion(settings, state, orbit, input);
+			if (settings.cameraState.transform3D.pos != position ||
+				!Quaternion::NearlyEqual(state.rotation, Quaternion::FromEulerDegrees(Vector3(35, 120, 15)))) return false;
+		}
+		return true;
+	}
 }
 
 bool NEMTests::TestSceneViewCameraNavigation() {
 
-	return CheckPresets() && CheckInputLifetime() && CheckConflicts() && CheckMovement() && CheckMotion();
+	return CheckPresets() && CheckInputLifetime() && CheckConflicts() && CheckMovement() && CheckMotion() &&
+		CheckOrientation(CameraProjectionMode::Perspective) && CheckOrientation(CameraProjectionMode::Orthographic) &&
+		CheckRotationContinuity();
 }

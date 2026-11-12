@@ -172,6 +172,7 @@ namespace Engine {
 		// ギズモの操作空間
 		bool orthographic = false;
 		bool allowAxisFlip = true;
+		bool allowInteraction = true;
 
 		// スナップを有効にするか、trueならsnapValuesをImGuizmoへ渡してグリッド単位に操作する
 		bool useSnap = false;

@@ -173,7 +173,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		const auto& camera = world.GetComponent<PerspectiveCameraComponent>(entity);
 
 		// カメラフラスタム描画
-		renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
+		if (camera.common.drawDebug) renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
 			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
 	}
 	// MeshとPrimitiveの選択Outlineを要求する
@@ -206,7 +206,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		}
 	}
 	// 平行光源
-	if (world.HasComponent<DirectionalLightComponent>(entity)) {
+	if (world.HasComponent<DirectionalLightComponent>(entity) && world.GetComponent<DirectionalLightComponent>(entity).drawDebug) {
 
 		const auto& directionalLight = world.GetComponent<DirectionalLightComponent>(entity);
 		const Vector3 direction =
@@ -218,7 +218,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 			rotation, directionalLight.color, 1.0f);
 	}
 	// 矩形面光源
-	if (world.HasComponent<RectLightComponent>(entity)) {
+	if (world.HasComponent<RectLightComponent>(entity) && world.GetComponent<RectLightComponent>(entity).drawDebug) {
 
 		const auto& rectLight = world.GetComponent<RectLightComponent>(entity);
 		const Vector3 center = transform.worldMatrix.GetTranslationValue();
@@ -245,7 +245,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 			Quaternion::FromToY(direction), rectLight.color, 1.0f);
 	}
 	// スポットライト
-	if (world.HasComponent<SpotLightComponent>(entity)) {
+	if (world.HasComponent<SpotLightComponent>(entity) && world.GetComponent<SpotLightComponent>(entity).drawDebug) {
 
 		const auto& spotLight = world.GetComponent<SpotLightComponent>(entity);
 		const Vector3 direction =

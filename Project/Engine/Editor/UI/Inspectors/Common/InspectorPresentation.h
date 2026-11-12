@@ -17,7 +17,7 @@ namespace Engine {
 		Enabled, Visible, DisplayLayer, CameraLayer, ReceiverLayer, ParticleGroup,
 		SortLayer, DrawOrder, BlendMode, RenderQueue, PlayOnStart, PlayInEditMode,
 		EditorPreview, UnscaledTime, Loop, PlaybackSpeed, Restitution, Friction,
-		AllowTopple, AlphaThreshold, PlaybackMode, Duration, StartDelay, PlaybackState, AxisAngle, Once, PingPong
+		AllowTopple, AlphaThreshold, PlaybackMode, Duration, StartDelay, PlaybackState, AxisAngle, Once, PingPong, DrawDebug
 	};
 
 	enum class InspectorPlaybackAction { None, Play, Pause, Resume, Stop, Reset, EmitOnce, Clear };
@@ -40,6 +40,7 @@ namespace Engine {
 		int32_t* cameraLayer = nullptr;
 		uint32_t* receiverLayer = nullptr;
 		uint32_t* particleGroup = nullptr;
+		bool* drawDebug = nullptr;
 	};
 
 	// 表示名と内部識別子を分けて取得する
@@ -50,6 +51,8 @@ namespace Engine {
 		uint32_t& value, InspectorMaskDomain domain, const char* id = nullptr);
 	// 有効、表示、レイヤーの順で共通項目を描画する
 	ValueEditResult DrawInspectorCommonFields(const EditorPanelContext& context, const InspectorCommonFields& fields);
+	// コンポーネントの共通末尾項目を描画する
+	ValueEditResult DrawInspectorCommonFooter(const InspectorCommonFields& fields);
 	// 分類の表示名と順序を取得する
 	const char* GetInspectorCategoryLabel(std::string_view category);
 	int GetInspectorCategoryOrder(std::string_view category);

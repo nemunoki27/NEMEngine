@@ -131,10 +131,12 @@ namespace {
 		ImGuizmo::SetOrthographic(context.orthographic);
 		ImGuizmo::AllowAxisFlip(context.allowAxisFlip);
 
+		ImGuizmo::Enable(context.allowInteraction);
 		result.valueChanged = ImGuizmo::Manipulate(
 			view, projection, operation, ImGuizmo::LOCAL, matrix, nullptr, context.useSnap ? context.snapValues : nullptr);
-		result.isOver = ImGuizmo::IsOver();
-		result.isUsing = ImGuizmo::IsUsing();
+		result.isOver = context.allowInteraction && ImGuizmo::IsOver();
+		result.isUsing = context.allowInteraction && ImGuizmo::IsUsing();
+		ImGuizmo::Enable(true);
 
 		// 未変更ならTransformを維持する
 		if (!result.valueChanged) {

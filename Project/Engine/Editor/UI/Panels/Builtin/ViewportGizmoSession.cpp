@@ -109,6 +109,8 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 		gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
 		gizmoContext.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic;
 		gizmoContext.allowAxisFlip = !use2DTarget;
+		gizmoContext.allowInteraction =
+			(!context.editorState->sceneOrientationHovered && !context.editorState->sceneOrientationActive) || IsActive();
 
 		// 操作と次元に合わせてスナップ幅を渡す
 		const GridSnapAxis* snapAxis = nullptr;
@@ -228,6 +230,8 @@ void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(
 	gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
 	gizmoContext.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic;
 	gizmoContext.allowAxisFlip = !use2DTarget;
+	gizmoContext.allowInteraction =
+		(!context.editorState->sceneOrientationHovered && !context.editorState->sceneOrientationActive) || IsActive();
 
 	// 単体操作と同じスナップ幅を渡す
 	// 共通ピボットの差分を格子へ合わせる

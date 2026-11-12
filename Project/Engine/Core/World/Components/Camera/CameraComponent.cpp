@@ -16,6 +16,7 @@ namespace {
 		common.priority = in.value("priority", common.priority);
 		common.cullingMask = in.value("cullingMask", common.cullingMask);
 		common.enabled = in.value("enabled", common.enabled);
+		common.drawDebug = in.value("drawDebug", true);
 		common.isMain = in.value("isMain", common.isMain);
 		common.viewportX = in.value("viewportX", common.viewportX);
 		common.viewportY = in.value("viewportY", common.viewportY);
@@ -44,6 +45,7 @@ namespace {
 		out["priority"] = common.priority;
 		out["cullingMask"] = common.cullingMask;
 		out["enabled"] = common.enabled;
+		out["drawDebug"] = common.drawDebug;
 		out["isMain"] = common.isMain;
 		out["viewportX"] = common.viewportX;
 		out["viewportY"] = common.viewportY;

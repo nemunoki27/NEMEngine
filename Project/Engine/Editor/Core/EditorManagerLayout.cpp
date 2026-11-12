@@ -306,6 +306,10 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 
 	editorState_.sceneCameraNavigating = false;
 	auto stopNavigation = [&] { sceneViewCameraController_->CancelNavigation(); };
+	const auto& axisMin = editorState_.sceneOrientationMin;
+	const auto& axisMax = editorState_.sceneOrientationMax;
+	const bool overOrientation = axisMax.x > axisMin.x &&
+		ImGui::IsMouseHoveringRect(ImVec2(axisMin.x, axisMin.y), ImVec2(axisMax.x, axisMax.y), false);
 
 	// ビューが非表示なら更新しない
 	// カメラモードがマニュアルでないなら更新しない
@@ -313,6 +317,8 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	if (!layoutState_.showSceneView || !editorState_.sceneViewportVisible ||
 		editorState_.sceneViewCamera.mode != SceneViewCameraMode::DebugManual ||
 		(editorState_.useSceneGizmo && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::GetIO().KeyAlt) ||
+		(overOrientation && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !sceneViewCameraController_->IsNavigating()) ||
+		editorState_.sceneOrientationActive ||
 		ImGui::GetIO().WantTextInput || ImGui::GetDragDropPayload() ||
 		ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
 		stopNavigation();

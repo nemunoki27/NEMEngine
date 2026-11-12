@@ -112,6 +112,9 @@ namespace Engine {
 		void RequestDeleteEditorLayout(const std::string& layoutID) override;
 		void RequestImportEditorLayouts() override;
 
+		// 手動カメラに軸表示の操作を依頼する
+		void RequestSceneViewOrientation(const SceneViewCameraGizmoCommand& command) override;
+
 		// プレイ/ストップの切り替え要求
 		void RequestPlayToggle() override;
 		void RequestPlayResume() override;

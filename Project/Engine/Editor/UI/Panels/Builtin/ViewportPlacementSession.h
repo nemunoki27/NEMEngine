@@ -24,7 +24,7 @@ namespace Engine {
 
 		// Assetの配置プレビューと確定を処理する
 		void HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind, const ImVec2& imagePos,
-			uint32_t renderWidth, uint32_t renderHeight, bool imageHovered, const ImVec2& imageSize, bool scenePanel);
+			uint32_t renderWidth, uint32_t renderHeight, bool allowPlacement, const ImVec2& imageSize, bool scenePanel);
 		// 仮Entityを破棄して配置を終了する
 		void EndPreview();
 

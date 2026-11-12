@@ -51,7 +51,7 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(AudioListenerCom
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(PerspectiveCameraComponent& value) {
 
-	return { .enabled = &value.common.enabled, .cameraLayer = &value.common.cullingMask };
+	return { .enabled = &value.common.enabled, .cameraLayer = &value.common.cullingMask, .drawDebug = &value.common.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(OrthographicCameraComponent& value) {
@@ -176,22 +176,22 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(AnimationClipPla
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(DirectionalLightComponent& value) {
 
-	return { .enabled = &value.enabled };
+	return { .enabled = &value.enabled, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(PointLightComponent& value) {
 
-	return { .enabled = &value.enabled };
+	return { .enabled = &value.enabled, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(RectLightComponent& value) {
 
-	return { .enabled = &value.enabled };
+	return { .enabled = &value.enabled, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(SpotLightComponent& value) {
 
-	return { .enabled = &value.enabled };
+	return { .enabled = &value.enabled, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(ForceFieldComponent& value) {
