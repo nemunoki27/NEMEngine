@@ -21,7 +21,7 @@ const toolGuides = {
 	MaterialEditorTool: ['materials', 'ツール → レンダリング → マテリアル作成', '用途に合う既定を選び、保存先と名前を指定してMaterialを作成します。'],
 	ShaderGraphEditorTool: ['shader-graph', 'ツール → レンダリング → シェーダーグラフ', 'GraphのNodeを接続し、型と出力を確認してコンパイル・保存します。'],
 	TagManagerTool: ['project-settings', 'プロジェクト設定 → タグ・描画レイヤー', 'タグと描画Layerを定義します。削除や名前変更は参照先へ影響するため内容を確認して保存します。'],
-	PerformanceCheckTool: ['performance', 'ツール → デバッグ → パフォーマンスチェック', '描画条件を揃えて負荷を比較します。読込中と安定状態、表示Viewの数を区別します。'],
+	LogicPlacementTool: ['logic-placement', 'ツール → 配置 → ロジック配置', '円・N角形・直線・格子でオブジェクトやPrefabを配置します。内部の追加配置と向きを指定でき、配置全体をUndoできます。'],
 	ScriptExecutionOrderTool: ['scripting', 'プロジェクト設定 → スクリプト実行順', 'Script型ごとの実行順を指定し、保存します。値の小さい側と同値の扱いはゲームの依存を作りすぎないようにします。'],
 	ScriptProfilerTool: ['performance', 'ツール → スクリプト → スクリプトプロファイラー', 'Scriptコールバックと計測Scopeの時間を比較します。GPU Passの時間とは別です。'],
 	InputDeviceTool: ['input', 'プロジェクト設定 → 入力デバイス', 'Playerの操作機器と機器側の入力条件を設定します。Action名の定義と現在の入力値も合わせて確認します。'],

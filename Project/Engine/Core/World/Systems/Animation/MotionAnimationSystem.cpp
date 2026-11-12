@@ -33,7 +33,7 @@ namespace {
 		const Entity target = runtime.hasTargetOverride ? runtime.targetOverride : settings.target.Resolve(world, entity);
 		ResolvedWorldTransform pose;
 		if (world.IsPendingDestroy(target) || !TransformWorldUtility::ResolveWorldTransform(world, target, pose, true)) {
-			runtime.diagnostic = "移動・注視先のエンティティが見つかりません";
+			runtime.diagnostic = "移動・注視先のオブジェクトが見つかりません";
 			runtime.playing = false;
 			return false;
 		}
@@ -51,7 +51,7 @@ namespace {
 			const Entity source = runtime.hasSplineOverride ? runtime.splineOverride : record.settings.spline.Resolve(world, entity);
 			const auto* spline = TryGetSpline(world, source);
 			if (!spline || world.IsPendingDestroy(source) || !TransformWorldUtility::ResolveWorldTransform(world, source, pose, true)) {
-				runtime.diagnostic = "Splineを持つエンティティを設定してください";
+				runtime.diagnostic = "Splineを持つオブジェクトを設定してください";
 				runtime.playing = false;
 				return false;
 			}
@@ -252,7 +252,7 @@ void MotionAnimationSystem::UpdateMotion(ECSWorld& world, Entity entity, MotionA
 		(settings.applyRotation && settings.rotation == MotionAnimationRotation::LookAtTarget))) {
 		const Entity target = runtime.hasTargetOverride ? runtime.targetOverride : settings.target.Resolve(world, entity);
 		if (!world.TryGetComponentForBinding<TransformComponent>(target)) {
-			runtime.diagnostic = "移動・注視先のエンティティが見つかりません";
+			runtime.diagnostic = "移動・注視先のオブジェクトが見つかりません";
 			runtime.playing = false;
 			return;
 		}

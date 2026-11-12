@@ -25,6 +25,7 @@
 #include "GPUFilterTestFixture.h"
 #include "RectLightTests.h"
 #include "LightInfluenceTests.h"
+#include "LogicPlacementTests.h"
 #include "DecalTests.h"
 #include "ParticleSystemRuntimeTests.h"
 
@@ -59,6 +60,10 @@ using namespace NEMTests;
 
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
+
+	if (1 < argc && std::string_view(argv[1]) == "--logic-placement") {
+		return RunTest("TestLogicPlacement", TestLogicPlacement) ? 0 : 95;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-view") {
 		return RunTest("TestSceneViewCameraSettings", TestSceneViewCameraSettings) &&

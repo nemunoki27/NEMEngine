@@ -5,7 +5,7 @@
 //============================================================================
 void Engine::from_json(const nlohmann::json& in, NameComponent& component) {
 
-	component.name = in.value("name", "Entity");
+	component.name = in.value("name", "GameObject");
 }
 
 void Engine::to_json(nlohmann::json& out, const NameComponent& component) {

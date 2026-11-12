@@ -99,7 +99,7 @@ bool Engine::SceneAuthoring::TryParseIndexedName(const std::string& name, std::s
 
 std::string Engine::SceneAuthoring::MakeUniqueEntityName(ECSWorld& world, std::string_view desiredName, Entity exclude) {
 
-	const std::string base = desiredName.empty() ? "Entity" : std::string(desiredName);
+	const std::string base = desiredName.empty() ? "GameObject" : std::string(desiredName);
 
 	// 基底名の使用状況と既存の連番を集める
 	bool baseUsed = false;

@@ -184,7 +184,7 @@ void Engine::InspectorPrefabSession::Draw(const EditorPanelContext& context, ECS
 		const UUID localFileID = world.GetComponent<SceneObjectComponent>(addedRoot).localFileID;
 		const std::string key = "AE|" + ToString(localFileID);
 		const std::string name =
-			world.HasComponent<NameComponent>(addedRoot) ? world.GetComponent<NameComponent>(addedRoot).name : "Entity";
+			world.HasComponent<NameComponent>(addedRoot) ? world.GetComponent<NameComponent>(addedRoot).name : "GameObject";
 		const bool canApply = PrefabOverrideUtility::CanPromoteAddedEntitySubtree(world, addedRoot, link.prefabInstanceID);
 		ImGui::Text("+ %s  追加Entity", name.c_str());
 		drawChoice(key, canApply);
@@ -195,7 +195,7 @@ void Engine::InspectorPrefabSession::Draw(const EditorPanelContext& context, ECS
 	}
 	// 旧Sceneの削除差分は復元用に読み込みを維持する
 	for (size_t i = 0; i < data.removedEntities.size(); ++i) {
-		ImGui::TextDisabled("- 取り除かれた子エンティティ");
+		ImGui::TextDisabled("- 取り除かれた子オブジェクト");
 	}
 
 	// 適用ボタンで各差分の選択を反映する

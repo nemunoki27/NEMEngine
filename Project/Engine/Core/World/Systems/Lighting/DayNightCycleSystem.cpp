@@ -121,7 +121,7 @@ void Engine::DayNightCycleSystem::Update(ECSWorld& world, SystemContext& context
 		const auto time = ResolveLocalTime(world, owner, component.timeSource, TimeChannel::DayNightCycle,
 			context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime, context.unscaledDeltaTime);
 		UpdateDayNightClock(component, time.valid ? time.deltaTime : 0.0, advance);
-		if (!time.valid) component.runtimeDiagnostic = "時間源のエンティティまたはTimeScaleが見つかりません";
+		if (!time.valid) component.runtimeDiagnostic = "時間源のオブジェクトまたはTimeScaleが見つかりません";
 		if (!component.runtimeDiagnostic.empty()) return;
 		const Entity sun = component.sunEntity.localFileID ? component.sunEntity.Resolve(world, owner) : owner;
 		const Entity moon = component.moonEntity.Resolve(world, owner);

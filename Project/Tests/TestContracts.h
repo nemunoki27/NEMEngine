@@ -88,9 +88,6 @@ namespace NEMTests {
 	bool TestSceneViewCameraNavigation();
 	bool TestRenderFeatureProfile();
 	bool TestRenderPassesSelectionRequests();
-	bool TestPerformanceGridCaptureRetry();
-	bool TestPerformanceGridUpdateRollback();
-	bool TestPerformanceGridWorldEnd();
 	bool TestEditorTransactionRollback();
 	bool TestRenderPassesReflectionCache();
 	bool TestPostProcessSourceExtension();

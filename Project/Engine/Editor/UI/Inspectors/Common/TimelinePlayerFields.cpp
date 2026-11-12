@@ -85,7 +85,7 @@ ValueEditResult Engine::DrawTimelineBindingField(const char* label, ECSWorld& wo
 		return HasTimelineBindingComponent(source, target, {}) && std::all_of(required.begin(), required.end(),
 			[&](const auto& component) { return HasTimelineBindingComponent(source, target, component); });
 	};
-	setting.rejectReason = "トラックに必要なコンポーネントを持つエンティティを設定してください";
+	setting.rejectReason = "トラックに必要なコンポーネントを持つオブジェクトを設定してください";
 	const auto edit = SceneEntityReferenceFields::Draw(label, world, owner,
 		candidate.target, setting, &candidate.runtimeTargetID);
 	if (edit.valueChanged) {

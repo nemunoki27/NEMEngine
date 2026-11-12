@@ -14,7 +14,7 @@ Engine::ValueEditResult Engine::DrawLightInfluenceFields(const EditorPanelContex
 	ImGui::Separator();
 	result.Merge(InspectorDrawerCommon::DrawLayerMaskField(context, "影の除外レイヤー", settings.shadowExcludedLayerMask));
 	ImGui::Separator();
-	MyGUI::Text("影の除外エンティティ");
+	MyGUI::Text("影の除外オブジェクト");
 	ImGui::Indent();
 	for (size_t index = 0; index < settings.shadowExclusions.size();) {
 

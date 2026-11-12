@@ -178,6 +178,9 @@ namespace Engine {
 		const std::string assetPath = Engine::Algorithm::ToLower(payload.assetPath);
 		const std::filesystem::path path = Engine::Algorithm::PathFromUTF8(assetPath);
 		const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(path.extension()));
+		if (Engine::Algorithm::EndsWith(assetPath, ".prefab.json") || extension == ".prefab") {
+			return AssetType::Prefab;
+		}
 		if (Engine::Algorithm::EndsWith(assetPath, ".animclip.json") || extension == ".animclip") {
 			return AssetType::AnimationClip;
 		}
@@ -185,6 +188,19 @@ namespace Engine {
 			return AssetType::Timeline;
 		}
 		return AssetType::Unknown;
+	}
+
+	AssetType ResolveDroppedAssetType(const EditorAssetDragDropPayload& payload, const AssetDatabase* assetDatabase) {
+
+		if (payload.assetType != AssetType::Unknown) {
+			return payload.assetType;
+		}
+		if (assetDatabase) {
+			if (const AssetMeta* meta = assetDatabase->Find(payload.assetID); meta && meta->type != AssetType::Unknown) {
+				return meta->type;
+			}
+		}
+		return GuessDroppedAssetType(payload);
 	}
 
 	bool IsAcceptedAssetType(AssetType type, const std::initializer_list<AssetType>& acceptedTypes) {

@@ -73,7 +73,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 		ImGui::TableSetupColumn("時刻", ImGuiTableColumnFlags_WidthFixed, 70.0f);
 		ImGui::TableSetupColumn("呼び出し", ImGuiTableColumnFlags_WidthFixed, 90.0f);
 		ImGui::TableSetupColumn("型", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-		ImGui::TableSetupColumn("エンティティ", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+		ImGui::TableSetupColumn("オブジェクト", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 		ImGui::TableSetupColumn("例外", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableHeadersRow();
 
@@ -108,7 +108,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			const Entity owner = world ? exc.ResolveOwner(*world) : Entity::Null();
 			const bool ownerAlive = owner.IsValid();
 			const std::string entityLabel =
-				exc.entityIndex == UINT32_MAX ? "所有Entityなし"
+				exc.entityIndex == UINT32_MAX ? "所有オブジェクトなし"
 				: exc.entityName.empty() ? ("#" + std::to_string(exc.entityIndex) + ":" + std::to_string(exc.entityGeneration))
 										 : exc.entityName;
 			ImGui::BeginDisabled(!ownerAlive || !editorState);
@@ -120,7 +120,7 @@ void Engine::ScriptExceptionListTool::DrawWindow(const EditorToolContext& contex
 			ImGui::EndDisabled();
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("%s",
-					ownerAlive ? "クリックで該当 entity を選択" : "所有Entityがないか、報告元Worldは現在のWorldと異なります");
+					ownerAlive ? "クリックで該当オブジェクト を選択" : "所有オブジェクトがないか、報告元Worldは現在のWorldと異なります");
 			}
 
 			ImGui::TableSetColumnIndex(4);

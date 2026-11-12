@@ -12,12 +12,12 @@
 namespace Engine::SceneAuthoring {
 
 	// 新しいゲームオブジェクトを作成する
-	Entity CreateGameObject(ECSWorld& world, std::string_view name = "Entity");
+	Entity CreateGameObject(ECSWorld& world, std::string_view name = "GameObject");
 	// 追加コンポーネントを含む最終アーキタイプへゲームオブジェクトを作成する
 	Entity CreateGameObject(
 		ECSWorld& world, std::string_view name, std::span<const uint32_t> additionalTypeIDs, UUID stableUUID = UUID{});
 	// ゲームオブジェクトのデフォルトコンポーネントを追加する
-	void EnsureGameObjectDefaults(ECSWorld& world, Entity entity, std::string_view defaultName = "Entity");
+	void EnsureGameObjectDefaults(ECSWorld& world, Entity entity, std::string_view defaultName = "GameObject");
 
 	// 名前の末尾から連番を解析する
 	bool TryParseIndexedName(const std::string& name, std::string& outBase, uint32_t& outIndex);

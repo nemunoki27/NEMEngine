@@ -182,7 +182,7 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 		ECSWorld* world = context.GetWorld();
 		UUID nextTargetUUID = session_.GetTargetEntityUUID();
 
-		MyGUI::BeginPropertyRow("対象エンティティのセット");
+		MyGUI::BeginPropertyRow("対象オブジェクトのセット");
 
 		const float clearButtonWidth = 96.0f;
 		const float entityFieldWidth =

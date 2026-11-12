@@ -1,0 +1,261 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "afe74e10a33b5e34af497a027508f376",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "6cce61cdfda392e5",
+                                    "name": "normalTexture",
+                                    "semantic": "NormalTexture",
+                                    "value": "c5815856a8ef6059bf2c09bc6c4ed80d"
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.800000011920929,
+                                        "g": 0.800000011920929,
+                                        "r": 0.800000011920929
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "horse_statue_01",
+                            "sourcePivot": {
+                                "x": -0.00406850129365921,
+                                "y": 0.11550600081682205,
+                                "z": -0.00040999986231327057
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "3e0e6a56492748b4",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "6cce61cdfda392e5",
+                                    "name": "normalTexture",
+                                    "semantic": "NormalTexture",
+                                    "value": "c5815856a8ef6059bf2c09bc6c4ed80d"
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "b95dd73fc0bc76df28168b319c0ff17a"
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "horse_statue_01_base",
+                            "sourcePivot": {
+                                "x": 2.9500573873519897e-05,
+                                "y": 0.005758999846875668,
+                                "z": 1.449882984161377e-05
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "c4822a948c03961e",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Horse"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "c0ecd675058bacf1",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 13.337252616882324,
+                        "y": 30.57000732421875,
+                        "z": 30.57000732421875
+                    }
+                }
+            },
+            "LocalFileID": "c0ecd675058bacf1"
+        }
+    ],
+    "Header": {
+        "name": "Horse",
+        "rootLocalFileID": "c0ecd675058bacf1",
+        "version": 2
+    },
+    "NestedPrefabInstances": [],
+    "SchemaVersion": 2
+}

@@ -13,7 +13,7 @@
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Input/InputDeviceTool.h>
-#include <Engine/Editor/Tools/Builtin/Performance/PerformanceCheckTool.h>
+#include <Engine/Editor/Tools/Builtin/Placement/LogicPlacementTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
@@ -59,7 +59,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
-	RegisterBuiltinEditorTool<PerformanceCheckTool>();
+	RegisterBuiltinEditorTool<LogicPlacementTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
 	RegisterBuiltinEditorTool<ScriptProfilerTool>();
 	RegisterBuiltinEditorTool<InputDeviceTool>();

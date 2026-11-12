@@ -126,7 +126,7 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 		}
 
 		// JSONに含まれるコンポーネントを含む最終アーキタイプへ直接作成
-		Entity entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs);
+		Entity entity = SceneAuthoring::CreateGameObject(world, "GameObject", componentTypeIDs);
 
 		// 作成されたエンティティを出力する
 		if (outCreatedEntities) {

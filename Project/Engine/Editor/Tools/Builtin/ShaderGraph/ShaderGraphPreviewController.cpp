@@ -25,7 +25,7 @@ void Engine::ShaderGraphPreviewController::DrawSettings(const EditorToolContext&
 	ECSWorld* world = context.GetWorld();
 	UUID nextEntity = scenePreview_.GetTargetEntityUUID();
 	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphMaterialPreview");
-	MyGUI::BeginPropertyRow("プレビューエンティティ");
+	MyGUI::BeginPropertyRow("プレビューオブジェクト");
 	const float clearButtonWidth = 72.0f;
 	const float fieldWidth =
 		(std::max)(ImGui::GetContentRegionAvail().x - clearButtonWidth - ImGui::GetStyle().ItemSpacing.x, 1.0f);

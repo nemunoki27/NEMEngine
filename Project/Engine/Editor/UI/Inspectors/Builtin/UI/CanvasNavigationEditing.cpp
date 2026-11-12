@@ -63,7 +63,7 @@ namespace {
 			return "Missing Entity";
 		}
 		const auto* name = world.TryGetComponent<Engine::NameComponent>(entity);
-		return name ? name->name : "Entity";
+		return name ? name->name : "GameObject";
 	}
 
 	Engine::ValueEditResult DrawNavigationCell(Engine::ECSWorld& world, Engine::Entity canvas,

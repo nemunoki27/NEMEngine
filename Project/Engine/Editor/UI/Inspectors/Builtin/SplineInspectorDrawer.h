@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Transform/SplineComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
+#include <Engine/Core/Foundation/Geometry/LogicPlacement.h>
 
 namespace Engine {
 
@@ -15,10 +16,13 @@ namespace Engine {
 	private:
 
 		SplineData data_;
+		LogicPlacementSettings placement_;
+		std::shared_ptr<const LogicPlacementResult> placementPreview_;
+		bool placementOpen_ = false;
 
 		// 制御点の編集値をチャンク外から取得する
 		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity, const SplineComponent& component) override;
-		// 制御点と接線を編集する
+		// 制御点とロジック配置を編集する
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& active) override;
 		// Undo用の保存値を組み立てる
 		void SerializeDraft(ECSWorld& world, const Entity& entity, const SplineComponent& component, nlohmann::json& out) const override;

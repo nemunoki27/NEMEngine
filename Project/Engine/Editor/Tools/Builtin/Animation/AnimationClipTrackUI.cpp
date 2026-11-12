@@ -52,7 +52,7 @@ void Engine::AnimationClipEditorUI::DrawPropertyTreeUI(AnimationClipEditSession&
 	// 追加プロパティ選択のポップアップ
 	if (ImGui::BeginPopup("AnimationClipAddProperty")) {
 		if (!world || !world->IsAlive(targetEntity)) {
-			ImGui::TextDisabled("アニメ対象のエンティティが設定されていません");
+			ImGui::TextDisabled("アニメ対象のオブジェクトが設定されていません");
 		} else {
 			// Material Parameterを含めて追加候補を集める
 			AnimationPropertyQueryContext queryContext{};
@@ -155,7 +155,7 @@ void Engine::AnimationClipEditorUI::DrawPropertyTreeUI(AnimationClipEditSession&
 		if (missing) {
 			ImGui::PopStyleColor();
 			if (ImGui::BeginItemTooltip()) {
-				ImGui::TextUnformatted("対象エンティティにこのプロパティがありません");
+				ImGui::TextUnformatted("対象オブジェクトにこのプロパティがありません");
 				ImGui::EndTooltip();
 			}
 		}

@@ -228,7 +228,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 		if (auto stableIt = stableUUIDLookup.find(prefabLocalFileID); stableIt != stableUUIDLookup.end()) {
 			stableUUID = stableIt->second;
 		}
-		const Entity entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs, stableUUID);
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "GameObject", componentTypeIDs, stableUUID);
 		// 復元時は保存済みのシーンローカルIDを使い、無ければ新規採番する
 		UUID newSceneLocalFileID{};
 		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {

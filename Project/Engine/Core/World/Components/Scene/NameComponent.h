@@ -13,7 +13,7 @@ namespace Engine {
 	// 名前
 	struct NameComponent {
 
-		std::string name = "Entity";
+		std::string name = "GameObject";
 	};
 
 	// json変換

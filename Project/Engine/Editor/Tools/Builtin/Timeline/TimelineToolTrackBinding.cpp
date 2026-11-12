@@ -27,7 +27,7 @@ void TimelineTool::DrawTrackBinding(const EditorToolContext& context, TimelineTr
 		return shared ? HasTimelineBindingComponent(source, entity, TimelineEditorFields::RequiredComponent(track.kind)) :
 			IsTimelineBindingTargetAllowed(source, session_.GetAsset(), track.binding, entity);
 	};
-	setting.rejectReason = "トラックに必要なコンポーネントを持つエンティティを設定してください";
+	setting.rejectReason = "トラックに必要なコンポーネントを持つオブジェクトを設定してください";
 	ImGui::SetCursorScreenPos(origin);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2.0f, 0.0f));
 	ImGui::BeginDisabled(track.locked || !world || !world->IsAlive(session_.GetOwner(context)));

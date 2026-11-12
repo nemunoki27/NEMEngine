@@ -7,12 +7,15 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Editor/Core/EditorState.h>
 
 // c++
 #include <algorithm>
 #include <format>
 
 namespace Engine {
+
+
 	namespace {
 
 		// AssetTypeごとに受け付ける主な拡張子を返す
@@ -87,16 +90,16 @@ namespace Engine {
 
 		// エンティティ参照のラベルテキストを構築する
 		std::string BuildEntityReferenceLabel(UUID entityUUID, ECSWorld* world) {
-			if (!entityUUID) { return "エンティティをドロップ"; }
+			if (!entityUUID) { return "オブジェクトをドロップ"; }
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
-			if (!world->IsAlive(entity)) { return std::format("エンティティが見つかりません | UUID: {}", Engine::ToString(entityUUID)); }
+			if (!world->IsAlive(entity)) { return std::format("オブジェクトが見つかりません | UUID: {}", Engine::ToString(entityUUID)); }
 
 			if (NameComponent* name = world->TryGetComponent<NameComponent>(entity)) {
 				return std::format("名前: {}", name->name);
 			}
-			return std::format("エンティティ（{}）", Engine::ToString(entityUUID));
+			return std::format("オブジェクト（{}）", Engine::ToString(entityUUID));
 		}
 
 		// エンティティ参照のツールチップテキストを構築する
@@ -105,7 +108,7 @@ namespace Engine {
 			if (!world) { return std::format("UUID: {}", Engine::ToString(entityUUID)); }
 
 			const Entity entity = world->FindByUUID(entityUUID);
-			if (!world->IsAlive(entity)) { return std::format("エンティティが見つかりません\nUUID: {}", Engine::ToString(entityUUID)); }
+			if (!world->IsAlive(entity)) { return std::format("オブジェクトが見つかりません\nUUID: {}", Engine::ToString(entityUUID)); }
 
 			if (NameComponent* name = world->TryGetComponent<NameComponent>(entity)) {
 				return std::format("名前: {}\nUUID: {}", name->name, Engine::ToString(entityUUID));
@@ -174,11 +177,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 				EditorAssetDragDropPayload assetPayload{};
 				if (TryReadAssetPayload(payload, assetPayload)) {
 					// ドロップされたアセットの型を解決しメタデータがなければ推測
-					AssetType assetType = assetPayload.assetType;
-					if (assetType == AssetType::Unknown && assetDatabase) {
-						if (const AssetMeta* meta = assetDatabase->Find(assetPayload.assetID)) { assetType = meta->type; }
-					}
-					if (assetType == AssetType::Unknown) { assetType = GuessDroppedAssetType(assetPayload); }
+					const AssetType assetType = ResolveDroppedAssetType(assetPayload, assetDatabase);
 
 					// 許可された型であれば値を更新
 					if (IsAcceptedAssetType(assetType, acceptedTypes)) {
@@ -252,4 +251,74 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 	ImGui::PopID();
 	if (setting.useAutoPropertyRow) EndPropertyRow();
 	return result;
+}
+
+namespace Engine {
+	ValueEditResult MyGUI::ObjectOrPrefabReferenceField(const char* label, UUID& object, AssetID& prefab,
+		ECSWorld* world, const AssetDatabase* database, const EntityEditSetting& setting) {
+
+		ValueEditResult result;
+		if (!BeginPropertyRow(label, setting.propertyRow)) return result;
+		ImGui::PushID(label);
+		const std::string display = object ? BuildEntityReferenceLabel(object, world) : prefab ?
+			BuildAssetReferenceLabel(prefab, database, {AssetType::Prefab}) : "オブジェクトまたはPrefabをドロップ";
+		if (ImGui::Button((display + "###Source").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+			ImGui::OpenPopup("Candidates");
+		result.anyItemActive = ImGui::IsItemActive();
+		const auto select = [&](UUID candidate, AssetID asset) {
+			if (object != candidate || prefab != asset) {
+				object = candidate;
+				prefab = asset;
+				result.valueChanged = result.editFinished = true;
+			}
+		};
+		if ((object || prefab) && ImGui::BeginPopupContextItem("SourceMenu")) {
+			if (ImGui::MenuItem("削除")) select({}, {});
+			ImGui::EndPopup();
+		}
+		if (ImGui::BeginDragDropTarget()) {
+			const auto* payload = ImGui::GetDragDropPayload();
+			UUID candidate;
+			EditorAssetDragDropPayload asset;
+			if (payload && payload->IsDataType(IEditorPanel::kHierarchyDragDropPayloadType) && world &&
+				TryReadEntityPayload(payload, candidate) && world->IsAlive(world->FindByUUID(candidate))) {
+				if (!setting.acceptEntity || setting.acceptEntity(*world, world->FindByUUID(candidate))) {
+					if (const auto* delivered = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType);
+						delivered && delivered->IsDelivery()) select(candidate, {});
+				} else if (setting.rejectReason) ImGui::SetTooltip("%s", setting.rejectReason);
+			} else if (payload && payload->IsDataType(IEditorPanel::kProjectAssetDragDropPayloadType) &&
+				TryReadAssetPayload(payload, asset) && !asset.isDirectory && asset.assetID &&
+				ResolveDroppedAssetType(asset, database) == AssetType::Prefab) {
+				if (const auto* delivered = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType);
+					delivered && delivered->IsDelivery()) select({}, asset.assetID);
+			}
+			ImGui::EndDragDropTarget();
+		}
+		if (ImGui::BeginPopup("Candidates")) {
+			if (ImGui::BeginMenu("オブジェクト")) {
+				if (world) world->ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent&) {
+					if (setting.acceptEntity && !setting.acceptEntity(*world, entity)) return;
+					ImGui::PushID(static_cast<int>(entity.index));
+					if (ImGui::Selectable(GetEntityDisplayName(*world, entity).c_str(), object == world->GetUUID(entity)))
+						select(world->GetUUID(entity), {});
+					ImGui::PopID();
+				});
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Prefab")) {
+				if (database) for (const auto& [id, meta] : database->GetAssets()) {
+					if (meta.type != AssetType::Prefab) continue;
+					ImGui::PushID(ToString(id).c_str());
+					if (ImGui::Selectable(meta.assetPath.c_str(), prefab == id)) select({}, id);
+					ImGui::PopID();
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+		EndPropertyRow();
+		return result;
+	}
+
 }

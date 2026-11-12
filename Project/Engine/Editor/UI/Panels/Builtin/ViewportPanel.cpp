@@ -2,6 +2,7 @@
 #include <Engine/Editor/UI/ImGui/ImGuiDisplayOutput.h>
 #include "ViewportDecalGizmo.h"
 #include "ViewportMotionGizmo.h"
+#include <Engine/Editor/Utility/LogicPlacementPreview.h>
 
 //============================================================================
 //	include
@@ -280,6 +281,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		bool blockDragByGizmo = false;
 		if (kind_ == ViewportPanelKind::Scene) {
 
+			DrawLogicPlacementPreview(context, imagePos, viewSize_);
 			ViewportDecalGizmo::Draw(context, imagePos, viewSize_);
 			ViewportMotionGizmo::Draw(context, imagePos, viewSize_);
 			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);

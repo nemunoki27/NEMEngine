@@ -166,7 +166,7 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 	}
 
 	// 表示名はNameComponentの文字列を直接参照して行ごとの確保を避ける
-	const char* displayName = "Entity";
+	const char* displayName = "GameObject";
 	if (const NameComponent* name = world.TryGetComponent<NameComponent>(entity); name && !name->name.empty()) {
 		displayName = name->name.c_str();
 	}

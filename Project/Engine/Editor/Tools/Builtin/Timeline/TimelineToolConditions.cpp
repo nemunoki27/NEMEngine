@@ -71,7 +71,7 @@ void TimelineTool::DrawBindings(const EditorToolContext& context) {
 	if (world && world->IsAlive(session_.GetOwner(context))) {
 		DrawTimelineBindingFields(*world, session_.GetOwner(context), session_.GetPreviewSettings(), session_.GetAsset());
 		ImGui::Separator();
-	} else MyGUI::Text("対象", "再生対象を設定するとエンティティを割り当てできます");
+	} else MyGUI::Text("対象", "再生対象を設定するとオブジェクトを割り当てできます");
 	ImGui::Indent();
 	auto& asset = session_.GetAsset();
 	for (size_t i = 0; i < asset.bindings.size(); ++i) {

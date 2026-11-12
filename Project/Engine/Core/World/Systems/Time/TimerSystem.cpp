@@ -15,6 +15,6 @@ void Engine::TimerSystem::Update(ECSWorld& world, SystemContext& context) {
 		const auto time = ResolveLocalTime(world, owner, component.timeSource, TimeChannel::Timer,
 			scaled, context.unscaledDeltaTime);
 		UpdateTimer(component, time.valid ? time.deltaTime : 0.0);
-		if (!time.valid) component.runtimeDiagnostic = "時間源のエンティティまたはTimeScaleが見つかりません";
+		if (!time.valid) component.runtimeDiagnostic = "時間源のオブジェクトまたはTimeScaleが見つかりません";
 	});
 }

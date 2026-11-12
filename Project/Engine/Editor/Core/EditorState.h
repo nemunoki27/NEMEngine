@@ -10,8 +10,10 @@
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include "EditorViewportSizing.h"
 #include <Engine/Editor/UI/Inspectors/Core/EditorInspectionTarget.h>
+#include <Engine/Editor/Utility/LogicPlacementPreview.h>
 
 // c++
+#include <array>
 #include <vector>
 #include <optional>
 #include <string>
@@ -126,6 +128,9 @@ namespace Engine {
 
 	// エディタの状態を管理する構造体
 	struct EditorState {
+
+		// ツールとSplineの配置候補
+		std::array<LogicPlacementPreview, 2> logicPlacementPreviews;
 
 		// 現在選択しているエンティティ、複数選択時はアクティブな1件
 		Entity selectedEntity = Entity::Null();

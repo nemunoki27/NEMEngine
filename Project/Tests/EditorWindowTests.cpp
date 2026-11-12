@@ -240,7 +240,7 @@ bool NEMTests::TestEditorWindows() {
 		"SceneView", "GameView", "Hierarchy", "Inspector", "Project", "Console", "Toolbar",
 		"engine.sceneViewCamera", "engine.collision_manager", "engine.animation_clip", "engine.render_features",
 		"engine.material_editor", "engine.shader_graph", "engine.tag_manager",
-		"engine.performance_check", "engine.script_execution_order", "engine.script_profiler", "engine.input_device",
+		"engine.logic_placement", "engine.script_execution_order", "engine.script_profiler", "engine.input_device",
 		"engine.script_build_diagnostics", "engine.script_exception_list",
 	};
 	FrameStyle frameStyle;

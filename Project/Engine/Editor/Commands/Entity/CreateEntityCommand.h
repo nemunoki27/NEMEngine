@@ -55,7 +55,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{},
+		explicit CreateEntityCommand(const std::string& name = "GameObject", UUID parentStableUUID = UUID{},
 			EntityCreationPreset preset = EntityCreationPreset::Empty,
 			Dimension dimension = Dimension::Type3D);
 		~CreateEntityCommand() = default;

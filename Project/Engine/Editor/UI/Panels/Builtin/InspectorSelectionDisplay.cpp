@@ -48,14 +48,14 @@ void Engine::InspectorSelectionDisplay::DrawSelectedSubMeshHeader(
 
 	// エンティティ名とサブメッシュ名を決定
 	std::string entityName =
-		world.HasComponent<NameComponent>(entity) ? world.GetComponent<NameComponent>(entity).name : "Entity";
+		world.HasComponent<NameComponent>(entity) ? world.GetComponent<NameComponent>(entity).name : "GameObject";
 	std::string subMeshName = subMesh.name.empty() ? ("SubMesh_" + std::to_string(subMesh.sourceSubMeshIndex)) : subMesh.name;
 
 	ImGui::TextDisabled("選択対象: サブメッシュ");
-	ImGui::Text("所有Entity: %s", entityName.c_str());
+	ImGui::Text("所有オブジェクト: %s", entityName.c_str());
 	ImGui::Text("サブメッシュ: [%u] %s", subMeshIndex, subMeshName.c_str());
 
-	if (ImGui::Button("Entityへ戻る")) {
+	if (ImGui::Button("所有オブジェクトへ戻る", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
 		context.editorState->SelectEntity(entity);
 	}

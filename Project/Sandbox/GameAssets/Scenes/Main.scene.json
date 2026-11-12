@@ -476,8 +476,8 @@
                     "dimension": 1,
                     "localPos": {
                         "x": -1.6572755575180054,
-                        "y": 4.714283466339111,
-                        "z": 13.033175468444824
+                        "y": 5.124239444732666,
+                        "z": 16.197986602783203
                     },
                     "localRotation": {
                         "w": 8.606131274291329e-08,
@@ -533,7 +533,7 @@
                             "fail": "KEEP",
                             "pass": "KEEP"
                         },
-                        "inheritMaterial": false,
+                        "inheritMaterial": true,
                         "separateBackFace": false,
                         "stencilEnabled": false,
                         "stencilReadMask": 255,

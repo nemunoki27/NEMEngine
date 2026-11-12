@@ -126,7 +126,7 @@ void Engine::HierarchyDropTargets::DrawRootDropTarget(const EditorPanelContext& 
 
 	ImGui::Spacing();
 	ImGui::Separator();
-	ImGui::TextDisabled("エンティティをルートに戻す");
+	ImGui::TextDisabled("オブジェクトをルートに戻す");
 	ImGui::InvisibleButton("HierarchyRootDropTarget", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
 
 	// 編集可能なPanelだけでドロップを受け付ける

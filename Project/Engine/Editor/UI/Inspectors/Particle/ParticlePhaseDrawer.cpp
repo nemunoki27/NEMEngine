@@ -114,7 +114,7 @@ bool ParticlePhaseDrawer::DrawPhaseParentSection(ParticleSystemSettings& group, 
 		return false;
 	}
 
-	changed |= MyGUI::Checkbox("所有エンティティへ追従", settings.useEmitter);
+	changed |= MyGUI::Checkbox("所有オブジェクトへ追従", settings.useEmitter);
 	changed |= MyGUI::Checkbox("親の回転を無視", settings.ignoreParentRotation);
 	changed |= MyGUI::Checkbox("親のスケールを無視", settings.ignoreParentScale);
 

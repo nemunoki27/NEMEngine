@@ -13,7 +13,7 @@
             "adaptiveResolution": false,
             "adjustmentIntervalFrames": 30,
             "anchor": "AfterTransparent",
-            "enabled": true,
+            "enabled": false,
             "gpuBudgetMs": 2.0,
             "id": "8a4c02174194c718",
             "material": "",

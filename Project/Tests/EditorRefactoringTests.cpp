@@ -482,7 +482,7 @@ bool TestEditorContracts() {
 		!TestSceneComponentOverlayCollection() || !TestSplitViewPicking() || !TestToolRegistryReentry() ||
 		!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
-		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestPerformanceGridCommandHistory() ||
+		!NEMTests::TestLogicalSelectionRoots() ||
 		!NEMTests::TestActiveSelectionCommandHistory() ||
 		!NEMTests::TestEntityPreviewOwnership() ||
 		!NEMTests::TestTransformPreviewOwnership() ||

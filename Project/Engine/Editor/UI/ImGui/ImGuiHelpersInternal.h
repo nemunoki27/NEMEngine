@@ -58,6 +58,8 @@ namespace Engine {
 	std::string MakeAssetDisplayNameFromPath(const std::string& assetPath);
 	ImTextureID ResolveTextureAssetPreview(GraphicsCore* graphicsCore, const AssetDatabase* assetDatabase, AssetID assetID);
 	AssetType GuessDroppedAssetType(const EditorAssetDragDropPayload& payload);
+	// ドラッグ情報と登録済みの型を優先して判定する
+	AssetType ResolveDroppedAssetType(const EditorAssetDragDropPayload& payload, const AssetDatabase* assetDatabase);
 	bool IsAcceptedAssetType(AssetType type, const std::initializer_list<AssetType>& acceptedTypes);
 	bool TryReadAssetPayload(const ImGuiPayload* payload, EditorAssetDragDropPayload& outPayload);
 	bool TryReadEntityPayload(const ImGuiPayload* payload, UUID& outUUID);

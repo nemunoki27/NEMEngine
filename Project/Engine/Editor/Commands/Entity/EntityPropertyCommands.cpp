@@ -66,7 +66,7 @@ bool Engine::RenameEntityCommand::Execute(EditorCommandContext& context) {
 		if (world->HasComponent<NameComponent>(initialTarget_)) {
 			oldName_ = world->GetComponent<NameComponent>(initialTarget_).name;
 		} else {
-			oldName_ = "Entity";
+			oldName_ = "GameObject";
 		}
 		if (oldName_ == newName_) {
 			return false;

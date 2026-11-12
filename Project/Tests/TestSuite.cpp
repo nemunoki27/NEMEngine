@@ -12,6 +12,7 @@
 #include "DisplayOutputTests.h"
 #include "RectLightTests.h"
 #include "LightInfluenceTests.h"
+#include "LogicPlacementTests.h"
 #include "DecalTests.h"
 
 //============================================================================
@@ -37,6 +38,8 @@ using namespace NEMTests;
 
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
+
+	if (!RunTest("TestLogicPlacement", TestLogicPlacement)) return 95;
 
 	if (!RunTest("TestTimeline", TestTimeline) || !RunTest("TestTimelineBuiltins", TestTimelineBuiltins) ||
 		!RunTest("TestTimelineCollisionGates", TestTimelineCollisionGates)) return 90;
@@ -260,9 +263,6 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestSceneViewCameraNavigation", TestSceneViewCameraNavigation) ||
 		!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
 		!RunTest("TestRenderPassesSelectionRequests", TestRenderPassesSelectionRequests) ||
-		!RunTest("TestPerformanceGridCaptureRetry", TestPerformanceGridCaptureRetry) ||
-		!RunTest("TestPerformanceGridUpdateRollback", TestPerformanceGridUpdateRollback) ||
-		!RunTest("TestPerformanceGridWorldEnd", TestPerformanceGridWorldEnd) ||
 		!RunTest("TestEditorTransactionRollback", TestEditorTransactionRollback) ||
 		!RunTest("TestRenderPassesReflectionCache", TestRenderPassesReflectionCache) ||
 		!RunTest("TestBloomSettings", TestBloomSettings) ||

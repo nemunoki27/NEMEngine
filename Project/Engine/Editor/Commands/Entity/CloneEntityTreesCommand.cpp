@@ -108,7 +108,7 @@ bool Engine::CloneEntityTreesCommand::Execute(EditorCommandContext& context) {
 				}
 				// 直前に作った階層も含めて名前の重複を避ける
 				const auto name = saved.components.find("Name");
-				const std::string originalName = name == saved.components.end() ? "Entity" : name->value("name", "Entity");
+				const std::string originalName = name == saved.components.end() ? "GameObject" : name->value("name", "GameObject");
 				saved.components["Name"]["name"] = EditorEntityDuplicateUtility::MakeUniqueDuplicatedName(world, originalName);
 				break;
 			}

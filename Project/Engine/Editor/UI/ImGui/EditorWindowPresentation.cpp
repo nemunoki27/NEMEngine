@@ -33,7 +33,7 @@ namespace {
 		{ "engine.material_editor", "\xef\x94\xbf" },
 		{ "engine.shader_graph", "\xef\x95\x82" },
 		{ "engine.tag_manager", "\xef\x80\xac" },
-		{ "engine.performance_check", "\xef\x88\x81" },
+		{ "engine.logic_placement", "\xef\x86\xb3" },
 		{ "engine.script_execution_order", "\xef\x83\x8b" },
 		{ "engine.script_profiler", "\xef\x8b\x9b" },
 		{ "engine.input_device", "\xef\x84\x9c" },

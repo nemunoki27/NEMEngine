@@ -39,9 +39,8 @@ namespace Engine {
 		inline constexpr const char* kInspectorModelPreviewCamera = "Editor/InspectorModelPreviewCamera.json";
 		// プロジェクトパネルの表示状態
 		inline constexpr const char* kProjectPanel = "Editor/ProjectPanel.json";
-		// パフォーマンスチェックツールの設定
-		inline constexpr const char* kPerformanceCheckTool =
-			"Editor/performanceCheckTool.exeConfig.json";
+		// ロジック配置ツールの設定
+		inline constexpr const char* kLogicPlacementTool = "Editor/LogicPlacement.json";
 		// シェーダーグラフの外観設定
 		inline constexpr const char* kShaderGraphAppearance =
 			"Editor/ShaderGraphAppearance.json";

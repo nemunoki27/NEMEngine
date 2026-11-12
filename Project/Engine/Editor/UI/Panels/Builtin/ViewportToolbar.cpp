@@ -72,16 +72,16 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 	add(ToolAction::Scale, icons_.scaleKey, "拡縮編集 S", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Scale, 0);
 	add(ToolAction::Pick, icons_.enablePickKey, "シーンオブジェクト選択の有効・無効", state.enableScenePick, 1);
 	add(ToolAction::Selection, state.selectKind == EditorSelectionKind::Entity ? icons_.entitySelectKey : icons_.subMeshSelectKey,
-		"エンティティ・サブメッシュ選択 E", state.selectKind == EditorSelectionKind::MeshSubMesh, 1);
+		"オブジェクト・サブメッシュ選択 E", state.selectKind == EditorSelectionKind::MeshSubMesh, 1);
 	add(ToolAction::Dimension, state.sceneViewPickDimension == SceneViewPickDimension::Type2D ? icons_.selection2DKey :
 		state.sceneViewPickDimension == SceneViewPickDimension::Type3D ? icons_.selection3DKey : icons_.selection2DAnd3DKey,
 		"選択対象の次元 3D・2D・両方", state.sceneViewPickDimension != SceneViewPickDimension::Type3D, 1);
 	add(ToolAction::Pivot, state.gizmoPivotAtCenter ? icons_.gizmoCenterPivotKey : icons_.eachEntityOriginKey,
-		"ピボット 選択中心・各エンティティ原点", state.gizmoPivotAtCenter, 2);
+		"ピボット 選択中心・各オブジェクト原点", state.gizmoPivotAtCenter, 2);
 	add(ToolAction::Snap, icons_.snapEditEntityKey, "スナップ G / 右クリックで設定", state.enableSnapEditEntity, 2);
 	add(ToolAction::Grid, icons_.drawGridKey, "SceneViewグリッド表示", state.drawSceneViewDefaultGrid, 2);
 	add(ToolAction::Manual, icons_.debugCameraKey, "マニュアルカメラ操作", state.sceneViewCamera.mode == SceneViewCameraMode::DebugManual, 3);
-	add(ToolAction::Camera, icons_.entityCameraKey, "エンティティカメラによる制御",
+	add(ToolAction::Camera, icons_.entityCameraKey, "オブジェクトカメラによる制御",
 		state.sceneViewCamera.mode == SceneViewCameraMode::SelectedEntityCamera, 3);
 
 	bool cameraPopup = false, snapPopup = false;

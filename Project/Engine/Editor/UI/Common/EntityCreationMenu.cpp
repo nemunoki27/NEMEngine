@@ -163,7 +163,7 @@ namespace Engine::EntityCreationMenu {
 			return;
 		}
 		if (ImGui::MenuItem("空オブジェクト")) {
-			CreateEntityFromMenu(context, parentStableUUID, "Entity",
+			CreateEntityFromMenu(context, parentStableUUID, "GameObject",
 				Engine::EntityCreationPreset::Empty, defaultDimension);
 		}
 		ImGui::Separator();

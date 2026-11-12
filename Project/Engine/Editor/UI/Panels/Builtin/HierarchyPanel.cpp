@@ -188,7 +188,7 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	}
 	if (entitySectionOpen) {
 		if (rootEntities.empty()) {
-			ImGui::TextDisabled("エンティティなし");
+			ImGui::TextDisabled("オブジェクトなし");
 		} else if (!hasVisibleEntity) {
 			ImGui::TextDisabled("該当なし");
 		}

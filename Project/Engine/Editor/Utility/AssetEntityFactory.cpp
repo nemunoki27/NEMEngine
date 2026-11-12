@@ -40,7 +40,7 @@ namespace {
 	std::string MakeNameFromPath(const char* assetPath) {
 
 		const std::string stem = Engine::ProjectAssetPath::SplitAssetFileName(Engine::Algorithm::PathFromUTF8(assetPath)).first;
-		return stem.empty() ? std::string("Entity") : stem;
+		return stem.empty() ? std::string("GameObject") : stem;
 	}
 
 	// ルートEntityをヒエラルキーの末尾へ並べる

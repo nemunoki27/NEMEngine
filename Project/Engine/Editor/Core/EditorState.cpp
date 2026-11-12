@@ -39,7 +39,7 @@ std::string Engine::GetEntityDisplayName(ECSWorld& world, const Entity& entity) 
 			return name;
 		}
 	}
-	return "Entity";
+	return "GameObject";
 }
 
 Engine::Dimension Engine::ResolveSceneViewCameraDimension(SceneViewPickDimension dimension) {

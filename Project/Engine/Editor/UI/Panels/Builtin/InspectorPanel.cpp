@@ -192,7 +192,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	}
 	if (!lockedEntityUUID_ && !context.editorState->HasValidSelection(world)) {
 
-		ImGui::TextDisabled("エンティティが選択されていません");
+		ImGui::TextDisabled("オブジェクトが選択されていません");
 		ImGui::End();
 		return;
 	}
@@ -260,20 +260,17 @@ void Engine::InspectorPanel::SyncNameBufferIfNeeded(ECSWorld& world, const Entit
 		nameEditBuffer_ = world.GetComponent<NameComponent>(entity).name;
 	} else {
 
-		nameEditBuffer_ = "Entity";
+		nameEditBuffer_ = "GameObject";
 	}
 }
 
 void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
-	// エンティティのハンドル情報を表示
-	ImGui::Text("Entity Handle : [%u:%u]", entity.index, entity.generation);
-
 	//============================================================================
 	//	エンティティの名前編集
 	//============================================================================
 	// 現在の名前を取得する
-	std::string currentName = "Entity";
+	std::string currentName = "GameObject";
 	if (world.HasComponent<NameComponent>(entity)) {
 		currentName = world.GetComponent<NameComponent>(entity).name;
 	}

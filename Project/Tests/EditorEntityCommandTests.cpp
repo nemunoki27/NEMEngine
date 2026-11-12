@@ -26,8 +26,6 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
-#include <Engine/Editor/Commands/Entity/SetPerformanceGridCommand.h>
-#include <Engine/Editor/Commands/Entity/PerformanceGridUtility.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
@@ -36,21 +34,6 @@
 #include <limits>
 #include <stdexcept>
 
-namespace {
-
-	// 指定数の生成後に一度だけ通知を失敗させる
-	void FailGridCreation([[maybe_unused]] Engine::ECSWorld& world, [[maybe_unused]] const Engine::Entity& entity,
-		[[maybe_unused]] uint32_t typeID, Engine::ComponentMutationKind kind, void* data) {
-
-		int& remaining = *static_cast<int*>(data);
-		if (kind != Engine::ComponentMutationKind::EntityCreated || remaining < 0) {
-			return;
-		}
-		if (remaining-- == 0) {
-			throw std::runtime_error("グリッド生成途中の失敗を検証");
-		}
-	}
-}
 
 bool NEMTests::TestEditorEntityCommandRedo() {
 
@@ -168,127 +151,6 @@ bool NEMTests::TestLogicalSelectionRoots() {
 	return HierarchyUtility::CollectLogicalRoots(world, selection) == std::vector<Entity>{joint};
 }
 
-bool NEMTests::TestPerformanceGridCommandHistory() {
-
-	using namespace Engine;
-	ECSWorld world;
-	EditorState state;
-	EditorContext editor;
-	editor.activeWorld = &world;
-	editor.activeSceneInstanceID = Engine::UUID{84};
-	editor.activeSceneAsset = AssetID{85, 86};
-	EditorCommandContext context;
-	context.editorContext = &editor;
-	context.editorState = &state;
-	const Engine::UUID rootID = Engine::UUID::New();
-	const Engine::UUID originalScene = editor.activeSceneInstanceID;
-	const AssetID originalSceneAsset = editor.activeSceneAsset;
-	std::vector<MeshSubMeshLayoutItem> layout(1);
-	SetPerformanceGridCommand create(rootID, AssetID{90, 91}, 2, 1, 2.0f, false, true, false, 1, 1.0f, 8.0f, 1.0f, layout);
-	if (!create.Execute(context)) {
-		return false;
-	}
-
-	// 再配置とRedoで同じEntityのUUIDを使う
-	const Entity root = world.FindByUUID(rootID);
-	const Entity child = world.GetComponent<HierarchyComponent>(root).firstChild;
-	const Engine::UUID childID = world.GetUUID(child);
-	SetPerformanceGridCommand replace(rootID, AssetID{90, 91}, 2, 1, 4.0f, false, true, false, 1, 2.0f, 8.0f, 1.0f, layout);
-	if (!create.CanCoalesce(replace) || !create.ExecuteCoalesced(replace, context) || world.FindByUUID(childID) != child ||
-		world.GetComponent<TransformComponent>(child).localPos.x != -2.0f) {
-		return false;
-	}
-	create.Undo(context);
-	// Active Sceneを変更しても初回の所属へ戻す
-	editor.activeSceneInstanceID = Engine::UUID{92};
-	editor.activeSceneAsset = AssetID{93, 94};
-	if (world.IsAlive(world.FindByUUID(rootID)) || !create.Redo(context)) {
-		return false;
-	}
-	const Entity restored = world.FindByUUID(childID);
-	if (!world.IsAlive(restored) || world.GetComponent<TransformComponent>(restored).localPos.x != -2.0f ||
-		world.GetComponent<SceneObjectComponent>(restored).sceneInstanceID != originalScene ||
-		world.GetComponent<SceneObjectComponent>(restored).sourceAsset != originalSceneAsset) {
-		return false;
-	}
-
-	// ライトも更新時と再生成時で同じセル中央へ配置する
-	Entity light = Entity::Null();
-	size_t lightCount = 0;
-	world.ForEach<PointLightComponent>([&](Entity entity, const PointLightComponent&) {
-		light = entity;
-		++lightCount;
-	});
-	if (lightCount != 1 || world.GetComponent<TransformComponent>(light).localPos != Vector3(0.0f, 0.0f, 0.0f) ||
-		world.GetComponent<PointLightComponent>(light).intensity != 2.0f) {
-		return false;
-	}
-
-	// 無効な配置要求で生成済みのEntityを失わない
-	SetPerformanceGridCommand invalid(rootID, AssetID{90, 91}, 0, 1, 2.0f, false, false, false, 1, 1.0f, 8.0f, 1.0f, layout);
-	if (invalid.Execute(context) || create.ExecuteCoalesced(invalid, context) || invalid.Redo(context) ||
-		!world.IsAlive(restored)) {
-		return false;
-	}
-	// 上限超過と非有限値も既存配置へ適用しない
-	for (const int32_t count : {513, (std::numeric_limits<int32_t>::max)()}) {
-		SetPerformanceGridCommand oversized(
-			rootID, AssetID{90, 91}, count, count, 2.0f, false, true, false, 1, 1.0f, 8.0f, 1.0f, layout);
-		if (create.ExecuteCoalesced(oversized, context) || oversized.Redo(context) ||
-			PerformanceGridUtility::CalculatePointLightCount(count, count, true, 1) != 0) {
-			return false;
-		}
-	}
-	for (const float width : {0.0f, -1.0f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()}) {
-		SetPerformanceGridCommand nonFinite(
-			rootID, AssetID{90, 91}, 2, 1, width, false, true, false, 1, 1.0f, 8.0f, 1.0f, layout);
-		if (create.ExecuteCoalesced(nonFinite, context) || nonFinite.Execute(context)) {
-			return false;
-		}
-	}
-	// 合計数の制限と別ルートへの合流を生成前に拒否
-	SetPerformanceGridCommand excessive(
-		rootID, AssetID{90, 91}, 100, 100, 2.0f, false, true, false, 1, 1.0f, 8.0f, 1.0f, layout);
-	const Engine::UUID otherRootID = Engine::UUID::New();
-	SetPerformanceGridCommand otherRoot(
-		otherRootID, AssetID{90, 91}, 2, 1, 2.0f, false, false, false, 1, 1.0f, 8.0f, 1.0f, layout);
-	if (create.ExecuteCoalesced(excessive, context) || create.ExecuteCoalesced(otherRoot, context) ||
-		world.IsAlive(world.FindByUUID(otherRootID)) || world.FindByUUID(childID) != restored ||
-		world.GetComponent<TransformComponent>(restored).localPos.x != -2.0f ||
-		world.GetComponent<PointLightComponent>(light).intensity != 2.0f) {
-		return false;
-	}
-	// 生成途中に失敗しても旧配置のUUIDと設定へ戻す
-	int remaining = 2;
-	const uint64_t listener = world.AddComponentMutationListener(&FailGridCreation, &remaining);
-	SetPerformanceGridCommand failedReplacement(
-		rootID, AssetID{90, 91}, 3, 1, 6.0f, false, true, false, 1, 3.0f, 8.0f, 1.0f, layout);
-	bool failed = false;
-	try {
-		create.ExecuteCoalesced(failedReplacement, context);
-	} catch (const std::runtime_error&) {
-		failed = true;
-	}
-	world.RemoveComponentMutationListener(listener);
-	const Entity recovered = world.FindByUUID(childID);
-	const Entity recoveredRoot = world.FindByUUID(rootID);
-	size_t aliveCount = 0;
-	world.ForEachAliveEntity([&](Entity) { ++aliveCount; });
-	if (!failed || remaining != -1 || aliveCount != 6 || !world.IsAlive(recovered) || !world.IsAlive(recoveredRoot) ||
-		world.GetComponent<TransformComponent>(recovered).localPos.x != -2.0f ||
-		world.GetComponent<HierarchyComponent>(recovered).parent != recoveredRoot ||
-		world.GetComponent<SceneObjectComponent>(recovered).sceneInstanceID != originalScene) {
-		return false;
-	}
-	SetPerformanceGridCommand remove(rootID);
-	if (!remove.Execute(context) || world.IsAlive(world.FindByUUID(rootID))) {
-		return false;
-	}
-	remove.Undo(context);
-	return world.IsAlive(world.FindByUUID(childID)) &&
-		   PerformanceGridUtility::FindPerformanceGridRoots(world, originalScene).size() == 1 &&
-		   PerformanceGridUtility::FindPerformanceGridRoots(world, editor.activeSceneInstanceID).empty();
-}
 
 bool NEMTests::TestActiveSelectionCommandHistory() {
 

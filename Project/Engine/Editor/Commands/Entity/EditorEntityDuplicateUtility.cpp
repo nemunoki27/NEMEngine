@@ -17,7 +17,7 @@ namespace {
 	// base_N の形式ならベース名を返し、そうでなければそのまま返す
 	std::string NormalizeDuplicateBaseName(const std::string_view& sourceName) {
 
-		std::string name = sourceName.empty() ? "Entity" : std::string(sourceName);
+		std::string name = sourceName.empty() ? "GameObject" : std::string(sourceName);
 
 		std::string base;
 		uint32_t index = 0;

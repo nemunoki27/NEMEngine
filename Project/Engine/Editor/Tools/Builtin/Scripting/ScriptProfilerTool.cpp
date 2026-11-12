@@ -63,7 +63,7 @@ namespace Engine {
 				ImGui::TableSetColumnIndex(1);
 				ImGui::TextUnformatted(row.name.c_str());
 				if (instances_) {
-					ImGui::TextDisabled("ワールド %u:%u / エンティティ %u:%u / スロット %llu",
+					ImGui::TextDisabled("ワールド %u:%u / オブジェクト %u:%u / スロット %llu",
 						row.owner.entity.world.index, row.owner.entity.world.generation,
 						row.owner.entity.index, row.owner.entity.generation,
 						static_cast<unsigned long long>(row.owner.slotID));
@@ -131,7 +131,7 @@ namespace Engine {
 					if (owner.typeName != profiler.DetailType()) { continue; }
 					const std::string label = "ワールド " + std::to_string(owner.entity.world.index) +
 						":" + std::to_string(owner.entity.world.generation) +
-						" / エンティティ " + std::to_string(owner.entity.index) + ":" + std::to_string(owner.entity.generation) +
+						" / オブジェクト " + std::to_string(owner.entity.index) + ":" + std::to_string(owner.entity.generation) +
 						" / スロット " + std::to_string(owner.slotID);
 					if (ImGui::Selectable(label.c_str(), profiler.DetailOwner() == id)) {
 						Configure(profiler.IsEnabled(), profiler.DetailType(), id);
@@ -141,7 +141,7 @@ namespace Engine {
 			}
 		}
 		ImGui::InputTextWithHint("##profileFilter", "型名で検索", filter_, sizeof(filter_));
-		ImGui::Checkbox("エンティティ別に表示", &instances_);
+		ImGui::Checkbox("オブジェクト別に表示", &instances_);
 		if (ImGui::Combo("降順", &sort_, "最新時間\0平均時間\0最大時間\0呼び出し回数\0")) {
 			lastRefresh_ = -1;
 		}
@@ -159,7 +159,7 @@ namespace Engine {
 			}
 			if (ImGui::BeginTable(detail ? "詳細" : "呼び出し", 7,
 				ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
-				for (const char* column : { "型 / 区間", "呼び出し / エンティティ", "最新ms", "平均ms", "最大ms", "最新の自身時間 ms", "回数 最新/平均" }) {
+				for (const char* column : { "型 / 区間", "呼び出し / オブジェクト", "最新ms", "平均ms", "最大ms", "最新の自身時間 ms", "回数 最新/平均" }) {
 					ImGui::TableSetupColumn(column);
 				}
 				ImGui::TableHeadersRow();
