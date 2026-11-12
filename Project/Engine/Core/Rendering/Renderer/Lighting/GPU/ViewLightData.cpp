@@ -131,6 +131,21 @@ void Engine::ViewLightData::Update(const PerViewLightSet& lightSet) {
 			return LightGPUConversion::ToGPU(item);
 		});
 
+	uint32_t filterIndex = 0;
+	const auto assignFilters = [&](const auto& source, auto& scratch) {
+		for (size_t index = 0; index < source.size(); ++index, ++filterIndex) {
+			const auto& influence = source[index]->common.influence;
+			const auto& common = source[index]->common;
+			if (influence.shadowExcludedLayerMask != 0u || (common.world && !influence.shadowExclusions.empty() &&
+				!ResolveLightShadowExclusions(*common.world, common.entity, influence).empty()))
+				scratch[index].shadowFilterIndex = filterIndex;
+		}
+	};
+	assignFilters(lightSet.directionalLights, directionalScratch_);
+	assignFilters(lightSet.pointLights, pointScratch_);
+	assignFilters(lightSet.spotLights, spotScratch_);
+	assignFilters(lightSet.rectLights, rectScratch_);
+
 	BuildClusters(lightSet);
 	cachedLightRevision_ = lightSet.sourceRevision;
 	cachedViewHash_ = viewHash;

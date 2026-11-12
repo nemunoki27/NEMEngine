@@ -28,6 +28,11 @@ export function guideFor(type) {
 }
 
 export const names = {
+	GetShadowExclusions: 'このライトだけの影除外一覧を取得します。削除済みの参照先はTargetがnullになります。',
+	SetShadowExclusion: '指定GameObjectをこのライトの遮蔽物から除外します。再指定は子孫を含める設定を更新し、重複を作りません。',
+	RemoveShadowExclusion: '指定GameObjectの個別除外を解除します。レイヤーによる除外は別設定です。',
+	ClearShadowExclusions: 'このライトの個別除外一覧を空にします。影の除外レイヤー設定は維持します。',
+	IncludeChildren: '影の個別除外で、対象の子孫もまとめて除外するかを表します。',
 	NativeType: 'EngineのAsset型へ対応付けるNative側のAssetType名です。ゲーム側で任意のAsset種別を登録する機能ではありません。',
 
 	GetComponent: '同じGameObjectの指定型のComponentまたはScriptを取得します。見つからなければnullです。',
@@ -307,6 +312,8 @@ export const names = {
 const moduleNames = { AlphaReference: 'AlphaClip閾値', ColorOverLifetime: '寿命による色', ColorUV: '色UV', CurlNoise: 'Curl Noise', CustomData: 'Shader用データ', CustomShaderParameter: 'Shader Parameter', Emissive: '発光', Flipbook: 'Flipbook', Gravity: '重力', GravityForce: '重力', LookToVelocity: '移動方向への向き合わせ', NoiseForce: 'ノイズ力', NoiseUV: 'UVノイズ', PendulumMovement: '振り子運動', Rotation: '回転', ScaleOverLifetime: '拡縮', ShapeOverLifetime: '形状変化', SizeOverLifetime: '大きさ', SpiralMovement: 'らせん運動', ForceField: '力場', VectorField: 'Vector Field', SplineMovement: 'Spline移動', Collision: '衝突' };
 
 export function memberDescription(type, member, binding) {
+	if (type.name === 'LightShadowExclusion' && member.name === 'Target')
+		return 'このライトの影から除外するGameObjectです。参照先が削除済み、または解決できない場合はnullです。';
 	const runtimeNote = runtimeMemberDescription(type.name, member.name);
 	if (runtimeNote) return runtimeNote;
 	if (type.name === 'GraphicsSettingsData') {

@@ -1,6 +1,8 @@
 #ifndef NEM_INLINE_SHADOW_COMMON_HLSLI
 #define NEM_INLINE_SHADOW_COMMON_HLSLI
 
+#include "lightShadowFilter.hlsli"
+
 RaytracingAccelerationStructure gSceneTLAS : register(t10);
 
 // 影を落とすインスタンスのTLASマスク
@@ -63,13 +65,15 @@ void BuildShadowBasis(float3 direction, out float3 tangent, out float3 bitangent
 }
 
 // 最初の遮蔽物で走査を終了する共通シャドウレイ
-bool TraceShadowRay(float3 origin, float3 direction, float maxDistance, out float hitDistance) {
+bool TraceShadowRay(float3 origin, float3 direction, float maxDistance, out float hitDistance, uint filterIndex = 0xFFFFFFFFu) {
 
 	RayDesc rayDesc;
 	rayDesc.Origin = origin;
 	rayDesc.Direction = direction;
 	rayDesc.TMin = 0.001f;
 	rayDesc.TMax = maxDistance;
+	if (HasLightShadowExclusions(filterIndex))
+		return TraceFilteredLightShadow(gSceneTLAS, rayDesc, kRaytracingMaskShadowCaster, filterIndex, hitDistance);
 
 	RayQuery <
 		RAY_FLAG_FORCE_OPAQUE |
@@ -85,20 +89,20 @@ bool TraceShadowRay(float3 origin, float3 direction, float maxDistance, out floa
 	return hit;
 }
 
-bool TraceShadowRay(float3 origin, float3 direction, float maxDistance) {
+bool TraceShadowRay(float3 origin, float3 direction, float maxDistance, uint filterIndex = 0xFFFFFFFFu) {
 
 	float hitDistance;
-	return TraceShadowRay(origin, direction, maxDistance, hitDistance);
+	return TraceShadowRay(origin, direction, maxDistance, hitDistance, filterIndex);
 }
 
 // 平行光源の見かけの角度内へ分散したレイから遮蔽率を返す
 float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
-	float3 lightDirection, float angularRadius, uint2 pixel, uint lightIndex) {
+	float3 lightDirection, float angularRadius, uint2 pixel, uint lightIndex, uint filterIndex = 0xFFFFFFFFu) {
 
 	float3 origin = worldPos + worldNormal * shadowNormalBias;
 	float3 centerDirection = normalize(-lightDirection);
 	if (angularRadius <= 0.0001f) {
-		return TraceShadowRay(origin, centerDirection, shadowMaxDistance) ?
+		return TraceShadowRay(origin, centerDirection, shadowMaxDistance, filterIndex) ?
 			1.0f : 0.0f;
 	}
 
@@ -116,7 +120,7 @@ float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
 		1u, kMaximumSoftShadowSampleCount);
 	if (sampleCount == 1u) {
 		return TraceShadowRay(origin, centerDirection,
-			shadowMaxDistance) ? 1.0f : 0.0f;
+			shadowMaxDistance, filterIndex) ? 1.0f : 0.0f;
 	}
 	float occlusion = 0.0f;
 	[loop]
@@ -130,7 +134,7 @@ float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
 		float3 direction = normalize(centerDirection +
 			(tangent * disk.x + bitangent * disk.y) * coneRadius);
 		occlusion += TraceShadowRay(
-			origin, direction, shadowMaxDistance) ? 1.0f : 0.0f;
+			origin, direction, shadowMaxDistance, filterIndex) ? 1.0f : 0.0f;
 	}
 	return occlusion / float(sampleCount);
 }
@@ -142,12 +146,12 @@ float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
 // ローカルライトを円形面光源として遮蔽率を返す
 float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
 	float3 toLight, float distToLight, float sourceRadius,
-	uint2 pixel, uint lightIndex) {
+	uint2 pixel, uint lightIndex, uint filterIndex = 0xFFFFFFFFu) {
 
 	float3 origin = worldPos + worldNormal * shadowNormalBias;
 	float3 centerDirection = toLight / distToLight;
 	if (sourceRadius <= 0.0001f) {
-		return TraceShadowRay(origin, centerDirection, distToLight) ?
+		return TraceShadowRay(origin, centerDirection, distToLight, filterIndex) ?
 			1.0f : 0.0f;
 	}
 
@@ -164,7 +168,7 @@ float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
 		1u, kMaximumSoftShadowSampleCount);
 	if (sampleCount == 1u) {
 		return TraceShadowRay(origin, centerDirection,
-			distToLight) ? 1.0f : 0.0f;
+			distToLight, filterIndex) ? 1.0f : 0.0f;
 	}
 	float occlusion = 0.0f;
 	[loop]
@@ -179,7 +183,7 @@ float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
 			(tangent * disk.x + bitangent * disk.y) * sourceRadius;
 		float sampleDistance = length(sampleToLight);
 		occlusion += TraceShadowRay(origin,
-			sampleToLight / sampleDistance, sampleDistance) ? 1.0f : 0.0f;
+			sampleToLight / sampleDistance, sampleDistance, filterIndex) ? 1.0f : 0.0f;
 	}
 	return occlusion / float(sampleCount);
 }
@@ -196,6 +200,8 @@ float3 GetRectLightSamplePosition(RectLight light,
 float TraceRectShadow(float3 worldPos, float3 worldNormal,
 	RectLight light, uint2 pixel, uint lightIndex) {
 
+	uint filterIndex = light.shadowFilterIndex;
+
 	float3 origin = worldPos + worldNormal * shadowNormalBias;
 	if (light.sourceWidth <= 0.0001f &&
 		light.sourceHeight <= 0.0001f) {
@@ -207,7 +213,7 @@ float TraceRectShadow(float3 worldPos, float3 worldNormal,
 		}
 		return TraceShadowRay(origin,
 			toLight / distanceToLight,
-			distanceToLight) ? 1.0f : 0.0f;
+			distanceToLight, filterIndex) ? 1.0f : 0.0f;
 	}
 
 	uint seed = HashShadowSeed(
@@ -224,7 +230,7 @@ float TraceRectShadow(float3 worldPos, float3 worldNormal,
 		float distanceToLight = length(toLight);
 		return distanceToLight > 1e-5f &&
 			TraceShadowRay(origin, toLight / distanceToLight,
-				distanceToLight) ? 1.0f : 0.0f;
+				distanceToLight, filterIndex) ? 1.0f : 0.0f;
 	}
 	float occlusion = 0.0f;
 	[loop]
@@ -244,7 +250,7 @@ float TraceRectShadow(float3 worldPos, float3 worldNormal,
 		}
 		occlusion += TraceShadowRay(origin,
 			toLight / distanceToLight,
-			distanceToLight) ? 1.0f : 0.0f;
+			distanceToLight, filterIndex) ? 1.0f : 0.0f;
 	}
 	return occlusion / float(sampleCount);
 }

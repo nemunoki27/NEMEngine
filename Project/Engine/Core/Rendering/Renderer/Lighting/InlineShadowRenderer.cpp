@@ -61,9 +61,11 @@ namespace {
 		std::vector<std::byte> signature;
 	};
 
-	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights) {
+	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights, uint64_t filterRevision) {
 
 		ShadowLightSelection result;
+		const auto filterBytes = std::as_bytes(std::span{ &filterRevision, 1 });
+		result.signature.insert(result.signature.end(), filterBytes.begin(), filterBytes.end());
 		result.indices.resize(lights.GetTotalCount(), UINT32_MAX);
 		uint32_t index = 0;
 		const auto append = [&](const auto& items) {
@@ -297,7 +299,7 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	const auto* tlas = context.bufferRegistry.Find("gSceneTLAS");
 	if (!features.useInlineRayTracing || context.disableInlineRayTracing || !context.viewLights || !camera ||
 		!tlas || tlas->gpuAddress == 0 || !context.hasShadowCastingLight) return false;
-	auto selection = SelectShadowLights(*context.viewLights);
+	auto selection = SelectShadowLights(*context.viewLights, context.lightShadowFilterRevision);
 	if (selection.sources.empty() || !implementation_->EnsurePipelines(graphicsCore)) return false;
 	auto& owner = implementation_->views[context.view->GetHistoryKey()];
 	const uint32_t width = context.resources->GetSceneMain()->GetWidth();

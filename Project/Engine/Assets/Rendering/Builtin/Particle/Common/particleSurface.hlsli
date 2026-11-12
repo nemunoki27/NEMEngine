@@ -20,6 +20,8 @@ cbuffer ParticleSurfaceConstants : register(b5) {
 	uint particleNormalAvailable;
 	uint particleCustomDataAvailable;
 	float4 particleSurfaceParameters;
+	uint particleRenderingLayerMask;
+	uint3 _particleSurfacePadding;
 };
 
 cbuffer DirectionalShadowConstants : register(b3, space7) {
@@ -165,16 +167,17 @@ float3 ParticleSurfaceLighting(float3 albedo, float3 world, float3 N, float meta
 	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
 	float3 lighting = 0;
 	[loop] for (uint i = 0; i < directionalCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gDirectionalLights[i].renderingLayerMask, particleRenderingLayerMask)) continue;
 		float visibility = i == shadowLightIndex ? ParticleShadowVisibility(world) : 1;
 		visibility = lerp(1, visibility, gDirectionalLights[i].shadowStrength);
 		lighting += EvaluatePBRDirectionalLight(gDirectionalLights[i], N, V, albedo, metallic, roughness, F0) * visibility;
 	}
 	[loop] for (uint pi = 0; pi < pointCount; ++pi)
-		lighting += EvaluatePBRPointLight(gPointLights[pi], world, N, V, albedo, metallic, roughness, F0);
+		if (IsLightRenderingLayerEnabled(gPointLights[pi].renderingLayerMask, particleRenderingLayerMask)) lighting += EvaluatePBRPointLight(gPointLights[pi], world, N, V, albedo, metallic, roughness, F0);
 	[loop] for (uint si = 0; si < spotCount; ++si)
-		lighting += EvaluatePBRSpotLight(gSpotLights[si], world, N, V, albedo, metallic, roughness, F0);
+		if (IsLightRenderingLayerEnabled(gSpotLights[si].renderingLayerMask, particleRenderingLayerMask)) lighting += EvaluatePBRSpotLight(gSpotLights[si], world, N, V, albedo, metallic, roughness, F0);
 	[loop] for (uint ri = 0; ri < rectCount; ++ri)
-		lighting += EvaluatePBRRectLight(gRectLights[ri], world, N, V, albedo, metallic, roughness, F0);
+		if (IsLightRenderingLayerEnabled(gRectLights[ri].renderingLayerMask, particleRenderingLayerMask)) lighting += EvaluatePBRRectLight(gRectLights[ri], world, N, V, albedo, metallic, roughness, F0);
 	if ((particleSurfaceFlags & 4u) != 0u) lighting += ParticleEnvironmentLighting(albedo, N, V, metallic, roughness, F0);
 	return lighting;
 }

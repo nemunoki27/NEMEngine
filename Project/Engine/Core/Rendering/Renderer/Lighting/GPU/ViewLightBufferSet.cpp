@@ -45,6 +45,7 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	clusterConstants_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	clusterHeaders_.Init(device, srvDescriptor);
 	clusterLightIndices_.Init(device, srvDescriptor);
+	shadowFilters_.Init(device, srvDescriptor);
 
 	// 要素数を最低限確保
 	directionalLights_.EnsureCapacity(1);
@@ -53,6 +54,7 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	spotLights_.EnsureCapacity(1);
 	clusterHeaders_.EnsureCapacity(1);
 	clusterLightIndices_.EnsureCapacity(1);
+	shadowFilters_.EnsureCapacity(1);
 	data_.directionalScratch_.reserve(1);
 	data_.pointScratch_.reserve(1);
 	data_.rectScratch_.reserve(1);
@@ -75,6 +77,10 @@ void Engine::ViewLightBufferSet::Release() {
 	spotLights_.Release();
 	clusterHeaders_.Release();
 	clusterLightIndices_.Release();
+	shadowFilters_.Release();
+	shadowFilterData_.clear();
+	shadowFilterScratch_.clear();
+	shadowFilterRevision_ = 0;
 	data_.Reset();
 	builtinTextures_ = nullptr;
 	uploadedSerials_.fill(0);
@@ -82,9 +88,10 @@ void Engine::ViewLightBufferSet::Release() {
 	initialized_ = false;
 }
 
-void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
+void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet, const RaytracingSceneBuilder* scene) {
 
 	data_.Update(lightSet);
+	UpdateShadowFilters(lightSet, scene);
 	UploadCachedBuffers();
 }
 
@@ -115,10 +122,15 @@ void Engine::ViewLightBufferSet::UploadCachedBuffers() {
 	clusterConstants_.Upload(data_.clusterConstantsScratch_);
 	clusterHeaders_.Upload(data_.clusterHeaderScratch_);
 	clusterLightIndices_.Upload(data_.clusterLightIndexScratch_);
+	shadowFilters_.Upload(shadowFilterData_);
 	uploadedSerials_[frameIndex] = data_.dataSerial_;
 }
 
 void Engine::ViewLightBufferSet::RegisterTo(RenderBufferRegistry& registry) const {
+
+	registry.Register({ .alias = "gLightShadowFilters", .resource = nullptr, .gpuAddress = shadowFilters_.GetGPUAddress(),
+		.srvGPUHandle = shadowFilters_.GetGPUHandle(), .uavGPUHandle = {},
+		.elementCount = static_cast<uint32_t>(shadowFilterData_.size()), .stride = sizeof(uint32_t) });
 
 	// ライト数: CBV
 	registry.Register({ .alias = "LightCounts",.resource = nullptr,.gpuAddress = lightCounts_.GetGPUAddress(),

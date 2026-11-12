@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include "LightInfluenceSettings.h"
 #include <Engine/Core/Foundation/Math/Color.h>
 
 namespace Engine {
@@ -36,6 +37,9 @@ namespace Engine {
 		float barnDoorLength = 0.0f;
 		// 影の強さ
 		float shadowStrength = 0.92f;
+
+		// 照射対象と影の除外
+		LightInfluenceSettings influence{};
 
 		// 有効フラグ
 		bool enabled = true;

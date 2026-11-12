@@ -8,6 +8,7 @@
 #include "ManagedMotionAnimationSettings.h"
 #include "ManagedTimelineSettings.h"
 #include "ManagedRendererSettings.h"
+#include "ManagedLightSettings.h"
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -73,7 +74,15 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return -1;
 		nlohmann::json data;
-		if (type == 0) {
+		if (const auto* lightSettings = ResolveLightInfluenceSettings(*world, target, type)) {
+			data = *lightSettings;
+			data["shadowExclusionTargets"] = nlohmann::json::array();
+			for (const auto& exclusion : lightSettings->shadowExclusions) {
+				const auto reference = MakeNativeEntity(*world, ResolveLightShadowExclusion(*world, target, exclusion));
+				data["shadowExclusionTargets"].push_back({{"world", {{"index", reference.world.index},
+					{"generation", reference.world.generation}}}, {"index", reference.index}, {"generation", reference.generation}});
+			}
+		} else if (type == 0) {
 			const auto* component = world->TryGetComponentForBinding<AnimationClipPlayerComponent>(target);
 			if (!component) return -1;
 			data = *component;
@@ -137,6 +146,40 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return 0;
 		const auto data = nlohmann::json::parse(buffer, buffer + size);
+		if (auto* settings = ResolveLightInfluenceSettings(*world, target, type)) {
+			const auto operation = data.value("lightShadowExclusionPatch", std::string{});
+			if (operation == "Clear") {
+				if (settings->shadowExclusions.empty()) return 1;
+				settings->shadowExclusions.clear();
+			}
+			else {
+				if (operation != "Set" && operation != "Remove") return 0;
+				const auto& value = data.at("targetNative");
+				ManagedNativeEntity reference{};
+				reference.world.index = value.at("world").at("index").get<uint32_t>();
+				reference.world.generation = value.at("world").at("generation").get<uint32_t>();
+				reference.index = value.at("index").get<uint32_t>();
+				reference.generation = value.at("generation").get<uint32_t>();
+				const Entity excluded = ResolveEntity(reference);
+				if (ResolveWorld(reference) != world || !world->IsAlive(excluded)) return 0;
+				auto& values = settings->shadowExclusions;
+				const auto matches = [&](const auto& entry) { return ResolveLightShadowExclusion(*world, target, entry) == excluded; };
+				if (operation == "Remove") {
+					if (std::erase_if(values, matches) == 0) return 1;
+				}
+				else {
+					const bool includeChildren = data.value("includeChildren", false);
+					auto found = std::find_if(values.begin(), values.end(), matches);
+					if (found != values.end() && found->includeChildren == includeChildren) return 1;
+					if (found == values.end()) found = values.insert(values.end(), LightShadowExclusion{});
+					found->target = SceneEntityReference::FromEntity(*world, excluded);
+					found->runtimeTargetID = world->GetUUID(excluded);
+					found->includeChildren = includeChildren;
+				}
+			}
+			world->MarkComponentModified(target, type);
+			return 1;
+		}
 		auto restoreTimeSource = [&] {
 			auto* source = ResolveComponentTimeSource(*world, target, type);
 			if (!source || !data.contains("timeSourceNative") || source->mode != TimeSourceMode::Explicit) return;

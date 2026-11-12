@@ -419,6 +419,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		}
 	}
 
+	state.shadowInstanceEntities = std::move(tlasEntityKeys);
+
 	// 構築したシーン情報をコンテキストに渡す
 	PublishBuiltScene(context, state);
 	state.materialResolver.CommitTextures();

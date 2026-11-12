@@ -316,7 +316,6 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		if (activeScene) {
 			ViewLightCollector::CollectForView(scenePreparation_.frameLightBatch_, activeScene, view, viewState.lightSet);
 		}
-		viewState.lightBuffers.Upload(viewState.lightSet);
 		SceneExecutionContext context = BuildViewExecutionContext(graphicsCore, request, activeScene, kind, view);
 		context.particleCameraCaptureRequired = particleCameraDepth_.NeedsCapture(view.perspective.sourceCamera);
 		if (!context.sceneInstance) {
@@ -357,6 +356,10 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 				pickingState_.pickRecordOffsets_ = raytracingSceneBuilder_.GetPickRecordOffsets();
 			}
 		}
+
+		viewState.lightBuffers.Upload(viewState.lightSet, context.raytracing.tlasResource ? &raytracingSceneBuilder_ : nullptr);
+		viewState.lightBuffers.RegisterTo(context.bufferRegistry);
+		context.lightShadowFilterRevision = viewState.lightBuffers.GetShadowFilterRevision();
 
 		if (particleBackend_ && particleBackend_->GetFeedbackRevision() != 0) {
 			Algorithm::HashCombine(context.raytracing.materialGeneration, particleBackend_->GetFeedbackRevision());

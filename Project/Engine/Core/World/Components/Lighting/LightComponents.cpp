@@ -17,6 +17,7 @@ void Engine::from_json(const nlohmann::json& in, DirectionalLightComponent& comp
 	component.shadowStrength = in.value("shadowStrength", 0.92f);
 	component.shadowAngularRadius =
 		in.value("shadowAngularRadius", component.shadowAngularRadius);
+	component.influence = in.value("influence", LightInfluenceSettings{});
 	component.enabled = in.value("enabled", true);
 	component.drawDebug = in.value("drawDebug", true);
 
@@ -29,6 +30,7 @@ void Engine::to_json(nlohmann::json& out, const DirectionalLightComponent& compo
 	out["intensity"] = component.intensity;
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowAngularRadius"] = component.shadowAngularRadius;
+	out["influence"] = component.influence;
 	out["enabled"] = component.enabled;
 	out["drawDebug"] = component.drawDebug;
 
@@ -45,6 +47,7 @@ void Engine::from_json(const nlohmann::json& in, PointLightComponent& component)
 	component.decay = in.value("decay", 1.0f);
 	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
+	component.influence = in.value("influence", LightInfluenceSettings{});
 	component.enabled = in.value("enabled", true);
 	component.drawDebug = in.value("drawDebug", true);
 
@@ -58,6 +61,7 @@ void Engine::to_json(nlohmann::json& out, const PointLightComponent& component) 
 	out["decay"] = component.decay;
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowRadius"] = component.shadowRadius;
+	out["influence"] = component.influence;
 	out["enabled"] = component.enabled;
 	out["drawDebug"] = component.drawDebug;
 
@@ -80,6 +84,7 @@ void Engine::from_json(const nlohmann::json& in, RectLightComponent& component) 
 		in.value("barnDoorLength", component.barnDoorLength);
 	component.shadowStrength =
 		in.value("shadowStrength", component.shadowStrength);
+	component.influence = in.value("influence", LightInfluenceSettings{});
 	component.enabled = in.value("enabled", component.enabled);
 	component.drawDebug = in.value("drawDebug", true);
 
@@ -95,6 +100,7 @@ void Engine::to_json(nlohmann::json& out, const RectLightComponent& component) {
 	out["barnDoorAngle"] = component.barnDoorAngle;
 	out["barnDoorLength"] = component.barnDoorLength;
 	out["shadowStrength"] = component.shadowStrength;
+	out["influence"] = component.influence;
 	out["enabled"] = component.enabled;
 	out["drawDebug"] = component.drawDebug;
 
@@ -114,6 +120,7 @@ void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) 
 	component.cosFalloffStart = in.value("cosFalloffStart", std::cos(Math::pi / 6.0f));
 	component.shadowStrength = in.value("shadowStrength", component.shadowStrength);
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
+	component.influence = in.value("influence", LightInfluenceSettings{});
 	component.enabled = in.value("enabled", true);
 	component.drawDebug = in.value("drawDebug", true);
 
@@ -130,6 +137,7 @@ void Engine::to_json(nlohmann::json& out, const SpotLightComponent& component) {
 	out["cosFalloffStart"] = component.cosFalloffStart;
 	out["shadowStrength"] = component.shadowStrength;
 	out["shadowRadius"] = component.shadowRadius;
+	out["influence"] = component.influence;
 	out["enabled"] = component.enabled;
 	out["drawDebug"] = component.drawDebug;
 

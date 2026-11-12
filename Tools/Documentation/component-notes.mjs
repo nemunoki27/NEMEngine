@@ -183,6 +183,9 @@ export const propertyNotes = {
 // 入れ子の設定名から末尾の意味と対象Groupを合わせる
 export function describeProperty(member) {
 
+	if (member === 'influence.renderingLayerMask') return '照射対象レイヤーです。Rendererと共通の描画レイヤーがあれば照らします。Cameraの表示対象を変更する設定ではありません。';
+	if (member === 'influence.shadowExcludedLayerMask') return 'このライトの遮蔽物から除外する描画レイヤーです。どれか一つでも該当するRendererを除外します。';
+
 	const parts = member.split('.');
 	const key = parts.at(-1);
 	const description = propertyNotes[key];

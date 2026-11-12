@@ -26,6 +26,7 @@ float3 EvaluateMeshSurfaceLighting(VSOutput input, ResolvedPBRMaterial material,
 	float3 lighting = 0.0f.xxx;
 	[loop]
 	for (uint i = 0; i < directionalCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gDirectionalLights[i].renderingLayerMask, instanceFlags >> 8u)) continue;
 		lighting += EvaluatePBRDirectionalLight(
 			gDirectionalLights[i], material.N, V,
 			material.baseColor.rgb, material.metallic,
@@ -33,6 +34,7 @@ float3 EvaluateMeshSurfaceLighting(VSOutput input, ResolvedPBRMaterial material,
 	}
 	[loop]
 	for (uint i = 0; i < pointCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gPointLights[i].renderingLayerMask, instanceFlags >> 8u)) continue;
 		lighting += EvaluatePBRPointLight(
 			gPointLights[i], input.worldPos, material.N, V,
 			material.baseColor.rgb, material.metallic,
@@ -40,6 +42,7 @@ float3 EvaluateMeshSurfaceLighting(VSOutput input, ResolvedPBRMaterial material,
 	}
 	[loop]
 	for (uint i = 0; i < spotCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gSpotLights[i].renderingLayerMask, instanceFlags >> 8u)) continue;
 		lighting += EvaluatePBRSpotLight(
 			gSpotLights[i], input.worldPos, material.N, V,
 			material.baseColor.rgb, material.metallic,
@@ -47,6 +50,7 @@ float3 EvaluateMeshSurfaceLighting(VSOutput input, ResolvedPBRMaterial material,
 	}
 	[loop]
 	for (uint i = 0; i < rectCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gRectLights[i].renderingLayerMask, instanceFlags >> 8u)) continue;
 		lighting += EvaluatePBRRectLight(
 			gRectLights[i], input.worldPos, material.N, V,
 			material.baseColor.rgb, material.metallic,

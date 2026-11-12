@@ -12,10 +12,12 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 
 namespace {
@@ -228,20 +230,30 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 	}
 
 	const DirectionalLightItem* shadowLight = nullptr;
+	bool selectedHasExclusions = false;
 	for (uint32_t index = 0; index < context.viewLights->directionalLights.size(); ++index) {
 
 		const DirectionalLightItem* candidate = context.viewLights->directionalLights[index];
-		if (candidate && candidate->shadowStrength > 0.0f) {
-			shadowLight = candidate;
-			state_.lightIndex = index;
-			break;
-		}
+		if (!candidate || candidate->shadowStrength <= 0.0f || candidate->intensity <= 0.0f) continue;
+		const auto& settings = candidate->common.influence;
+		const bool hasExclusions = settings.shadowExcludedLayerMask != 0u ||
+			(candidate->common.world && !settings.shadowExclusions.empty() &&
+				!ResolveLightShadowExclusions(*candidate->common.world, candidate->common.entity, settings).empty());
+		if (shadowLight && (selectedHasExclusions != hasExclusions ? selectedHasExclusions :
+			shadowLight->intensity >= candidate->intensity)) continue;
+		shadowLight = candidate;
+		selectedHasExclusions = hasExclusions;
+		state_.lightIndex = index;
 	}
 	if (!shadowLight) {
 		return false;
 	}
 
+	const auto& influence = shadowLight->common.influence;
+	const auto exclusions = shadowLight->common.world ?
+		ResolveLightShadowExclusions(*shadowLight->common.world, shadowLight->common.entity, influence) : std::vector<Entity>{};
 	std::vector<const RenderItem*> shadowItems{};
+	bool hasExcludedCaster = false;
 	const RenderPassItemList& opaque = passBuckets.Get(RenderPhase::Opaque);
 	shadowItems.reserve(opaque.items.size());
 	for (const RenderItem* item : opaque.items) {
@@ -251,11 +263,14 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 
 			continue;
 		}
+		if ((item->renderingLayerMask & influence.shadowExcludedLayerMask) != 0u ||
+			(item->world == shadowLight->common.world && IsLightShadowExcluded(influence, exclusions, item->entity, 0u))) {
+			hasExcludedCaster = true;
+			continue;
+		}
 		shadowItems.emplace_back(item);
 	}
-	if (shadowItems.empty()) {
-		return false;
-	}
+	if (shadowItems.empty() && !hasExcludedCaster) return false;
 	const MeshRenderBackend* meshBackend =
 		deps.backendRegistry ? dynamic_cast<const MeshRenderBackend*>(deps.backendRegistry->Find(RenderBackendID::Mesh))
 							 : nullptr;
@@ -264,6 +279,13 @@ bool Engine::DirectionalShadowMapRenderer::Render(GraphicsCore& graphicsCore, co
 	activeView_ = owner.get();
 	auto& viewState = *activeView_;
 	auto stamp = BuildShadowSceneStamp(graphicsCore, context, deps);
+	Algorithm::HashCombine(stamp.worldRevision, influence.shadowExcludedLayerMask);
+	for (const auto& exclusion : influence.shadowExclusions) {
+		Algorithm::HashCombine(stamp.worldRevision, std::hash<AssetID>{}(exclusion.target.sourceAsset));
+		Algorithm::HashCombine(stamp.worldRevision, std::hash<UUID>{}(exclusion.target.localFileID));
+		Algorithm::HashCombine(stamp.worldRevision, exclusion.includeChildren);
+		Algorithm::HashCombine(stamp.worldRevision, std::hash<UUID>{}(exclusion.runtimeTargetID));
+	}
 	if (viewState.built && stamp.reusable && stamp == viewState.stamp &&
 		viewState.lightDirection == shadowLight->direction && viewState.lightEntity == shadowLight->common.entity &&
 		viewState.shadowState.lightIndex == state_.lightIndex) {

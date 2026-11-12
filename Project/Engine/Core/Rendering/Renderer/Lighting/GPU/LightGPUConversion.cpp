@@ -9,6 +9,7 @@ Engine::DirectionalLightGPU Engine::LightGPUConversion::ToGPU(const DirectionalL
 	DirectionalLightGPU light{};
 
 	light.color = item.color;
+	light.renderingLayerMask = item.common.influence.renderingLayerMask & 0x00FFFFFFu;
 	light.direction = item.direction;
 	light.intensity = item.intensity;
 	light.shadowStrength = item.shadowStrength;
@@ -22,6 +23,7 @@ Engine::PointLightGPU Engine::LightGPUConversion::ToGPU(const PointLightItem& it
 	PointLightGPU light{};
 
 	light.color = item.color;
+	light.renderingLayerMask = item.common.influence.renderingLayerMask & 0x00FFFFFFu;
 	light.pos = item.pos;
 	light.intensity = item.intensity;
 	light.radius = item.radius;
@@ -37,6 +39,7 @@ Engine::SpotLightGPU Engine::LightGPUConversion::ToGPU(const SpotLightItem& item
 	SpotLightGPU light{};
 
 	light.color = item.color;
+	light.renderingLayerMask = item.common.influence.renderingLayerMask & 0x00FFFFFFu;
 	light.direction = item.direction;
 	light.pos = item.pos;
 	light.intensity = item.intensity;
@@ -58,6 +61,7 @@ Engine::RectLightGPU Engine::LightGPUConversion::ToGPU(const RectLightItem& item
 	const auto positive = [](float value) { return std::isfinite(value) ? (std::max)(value, 0.0f) : 0.0f; };
 
 	light.color = item.color;
+	light.renderingLayerMask = item.common.influence.renderingLayerMask & 0x00FFFFFFu;
 	light.direction = Vector3::Normalize(item.direction);
 	if (Vector3::Dot(light.direction, light.direction) < 0.5f) light.direction = Vector3(1.0f, 0.0f, 0.0f);
 	light.pos = item.pos;

@@ -163,6 +163,7 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	uint flags, bool useShadow, uint2 pixel) {
 
 	PointLight light = gPointLights[lightIndex];
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
 	if (dist <= 1e-5f) {
@@ -178,7 +179,7 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + lightIndex) :
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex);
+			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex, light.shadowFilterIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 	float3 radiance =
@@ -193,6 +194,7 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	uint flags, bool useShadow, uint2 pixel) {
 
 	SpotLight light = gSpotLights[lightIndex];
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
 	if (dist <= 1e-5f) {
@@ -218,7 +220,7 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + pointCount + lightIndex) :
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex);
+			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex, light.shadowFilterIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 	float3 radiance = light.color.rgb * light.intensity *
@@ -233,6 +235,7 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 	uint flags, bool useShadow, uint2 pixel) {
 
 	RectLight light = gRectLights[lightIndex];
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	if (ComputeRectRangeAttenuation(light, worldPos) * ComputeRectBarnAttenuation(light, worldPos) <= 0.0f ||
 		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
 	float shadow = 1.0f;
@@ -587,18 +590,19 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	for (uint index = 0u; index < directionalCount; ++index) {
 
 		DirectionalLight light = gDirectionalLights[index];
+		if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) continue;
 		float shadow = 1.0f;
 		if (light.shadowStrength > 0.0f &&
 			(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 			float occlusion = useShadow ?
 				(filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, index) :
-					TraceDirectionalShadow(worldPos, N, light.direction, light.shadowAngularRadius, pixel, index)) :
+					TraceDirectionalShadow(worldPos, N, light.direction, light.shadowAngularRadius, pixel, index, light.shadowFilterIndex)) :
 				(shadowMapAvailable != 0u && index == shadowMapLightIndex ?
 					TraceDirectionalShadowMap(worldPos, N) :
-					TraceScreenSpaceShadow(
+					(light.shadowFilterIndex == 0xFFFFFFFFu ? TraceScreenSpaceShadow(
 						worldPos + N * shadowNormalBias,
-						normalize(-light.direction)));
+						normalize(-light.direction)) : 0.0f));
 			shadow = 1.0f - occlusion * light.shadowStrength;
 		}
 		float3 radiance = light.color.rgb * light.intensity * shadow;

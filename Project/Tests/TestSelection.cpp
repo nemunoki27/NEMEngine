@@ -24,6 +24,7 @@
 #include "FrameBufferingTests.h"
 #include "GPUFilterTestFixture.h"
 #include "RectLightTests.h"
+#include "LightInfluenceTests.h"
 #include "DecalTests.h"
 #include "ParticleSystemRuntimeTests.h"
 
@@ -160,6 +161,10 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return RunTest("TestDecals", TestDecals) && RunTest("TestDecalGPU", TestDecalGPU) ? 0 : 68;
 	}
 
+	if (1 < argc && std::string_view(argv[1]) == "--light-influence") {
+		return RunTest("TestLightInfluence", TestLightInfluence) && RunTest("TestLightInfluenceShaders", TestLightInfluenceShaders) &&
+			RunTest("TestLightInfluenceManaged", TestLightInfluenceManaged) ? 0 : 67;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--rect-light") {
 		return RunTest("TestRectLightCPU", TestRectLightCPU) && RunTest("TestRectLightGPU", TestRectLightGPU) ? 0 : 67;
 	}

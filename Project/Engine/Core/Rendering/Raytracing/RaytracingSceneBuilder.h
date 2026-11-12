@@ -37,6 +37,7 @@ namespace Engine {
 	struct SceneInstance;
 	struct MeshRendererComponent;
 	struct PrimitiveRendererComponent;
+	struct LightInfluenceSettings;
 
 	//============================================================================
 	//	RaytracingSceneBuilder class
@@ -62,6 +63,10 @@ namespace Engine {
 			MaterialResolver& materialResolver, MeshRenderBackend* meshBackend,
 			PrimitiveGeometryManager* primitiveGeometryManager, const RenderSceneBatch& renderBatch,
 			SceneExecutionContext& context);
+
+		// 現在のTLASからライトの除外対象を追加する
+		void AppendShadowExclusions(const LightInfluenceSettings& settings, const ECSWorld& world, Entity owner,
+			std::vector<uint32_t>& out) const;
 
 		// 終了処理
 		void Finalize();
@@ -142,6 +147,7 @@ namespace Engine {
 			uint64_t sceneMaterialGeneration = 0;
 			uint64_t cachedSceneMaterialHash = 0;
 			std::vector<RaytracingTLASInstance> cachedTLASInstances;
+			std::vector<WorldEntityKey> shadowInstanceEntities;
 			std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices;
 			std::vector<CachedMeshInstance> cachedMeshInstances;
 			bool builtThisFrame = false;

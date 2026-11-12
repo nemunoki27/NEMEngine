@@ -11,6 +11,7 @@
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
 #include "RectLightTests.h"
+#include "LightInfluenceTests.h"
 #include "DecalTests.h"
 
 //============================================================================
@@ -48,6 +49,7 @@ int NEMTests::RunAllTests() {
 
 	if (!RunTest("TestDecals", TestDecals)) { return 68; }
 
+	if (!RunTest("TestLightInfluence", TestLightInfluence)) return 67;
 	if (!RunTest("TestRectLightCPU", TestRectLightCPU)) { return 67; }
 	if (!RunTest("TestEditorContracts", TestEditorContracts)) {
 		return 43;

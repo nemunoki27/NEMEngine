@@ -19,6 +19,7 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class BuiltinTextureLibrary;
+	class RaytracingSceneBuilder;
 
 	//============================================================================
 	//	ViewLightBufferSet class
@@ -37,7 +38,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// CPU側のライト集合をGPU用に変換してアップロード
-		void Upload(const PerViewLightSet& lightSet);
+		void Upload(const PerViewLightSet& lightSet, const RaytracingSceneBuilder* scene = nullptr);
 
 		// 解放
 		void Release();
@@ -49,6 +50,7 @@ namespace Engine {
 
 		// 初期化されているか
 		bool IsInitialized() const { return initialized_; }
+		uint64_t GetShadowFilterRevision() const { return shadowFilterRevision_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -65,6 +67,10 @@ namespace Engine {
 		ViewConstantBuffer<LightClusterConstantsGPU> clusterConstants_{ "LightClusterConstants" };
 		StructuredInstanceBuffer<LightClusterHeaderGPU> clusterHeaders_{ "gLightClusterHeaders" };
 		StructuredInstanceBuffer<uint32_t> clusterLightIndices_{ "gLightClusterIndices" };
+		StructuredInstanceBuffer<uint32_t> shadowFilters_{ "gLightShadowFilters" };
+		std::vector<uint32_t> shadowFilterData_;
+		std::vector<uint32_t> shadowFilterScratch_;
+		uint64_t shadowFilterRevision_ = 0;
 
 		ViewLightData data_;
 		BuiltinTextureLibrary* builtinTextures_ = nullptr;
@@ -80,5 +86,7 @@ namespace Engine {
 		
 		// 確定済みCPUデータを現在のフレームスロットへ転送する
 		void UploadCachedBuffers();
+		// 現在のTLASに対応する除外一覧を作る
+		void UpdateShadowFilters(const PerViewLightSet& lightSet, const RaytracingSceneBuilder* scene);
 	};
 }

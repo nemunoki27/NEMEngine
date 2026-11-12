@@ -1,4 +1,5 @@
 #include "LightInspectorDrawers.h"
+#include "LightInfluenceFields.h"
 
 //============================================================================
 //	include
@@ -34,6 +35,7 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 		return MyGUI::DragFloat("光源角度", draft.shadowAngularRadius,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 5.0f });
 		});
+	DrawField(anyItemActive, [&] { return DrawLightInfluenceFields(context, world, entity, draft.influence); });
 }
 
 void Engine::DirectionalLightInspectorDrawer::OnBeforeCommit(
@@ -77,6 +79,7 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 		return MyGUI::DragFloat("光源半径", draft.shadowRadius,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 32.0f });
 		});
+	DrawField(anyItemActive, [&] { return DrawLightInfluenceFields(context, world, entity, draft.influence); });
 }
 
 //============================================================================
@@ -121,6 +124,7 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 		return MyGUI::DragFloat("影の強さ", draft.shadowStrength,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
 		});
+	DrawField(anyItemActive, [&] { return DrawLightInfluenceFields(context, world, entity, draft.influence); });
 }
 
 //============================================================================
@@ -168,6 +172,7 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 		return MyGUI::DragFloat("光源半径", draft.shadowRadius,
 			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 32.0f });
 		});
+	DrawField(anyItemActive, [&] { return DrawLightInfluenceFields(context, world, entity, draft.influence); });
 }
 
 void Engine::SpotLightInspectorDrawer::OnBeforeCommit(

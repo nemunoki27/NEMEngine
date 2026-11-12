@@ -128,6 +128,7 @@ namespace Engine {
 		// 現在のビューに影強度が0より大きいライトが存在するか
 		bool hasShadowCastingLight = false;
 		const PerViewLightSet* viewLights = nullptr;
+		uint64_t lightShadowFilterRevision = 0;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
 		// SceneViewへ現在の2Dゲームカメラ範囲を描画する

@@ -27,8 +27,10 @@ namespace {
 		uint32_t normalAvailable = 0;
 		uint32_t customDataAvailable = 0;
 		Vector4 parameters{};
+		uint32_t renderingLayerMask = 0x00FFFFFFu;
+		uint32_t padding[3]{};
 	};
-	static_assert(sizeof(ParticleSurfaceConstants) == 192);
+	static_assert(sizeof(ParticleSurfaceConstants) == 208);
 
 	struct ParticleShadowFallbackConstants {
 
@@ -51,6 +53,7 @@ void ParticleRenderBackend::BindGPUSurface(const RenderDrawContext& context, con
 	const auto& surface = settings.surface;
 	const auto* camera = context.view->FindCamera(item.cameraDomain);
 	ParticleSurfaceConstants constants;
+	constants.renderingLayerMask = item.renderingLayerMask;
 	constants.inverseViewProjection = camera->matrices.inverseProjectionMatrix * camera->matrices.inverseViewMatrix;
 	constants.cameraView = camera->matrices.viewMatrix;
 	constants.cameraPosition = Vector4(camera->cameraPos.x, camera->cameraPos.y, camera->cameraPos.z, 0);

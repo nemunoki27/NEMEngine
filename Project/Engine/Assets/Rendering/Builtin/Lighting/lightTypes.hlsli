@@ -1,6 +1,11 @@
 #ifndef NEM_LIGHT_TYPES_HLSLI
 #define NEM_LIGHT_TYPES_HLSLI
 
+// 描画レイヤーが重なるサーフェスへ直接照明を適用する
+bool IsLightRenderingLayerEnabled(uint lightMask, uint receiverMask) {
+	return (lightMask & receiverMask & 0x00FFFFFFu) != 0u;
+}
+
 // 平行光源
 struct DirectionalLight {
 
@@ -11,8 +16,8 @@ struct DirectionalLight {
 
 	float shadowStrength;
 	float shadowAngularRadius;
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
+	uint renderingLayerMask;
+	uint shadowFilterIndex;
 };
 // 点光源
 struct PointLight {
@@ -27,8 +32,8 @@ struct PointLight {
 	float shadowStrength;
 	float shadowRadius;
 
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
+	uint renderingLayerMask;
+	uint shadowFilterIndex;
 	uint2 _pad1;
 };
 // スポットライト
@@ -48,8 +53,8 @@ struct SpotLight {
 	float shadowStrength;
 
 	float shadowRadius;
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
+	uint renderingLayerMask;
+	uint shadowFilterIndex;
 	uint _pad0;
 };
 // 矩形面光源
@@ -74,8 +79,8 @@ struct RectLight {
 	float barnDoorLength;
 	float shadowStrength;
 
-	uint _alignmentPadding0;
-	uint _alignmentPadding1;
+	uint renderingLayerMask;
+	uint shadowFilterIndex;
 	uint2 _pad0;
 };
 // ライト数

@@ -61,6 +61,7 @@ bool NEMTests::RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsComma
 	ComPtr<ID3D12RootSignature> root;
 	ComPtr<ID3D12PipelineState> pipeline;
 	ComPtr<ID3D12Resource> output;
+	ComPtr<ID3D12Resource> shadowFilters;
 	if (canQuery) {
 		TestDirectory directory("ASInputLifetime");
 		const auto path = directory.GetPath() / "query.hlsl";
@@ -82,7 +83,9 @@ RWStructuredBuffer<uint> results : register(u0);
 cbuffer Params : register(b0) { uint outputIndex; };
 [numthreads(1,1,1)] void main() {
     float hitDistance;
-    results[outputIndex] = TraceShadowRay(float3(0.25, 0.25, -1), float3(0, 0, 1), 100, hitDistance) ? 1 : 0;
+    uint filter = outputIndex < 13 ? 0xFFFFFFFFu : (outputIndex == 14 ? 1u : 0u);
+    bool hit = TraceShadowRay(float3(0.25, 0.25, -1), float3(0, 0, 1), outputIndex == 15 ? 1.5 : 100, hitDistance, filter);
+    results[outputIndex] = hit && (outputIndex != 13 || hitDistance > 1.9) ? 1 : 0;
 })";
 			if (!file) return false;
 		}
@@ -90,11 +93,12 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		compiler.Init();
 		const auto shader = compiler.CompileShader(path.wstring(), L"cs_6_5", L"main", Engine::ShaderStage::CS);
 		if (!shader.IsValid()) return false;
-		CD3DX12_ROOT_PARAMETER parameters[3];
+		CD3DX12_ROOT_PARAMETER parameters[4];
 		parameters[0].InitAsShaderResourceView(10);
 		parameters[1].InitAsUnorderedAccessView(0);
 		parameters[2].InitAsConstants(1, 0);
-		const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(3, parameters);
+		parameters[3].InitAsShaderResourceView(30);
+		const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(4, parameters);
 		ComPtr<ID3DBlob> signature, errors;
 		if (FAILED(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &errors))) return false;
 		if (FAILED(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)))) return false;
@@ -102,8 +106,13 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		desc.pRootSignature = root.Get();
 		desc.CS = { shader.GetBytecodePointer(), shader.GetBytecodeSize() };
 		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
-		DxUtils::CreateReadbackBufferResource(device, readback, 48);
-		DxUtils::CreateUavBufferResource(device, output, 48);
+		DxUtils::CreateReadbackBufferResource(device, readback, 64);
+		DxUtils::CreateUavBufferResource(device, output, 64);
+		const std::array<uint32_t, 7> filterData{4, 1, 5, 2, 0, 0, 1};
+		DxUtils::CreateUploadBufferResource(device, shadowFilters, sizeof(filterData));
+		if (FAILED(shadowFilters->Map(0, nullptr, &mapped))) return false;
+		std::memcpy(mapped, filterData.data(), sizeof(filterData));
+		shadowFilters->Unmap(0, nullptr);
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		commands->ResourceBarrier(1, &barrier);
@@ -124,6 +133,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		commands->SetComputeRootShaderResourceView(0, (tlas ? tlas : top.GetResource())->GetGPUVirtualAddress());
 		commands->SetComputeRootUnorderedAccessView(1, output->GetGPUVirtualAddress());
 		commands->SetComputeRoot32BitConstant(2, index, 0);
+		commands->SetComputeRootShaderResourceView(3, shadowFilters->GetGPUVirtualAddress());
 		commands->Dispatch(1, 1, 1);
 	};
 	trace(0);
@@ -215,10 +225,21 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	staticBLAS.Release();
 	input.allowUpdate = true;
 	if (canQuery) {
+		// 発光元を無視しても奥の壁を遮蔽物として受理する
+		geometry.flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		source.Rebuild(commands, input);
+		instances.resize(2, instances.front());
+		instances[0].instanceID = 0;
+		instances[1].instanceID = 1;
+		instances[0].blas = instances[1].blas = source.GetResource();
+		instances[1].worldMatrix.m[3][2] = 1;
+		top.Rebuild(commands, instances);
+		for (uint32_t index = 12; index < 16; ++index) trace(index);
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commands->ResourceBarrier(1, &barrier);
-		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 48);
+		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 64);
+		retirement.Retire(std::move(shadowFilters));
 		retirement.Retire(std::move(output));
 		retirement.Retire(std::move(root));
 		retirement.Retire(std::move(pipeline));

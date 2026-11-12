@@ -111,18 +111,22 @@ TransparentPSOutput mainTransparent(VSOutput input) {
 		float3 Lo = 0.0f.xxx;
 		[loop]
 		for (uint i = 0; i < directionalCount; ++i) {
+		if (!IsLightRenderingLayerEnabled(gDirectionalLights[i].renderingLayerMask, input.flags >> 8u)) continue;
 			Lo += EvaluatePBRDirectionalLight(gDirectionalLights[i], m.N, V, m.baseColor.rgb, m.metallic, m.roughness, F0);
 		}
 		[loop]
 		for (uint pi = 0; pi < pointCount; ++pi) {
+		if (!IsLightRenderingLayerEnabled(gPointLights[pi].renderingLayerMask, input.flags >> 8u)) continue;
 			Lo += EvaluatePBRPointLight(gPointLights[pi], input.worldPos, m.N, V, m.baseColor.rgb, m.metallic, m.roughness, F0);
 		}
 		[loop]
 		for (uint si = 0; si < spotCount; ++si) {
+		if (!IsLightRenderingLayerEnabled(gSpotLights[si].renderingLayerMask, input.flags >> 8u)) continue;
 			Lo += EvaluatePBRSpotLight(gSpotLights[si], input.worldPos, m.N, V, m.baseColor.rgb, m.metallic, m.roughness, F0);
 		}
 		[loop]
 		for (uint ri = 0; ri < rectCount; ++ri) {
+		if (!IsLightRenderingLayerEnabled(gRectLights[ri].renderingLayerMask, input.flags >> 8u)) continue;
 			Lo += EvaluatePBRRectLight(gRectLights[ri], input.worldPos, m.N, V, m.baseColor.rgb, m.metallic, m.roughness, F0);
 		}
 

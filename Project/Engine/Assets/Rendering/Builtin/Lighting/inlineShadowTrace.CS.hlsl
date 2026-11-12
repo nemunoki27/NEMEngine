@@ -32,6 +32,8 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float3 position = gWorldPos.Load(int3(pixel, 0)).xyz;
 	float3 normal = GetShadowSurfaceNormal(pixel, position);
 	uint index = gShadowLightSources[slot];
+	uint filterIndex = 0xFFFFFFFFu;
+	uint receiverMask = 0x00FFFFFFu;
 	float3 direction = 0.0f.xxx;
 	float3 toLight = 0.0f.xxx;
 	float lightDistance = shadowMaxDistance;
@@ -46,11 +48,15 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	if (directional) {
 
 		DirectionalLight light = gDirectionalLights[index];
+		filterIndex = light.shadowFilterIndex;
+		receiverMask = light.renderingLayerMask;
 		direction = normalize(-light.direction);
 		sourceRadius = tan(radians(min(light.shadowAngularRadius, 5.0f)));
 	} else if (index < directionalCount + pointCount) {
 
 		PointLight light = gPointLights[index - directionalCount];
+		filterIndex = light.shadowFilterIndex;
+		receiverMask = light.renderingLayerMask;
 		toLight = light.pos - position;
 		lightDistance = length(toLight);
 		if (lightDistance >= light.radius) { gShadowOutput[offset] = 0.0f.xx; return; }
@@ -58,6 +64,8 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	} else if (!rectangular) {
 
 		SpotLight light = gSpotLights[index - directionalCount - pointCount];
+		filterIndex = light.shadowFilterIndex;
+		receiverMask = light.renderingLayerMask;
 		toLight = light.pos - position;
 		lightDistance = length(toLight);
 		if (lightDistance >= light.distance || dot(-toLight / max(lightDistance, 0.001f), light.direction) <= light.cosAngle) {
@@ -67,6 +75,8 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	} else {
 
 		RectLight light = gRectLights[index - directionalCount - pointCount - spotCount];
+		filterIndex = light.shadowFilterIndex;
+		receiverMask = light.renderingLayerMask;
 		toLight = light.pos - position;
 		lightDistance = length(toLight);
 		if (lightDistance >= light.attenuationRadius || dot(-toLight, light.direction) <= 0.0f) {
@@ -77,6 +87,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 		sourceSize = max(float2(light.sourceWidth, light.sourceHeight), 0.0f.xx);
 		sourceRadius = max(sourceSize.x, sourceSize.y) * 0.5f;
 	}
+	if (!IsLightRenderingLayerEnabled(receiverMask, flags >> 8u)) { gShadowOutput[offset] = 0.0f.xx; return; }
 	if (!directional) direction = toLight / max(lightDistance, 0.001f);
 	if (lightDistance <= 0.001f) {
 		gShadowOutput[offset] = 0.0f.xx; return;
@@ -110,7 +121,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 		float hitDistance = 0.0f;
 		// 面の裏側から来る光を遮蔽なしとして扱わない
 		bool hit = dot(normal, rayDirection) <= 0.0f;
-		if (!hit) hit = TraceShadowRay(origin, rayDirection, distance, hitDistance);
+		if (!hit) hit = TraceShadowRay(origin, rayDirection, distance, hitDistance, filterIndex);
 		occlusion += hit ? 1.0f : 0.0f;
 		blockerDistance += hitDistance;
 	}

@@ -1692,6 +1692,20 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 7
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "influence.renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 8
+        },
+        {
+          "managedName": "ShadowExcludedLayerMask",
+          "nativeMember": "influence.shadowExcludedLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 9
         }
       ]
     },
@@ -2973,6 +2987,20 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 8
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "influence.renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 9
+        },
+        {
+          "managedName": "ShadowExcludedLayerMask",
+          "nativeMember": "influence.shadowExcludedLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 10
         }
       ]
     },
@@ -3933,6 +3961,20 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 11
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "influence.renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 12
+        },
+        {
+          "managedName": "ShadowExcludedLayerMask",
+          "nativeMember": "influence.shadowExcludedLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 13
         }
       ]
     },
@@ -4944,6 +4986,20 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 10
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "influence.renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 11
+        },
+        {
+          "managedName": "ShadowExcludedLayerMask",
+          "nativeMember": "influence.shadowExcludedLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "id": 12
         }
       ]
     },

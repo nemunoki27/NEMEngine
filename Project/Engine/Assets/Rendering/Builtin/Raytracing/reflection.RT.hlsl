@@ -6,6 +6,7 @@
 #include "../Particle/GPU/particlePaintRead.hlsli"
 #include "../Particle/GPU/particleGPUShared.hlsli"
 #include "../Lighting/environmentSampling.hlsli"
+#include "../Lighting/lightShadowFilter.hlsli"
 
 // RTライブラリ内で固定SRVとライトバッファが衝突しないようレジスタを差し替える
 #define NEM_LIGHT_COUNTS_REGISTER b1
@@ -502,7 +503,7 @@ bool ResolveRaytracingLightCluster(
 
 float ResolveRaytracingShadow(float3 worldPosition, float3 worldNormal,
 	float3 direction, float maxDistance, float shadowStrength,
-	uint renderFlags) {
+	uint renderFlags, uint filterIndex) {
 
 	if (shadowStrength <= 0.0f ||
 		(renderFlags & MESH_INSTANCE_FLAG_RECEIVE_SHADOW) == 0u ||
@@ -517,6 +518,11 @@ float ResolveRaytracingShadow(float3 worldPosition, float3 worldNormal,
 	ray.Direction = SafeNormalize(direction, worldNormal);
 	ray.TMin = 0.001f;
 	ray.TMax = max(maxDistance - 0.001f, ray.TMin);
+	if (HasLightShadowExclusions(filterIndex)) {
+		float hitDistance;
+		return TraceFilteredLightShadow(gSceneTLAS, ray, kRaytracingMaskShadowCaster, filterIndex, hitDistance) ?
+			1.0f - saturate(shadowStrength) : 1.0f;
+	}
 
 	RayQuery <
 		RAY_FLAG_FORCE_OPAQUE |
@@ -534,6 +540,8 @@ float3 EvaluateRaytracingDirectionalLight(DirectionalLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, renderFlags >> 8u)) return 0.0f.xxx;
+
 	float3 L = SafeNormalize(-light.direction, material.N);
 	if (dot(material.N, L) <= 0.0f) {
 		return 0.0f.xxx;
@@ -541,7 +549,7 @@ float3 EvaluateRaytracingDirectionalLight(DirectionalLight light,
 	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N, L,
 		max(gFarClip, gMaxReflectionDistance),
-		light.shadowStrength, renderFlags);
+		light.shadowStrength, renderFlags, light.shadowFilterIndex);
 	return shadow * EvaluatePBRDirectionalLight(
 		light, material.N, V, material.baseColor.rgb,
 		material.metallic, material.roughness, F0);
@@ -551,6 +559,8 @@ float3 EvaluateRaytracingPointLight(PointLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, renderFlags >> 8u)) return 0.0f.xxx;
+
 	float3 toLight = light.pos - worldPosition;
 	float distanceToLight = length(toLight);
 	if (distanceToLight <= 1e-5f ||
@@ -560,7 +570,7 @@ float3 EvaluateRaytracingPointLight(PointLight light,
 	}
 	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N, toLight / distanceToLight,
-		distanceToLight, light.shadowStrength, renderFlags);
+		distanceToLight, light.shadowStrength, renderFlags, light.shadowFilterIndex);
 	return shadow * EvaluatePBRPointLight(
 		light, worldPosition, material.N, V, material.baseColor.rgb,
 		material.metallic, material.roughness, F0);
@@ -570,6 +580,8 @@ float3 EvaluateRaytracingSpotLight(SpotLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, renderFlags >> 8u)) return 0.0f.xxx;
+
 	float3 toLight = light.pos - worldPosition;
 	float distanceToLight = length(toLight);
 	if (distanceToLight <= 1e-5f ||
@@ -579,7 +591,7 @@ float3 EvaluateRaytracingSpotLight(SpotLight light,
 	}
 	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N, toLight / distanceToLight,
-		distanceToLight, light.shadowStrength, renderFlags);
+		distanceToLight, light.shadowStrength, renderFlags, light.shadowFilterIndex);
 	return shadow * EvaluatePBRSpotLight(
 		light, worldPosition, material.N, V, material.baseColor.rgb,
 		material.metallic, material.roughness, F0);
@@ -589,6 +601,8 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
+	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, renderFlags >> 8u)) return 0.0f.xxx;
+
 	float centerDistance = length(light.pos - worldPosition);
 	if (ComputeRectRangeAttenuation(light, worldPosition) * ComputeRectBarnAttenuation(light, worldPosition) <= 0.0f ||
 		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
@@ -596,7 +610,7 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N,
 		toCenter / max(centerDistance, 1e-5f), centerDistance,
-		light.shadowStrength, renderFlags);
+		light.shadowStrength, renderFlags, light.shadowFilterIndex);
 
 	return shadow * EvaluatePBRRectLight(light, worldPosition, material.N, V, material.baseColor.rgb,
 		material.metallic, material.roughness, F0);

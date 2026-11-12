@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/Components/Lighting/LightInfluenceSettings.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -27,6 +28,8 @@ namespace Engine {
 		// 所有エンティティ
 		Entity entity{};
 		ECSWorld* world = nullptr;
+
+		LightInfluenceSettings influence{};
 
 		// シーンインスタンス
 		UUID sceneInstanceID{};

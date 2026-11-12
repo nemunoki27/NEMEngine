@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include "LightInfluenceSettings.h"
 #include <Engine/Core/Foundation/Math/Color.h>
 
 namespace Engine {
@@ -32,6 +33,9 @@ namespace Engine {
 		float shadowStrength = 0.92f;
 		// 面光源として扱う半径
 		float shadowRadius = 0.05f;
+
+		// 照射対象と影の除外
+		LightInfluenceSettings influence{};
 
 		// 有効フラグ
 		bool enabled = true;

@@ -70,6 +70,7 @@ Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& grap
 	const auto* camera = context.view ? context.view->FindCamera(RenderCameraDomain::Perspective) : nullptr;
 	if (!camera || !deps.renderBatch || !deps.assetLibrary) return result;
 	result.renderRevision = deps.renderBatch->GetSourceRevision();
+	Algorithm::HashCombine(result.renderRevision, context.lightShadowFilterRevision);
 	result.materialRevision = *deps.assetLibrary->GetMaterialRevision();
 	Algorithm::HashCombine(result.materialRevision, MaterialRenderPolicy::GetDefaultMaterialHash());
 	result.pipelineRevision = deps.pipelineCache ? deps.pipelineCache->GetContentRevision() : 0;
