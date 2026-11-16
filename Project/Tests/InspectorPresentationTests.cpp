@@ -426,6 +426,15 @@ bool NEMTests::TestInspectorPresentation() {
 	for (const char* name : EnumAdapter<EasingType>::GetEnumArray()) {
 		if (std::string_view(ImGuiUtility::GetEnumDisplayName("EasingType", name)) != name) return false;
 	}
+	for (const auto& [type, name] : std::array{
+		std::pair{"ShaderGraphDomain", "Surface"}, std::pair{"ShaderGraphDomain", "PostProcess"},
+		std::pair{"ShaderGraphDomain", "RayTracingEffect"}, std::pair{"ShaderGraphTarget", "Mesh"},
+		std::pair{"ShaderGraphTarget", "Primitive3D"}, std::pair{"ShaderGraphTarget", "Sprite"},
+		std::pair{"ShaderGraphTarget", "Text"}, std::pair{"ShaderGraphTarget", "Primitive2D"},
+		std::pair{"ShaderGraphTarget", "Particle"}, std::pair{"ShaderGraphTarget", "Trail"},
+		std::pair{"ShaderGraphSurfaceMode", "Opaque"}, std::pair{"ShaderGraphSurfaceMode", "Transparent"}}) {
+		if (std::string_view(ImGuiUtility::GetEnumDisplayName(type, name)) != name) return false;
+	}
 	// 表示だけで上位ビットや参照切れを失わない
 	ImGuiContext* previous = ImGui::GetCurrentContext();
 	ImGuiContext* gui = ImGui::CreateContext();

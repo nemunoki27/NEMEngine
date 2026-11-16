@@ -9,7 +9,8 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 		type.ends_with("RendererCullMode") || type.ends_with("RendererDepthComparison") ||
 		type.ends_with("RendererStencilOperation") || type.ends_with("BlendMode") ||
 		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") ||
-		type.ends_with("ShaderGraphSurfaceMode") || type.ends_with("MaterialCreateType") ||
+		type.ends_with("ShaderGraphSurfaceMode") || type.ends_with("ShaderGraphDomain") ||
+		type.ends_with("ShaderGraphTarget") || type.ends_with("MaterialCreateType") ||
 		type.ends_with("PrimitiveType") || type.ends_with("ParticleEmitterShape") ||
 		type.ends_with("ColliderShapeType")) return name;
 	if (type.ends_with("PrimitiveRenderSpace") || type.ends_with("Dimension") ||

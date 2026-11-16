@@ -103,7 +103,6 @@ namespace {
 		auto& state = graph.renderState;
 		state.fillMode = selected->rasterizer.FillMode;
 		state.cullMode = selected->rasterizer.CullMode;
-		state.twoSided = state.cullMode == D3D12_CULL_MODE_NONE;
 		state.frontCounterClockwise = selected->rasterizer.FrontCounterClockwise;
 		state.depthClipEnable = selected->rasterizer.DepthClipEnable;
 		state.depthTest = selected->depthStencil.DepthEnable;

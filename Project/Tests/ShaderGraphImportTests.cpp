@@ -20,6 +20,30 @@ namespace NEMTests {
 	// 設定取り込みと失敗時の旧値維持を確認する
 	bool TestShaderGraphSettingsImport(const ShaderGraphCompileFixture& fixture) {
 
+		// 旧形式の両面描画と各カリング値を保存後も維持する
+		for (const auto cullMode : {D3D12_CULL_MODE_NONE, D3D12_CULL_MODE_FRONT, D3D12_CULL_MODE_BACK}) {
+			auto graph = Engine::CreateDefaultSurfaceShaderGraph("CullMode");
+			graph.renderState.cullMode = cullMode;
+			const auto saved = Engine::ToJson(graph);
+			Engine::ShaderGraphAsset restored;
+			if (saved["renderState"].contains("twoSided") || !Engine::FromJson(saved, restored) ||
+				restored.renderState.cullMode != cullMode) {
+				return false;
+			}
+			for (const bool twoSided : {false, true}) {
+				auto legacy = saved;
+				legacy["renderState"]["twoSided"] = twoSided;
+				const auto expected = twoSided ? D3D12_CULL_MODE_NONE : cullMode;
+				if (!Engine::FromJson(legacy, restored) || restored.renderState.cullMode != expected) {
+					return false;
+				}
+				const auto converted = Engine::ToJson(restored);
+				if (converted["renderState"].contains("twoSided") || !Engine::FromJson(converted, restored) ||
+					restored.renderState.cullMode != expected) {
+					return false;
+				}
+			}
+		}
 		const auto renderingRoot = fixture.GetShaderRoot().parent_path() / "Rendering";
 		// アセット取り込みは保存先を維持し、失敗時に編集内容を変更しない
 		{

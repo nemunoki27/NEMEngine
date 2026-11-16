@@ -27,6 +27,31 @@ const toolGuides = {
 	InputDeviceTool: ['input', 'プロジェクト設定 → 入力デバイス', 'Playerの操作機器と機器側の入力条件を設定します。Action名の定義と現在の入力値も合わせて確認します。'],
 };
 
+// 共通UIへ分割された設定もツールの使い方へまとめる
+const toolDetails = {
+	LogicPlacementTool: {
+		fields: [
+			['次元', '2DはXY平面、3Dは選択した配置平面で生成します。配置元のルートのTransformと次元を合わせます。'],
+			['親オブジェクトの名前', '生成する親の名前です。初期値と空白だけの入力はObjectになり、既存名と重なる場合は連番が付きます。'],
+			['配置オブジェクト', 'HierarchyのオブジェクトかProjectPanelのPrefabをドロップします。クリックして候補から選ぶこともできます。右クリックの削除はこの欄の参照解除です。未設定では配置できません。'],
+			['位置・回転・スケール', '生成する親の初期Transformです。配置点は親のローカル座標で計算し、親のTransformで配置全体を移動・回転・拡縮します。'],
+			['形状・配置平面', '円状・N角形・直線・格子を選びます。3Dの平面はXY・XZ・YZから選択し、高さ方向はその平面に垂直になります。'],
+			['半径・開始角度', '円状とN角形の大きさと向きです。N角形の半径は頂点までの距離を指定します。'],
+			['外周の配置数', '円周上に等間隔で配置する個数です。内部の段を作る場合は、この外周の密度を基準に内側の個数を求めます。'],
+			['頂点数・辺の分割数', 'N角形の頂点数は3以上です。分割数1は頂点だけに配置し、外周の個数は頂点数と辺の分割数の積になります。'],
+			['長さ・配置数', '直線の長さと配置個数です。親の原点を中心に、両端を含めて均等に並べます。'],
+			['横・縦・高さの個数と間隔', '格子の各方向の個数と間隔です。2Dは横と縦の2軸、3Dは高さも加えた3軸で並べます。'],
+			['中を埋め尽くす・内部分布', '円状とN角形の内部にも配置します。均等は相似形の段を重ね、ランダムは内部へ点を分布させます。'],
+			['内側の段数', '均等配置で外周の内側に作る段数です。各段は等間隔になり、中心にも1個配置します。0の場合は中心だけを追加します。'],
+			['内部の配置数・シード', 'ランダム配置で外周とは別に追加する個数と乱数のシードです。同じ設定なら同じ座標を再現できます。'],
+			['向き・前方軸・回転補正', '元の向き、進行方向、中心方向から選びます。向きを合わせる場合はモデルの前方軸と回転補正を設定します。'],
+			['配置数', '外周・内部・中心を含む配置ルートの総数です。配置元が持つ子階層の個数は含みません。1回の配置は10000ルートまでです。'],
+			['配置', '生成した親の下へ配置元を子階層ごと複製し、Prefabのリンクも保持します。親と全生成物を1回のUndoで戻せ、Redoは初回と同じ配置を復元します。'],
+		],
+		saving: '配置結果は編集しているSceneまたはPrefabを保存して残します。ツールの形状設定はユーザー設定に保存されます。SceneViewの線と位置マーカーはプレビュー専用で、シーンへ生成されません。',
+	},
+};
+
 // 作成画面の共通操作を専用ツールの説明へ載せる
 function creationGuide(tool) {
 	const suffix = {AnimationClipTool: '.animClip.json', TimelineTool: '.timeline.json',
@@ -94,11 +119,13 @@ export function referencePages(data, api, coverage) {
 		const [guide, menu, summary] = toolGuides[tool.name] || [];
 		if (!guide) throw new Error(`Toolの説明がありません: ${tool.name}`);
 		const fields = data.ui.filter(field => field.file.startsWith(path.posix.dirname(tool.source) + '/'));
+		const details = toolDetails[tool.name];
+		const rows = details?.fields || [...new Map(fields.map(field => [field.label, field])).values()].map(field => [field.label, describeWidget(field)]);
 		const target = `/reference/tools/${slug(tool.name)}`;
 		save(`reference/tools/${slug(tool.name)}.md`, tool.label,
 			`**開き方：${menu}**\n\n${summary}\n\n${tool.name === 'TimelineTool' ? timelineGuide() : ''}${creationGuide(tool.name)}## 操作手順\n\n[${tool.label}の使い方](/manual/${guide})を参照してください。\n\n## 設定欄\n\n` +
-			(fields.length ? table(['項目', '説明'], [...new Map(fields.map(field => [field.label, field])).values()].map(field => [field.label, describeWidget(field)])) : '表示中の対象と診断結果を確認します。\n') +
-			'\n## 保存と切替\n\n保存するAsset・Project設定と、Previewや実行値を区別します。保存ボタンがある場合は変更を確定して保存し、未保存確認では保存・破棄・キャンセルを選びます。\n');
+			(rows.length ? table(['項目', '説明'], rows) : '表示中の対象と診断結果を確認します。\n') +
+			'\n## 保存と切替\n\n' + (details?.saving || '保存するAsset・Project設定と、Previewや実行値を区別します。保存ボタンがある場合は変更を確定して保存し、未保存確認では保存・破棄・キャンセルを選びます。') + '\n');
 		coverage.tools.push({ id: tool.name, page: target });
 	}
 	const gpuSource = read('Project/Engine/Core/Rendering/Particle/ParticleGPUProgram.cpp');

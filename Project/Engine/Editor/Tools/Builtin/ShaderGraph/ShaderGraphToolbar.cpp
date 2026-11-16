@@ -56,22 +56,7 @@ void Engine::ShaderGraphToolbar::Draw(
 			return success;
 		});
 
-	const float historyButtonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-	ImGui::BeginDisabled(!session.IsLoaded() || !session.CanUndo());
-	if (ImGui::Button("元に戻す", ImVec2(historyButtonWidth, 0.0f))) {
-		actions.UndoGraph();
-	}
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!session.IsLoaded() || !session.CanRedo());
-	if (ImGui::Button("やり直す", ImVec2(historyButtonWidth, 0.0f))) {
-		actions.RedoGraph();
-	}
-	ImGui::EndDisabled();
-
 	if (!session.GetStatusMessage().empty()) {
 		ImGui::TextUnformatted(session.GetStatusMessage().c_str());
-	} else {
-		ImGui::Dummy(ImVec2(0.0f, ImGui::GetTextLineHeight()));
 	}
 }

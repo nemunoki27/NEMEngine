@@ -128,7 +128,6 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
 	if (data.contains("renderState") && data["renderState"].is_object()) {
 
 		const nlohmann::json& renderState = data["renderState"];
-		outAsset.renderState.twoSided = renderState.value("twoSided", false);
 		outAsset.renderState.depthWrite = renderState.value("depthWrite", true);
 		outAsset.renderState.depthTest = renderState.value("depthTest", true);
 		outAsset.renderState.alphaClipping = renderState.value("alphaClipping", false);
@@ -142,6 +141,10 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
 		outAsset.renderState.cullMode =
 			EnumAdapter<D3D12_CULL_MODE>::FromString(renderState.value("cullMode", "D3D12_CULL_MODE_BACK"))
 				.value_or(D3D12_CULL_MODE_BACK);
+		// 旧形式の両面描画はカリングなしへ引き継ぐ
+		if (renderState.value("twoSided", false)) {
+			outAsset.renderState.cullMode = D3D12_CULL_MODE_NONE;
+		}
 		outAsset.renderState.frontCounterClockwise = renderState.value("frontCounterClockwise", false);
 		outAsset.renderState.depthClipEnable = renderState.value("depthClipEnable", true);
 		outAsset.renderState.depthFunc =
@@ -318,7 +321,6 @@ nlohmann::json Engine::ToJson(const ShaderGraphAsset& asset) {
 		{"defaultPrecision", EnumAdapter<ShaderGraphPrecision>::ToString(asset.defaultPrecision)},
 		{"renderState",
 			{
-				{"twoSided", asset.renderState.twoSided},
 				{"depthWrite", asset.renderState.depthWrite},
 				{"depthTest", asset.renderState.depthTest},
 				{"alphaClipping", asset.renderState.alphaClipping},

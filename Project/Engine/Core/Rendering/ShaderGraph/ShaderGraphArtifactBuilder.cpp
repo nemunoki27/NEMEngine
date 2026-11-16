@@ -144,7 +144,7 @@ namespace Engine::ShaderGraphArtifactBuilder {
 		// 各Variantへ描画設定とSamplerを反映する
 		for (Engine::PipelineVariantDesc& variant : outPipeline.variants) {
 			variant.rasterizer.FillMode = graph.renderState.fillMode;
-			variant.rasterizer.CullMode = graph.renderState.twoSided ? D3D12_CULL_MODE_NONE : graph.renderState.cullMode;
+			variant.rasterizer.CullMode = graph.renderState.cullMode;
 			variant.rasterizer.FrontCounterClockwise = graph.renderState.frontCounterClockwise;
 			variant.rasterizer.DepthClipEnable = graph.renderState.depthClipEnable;
 			variant.depthStencil.DepthEnable = graph.renderState.depthTest;

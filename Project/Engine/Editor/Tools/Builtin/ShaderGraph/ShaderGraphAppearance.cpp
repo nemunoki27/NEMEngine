@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 
 // c++
 #include <algorithm>
@@ -64,19 +65,16 @@ Engine::Color4 Engine::ShaderGraphAppearance::ToColor4(const ImVec4& color) {
 	return Engine::Color4(color.x, color.y, color.z, color.w);
 }
 
-bool Engine::ShaderGraphAppearance::LoadAppearanceSettings(ShaderGraphAppearanceSetting& settings) {
+bool Engine::ShaderGraphAppearance::LoadAppearanceSettings(ShaderGraphAppearanceSetting& outSettings) try {
 
-	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(ConfigPaths::kShaderGraphAppearance);
-	if (!JsonAdapter::Check(path)) {
-		return false;
-	}
-
-	const nlohmann::json data = JsonAdapter::Load(path);
-	if (!data.is_object()) {
+	nlohmann::json data;
+	if (!JsonAdapter::TryLoad(RuntimePaths::GetEngineAssetPath(ConfigPaths::kShaderGraphAppearance), data) ||
+		!data.is_object()) {
 		return false;
 	}
 
 	// 既定値へ保存済み設定を重ねる
+	ShaderGraphAppearanceSetting settings;
 	RestoreDefaultAppearance(settings);
 	const auto colorsFound = data.find("colors");
 	if (colorsFound != data.end() && colorsFound->is_object()) {
@@ -123,10 +121,17 @@ bool Engine::ShaderGraphAppearance::LoadAppearanceSettings(ShaderGraphAppearance
 		settings.linkThickness = layout.value("linkThickness", settings.linkThickness);
 	}
 	ClampAppearanceSettings(settings);
+	outSettings = settings;
 	return true;
+} catch (const nlohmann::json::exception&) {
+	return false;
 }
 
-void Engine::ShaderGraphAppearance::SaveAppearanceSettings(const ShaderGraphAppearanceSetting& settings) {
+bool Engine::ShaderGraphAppearance::SaveAppearanceSettings(const ShaderGraphAppearanceSetting& settings) {
+
+	if (!EditorSourceNavigation::IsEngineSourceProject()) {
+		return false;
+	}
 
 	// 色と配置を同じ文書へ保存する
 	nlohmann::json colors{
@@ -171,7 +176,7 @@ void Engine::ShaderGraphAppearance::SaveAppearanceSettings(const ShaderGraphAppe
 		{ "colors", std::move(colors) },
 		{ "layout", std::move(layout) },
 	};
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(ConfigPaths::kShaderGraphAppearance), data);
+	return JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(ConfigPaths::kShaderGraphAppearance), data);
 }
 
 void Engine::ShaderGraphAppearance::ApplyAppearanceSettings(const ShaderGraphAppearanceSetting& settings) {

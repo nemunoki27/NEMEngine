@@ -44,7 +44,6 @@ bool Engine::ShaderGraphSettingsEditor::Draw() {
 	// 描画条件の変更を編集sessionへ通知する
 	editSession_.MarkDirty(MyGUI::EnumCombo("サーフェス", editSession_.GetDraft().surfaceMode).valueChanged);
 	editSession_.MarkDirty(MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::BlendMode), editSession_.GetDraft().renderState.blendMode).valueChanged);
-	editSession_.MarkDirty(MyGUI::Checkbox("両面描画", editSession_.GetDraft().renderState.twoSided));
 	editSession_.MarkDirty(D3D12EnumCombo("塗りモード", editSession_.GetDraft().renderState.fillMode).valueChanged);
 	editSession_.MarkDirty(D3D12EnumCombo("カリング", editSession_.GetDraft().renderState.cullMode).valueChanged);
 	editSession_.MarkDirty(MyGUI::Checkbox("前面反時計回り", editSession_.GetDraft().renderState.frontCounterClockwise));

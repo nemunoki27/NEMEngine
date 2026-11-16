@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 
 // c++
 #include <algorithm>
@@ -431,7 +432,6 @@ void Engine::ShaderGraphEditorTool::DrawParameterPanel(const EditorToolContext& 
 		return;
 	}
 
-	ImGui::Separator();
 	DrawGraphSettings();
 
 	if (editSession_.GetDraft().domain == ShaderGraphDomain::Surface) {
@@ -458,10 +458,14 @@ void Engine::ShaderGraphEditorTool::DrawSelectedNodeEditor(const EditorToolConte
 
 void Engine::ShaderGraphEditorTool::DrawAppearancePanel() {
 
+	if (!EditorSourceNavigation::IsEngineSourceProject()) {
+		return;
+	}
 	// 解像度の変更が確定したときだけpreviewを作り直す
 	if (appearanceEditor_.Draw(editSession_.GetStatusMessage())) {
 		nodePreviews_.ClearNodePreviews();
 	}
+	ImGui::Separator();
 }
 
 bool Engine::ShaderGraphEditorTool::RequestGraphCreation(const EditorToolContext& context) {

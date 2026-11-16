@@ -4,7 +4,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ConfigPaths
-	//	ProjectSettingsとUserSettingsへ渡す設定ファイルの相対パスを一元管理する
+	//	プロジェクトとエンジンの設定ファイルの相対パスを一元管理する
 	//============================================================================
 	namespace ConfigPaths {
 
@@ -41,9 +41,9 @@ namespace Engine {
 		inline constexpr const char* kProjectPanel = "Editor/ProjectPanel.json";
 		// ロジック配置ツールの設定
 		inline constexpr const char* kLogicPlacementTool = "Editor/LogicPlacement.json";
-		// シェーダーグラフの外観設定
+		// エンジン共通のシェーダーグラフ外観設定
 		inline constexpr const char* kShaderGraphAppearance =
-			"Editor/ShaderGraphAppearance.json";
+			"Config/shaderGraphAppearance.exeConfig.json";
 		// ユーザーが保存したエディターレイアウト
 		inline constexpr const char* kEditorLayouts = "Editor/Layouts.json";
 		// 終了時のエディターレイアウト

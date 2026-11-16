@@ -84,8 +84,10 @@ export const componentDetails = {
 		code('親子付けと座標変換', 'SetParent, TransformPoint, InverseTransformPoint', 'SetParentのworldPositionStaysでWorld位置を保つかを指定します。ローカルの発射位置をWorldへ変換する場合はTransformPointを使います。'),
 	],
 	Spline: [
+		both('次元・デバッグ描画', 'is2D, drawDebug', '2DはXY平面の制御点と正投影の補助線を使用します。デバッグ描画はSceneViewの曲線・制御点と配置候補の表示を切り替えます。'),
 		both('閉じた曲線', 'closed', '最後の制御点から先頭へ戻る経路にします。周回する巡回ルートやParticleの循環移動に使います。'),
-		both('制御点・追加・削除', 'pointCount, GetPoint, SetPoint', '各点の位置、入る接線、出る接線で曲がり方を決めます。位置と接線はSplineのローカル値です。C#ではpointCountを確保してから、範囲内の点をSetPointで変更します。'),
+		both('制御点・追加・削除', 'pointCount, GetPoint, SetPoint', 'Inspectorでは各点の位置を編集します。入る接線と出る接線はSceneViewのハンドルかC#で変更します。位置と接線はSplineのローカル値です。C#ではpointCountを確保してから範囲内の点をSetPointで変更します。'),
+		editor('制御点のロジック配置', '円状・N角形・直線の形状と次元から制御点を生成し、既存の点を置き換えます。円は滑らかな閉曲線、N角形は直線の辺を持つ閉曲線、直線は開いた曲線になり、Undoで元へ戻せます。内部充填と格子は配置ツール専用です。'),
 		code('距離から位置を取得', 'EvaluateDistance, tolerance', '経路上を進んだ距離からWorld位置と接線を得ます。速度×経過秒を距離へ加えると、移動する足場や巡回する物体へ応用できます。toleranceは曲線の距離計算精度の設定です。'),
 	],
 	ForceField: [
@@ -298,21 +300,21 @@ export const componentDetails = {
 	DirectionalLight: [
 		both('非RT時の影', 'ShadowStrength, ShadowExcludedLayerMask, SetShadowExclusion', 'シャドウマップは1光源に対応し、影の除外設定がある光源を優先し、同条件なら強度が高い光源を選びます。その他の平行光は補助のスクリーンスペース影です。影の除外を設定した補助光では、その影を使いません。複数光源で遮蔽物を個別に制御する場合はレイトレーシングの影を使用します。'),
 		both('照射対象レイヤー・影の除外レイヤー', 'RenderingLayerMask, ShadowExcludedLayerMask', '既存の描画レイヤーを使います。照射対象はRendererと共通するレイヤーがあれば照らし、影の除外は一つでも該当する遮蔽物をこのライトだけから除外します。初期値は全対象・除外なしです。'),
-		both('影の除外エンティティ・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
+		both('影の除外オブジェクト・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
 		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・方向・強度・有効', 'Color, Direction, Intensity, Enabled', '太陽のように一定方向から照らす光です。Directionは光の進む向きで、Cameraの注視方向や点光源の位置とは別です。'),
 		both('影の強さ・光源角度', 'ShadowStrength, ShadowAngularRadius', '影の濃さと、光源の広がりによる半影を調整します。影の計算方式はProjectのRay Tracing設定にも依存します。'),
 	],
 	PointLight: [
 		both('照射対象レイヤー・影の除外レイヤー', 'RenderingLayerMask, ShadowExcludedLayerMask', '既存の描画レイヤーを使います。照射対象はRendererと共通するレイヤーがあれば照らし、影の除外は一つでも該当する遮蔽物をこのライトだけから除外します。初期値は全対象・除外なしです。'),
-		both('影の除外エンティティ・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
+		both('影の除外オブジェクト・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
 		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・強度・有効・位置', 'Color, Intensity, Enabled', 'Transformの位置から周囲へ広がる光です。壁灯・爆発・アイテムの点滅などに使います。位置を動かすときはTransformを変更します。'),
 		both('半径・減衰・光源半径・影', 'Radius, Decay, ShadowRadius, ShadowStrength', 'Radiusは照らす範囲、Decayは弱まり方、ShadowRadiusは影計算での光源の大きさです。光源半径を変えることと照射範囲を広げることは異なります。'),
 	],
 	RectLight: [
 		both('照射対象レイヤー・影の除外レイヤー', 'RenderingLayerMask, ShadowExcludedLayerMask', '既存の描画レイヤーを使います。照射対象はRendererと共通するレイヤーがあれば照らし、影の除外は一つでも該当する遮蔽物をこのライトだけから除外します。初期値は全対象・除外なしです。'),
-		both('影の除外エンティティ・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
+		both('影の除外オブジェクト・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
 		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・総出力・有効・向き', 'Color, Intensity, Enabled', '矩形の面光源です。Transformで位置と向きを決めます。同じ総出力でも光源面の幅・高さを変えると見え方が変わります。'),
 		both('減衰半径・光源幅・光源高さ', 'AttenuationRadius, SourceWidth, SourceHeight', '照射の届く範囲と、発光面の寸法を別々に指定します。窓や照明パネルのような広がった光に使います。'),
@@ -320,7 +322,7 @@ export const componentDetails = {
 	],
 	SpotLight: [
 		both('照射対象レイヤー・影の除外レイヤー', 'RenderingLayerMask, ShadowExcludedLayerMask', '既存の描画レイヤーを使います。照射対象はRendererと共通するレイヤーがあれば照らし、影の除外は一つでも該当する遮蔽物をこのライトだけから除外します。初期値は全対象・除外なしです。'),
-		both('影の除外エンティティ・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
+		both('影の除外オブジェクト・子も含める', 'GetShadowExclusions, SetShadowExclusion, RemoveShadowExclusion, ClearShadowExclusions', '発光するCubeの子にPointLightを置いた場合は、そのPointLightの除外対象へCubeをドロップします。Cubeは他のライトでは影を落とし、壁などは引き続き光を遮ります。子も含めるは指定対象の子孫まで除外します。Emissive自体が周囲を照らす機能ではありません。'),
 		both('デバッグ描画', 'DrawDebug', 'SceneViewのアイコンと、選択中の錐台・光源面・方向線を表示します。初期値はtrueです。OFFにしてもゲーム内の照明やカメラ出力は有効なままです。'),
 		both('色・方向・強度・有効', 'Color, Direction, Intensity, Enabled', 'Transformの位置から指定方向の円錐へ照らします。懐中電灯や舞台照明に向いています。'),
 		both('距離・減衰・角度余弦・減衰開始余弦', 'Distance, Decay, CosAngle, CosFalloffStart', '照射距離と円錐の端の弱まり方を指定します。角度欄の値は角度そのものではなくcos値です。度数をそのまま代入しないでください。'),

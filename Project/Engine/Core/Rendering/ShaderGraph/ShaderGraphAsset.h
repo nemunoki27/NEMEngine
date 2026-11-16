@@ -249,7 +249,6 @@ namespace Engine {
 	// Surfaceの描画状態
 	struct ShaderGraphRenderState {
 
-		bool twoSided = false;
 		bool depthWrite = true;
 		bool depthTest = true;
 		bool alphaClipping = false;

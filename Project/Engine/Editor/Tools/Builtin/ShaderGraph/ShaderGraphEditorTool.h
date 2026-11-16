@@ -150,9 +150,9 @@ namespace Engine {
 		// クリップボードのNodeを配置する
 		void PasteSelection();
 		// Graphの編集を元に戻す
-		void UndoGraph() override;
+		void UndoGraph();
 		// Graphの編集をやり直す
-		void RedoGraph() override;
+		void RedoGraph();
 		// 編集内容をGraphの履歴へ確定する
 		void CommitGraphHistory();
 		// 選択しているNodeを取得する

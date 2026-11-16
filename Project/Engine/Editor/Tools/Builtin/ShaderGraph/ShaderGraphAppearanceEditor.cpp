@@ -38,8 +38,8 @@ bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("保存##Appearance", ImVec2(buttonWidth, 0.0f))) {
 
-		ShaderGraphAppearance::SaveAppearanceSettings(settings_);
-		status = "見た目設定を保存しました";
+		const bool saved = ShaderGraphAppearance::SaveAppearanceSettings(settings_);
+		status = saved ? "見た目設定を保存しました" : "見た目設定の保存に失敗しました";
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("読み込み##Appearance", ImVec2(buttonWidth, 0.0f))) {

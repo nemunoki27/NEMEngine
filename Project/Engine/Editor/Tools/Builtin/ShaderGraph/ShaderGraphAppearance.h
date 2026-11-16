@@ -54,9 +54,9 @@ namespace Engine {
 namespace Engine::ShaderGraphAppearance {
 
 	// 見た目設定を読み込む
-	bool LoadAppearanceSettings(ShaderGraphAppearanceSetting& settings);
+	bool LoadAppearanceSettings(ShaderGraphAppearanceSetting& outSettings);
 	// 見た目設定を保存する
-	void SaveAppearanceSettings(const ShaderGraphAppearanceSetting& settings);
+	bool SaveAppearanceSettings(const ShaderGraphAppearanceSetting& settings);
 	// 見た目設定を描画へ適用する
 	void ApplyAppearanceSettings(const ShaderGraphAppearanceSetting& settings);
 	// 見た目設定を初期値へ戻す

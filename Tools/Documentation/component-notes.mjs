@@ -12,7 +12,7 @@ export const components = {
 	SimpleAnimation: ['1つの値をAからBへ補間、またはSin・Cosで周期的に変化させます。', '値の型と再生方法を選び、自動適用を使う場合は適用先と項目を指定します。', '1 Componentで1値を扱います。C#のLateUpdateで当frameの結果を取得できます。', 'animation'],
 
 	Transform: ['位置・回転・拡縮と親子関係を保持します。すべての通常Entityに付いています。', 'HierarchyでEntityを選び、Inspectorの移動・回転・拡縮を変更します。', '位置のワールド値とローカル値を区別します。親のScaleは子にも影響します。', 'scene'],
-	Spline: ['制御点を結んだ曲線です。Particleの経路や位置・接線のサンプリングに使います。', '制御点を追加し、位置・接線と閉じる設定を編集します。', 'ParticleのSplineMovementでこのEntityを参照します。Transformを動かすと経路の配置も変わります。', 'particles'],
+	Spline: ['制御点を結んだ曲線です。Particleの経路や位置・接線のサンプリングに使います。', '次元と閉じる設定を選び、制御点を追加するかロジック配置で円・N角形・直線から生成します。位置はInspector、接線はSceneViewまたはC#で編集します。', 'ParticleのSplineMovementでこのGameObjectを参照します。Transformを動かすと経路の配置も変わります。', 'particles'],
 	ForceField: ['周囲のGPU Particleへ引力・斥力・回転などの力を与えます。', '範囲・強さ・方式を指定し、Particle側にForceField Moduleを追加します。', 'Particle側のLayerMaskとこのComponentのLayerを一致させます。', 'particles'],
 	VectorField: ['3Dの方向場に沿ってGPU Particleの速度を誘導します。', 'Field AssetまたはPresetを設定し、ParticleにVectorField Moduleを追加します。', '強さと追従度を上げすぎると元の初速を打ち消します。', 'particles'],
 	HeightmapCollider: ['高さ画像をGPU Particleの地形衝突に使います。', '高さ画像と範囲を指定し、ParticleのCollisionでHeightmapを有効にします。', '通常のRigidbody用Colliderとは用途が異なります。画像とTransformの範囲を合わせます。', 'particles'],

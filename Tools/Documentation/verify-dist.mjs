@@ -53,7 +53,8 @@ const indexFile = files.find(file => /@localSearchIndexroot\..*\.js$/.test(file)
 if (!indexFile) throw new Error('ローカル検索の索引がありません');
 const { default: serialized } = await import(pathToFileURL(indexFile).href);
 const index = MiniSearch.loadJSON(serialized, { fields: ['title', 'titles', 'text'], storeFields: ['title', 'titles'], tokenize });
-const queries = ['パーティクル', '当たり判定', 'クリアカラー', 'GameObject', 'GetComponent', 'ParticleSystem', 'RenderPasses', '保存'];
+const queries = ['パーティクル', '当たり判定', 'クリアカラー', 'GameObject', 'GetComponent', 'ParticleSystem', 'RenderPasses', '保存',
+	'ロジック配置', '内側の段数', '影の除外オブジェクト'];
 const searchResults = {};
 for (const query of queries) {
 	const result = index.search(query, { prefix: true, fuzzy: 0.15, boost: { title: 5, titles: 2, text: 1 } });
@@ -62,5 +63,5 @@ for (const query of queries) {
 }
 const bytes = files.reduce((sum, file) => sum + fs.statSync(file).size, 0);
 write(path.join(output, 'artifact-verification.json'), JSON.stringify({ date: new Date().toISOString(), files: files.length, pages: html.length, internalLinks,
-	bytes, searchResults, browserReview: '未実施: Windows画面操作ツールが現在URLを判定できず停止', editorScreenshots: '未撮影' }, null, 2));
+	bytes, searchResults, browserReview: '未実施', editorScreenshots: '未撮影' }, null, 2));
 console.log(`公開物検証成功: ${html.length}ページ / ${files.length}ファイル / ${(bytes / 1024 / 1024).toFixed(1)}MB / 日本語・API名検索${queries.length}件`);

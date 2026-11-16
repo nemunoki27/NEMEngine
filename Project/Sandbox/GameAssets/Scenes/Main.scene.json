@@ -79,7 +79,7 @@
                     "noonAltitude": 18.0,
                     "orbitAzimuth": 0.0,
                     "playInEditMode": true,
-                    "startHour": 16.399999618530273,
+                    "startHour": 16.3799991607666,
                     "sunEntity": {
                         "kind": "Scene",
                         "localFileId": "cd6d892221f79398",
@@ -1170,7 +1170,7 @@
                     "visible": true
                 },
                 "Name": {
-                    "name": "cornell_box"
+                    "name": "Cornell_box"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -1321,7 +1321,7 @@
                     "visible": true
                 },
                 "Name": {
-                    "name": "bunny"
+                    "name": "Bunny"
                 },
                 "SceneObject": {
                     "activeSelf": true,

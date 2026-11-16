@@ -33,15 +33,11 @@ namespace Engine {
 		virtual bool SaveGraph(const EditorToolContext& context) = 0;
 		// 保存してShaderをコンパイルする
 		virtual bool SaveAndCompile(const EditorToolContext& context) = 0;
-		// 直前のGraph編集へ戻す
-		virtual void UndoGraph() = 0;
-		// 戻したGraph編集を再適用する
-		virtual void RedoGraph() = 0;
 	};
 
 	//============================================================================
 	//	ShaderGraphToolbar class
-	//	Asset選択と作成設定と保存履歴の操作を表示する
+	//	Asset選択と作成設定と保存の操作を表示する
 	//============================================================================
 	class ShaderGraphToolbar {
 	public:
