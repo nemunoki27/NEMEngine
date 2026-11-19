@@ -9,6 +9,7 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/StartupProfiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
 #include <Engine/Core/Audio/AudioSystem.h>
@@ -193,6 +194,7 @@ void Framework::EndRenderFrame() {
 
 	// 描画終了処理
 	graphicsCore_->EndRenderFrame();
+	StartupProfiler::OnPresented();
 }
 
 void Framework::Finalize() {

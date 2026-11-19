@@ -148,6 +148,37 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 	RenderViewKind viewKind = (kind_ == ViewportPanelKind::Game) ? RenderViewKind::Game : RenderViewKind::Scene;
 	InputViewArea inputArea = (kind_ == ViewportPanelKind::Game) ? InputViewArea::Game : InputViewArea::Scene;
 
+	// Projectの製品画像比率を取得する
+	ImVec2 avail = ImGui::GetContentRegionAvail();
+	const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
+	const float aspect = static_cast<float>((std::max)(gameSize.x, 1)) / static_cast<float>((std::max)(gameSize.y, 1));
+
+	// シーン操作を画像の上に一列で表示
+	if (kind_ == ViewportPanelKind::Scene) {
+
+		toolbar_.Draw(context);
+
+		// ツール行の高さを除いた画像領域を取得する
+		avail = ImGui::GetContentRegionAvail();
+	}
+
+	if (avail.x <= 0.0f || avail.y <= 0.0f) { ImGui::EndChild(); return; }
+
+	// 縦横比を保って画像サイズを確定する
+	if (avail.x / avail.y >= aspect) {
+		viewSize_.y = avail.y;
+		viewSize_.x = avail.y * aspect;
+	} else {
+		viewSize_.x = avail.x;
+		viewSize_.y = avail.x / aspect;
+	}
+	auto& sizing = kind_ == ViewportPanelKind::Scene ? context.editorState->sceneViewportSizing :
+		context.editorState->gameViewportSizing;
+	const ImVec2 framebufferScale = viewport->FramebufferScale.x > 0.0f ?
+		viewport->FramebufferScale : ImGui::GetIO().DisplayFramebufferScale;
+	sizing.Update(Vector2(viewSize_.x, viewSize_.y), Vector2(framebufferScale.x, framebufferScale.y),
+		gameSize, ImGui::GetTime(), ImGui::IsMouseDown(ImGuiMouseButton_Left));
+
 	if (const RenderTexture2D* display = context.viewportRenderService->GetDisplayTexture(viewKind)) {
 
 		// 通常画像からデバッグ表示へ切り替える
@@ -184,37 +215,6 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 				}
 			}
 		}
-
-		// Projectの製品画像比率を取得する
-		ImVec2 avail = ImGui::GetContentRegionAvail();
-		const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
-		const float aspect = static_cast<float>((std::max)(gameSize.x, 1)) / static_cast<float>((std::max)(gameSize.y, 1));
-
-		// シーン操作を画像の上に一列で表示
-		if (kind_ == ViewportPanelKind::Scene) {
-
-			toolbar_.Draw(context);
-
-			// ツール行の高さを除いた画像領域を取得する
-			avail = ImGui::GetContentRegionAvail();
-		}
-
-		if (avail.x <= 0.0f || avail.y <= 0.0f) { ImGui::EndChild(); return; }
-
-		// 縦横比を保って画像サイズを確定する
-		if (avail.x / avail.y >= aspect) {
-			viewSize_.y = avail.y;
-			viewSize_.x = avail.y * aspect;
-		} else {
-			viewSize_.x = avail.x;
-			viewSize_.y = avail.x / aspect;
-		}
-		auto& sizing = kind_ == ViewportPanelKind::Scene ? context.editorState->sceneViewportSizing :
-			context.editorState->gameViewportSizing;
-		const ImVec2 framebufferScale = viewport->FramebufferScale.x > 0.0f ?
-			viewport->FramebufferScale : ImGui::GetIO().DisplayFramebufferScale;
-		sizing.Update(Vector2(viewSize_.x, viewSize_.y), Vector2(framebufferScale.x, framebufferScale.y),
-			gameSize, ImGui::GetTime(), ImGui::IsMouseDown(ImGuiMouseButton_Left));
 
 		ImGui::SetCursorPosX(ImGui::GetCursorPos().x + (avail.x - viewSize_.x) * 0.5f);
 		ImGui::SetCursorPosY(ImGui::GetCursorPos().y + (avail.y - viewSize_.y) * 0.5f);

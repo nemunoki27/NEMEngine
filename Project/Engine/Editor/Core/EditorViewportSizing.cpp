@@ -24,11 +24,10 @@ void Engine::EditorViewportSizing::Update(const Vector2& imageSize, const Vector
 	};
 	const Vector2I target{dimension(imageSize.x, framebufferScale.x, referenceSize.x),
 		dimension(imageSize.y, framebufferScale.y, referenceSize.y)};
-	if (renderSize_.x == 0 || renderSize_.y == 0 || referenceSize_ != referenceSize) {
+	if (referenceSize_ != referenceSize) {
 		referenceSize_ = referenceSize;
-		pendingSize_ = renderSize_ = target;
-		changedAt_ = time;
-		return;
+		renderSize_ = {};
+		pendingSize_ = {};
 	}
 	if (pendingSize_ != target || time < changedAt_) {
 		pendingSize_ = target;
@@ -40,6 +39,6 @@ void Engine::EditorViewportSizing::Update(const Vector2& imageSize, const Vector
 
 Engine::Vector2I Engine::EditorViewportSizing::Resolve(const Vector2I& referenceSize) const {
 
-	if (renderSize_.x <= 0 || renderSize_.y <= 0 || referenceSize_ != referenceSize) return referenceSize;
+	if (referenceSize_ != referenceSize) return {};
 	return renderSize_;
 }

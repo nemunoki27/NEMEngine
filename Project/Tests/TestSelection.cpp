@@ -133,6 +133,12 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--shader-cook-inputs") {
 		return RunTest("TestShaderCookInputs", TestShaderCookInputs) ? 0 : 77;
 	}
+	if (2 < argc && std::string_view(argv[1]) == "--shader-cache") {
+		return RunTest("TestShaderCache", [&] { return TestShaderCache(std::stoul(argv[2])); }) ? 0 : 77;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--shader-graph-cache") {
+		return RunTest("TestShaderGraphCache", TestShaderGraphCache) ? 0 : 77;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--font-generation") {
 		return RunTest("TestFontGenerationContracts", TestFontGenerationContracts) ? 0 : 76;

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
@@ -84,6 +85,8 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 	auto candidate = std::make_unique<MultiRenderTarget>();
 	candidate->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
 		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), desc);
+	Logger::Output(LogType::Engine, "[View描画先] {} {}x{} -> {}x{} ({})", GetPrimaryColorName(kind),
+		slot.width, slot.height, width, height, slot.surface ? "サイズ変更" : "初回");
 	slot.surface.swap(candidate);
 	slot.width = width;
 	slot.height = height;

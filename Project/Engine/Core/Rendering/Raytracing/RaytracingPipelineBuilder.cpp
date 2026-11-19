@@ -5,6 +5,7 @@
 //============================================================================
 #include "RaytracingShaderLibrary.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/StartupProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
@@ -122,8 +123,9 @@ bool Engine::RaytracingPipelineBuilder::BuildGlobalRootSignature(RaytracingPipel
 	const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers) {
 
 	AutoRootSignatureBuilder builder{};
-	RootSignatureBuildResult result = builder.Build(device,
-		PipelineType::Raytracing, shaders, staticSamplers);
+	auto result = StartupProfiler::Measure(StartupProfiler::Stage::DXRRootSignature, [&] {
+		return builder.Build(device, PipelineType::Raytracing, shaders, staticSamplers);
+	});
 	if (!result.rootSignature) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[レイトレーシングパイプライン] グローバルルートシグネチャの作成に失敗しました");
@@ -183,7 +185,9 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 			return false;
 		}
 		originalNames.emplace_back(stage->exportAlias.empty() ? std::wstring{} : Algorithm::ConvertString(stage->entry));
-		CompiledShader compiled = RaytracingShaderLibrary::Load(compiler, *stage);
+		auto compiled = StartupProfiler::Measure(StartupProfiler::Stage::DXRLibrary, [&] {
+			return RaytracingShaderLibrary::Load(compiler, *stage);
+		});
 		if (!compiled.IsValid()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
 				"[レイトレーシングパイプライン] ライブラリのコンパイルに失敗しました: {}", exportName);
@@ -338,8 +342,9 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 		infoQueue->ClearStoredMessages();
 	}
-	HRESULT result = device->CreateStateObject(
-		&stateObjectDesc, IID_PPV_ARGS(&state.stateObject_));
+	HRESULT result = StartupProfiler::Measure(StartupProfiler::Stage::DXRStateObject, [&] {
+		return device->CreateStateObject(&stateObjectDesc, IID_PPV_ARGS(&state.stateObject_));
+	});
 	if (FAILED(result) || !state.stateObject_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[レイトレーシングパイプライン] State Objectの作成に失敗しました HRESULT=0x{:08X}",
@@ -355,6 +360,7 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 		state.stateObject_.Reset();
 		return false;
 	}
-	return BuildShaderTable(state, device, rayGenerationExports,
-		missExports, hitGroupExports, callableExports);
+	return StartupProfiler::Measure(StartupProfiler::Stage::DXRShaderTable, [&] {
+		return BuildShaderTable(state, device, rayGenerationExports, missExports, hitGroupExports, callableExports);
+	});
 }

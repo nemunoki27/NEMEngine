@@ -51,6 +51,7 @@ bool NEMTests::WriteShaderGraphNodePreviewImages() {
 			}
 			if (!compiled.Succeeded()) {
 				std::cerr << "Preview image compilation: " << descriptor.name << " output=" << slot << '\n';
+				for (const auto& diagnostic : compiled.diagnostics) std::cerr << diagnostic.message << '\n';
 				return false;
 			}
 			auto pixels = fixture.Render(compiled, 1.25f, .02f, .03f, nullptr, kImageSize, {0, 0, 0, 0});

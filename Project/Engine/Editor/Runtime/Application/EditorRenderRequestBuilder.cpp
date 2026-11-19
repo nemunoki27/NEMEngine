@@ -63,12 +63,17 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 			showSceneView = false;
 		} else {
 
-			if (editorState.fitViewportResolution) {
-				gameRenderSize = editorState.gameViewportSizing.Resolve(windowSetting.gameSize);
-				sceneRenderSize = editorState.sceneViewportSizing.Resolve(windowSetting.gameSize);
-			}
 			showGameView = layout.showGameView && editorState.gameViewportVisible;
 			showSceneView = layout.showSceneView && editorState.sceneViewportVisible;
+			if (editorState.fitViewportResolution) {
+				const Vector2I gameSize = editorState.gameViewportSizing.Resolve(windowSetting.gameSize);
+				const Vector2I sceneSize = editorState.sceneViewportSizing.Resolve(windowSetting.gameSize);
+				// パネル確定前もRenderTextureを持つCameraの基準寸法は維持する
+				if (gameSize.x > 0 && gameSize.y > 0) gameRenderSize = gameSize;
+				else showGameView = false;
+				if (sceneSize.x > 0 && sceneSize.y > 0) sceneRenderSize = sceneSize;
+				else showSceneView = false;
+			}
 			request.drawSceneViewDefaultGrid = showSceneView &&
 				editorManager_.ShouldDrawSceneViewDefaultGrid();
 			request.drawSceneView2DCameraBounds = showSceneView &&

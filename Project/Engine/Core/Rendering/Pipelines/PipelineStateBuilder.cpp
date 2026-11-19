@@ -5,6 +5,7 @@
 //============================================================================
 #include "PipelineShaderLoader.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Time/StartupProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -131,8 +132,9 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 	// ルートシグネイチャの自動生成
 	AutoRootSignatureBuilder signatureBuilder{};
-	RootSignatureBuildResult rootSignatureResult = signatureBuilder.Build(
-		device, desc.type, shaderPtrs, staticSamplers);
+	auto rootSignatureResult = StartupProfiler::Measure(StartupProfiler::Stage::RootSignature, [&] {
+		return signatureBuilder.Build(device, desc.type, shaderPtrs, staticSamplers);
+	});
 	if (!rootSignatureResult.rootSignature) {
 		Logger::EndSection(LogType::Engine);
 		return false;
@@ -200,9 +202,9 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 				MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets, desc.disableNormalBlending);
 
 			// パイプラインステートオブジェクトの生成
-			HRESULT hr = device->CreateGraphicsPipelineState(
-				&pipelineDesc,
-				IID_PPV_ARGS(&state.graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
+			HRESULT hr = StartupProfiler::Measure(StartupProfiler::Stage::GraphicsPSO, [&] {
+				return device->CreateGraphicsPipelineState(&pipelineDesc, IID_PPV_ARGS(&state.graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
+			});
 			if (FAILED(hr)) {
 				Logger::Output(LogType::Engine,
 					"GraphicsPipelineStateの作成に失敗しました preRaster={} pixel={} blend={} hr=0x{:08X}",
@@ -271,7 +273,9 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 			streamDesc.SizeInBytes = sizeof(pipelineStream);
 
 			// パイプラインステートオブジェクトの生成
-			HRESULT hr = device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&state.graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
+			HRESULT hr = StartupProfiler::Measure(StartupProfiler::Stage::GraphicsPSO, [&] {
+				return device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&state.graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
+			});
 			if (FAILED(hr)) {
 				Logger::Output(LogType::Engine,
 					"PipelineStateの作成に失敗しました path={} blend={}", desc.pixel.file, mode);
@@ -313,8 +317,6 @@ bool Engine::PipelineStateBuilder::BuildCompute(PipelineState& state, ID3D12Devi
 		return false;
 	}
 	CompiledShader& shader = shaders.front();
-	Logger::Output(LogType::Engine, "CSのコンパイルが完了しました path={}",
-		desc.compute.file);
 
 	// スレッドサイズを設定
 	state.threadGroupX_ = shader.reflection.threadGroupX;
@@ -329,7 +331,9 @@ bool Engine::PipelineStateBuilder::BuildCompute(PipelineState& state, ID3D12Devi
 	const std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers =
 		BuildPipelineStaticSamplers(shader.reflection, desc.staticSamplers,
 			desc.staticSamplerOverrides);
-	auto rootSignatureResult = builder.Build(device, PipelineType::Compute, { &shader }, staticSamplers);
+	auto rootSignatureResult = StartupProfiler::Measure(StartupProfiler::Stage::RootSignature, [&] {
+		return builder.Build(device, PipelineType::Compute, { &shader }, staticSamplers);
+	});
 	if (!rootSignatureResult.rootSignature) {
 		Logger::EndSection(LogType::Engine);
 		return false;
@@ -344,7 +348,9 @@ bool Engine::PipelineStateBuilder::BuildCompute(PipelineState& state, ID3D12Devi
 	pipelineDesc.CS = ToBytecode(&shader);
 
 	// パイプラインステートオブジェクトの生成
-	HRESULT hr = device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&state.computePipeline_));
+	HRESULT hr = StartupProfiler::Measure(StartupProfiler::Stage::ComputePSO, [&] {
+		return device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&state.computePipeline_));
+	});
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
 			"[PostProcess] ComputePipelineStateの作成に失敗しました path={}", desc.compute.file);

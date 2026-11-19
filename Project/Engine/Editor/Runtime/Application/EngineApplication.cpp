@@ -11,6 +11,7 @@
 #include "PrefabEditSession.h"
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/StartupProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
@@ -238,7 +239,8 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 	}
 
 	// ワールドを描画
-	renderPipeline_->Render(graphicsCore, BuildRenderFrameRequest(graphicsCore, GetActiveWorld(), GetActiveSceneHeader()));
+	const auto request = BuildRenderFrameRequest(graphicsCore, GetActiveWorld(), GetActiveSceneHeader());
+	renderPipeline_->Render(graphicsCore, request);
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
@@ -256,6 +258,20 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 		// エディタのフレーム終了処理
 		editorManager_.EndFrame(graphicsCore, editorContext_, &renderPipeline_->GetViewportRenderService(),
 			&renderPipeline_->GetResolvedView(RenderViewKind::Scene), renderPipeline_.get());
+		if (StartupProfiler::IsActive()) {
+			const auto& layout = editorManager_.GetLayoutState();
+			const auto& state = editorManager_.GetEditorState();
+			const bool gameVisible = hidePanels || (layout.showGameView && state.gameViewportVisible);
+			const bool sceneVisible = !hidePanels && layout.showSceneView && state.sceneViewportVisible;
+			const bool assetsReady = AreSceneMeshesReady() && !graphicsCore.GetTextureUploadService().HasPendingRequests();
+			const auto imageReady = [&](RenderViewKind kind) {
+				const auto* view = request.FindView(kind);
+				return assetsReady && view && view->renderDefaultSurfaceThisFrame &&
+					renderPipeline_->GetViewportRenderService().GetDisplayTexture(kind);
+			};
+			StartupProfiler::SetFrame(!hidePanels, gameVisible, sceneVisible,
+				imageReady(RenderViewKind::Game), imageReady(RenderViewKind::Scene));
+		}
 	} else {
 
 		// エディタがない場合はゲームビューをバックバッファに描画する
@@ -284,6 +300,7 @@ bool Engine::EngineApplication::AreSceneMeshesReady() const {
 
 int Engine::RunEditorApplication() {
 
+	if constexpr (BuildConfig::kEditorEnabled) StartupProfiler::Begin();
 	wchar_t benchmarkPath[32768]{};
 	const DWORD benchmarkLength = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK", benchmarkPath, 32768);
 	const bool benchmarkRequested = benchmarkLength != 0 && benchmarkLength < 32768;

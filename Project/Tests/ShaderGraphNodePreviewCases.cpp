@@ -143,5 +143,6 @@ ShaderGraphAsset NEMTests::CreateShaderGraphPreviewSubGraph() {
 	addOutput(1, ShaderGraphValueType::Float3, {Vector3(0, 0, 1)});
 	addOutput(8, ShaderGraphValueType::Float, {0.0f});
 	addOutput(9, ShaderGraphValueType::Float3, {Vector3(1, 1, 1)});
+	addOutput(10, ShaderGraphValueType::Boolean, {false});
 	return child;
 }

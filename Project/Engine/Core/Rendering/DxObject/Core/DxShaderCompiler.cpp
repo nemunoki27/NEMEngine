@@ -11,6 +11,10 @@ using namespace Engine;
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderReflectionParser.h>
 #include "ShaderSourceIncludeHandler.h"
+#include "DxShaderCache.h"
+#include <Engine/Core/Foundation/Build/BuildConfig.h>
+#include <Engine/Core/Foundation/Serialization/ContentHash.h>
+#include <Engine/Core/Foundation/Time/StartupProfiler.h>
 
 // c++
 #include <algorithm>
@@ -382,10 +386,28 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	}
 
 	// コンパイル実行
+	const bool cacheEnabled = BuildConfig::kEditorEnabled && sourceRoot_.empty();
+	static const std::string compilerHash = [this] {
+		std::wstring path(32768, L'\0');
+		const auto size = GetModuleFileNameW(dxcompilerModule_, path.data(), static_cast<DWORD>(path.size()));
+		if (!size || size == path.size()) return std::string{};
+		path.resize(size);
+		return ContentHash::FileSHA256(path);
+	}();
+	DxShaderCache cache(cacheEnabled ? RuntimePaths::GetLibraryPath("ShaderCache") : std::filesystem::path{},
+		compilerHash, args, stage, srcBuf);
+	if (cache.Load(dxcUtils_.Get(), out)) {
+		Logger::Output(LogType::Engine, "[ShaderCache] hit entry={} profile={} path={}", entryStr, profileStr, filePathStr);
+		return out;
+	}
+	if (cacheEnabled) Logger::Output(LogType::Engine, "[ShaderCache] compile entry={} profile={} path={}", entryStr, profileStr, filePathStr);
 	ComPtr<IDxcResult> result;
-	ComPtr<IDxcIncludeHandler> restrictedHandler = CreateShaderSourceIncludeHandler(includeHandler_.Get(), sourceRoot_);
-	hr = dxcCompiler_->Compile(&srcBuf, args.data(), static_cast<UINT32>(args.size()),
-		restrictedHandler ? restrictedHandler.Get() : includeHandler_.Get(), IID_PPV_ARGS(&result));
+	ComPtr<IDxcIncludeHandler> restrictedHandler = CreateShaderSourceIncludeHandler(includeHandler_.Get(), sourceRoot_,
+		cacheEnabled ? &cache.dependencies : nullptr);
+	hr = StartupProfiler::Measure(StartupProfiler::Stage::DXC, [&] {
+		return dxcCompiler_->Compile(&srcBuf, args.data(), static_cast<UINT32>(args.size()),
+			restrictedHandler.Get(), IID_PPV_ARGS(&result));
+	});
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
 			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: DXCの呼び出しに失敗しました",
@@ -425,10 +447,10 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	}
 
 	// シェーダーリフレクション情報を取得
+	ComPtr<IDxcBlob> reflectionBlob;
 	if (result->HasOutput(DXC_OUT_REFLECTION)) {
 
 		// リフレクション情報を取得
-		ComPtr<IDxcBlob> reflectionBlob;
 		hr = result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr);
 		if (FAILED(hr)) {
 			Logger::Output(LogType::Engine,
@@ -448,5 +470,6 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 			return out;
 		}
 	}
+	cache.Store(out, reflectionBlob.Get());
 	return out;
 }

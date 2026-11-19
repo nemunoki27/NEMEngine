@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+#include <Engine/Core/Foundation/Serialization/ContentHash.h>
 // c++
 #include <algorithm>
 #include <atomic>
@@ -35,7 +36,8 @@ namespace {
 		//	public Methods
 		//========================================================================
 
-		ShaderSourceIncludeHandler(IDxcIncludeHandler* handler, const std::filesystem::path& root) : handler_(handler), root_(root) {}
+		ShaderSourceIncludeHandler(IDxcIncludeHandler* handler, const std::filesystem::path& root, Engine::ShaderSourceDependencies* dependencies)
+			: handler_(handler), root_(root), dependencies_(dependencies) {}
 
 		HRESULT STDMETHODCALLTYPE QueryInterface(REFIID interfaceID, void** result) override {
 
@@ -69,7 +71,15 @@ namespace {
 				const auto normalized = std::filesystem::path(fileName).lexically_normal();
 				if (!root_.empty() && !Engine::IsShaderSourceWithinRoot(normalized, root_)) { return E_ACCESSDENIED; }
 				const auto native = Engine::Algorithm::ToFileSystemPath(normalized);
-				return handler_->LoadSource(native.c_str(), source);
+				const HRESULT result = handler_->LoadSource(native.c_str(), source);
+				if (dependencies_) {
+					// 上位の検索先に同名ファイルが追加された場合も再コンパイルする
+					auto& hash = (*dependencies_)[std::filesystem::absolute(normalized).lexically_normal()];
+					if (SUCCEEDED(result) && *source) {
+						hash = Engine::ContentHash::SHA256({ static_cast<const uint8_t*>((*source)->GetBufferPointer()), (*source)->GetBufferSize() });
+					}
+				}
+				return result;
 			} catch (const std::exception&) { return E_FAIL; }
 		}
 	private:
@@ -82,6 +92,7 @@ namespace {
 		std::atomic<ULONG> referenceCount_ = 1;
 		ComPtr<IDxcIncludeHandler> handler_;
 		std::filesystem::path root_;
+		Engine::ShaderSourceDependencies* dependencies_;
 	};
 }
 
@@ -95,9 +106,9 @@ bool Engine::IsShaderSourceWithinRoot(const std::filesystem::path& source, const
 }
 
 ComPtr<IDxcIncludeHandler> Engine::CreateShaderSourceIncludeHandler(IDxcIncludeHandler* handler,
-	const std::filesystem::path& root) {
+	const std::filesystem::path& root, ShaderSourceDependencies* dependencies) {
 
 	ComPtr<IDxcIncludeHandler> result;
-	if (handler) { result.Attach(new ShaderSourceIncludeHandler(handler, root)); }
+	if (handler) { result.Attach(new ShaderSourceIncludeHandler(handler, root, dependencies)); }
 	return result;
 }

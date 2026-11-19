@@ -81,7 +81,7 @@ namespace Engine::PipelineShaderLoader {
 			return false;
 		}
 		shaders.emplace_back(std::move(shader));
-		Logger::Output(LogType::Engine, "Shaderのコンパイルが完了しました stage={} path={}",
+		Logger::Output(LogType::Engine, "Shaderの準備が完了しました stage={} path={}",
 			stageName, Algorithm::PathToUTF8(shaderPath));
 		return true;
 	}
