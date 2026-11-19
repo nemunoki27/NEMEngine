@@ -3,19 +3,26 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 // c++
 #include <algorithm>
@@ -57,13 +64,19 @@ void Engine::RayTracingExecutor::BeginFrame() {
 	}
 	allocatorFrameSerial_ = frameSerial;
 	constantBufferAllocator_.BeginFrame();
+	shaderGraphFrameConstants_.BeginFrame();
 }
 
 void Engine::RayTracingExecutor::Release() {
 
 	constantBufferAllocator_.Release();
+	shaderGraphFrameConstants_.Release();
 	parameterLayoutCache_.clear();
 	diagnostics_.clear();
+	preparedScene_ = {};
+	geometryMaterials_.clear();
+	hitMaterials_.clear();
+	hitRecordPipeline_ = 0;
 	allocatorFrameSerial_ = 0;
 	lastReflection_ = nullptr;
 	lastExecutedPipelineID_ = 0;
@@ -112,10 +125,51 @@ bool Engine::RayTracingExecutor::Execute(
 	PipelineStaticSamplerOverrideSet samplerOverrides{};
 	samplerOverrides.fillMissingSamplers = true;
 	samplerOverrides.byName = pass.samplerOverrides;
-	RaytracingPipelineState* pipeline = pipelineCache.GetOrCreate(
-		graphicsCore.GetDXObject(), assetLibrary,
-		materialPass->pipeline, materialPass->shaderOverride,
-		&samplerOverrides);
+	const bool materialHits = materialPass->pipeline == BuiltinAssets::Pipelines::RaytracingReflection &&
+		!materialPass->shaderOverride;
+	if (materialHits && !std::ranges::equal(geometryMaterials_, context.raytracing.hitMaterials)) {
+		geometryMaterials_.assign(context.raytracing.hitMaterials.begin(), context.raytracing.hitMaterials.end());
+		hitMaterials_.clear();
+		for (const auto& materialHit : geometryMaterials_) {
+			if (materialHit.pipeline && (materialHit.shader || materialHit.pipeline != BuiltinAssets::Pipelines::RaytracingReflection)) {
+				hitMaterials_.emplace_back(materialHit);
+			}
+		}
+		std::sort(hitMaterials_.begin(), hitMaterials_.end());
+		hitMaterials_.erase(std::unique(hitMaterials_.begin(), hitMaterials_.end()), hitMaterials_.end());
+		hitRecordPipeline_ = 0;
+	}
+	// 初回描画で非表示のRendererが参照する材質も登録する
+	const bool prepareScene = materialHits && context.sceneInstance && context.world &&
+		preparedScene_ != context.sceneInstance->instanceID;
+	if (prepareScene) {
+		preparedScene_ = context.sceneInstance->instanceID;
+		std::unordered_set<AssetID> materialIDs;
+		const MaterialResolver resolver{};
+		context.world->ForEach<MeshRendererComponent>([&](Entity entity, const MeshRendererComponent& renderer) {
+			materialIDs.insert(resolver.ResolveORDefault(*context.assetDatabase, renderer.material, DefaultMaterialSlot::Mesh));
+			for (const auto& subMesh : GetMeshSubMeshes(std::as_const(*context.world), entity)) {
+				const auto state = MeshDrawPathCommon::ResolveSubMeshRenderState(renderer, subMesh);
+				materialIDs.insert(resolver.ResolveORDefault(*context.assetDatabase, state.material, DefaultMaterialSlot::Mesh));
+			}
+		});
+		context.world->ForEach<PrimitiveRendererComponent>([&](Entity, const PrimitiveRendererComponent& renderer) {
+			materialIDs.insert(resolver.ResolveORDefault(*context.assetDatabase, renderer.material, DefaultMaterialSlot::Primitive));
+		});
+		for (AssetID id : materialIDs) {
+			if (!id) continue;
+			const auto* asset = assetLibrary.LoadMaterial(id);
+			const auto* hit = asset ? FindPass(*asset, MaterialPassKind::RayTracing) : nullptr;
+			if (hit && hit->pipeline && (hit->shaderOverride || hit->pipeline != BuiltinAssets::Pipelines::RaytracingReflection)) {
+				hitMaterials_.push_back({ hit->shaderOverride, hit->pipeline });
+			}
+		}
+	}
+	std::span<const RaytracingHitMaterial> activeMaterials;
+	RaytracingPipelineState* pipeline = materialHits ?
+		pipelineCache.GetMaterialReflection(graphicsCore.GetDXObject(), assetLibrary, samplerOverrides, hitMaterials_, prepareScene, activeMaterials) :
+		pipelineCache.GetOrCreate(graphicsCore.GetDXObject(), assetLibrary,
+			materialPass->pipeline, materialPass->shaderOverride, &samplerOverrides);
 	if (!pipeline) {
 		ReportFailure(pass, "raytracing pipeline creation failed");
 		return false;
@@ -179,6 +233,15 @@ bool Engine::RayTracingExecutor::Execute(
 				(binding.rawType == D3D_SIT_STRUCTURED ||
 					binding.rawType == D3D_SIT_BYTEADDRESS))) {
 
+			if (binding.name == "gSceneTLAS" && !materialHits && pipeline->GetHitGroupCount() > 1) {
+				auto* legacy = context.raytracing.resolveLegacyTLAS ? context.raytracing.resolveLegacyTLAS(graphicsCore) : nullptr;
+				if (!legacy) {
+					ReportFailure(pass, "legacy acceleration structure is unavailable");
+					return false;
+				}
+				RootBindingCommand::SetComputeSRV(commandList, location, legacy->GetGPUVirtualAddress(), {});
+				continue;
+			}
 			const RegisteredRenderBuffer* registered =
 				context.bufferRegistry.Find(binding.name);
 			if (registered) {
@@ -298,19 +361,15 @@ bool Engine::RayTracingExecutor::Execute(
 	const RootBindingLocation* timeBinding =
 		pipeline->FindBindingByName(kShaderGraphTimeBufferName,
 			ShaderBindingKind::CBV);
-	if (timeBinding && context.systemContext) {
-		const ShaderGraphTimeConstantsGPU constants{
-			.time = context.systemContext->time,
-			.deltaTime = context.systemContext->deltaTime,
-			.smoothDeltaTime = context.systemContext->smoothDeltaTime,
-			.unscaledTime = context.systemContext->unscaledTime,
-		};
-		const FrameConstantBufferAllocation allocation =
-			constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
-			graphicsCore.GetDXObject().GetDevice(), constants);
-		if (allocation.gpuAddress) {
+	if (timeBinding && context.systemContext && context.view) {
+		const auto& output = resources.dispatchTarget->GetRenderTarget();
+		const Vector4 viewport = materialHits ? Vector4{} :
+			Vector4(0.0f, 0.0f, static_cast<float>(output.width), static_cast<float>(output.height));
+		const auto address = shaderGraphFrameConstants_.GetAddress(graphicsCore, *context.systemContext, *context.view,
+			RenderCameraDomain::Perspective, viewport);
+		if (address) {
 			RootBindingCommand::SetComputeCBV(commandList,
-				timeBinding, allocation.gpuAddress);
+				timeBinding, address);
 		}
 	}
 
@@ -321,6 +380,25 @@ bool Engine::RayTracingExecutor::Execute(
 	if (dispatch.Width == 0 || dispatch.Height == 0) {
 		ReportFailure(pass, "ray generation index is out of range");
 		return false;
+	}
+	if (materialHits && !geometryMaterials_.empty()) {
+		if (hitRecordPipeline_ != pipeline->GetUniqueID()) {
+			hitRecords_.resize(geometryMaterials_.size() * RaytracingPipelineState::kRecordStride);
+			for (size_t index = 0; index < geometryMaterials_.size(); ++index) {
+				const auto& hit = geometryMaterials_[index];
+				const auto group = std::lower_bound(activeMaterials.begin(), activeMaterials.end(), hit);
+				const uint32_t slot = group != activeMaterials.end() && *group == hit ?
+					static_cast<uint32_t>(1 + (group - activeMaterials.begin())) : 0u;
+				const auto identifier = pipeline->GetHitGroupIdentifier(slot);
+				std::ranges::copy(identifier, hitRecords_.begin() + index * RaytracingPipelineState::kRecordStride);
+			}
+			hitRecordPipeline_ = pipeline->GetUniqueID();
+		}
+		const auto table = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), hitRecords_);
+		dispatch.HitGroupTable.StartAddress = table.gpuAddress;
+		dispatch.HitGroupTable.SizeInBytes = hitRecords_.size();
+		dispatch.HitGroupTable.StrideInBytes = RaytracingPipelineState::kRecordStride;
 	}
 	commandList->DispatchRays(&dispatch);
 	outputTextureScratch_.clear();

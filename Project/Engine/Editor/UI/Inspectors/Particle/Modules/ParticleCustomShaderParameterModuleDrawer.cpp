@@ -1,6 +1,7 @@
 #include "ParticleCustomShaderParameterModuleDrawer.h"
 
 #include <Engine/Editor/UI/Inspectors/Particle/GUI/ParticleGUIHelpers.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
 #include <algorithm>
 #include <array>
@@ -102,6 +103,9 @@ void Engine::ParticleCustomShaderParameterModuleDrawer::SetReflectedParameters(
 
 	// 表示対象の更新だけでは編集値を変更しない
 	reflectedParameters_ = parameters;
+	std::erase_if(reflectedParameters_, [](const ShaderConstantBufferVariable& variable) {
+		return !MaterialParameterEditor::IsExposedParameter(variable);
+	});
 }
 
 bool Engine::ParticleCustomShaderParameterModuleDrawer::DrawParameter(

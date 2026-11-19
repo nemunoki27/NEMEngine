@@ -139,12 +139,12 @@ void Engine::RenderTargetRegistry::BeginFrame() {
 	colorAliases_.clear();
 }
 
-void Engine::RenderTargetRegistry::EndFrame() {
+void Engine::RenderTargetRegistry::EndFrame(uint64_t retainedFrame) {
 
 	// 使用されなくなった一時描画先を描画Fenceの回収へ渡す
 	const uint64_t frame = GraphicsFrameState::GetFrameSerial();
 	for (auto it = transients_.begin(); it != transients_.end();) {
-		if (!HasExpiredGraphicsResource(it->second.lastUsedFrame, frame)) {
+		if (it->second.lastUsedFrame == retainedFrame || !HasExpiredGraphicsResource(it->second.lastUsedFrame, frame)) {
 			++it;
 			continue;
 		}

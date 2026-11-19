@@ -1,4 +1,5 @@
 #include "ShaderGraphStageSource.h"
+#include "ShaderGraphRuntimeInputSource.h"
 
 //============================================================================
 //	include
@@ -10,10 +11,44 @@
 using namespace Engine;
 using namespace Engine::ShaderGraphSourceUtility;
 
+namespace {
+
+	// GPU上の粒子と軌跡の配置を入力へ渡す
+	std::string BuildGPUObjectInputSource(bool trail) {
+
+		using namespace Engine::ShaderGraphStageSource;
+		std::string source;
+		if (trail) {
+			source += BuildObjectInputAssignments("float4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)", "0.0f.xxx", "0.0f.xxx");
+			source += "\tuint2 segment = uint2(input.geometryIndex / pointCapacity, input.geometryIndex % pointCapacity);\n"
+				"\tParticleTrailGPU trail = gGPUTrails[segment.x];\n"
+				"\tParticleTrailPointGPU start = ReadParticleTrailPoint(trail, segment.x, segment.y);\n"
+				"\tParticleTrailPointGPU end = ReadParticleTrailPoint(trail, segment.x, segment.y + 1u);\n"
+				"\tfloat width = max(abs(startWidth), abs(endWidth)) * 0.5f;\n"
+				"\tgraphInput.worldBoundsMin = min(start.positionAge.xyz, end.positionAge.xyz) - width;\n"
+				"\tgraphInput.worldBoundsMax = max(start.positionAge.xyz, end.positionAge.xyz) + width;\n";
+		} else {
+			source += "\tParticleAttributesGPU particle = gGPUParticles[input.geometryIndex];\n"
+				"\tParticleParentGPU parent = gGPUParents[particle.phase];\n"
+				"\tfloat3 position;\n\tfloat4 rotation;\n\tfloat3 scale;\n"
+				"\tResolveParticleGPUWorldTransform(particle, parent, position, rotation, scale);\n"
+				"\tfloat4x4 world = float4x4(float4(ParticleRotate(float3(scale.x,0,0), rotation),0),\n"
+				"\t\tfloat4(ParticleRotate(float3(0,scale.y,0), rotation),0), float4(ParticleRotate(float3(0,0,scale.z), rotation),0), float4(position,1));\n";
+			source += BuildObjectInputAssignments("world", "0.0f.xxx", "0.0f.xxx");
+			source += BuildSphereBoundsAssignments("0.0f.xxx", "geometryRadius", "world");
+		}
+		return source +
+			"\tgraphInput.objectPosition = mul(float4(input.worldPosition, 1.0f), graphInput.worldToObject).xyz;\n"
+			"\tgraphInput.objectNormal = normalize(mul(N, transpose((float3x3)graphInput.objectToWorld)));\n"
+			"\tgraphInput.objectTangent = normalize(mul(T, (float3x3)graphInput.worldToObject));\n";
+	}
+}
+
 std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 	const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile) {
 
-	std::string source = "#include \"Builtin/Particle/GPU/particleGPUDraw.hlsli\"\n"
+	std::string source = "#include \"Builtin/Particle/GPU/particleGPUView.hlsli\"\n"
+		"#include \"Builtin/Particle/GPU/particleGPUDraw.hlsli\"\n"
 		"#include \"Builtin/Particle/Common/particleSurface.hlsli\"\n"
 		"#include \"" + std::string(surfaceIncludeFile) + "\"\n"
 		"#include \"Builtin/Particle/GPU/particleGPUMaterialCurves.hlsli\"\n"
@@ -21,6 +56,12 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 		"StructuredBuffer<ShaderGraphParameters> gParticleCustomParameters : register(t1, space1);\n\n"
 		"ShaderGraphParameters GetParticleGPUParameters(float progress) {\n\n"
 		"\tShaderGraphParameters result = gParticleCustomParameters[0];\n";
+	if (graph.target == ShaderGraphTarget::Trail) {
+		const std::string declarations = "#define NEM_TRAIL_CONSTANT_REGISTER b1\n"
+			"#include \"Builtin/Particle/GPU/particleGPUTrail.hlsli\"\n"
+			"#include \"Builtin/Particle/GPU/particleGPUTrailRead.hlsli\"\n";
+		source.insert(0, declarations);
+	}
 	uint32_t offset = 0;
 	uint32_t textureIndex = 0;
 	for (const auto& parameter : graph.parameters) {
@@ -48,18 +89,18 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 			" = (" + std::string(keyword.type == ShaderGraphKeywordType::Boolean ? "uint" : "int") + ") " + value + ";\n";
 	}
 	source += "\treturn result;\n}\n\n"
-		"ParticleGPUPixelOutput main(ParticleGPUVertexOutput input) {\n\n"
+		"ParticleGPUPixelOutput main(ParticleGPUVertexOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
 		"\tfloat progress = saturate(input.velocityAge.w / max(input.lifetimeRandom.x, 0.00001f));\n"
 		"\tfloat3 N = ParticleSurfaceNormal(input.uv, input.normal, input.tangent, input.worldPosition);\n"
 		"\tfloat3x3 tangentToWorld = ParticleSurfaceFrame(input.uv, input.normal, input.tangent, input.worldPosition);\n"
 		"\tfloat3 T = tangentToWorld[0];\n"
-		"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput) 0;\n"
+		"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput) 0;\n" +
+		BuildFrameInputAssignments() +
 		"\tgraphInput.uv = input.uv;\n"
 		"\tgraphInput.worldPosition = input.worldPosition;\n"
-		"\tgraphInput.objectPosition = input.worldPosition;\n"
 		"\tgraphInput.worldNormal = N;\n"
-		"\tgraphInput.objectNormal = N;\n"
-		"\tgraphInput.objectTangent = T;\n"
+		"\tgraphInput.isFrontFace = isFrontFace;\n" +
+		BuildGPUObjectInputSource(graph.target == ShaderGraphTarget::Trail) +
 		"\tgraphInput.viewDirection = normalize(particleCameraPosition.xyz - input.worldPosition);\n"
 		"\tgraphInput.screenPosition = input.position;\n"
 		"\tgraphInput.vertexColor = input.color;\n"

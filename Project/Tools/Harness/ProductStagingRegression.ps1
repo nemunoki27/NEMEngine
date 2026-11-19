@@ -5,7 +5,7 @@ $operations = Join-Path $engineRoot 'Tools\ProductBuild'
 foreach ($file in @('BuildFileOperations', 'StageProduct', 'CookProduct', 'WriteProductSettings')) {
     . (Join-Path $operations ($file + '.ps1'))
 }
-$root = Join-Path $engineRoot ('Generated\ProductStagingTests\' + [Guid]::NewGuid().ToString('N'))
+$root = Join-Path $engineRoot ('LocalWork\Tests\ProductStagingTests\' + [Guid]::NewGuid().ToString('N'))
 $source = Join-Path $root 'Runtime'
 $managed = Join-Path $source 'Managed'
 $stage = Join-Path $root 'Stage'

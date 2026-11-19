@@ -7,9 +7,11 @@
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
 // c++
 #include <algorithm>
+#include <array>
 #include <string>
 #include <utility>
 #include <variant>
@@ -81,7 +83,19 @@ void Engine::ShaderGraphParameterEditor::DrawValue(
 	session.MarkDirty(MyGUI::Checkbox("公開", parameter.exposed));
 
 	const ShaderGraphValueType oldType = parameter.type;
-	if (MyGUI::EnumCombo("型", parameter.type).valueChanged) {
+	static const auto typeOptions = [] {
+		std::array<ImGuiUtility::EnumOptionState, EnumAdapter<ShaderGraphValueType>::GetEnumCount()> options{};
+		for (uint32_t index = 0; index < options.size(); ++index) {
+			const auto type = EnumAdapter<ShaderGraphValueType>::GetValue(index);
+			if (type == ShaderGraphValueType::Invalid || type == ShaderGraphValueType::SamplerState ||
+				type == ShaderGraphValueType::Matrix2 || type == ShaderGraphValueType::Matrix3 ||
+				type == ShaderGraphValueType::Matrix4 || type == ShaderGraphValueType::Gradient) {
+				options[index] = { false, "専用ノードを使用" };
+			}
+		}
+		return options;
+	}();
+	if (MyGUI::EnumCombo("型", parameter.type, {}, typeOptions).valueChanged) {
 
 		if (parameter.type == ShaderGraphValueType::Invalid || parameter.type == ShaderGraphValueType::SamplerState) {
 			parameter.type = oldType;
@@ -129,8 +143,7 @@ void Engine::ShaderGraphParameterEditor::DrawValue(
 		break;
 	}
 	case ShaderGraphValueType::Float4: {
-		Vector4 value =
-			std::get_if<Vector4>(&parameter.defaultValue.value) ? std::get<Vector4>(parameter.defaultValue.value) : Vector4{};
+		Vector4 value = ShaderGraphEditOperations::GetVector4Value(parameter.defaultValue);
 		if (MyGUI::DragVector4("既定値", value).valueChanged) {
 
 			parameter.defaultValue.value = value;
@@ -139,8 +152,7 @@ void Engine::ShaderGraphParameterEditor::DrawValue(
 		break;
 	}
 	case ShaderGraphValueType::Color: {
-		Color4 value = std::get_if<Color4>(&parameter.defaultValue.value) ? std::get<Color4>(parameter.defaultValue.value)
-																		  : Color4(1.0f, 1.0f, 1.0f, 1.0f);
+		Color4 value = ShaderGraphEditOperations::GetColorValue(parameter.defaultValue);
 		if (MyGUI::ColorEdit("既定値", value, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoInputs).valueChanged) {
 
 			parameter.defaultValue.value = value;

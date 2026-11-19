@@ -1,6 +1,7 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
 #include "TestRunner.h"
+
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
@@ -40,6 +41,7 @@
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 
 // c++
+#include <bit>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -612,9 +614,29 @@ namespace NEMTests {
 		Engine::MaterialParameterSet textureOverride;
 		textureOverride.Set(Engine::MaterialParameterNames::BaseColorTexture, emptyTexture);
 		Engine::RaytracingMaterialResolver textureResolver;
-		const auto textureData = textureResolver.BuildPrimitiveSubMeshData(graphics, database, textureMaterial,
+		const auto textureData = textureResolver.BuildSubMeshData(graphics, database, textureMaterial,
 			&textureOverride, Engine::Matrix4x4::Identity());
 		if (textureData.baseColorTextureIndex != UINT32_MAX || textureResolver.HasPendingTextures()) return false;
+
+		// 異なるサブメッシュのHit Parameterは同じ宣言順で別々に確保する
+		Engine::ShaderAsset hitShader{};
+		hitShader.guid = Engine::AssetID::New();
+		const auto enabled = Engine::MaterialParameterID::FromName("Enabled");
+		const auto tint = Engine::MaterialParameterID::FromName("Tint");
+		hitShader.parameters = {
+			{.shaderName = "Enabled", .displayName = "Enabled", .id = enabled, .valueType = D3D_SVT_UINT, .componentCount = 1},
+			{.shaderName = "Tint", .displayName = "Tint", .id = tint, .valueType = D3D_SVT_FLOAT, .componentCount = 4},
+		};
+		Engine::MaterialAsset hitMaterial{};
+		hitMaterial.parameters.Set("Enabled", Engine::MaterialParameterValue{.value = true});
+		hitMaterial.parameters.Set("Tint", Engine::MaterialParameterValue{.value = Engine::Color4(1.0f, 0.5f, 0.25f, 1.0f)});
+		Engine::MaterialParameterSet hitOverride;
+		hitOverride.Set("Enabled", Engine::MaterialParameterValue{.value = false});
+		std::vector<uint32_t> hitWords;
+		if (textureResolver.AppendHitParameters(graphics, database, hitShader, hitMaterial, nullptr, hitWords) != 0 ||
+			textureResolver.AppendHitParameters(graphics, database, hitShader, hitMaterial, &hitOverride, hitWords) != 32 ||
+			hitWords.size() != 16 || hitWords[0] != 1 || hitWords[8] != 0 ||
+			hitWords[2] != std::bit_cast<uint32_t>(0.5f) || hitWords[10] != hitWords[2]) return false;
 
 		// Cook後も公開ParameterのIDとGPU配置を維持する
 		Engine::ShaderReflectionInfo cookedReflection{};

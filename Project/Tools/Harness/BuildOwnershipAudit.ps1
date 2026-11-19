@@ -99,7 +99,7 @@ $report = [ordered]@{
     generatedUtc = [DateTime]::UtcNow.ToString('o')
     failures = $failures.ToArray(); projects = $records.ToArray()
 }
-$reportPath = Join-Path $repoRoot 'Generated/Refactoring/BuildOwnership.json'
+$reportPath = Join-Path $repoRoot 'LocalWork/Verification/Refactoring/BuildOwnership.json'
 [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($reportPath)) | Out-Null
 [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 12), [Text.UTF8Encoding]::new($false))
 $failures | ForEach-Object { Write-Host "[FAIL] $_" }

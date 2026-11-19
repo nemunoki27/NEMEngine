@@ -8,11 +8,13 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
+#include <algorithm>
 #include <limits>
 #include <string_view>
 #include <type_traits>
@@ -180,12 +182,29 @@ bool Engine::MaterialAssetFields::Draw(const EditorPanelContext& context, Materi
 
 	// 描画済みPipelineから公開パラメータを集める
 	std::unordered_set<std::string> reflectedNames;
+	std::unordered_set<uint64_t> declaredParameters;
 	std::vector<const ShaderReflectionInfo*> reflections;
+	ShaderReflectionInfo parameterVisibility;
 	if (context.renderPipeline) {
 
+		auto& library = context.renderPipeline->GetRenderAssetLibrary();
+		const auto applyVisibility = [&](AssetID shaderID) {
+			if (const auto* shader = shaderID ? library.LoadShader(shaderID) : nullptr) {
+				ShaderReflectionInfo shaderVisibility;
+				ApplyShaderParameterMetadata(shaderVisibility, *shader);
+				MergeShaderReflection(parameterVisibility, shaderVisibility);
+				for (const auto& parameter : shader->parameters) {
+					if (parameter.id) declaredParameters.insert(parameter.id.value);
+				}
+			}
+		};
 		std::unordered_set<const ShaderReflectionInfo*> seenReflections;
 		for (const MaterialPassBinding& pass : draft.passes) {
 
+			if (const auto* pipeline = pass.pipeline ? library.LoadPipeline(pass.pipeline) : nullptr) {
+				for (const auto& variant : pipeline->variants) applyVisibility(variant.shader);
+			}
+			applyVisibility(pass.shaderOverride);
 			if (!pass.pipeline) {
 				continue;
 			}
@@ -281,14 +300,15 @@ bool Engine::MaterialAssetFields::Draw(const EditorPanelContext& context, Materi
 			if (layout.IsValid()) {
 				for (const ShaderConstantBufferVariable& variable : layout.GetVariables()) {
 
-					if (variable.used && MaterialParameterEditor::IsReflectedTextureParam(variable, *reflection)) {
+					if (variable.used && MaterialParameterEditor::IsExposedParameter(variable) &&
+						MaterialParameterEditor::IsReflectedTextureParam(variable, *reflection)) {
 						drawTexture(variable.parameterID, variable.semantic, variable.name);
 					}
 				}
 			}
 			for (const ShaderResourceBinding& res : reflection->resources) {
 
-				if (!MaterialParameterEditor::IsMaterialTextureResource(res)) {
+				if (!MaterialParameterEditor::IsExposedTextureResource(res, *reflection)) {
 					continue;
 				}
 				const MaterialParameterID parameterID =
@@ -314,7 +334,12 @@ bool Engine::MaterialAssetFields::Draw(const EditorPanelContext& context, Materi
 			MaterialParameterValue parameter = record.namedValue.second;
 
 			// Shader側で表示した値を除外する
-			if (reflectedNames.count(key) != 0) {
+			const bool exposed = MaterialParameterEditor::IsExposedParameter(record.id, parameterVisibility) &&
+				std::all_of(reflections.begin(), reflections.end(), [&](const ShaderReflectionInfo* reflection) {
+					return MaterialParameterEditor::IsExposedParameter(record.id, *reflection);
+				});
+			const bool declared = !draft.shaderGraph || declaredParameters.contains(record.id.value);
+			if (!exposed || !declared || reflectedNames.count(key) != 0) {
 				continue;
 			}
 

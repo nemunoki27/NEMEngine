@@ -76,6 +76,10 @@ bool Engine::RaytracingPipelineBuilder::BuildShaderTable(RaytracingPipelineState
 		writeTable(missExports, state.missTableOffset_, RaytracingPipelineState::kRecordStride) &&
 		writeTable(hitGroupExports, state.hitGroupTableOffset_, RaytracingPipelineState::kRecordStride) &&
 		writeTable(callableExports, state.callableTableOffset_, RaytracingPipelineState::kRecordStride);
+	if (written) {
+		const uint8_t* hitRecords = mapped + state.hitGroupTableOffset_;
+		state.hitGroupIdentifiers_.assign(hitRecords, hitRecords + hitGroupExports.size() * state.kRecordStride);
+	}
 	state.shaderTable_->Unmap(0, nullptr);
 	if (!written) {
 		Logger::Output(LogType::Engine, spdlog::level::err,

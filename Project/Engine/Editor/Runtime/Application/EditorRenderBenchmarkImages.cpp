@@ -17,6 +17,7 @@
 
 void Engine::EditorRenderBenchmark::InitCaptureSettings() {
 
+	captureStartup_ = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_CAPTURE_STARTUP") == L"1";
 	const auto mode = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_CAPTURE").native();
 	if (mode.empty() || mode == L"Final") captureMode_ = CaptureMode::Final;
 	else if (mode == L"None") captureMode_ = CaptureMode::None;
@@ -26,7 +27,7 @@ void Engine::EditorRenderBenchmark::InitCaptureSettings() {
 	report_["captureMode"] = mode.empty() ? "Final" : Algorithm::PathToUTF8(std::filesystem::path(mode));
 }
 
-void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
+void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore, const char* prefix) {
 
 	if (captureMode_ == CaptureMode::None) return;
 	// 画像の読戻し待機は計測区間の外へ置く
@@ -89,7 +90,7 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore) {
 				image = converted.GetImage(0, 0, 0);
 			}
 			const std::string suffix = *attachment ? std::string("-") + attachment : "";
-			const auto filename = std::to_string(phase_) + (kind == RenderViewKind::Game ? "-Game" : "-Scene") + suffix + ".png";
+			const auto filename = prefix + std::to_string(phase_) + (kind == RenderViewKind::Game ? "-Game" : "-Scene") + suffix + ".png";
 			const auto path = output_.parent_path() / filename;
 			if (FAILED(DirectX::SaveToWICFile(*image, DirectX::WIC_FLAGS_NONE,
 				DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str()))) {

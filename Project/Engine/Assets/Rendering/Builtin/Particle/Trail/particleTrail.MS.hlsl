@@ -37,10 +37,10 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 	const uint vertexBase = groupThreadID * 4u;
 	const uint triangleBase = groupThreadID * 2u;
 
-	verts[vertexBase] = BuildTrailVertex(point0, -1.0f, 0.0f, point0.materialIndex);
-	verts[vertexBase + 1u] = BuildTrailVertex(point0, 1.0f, 1.0f, point0.materialIndex);
-	verts[vertexBase + 2u] = BuildTrailVertex(point1, -1.0f, 0.0f, point0.materialIndex);
-	verts[vertexBase + 3u] = BuildTrailVertex(point1, 1.0f, 1.0f, point0.materialIndex);
+	verts[vertexBase] = BuildTrailVertex(point0, -1.0f, 0.0f, point0.materialIndex, pointIndex);
+	verts[vertexBase + 1u] = BuildTrailVertex(point0, 1.0f, 1.0f, point0.materialIndex, pointIndex);
+	verts[vertexBase + 2u] = BuildTrailVertex(point1, -1.0f, 0.0f, point0.materialIndex, pointIndex);
+	verts[vertexBase + 3u] = BuildTrailVertex(point1, 1.0f, 1.0f, point0.materialIndex, pointIndex);
 	tris[triangleBase] = uint3(vertexBase, vertexBase + 1u, vertexBase + 2u);
 	tris[triangleBase + 1u] = uint3(vertexBase + 2u, vertexBase + 1u, vertexBase + 3u);
 }

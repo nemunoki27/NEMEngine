@@ -30,6 +30,7 @@
 #include "FBXImportTests.h"
 #include "EditorAssetWorkflowTests.h"
 #include "ProjectGitIgnoreTests.h"
+#include "ShaderGraphEditorUITests.h"
 
 // c++
 #include <iostream>
@@ -242,7 +243,9 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Ray Tracing pipeline serialization failed\n";
 		return 21;
 	}
-	if (!RunTest("TestShaderGraphCompile", TestShaderGraphCompile)) {
+	if (!RunTest("TestShaderGraphEditorUI", TestShaderGraphEditorUI) ||
+		!RunTest("TestShaderGraphCompile", TestShaderGraphCompile) ||
+		!RunTest("TestShaderGraphNodePreviews", TestShaderGraphNodePreviews)) {
 		std::cerr << "Shader Graph compilation failed\n";
 		return 18;
 	}

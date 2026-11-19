@@ -17,13 +17,6 @@
 #include <filesystem>
 #include <cstring>
 
-namespace {
-
-	// 軸ラベルの表示幅
-	constexpr float kAxisLabelWidth = 14.0f;
-
-} // namespace
-
 //============================================================================
 //	Easing functions
 //============================================================================
@@ -299,7 +292,8 @@ namespace Engine {
 				ImGui::SameLine(0, spacing);
 			}
 			// 軸がない項目は入力領域を全幅で使う
-			ImGui::SetNextItemWidth((std::max)(1.0f, itemWidth - (hasAxis ? kAxisLabelWidth + spacing : 0.0f)));
+			const float axisWidth = hasAxis ? ImGui::CalcTextSize(axis.name).x + spacing : 0.0f;
+			ImGui::SetNextItemWidth((std::max)(1.0f, itemWidth - axisWidth));
 
 			// ドラッグ操作による数値入力
 			if (ImGui::DragFloat(

@@ -1,4 +1,4 @@
-#include "ShaderGraphCompiler.h"
+﻿#include "ShaderGraphCompiler.h"
 
 //============================================================================
 //	include
@@ -6,40 +6,11 @@
 #include "ShaderGraphStageSource.h"
 #include "ShaderGraphSubGraphExpander.h"
 #include "ShaderGraphParameterDefaults.h"
+#include "ShaderGraphResourceInputs.h"
 
 // c++
 #include <algorithm>
 
-namespace {
-
-	using namespace Engine;
-	using namespace Engine::ShaderGraphSourceUtility;
-
-	// NodeID順にSamplerの配置を決める
-	void BuildSamplerBindings(const ShaderGraphAsset& graph, ShaderGraphCompileOutput& output) {
-
-		std::vector<const ShaderGraphNode*> samplerNodes;
-		for (const ShaderGraphNode& node : graph.nodes) {
-			if (node.kind == ShaderGraphNodeKind::SamplerState) {
-				samplerNodes.emplace_back(&node);
-			}
-		}
-		std::sort(samplerNodes.begin(), samplerNodes.end(), [](const ShaderGraphNode* lhs, const ShaderGraphNode* rhs) {
-			return lhs->id.value < rhs->id.value;
-		});
-
-		// s0は既定サンプラー、s1はレイトレーシングの環境サンプラー
-		uint32_t shaderRegister = 2;
-		for (const ShaderGraphNode* node : samplerNodes) {
-			output.samplers.emplace_back(ShaderGraphSamplerBinding{
-				.node = node->id,
-				.shaderName = MakeNodeVariable("gSampler", node->id),
-				.shaderRegister = shaderRegister++,
-				.settings = node->sampler,
-			});
-		}
-	}
-}
 
 using namespace Engine;
 using namespace Engine::ShaderGraphSourceUtility;
@@ -54,6 +25,7 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 	if (!ShaderGraphSubGraphExpander::Expand(expandedGraph, resolver, output.diagnostics)) {
 		return output;
 	}
+	ShaderGraphResourceInputs::Normalize(expandedGraph);
 	// 対象外の頂点出力を生成前に拒否する
 	if (expandedGraph.vertexOutputNode && !SupportsShaderGraphVertexOutput(expandedGraph.target)) {
 
@@ -118,7 +90,7 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 				expandedGraph.target, surfaceIncludeFile, context);
 		}
 		if (IsShaderGraph3DTarget(expandedGraph.target)) {
-			output.rayTracingHLSL = BuildRayTracingSource(surfaceIncludeFile, context);
+			output.rayTracingHLSL = BuildRayTracingSource(surfaceIncludeFile);
 		}
 		if (expandedGraph.target == ShaderGraphTarget::Mesh) {
 			// DepthとPickingも同じSurfaceを参照する
@@ -145,35 +117,7 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 	if (!output.Succeeded()) {
 		return output;
 	}
-	// Materialに公開するParameter情報を作る
-	for (const ShaderGraphParameter& parameter : expandedGraph.parameters) {
-
-		output.parameters.emplace_back(ShaderParameterMetadata{
-			.shaderName = MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName,
-				parameter.id),
-			.displayName = parameter.name,
-			.id = MaterialParameterID::FromUUID(parameter.id),
-			.semantic = parameter.semantic,
-			.isColor = parameter.type == ShaderGraphValueType::Color,
-			.isTexture = parameter.type == ShaderGraphValueType::Texture2D,
-		});
-	}
-	// 実行時切替のKeywordだけをParameterとして公開する
-	for (const ShaderGraphKeyword& keyword : expandedGraph.keywords) {
-		if (!keyword.runtimeToggle) {
-			continue;
-		}
-		output.parameters.emplace_back(ShaderParameterMetadata{
-			.shaderName = MakeIdentifier(keyword.referenceName.empty() ? keyword.name : keyword.referenceName, keyword.id),
-			.displayName = keyword.name,
-			.id = MaterialParameterID::FromUUID(keyword.id),
-			.semantic = MaterialParameterSemantic::None,
-			.isColor = false,
-			.isTexture = false,
-		});
-	}
-	// 展開後の初期値を生成Materialへ渡す
-	output.defaultParameters = ShaderGraphParameterDefaults::Build(expandedGraph);
+	BuildParameterBindings(expandedGraph, output);
 	return output;
 }
 

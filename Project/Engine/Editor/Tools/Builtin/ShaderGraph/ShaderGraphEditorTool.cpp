@@ -97,6 +97,7 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 	}
 
 	// 操作欄と設定とキャンバスを順に表示する
+	editSession_.RefreshReferences(context);
 	toolbar_.Draw(context, editSession_, *this);
 	ImGui::Separator();
 

@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphFrameConstants.h>
 
 // c++
 #include <span>
@@ -27,16 +28,6 @@ namespace Engine {
 	//============================================================================
 	//	IRenderBackend structures
 	//============================================================================
-	// ShaderGraph生成シェーダーへ渡すフレーム共通時間
-	struct ShaderGraphTimeConstantsGPU {
-
-		float time = 0.0f;
-		float deltaTime = 0.0f;
-		float smoothDeltaTime = 0.0f;
-		float unscaledTime = 0.0f;
-	};
-	static_assert(sizeof(ShaderGraphTimeConstantsGPU) == 16);
-
 	// 描画コンテキスト
 	struct RenderDrawContext {
 
@@ -65,6 +56,8 @@ namespace Engine {
 		// ツールプレビューではMeshShader/RayQueryを避け、Vertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
 		bool useThumbnailTextures = false;
+		// 現在の描画先に設定したピクセル単位の矩形
+		Vector4 viewport{0.0f, 0.0f, 0.0f, 0.0f};
 
 		// 現在バインド中の描画先フォーマット
 		std::array<DXGI_FORMAT, 8> rtvFormats{};

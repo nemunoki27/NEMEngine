@@ -46,6 +46,9 @@ namespace Engine {
 	class ApplicationPreloader {
 	public:
 
+		// 反射に映るスキンメッシュの初期姿勢を最初の更新に間に合わせる
+		static void PrepareReflectionAnimations(GraphicsCore& graphicsCore, ECSWorld& world,
+			AssetDatabase& assets, SkinnedMeshAnimationManager& animations);
 		// Release構成の事前読み込みを実行する
 		static bool Run(GraphicsCore& graphicsCore, ApplicationPreloadContext& context, bool editor);
 		// Scriptからの明示要求を安全地点で処理する

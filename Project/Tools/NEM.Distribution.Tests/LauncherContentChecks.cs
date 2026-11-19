@@ -62,7 +62,7 @@ internal static class LauncherContentChecks {
         bitmap.Render(window);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(Path.Combine(repository, "Generated/Launcher." + DistributionVersion.Current + "." + name + ".png"));
+        using var stream = File.Create(Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher." + DistributionVersion.Current + "." + name + ".png"));
         encoder.Save(stream);
     }
 }

@@ -42,7 +42,7 @@ namespace {
 
 		using namespace Engine;
 		NEMTests::TestDirectory directory("FrameBufferingPreferences",
-			RuntimePaths::GetEngineProjectRoot().parent_path() / "Generated/Refactoring/DoubleBuffering");
+			RuntimePaths::GetEngineProjectRoot().parent_path() / "LocalWork/Verification/Refactoring/DoubleBuffering");
 		struct SettingsScope {
 			std::string previous;
 			SettingsScope() {

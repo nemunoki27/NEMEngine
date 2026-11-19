@@ -10,7 +10,7 @@ if ([string]::IsNullOrWhiteSpace($BuildTool)) {
     $BuildTool = Join-Path $engineRoot "Generated\Output\Release\NEMBuildTool\NEMBuildTool.exe"
 }
 $BuildTool = (Resolve-Path -LiteralPath $BuildTool).Path
-$testRoot = Join-Path $engineRoot ("Generated\DependencyTests\" + [Guid]::NewGuid().ToString("N"))
+$testRoot = Join-Path $engineRoot ("LocalWork\Tests\DependencyTests\" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path (Join-Path $testRoot "GameAssets"), (Join-Path $testRoot "Engine\Assets") | Out-Null
 
 function Write-TestJson([string]$Path, [object]$Value) {

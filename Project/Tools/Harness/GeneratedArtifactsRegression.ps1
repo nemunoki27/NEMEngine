@@ -18,7 +18,7 @@ function Assert-Result([bool]$Condition, [string]$Message) {
     if (!$Condition) { throw $Message }
     Write-Output "[PASS] $Message"
 }
-$fixtureBase = Join-Path $engineRoot 'Generated/TestFixtures'
+$fixtureBase = Join-Path $engineRoot 'LocalWork/Tests/TestFixtures'
 $fixture = [IO.Path]::GetFullPath((Join-Path $fixtureBase ('GeneratedArtifacts-' + [Guid]::NewGuid().ToString('N'))))
 $generated = Join-Path $fixture 'Generated'
 $images = Join-Path $generated 'Refactoring'

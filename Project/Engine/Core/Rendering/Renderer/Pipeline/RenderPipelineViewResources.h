@@ -35,6 +35,9 @@ namespace Engine {
 
 		ResolvedRenderView view{};
 		RenderPathResources resources{};
+		UUID precisionScene{};
+		bool keepWideAlbedo = false;
+		uint64_t lastGeometryFrame = UINT64_MAX;
 		RaytracingViewBufferSet raytracingBuffers{};
 		RenderTargetRegistry targetRegistry{};
 		RenderFeatureProfileRuntime renderPassesRuntime{};

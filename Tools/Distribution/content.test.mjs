@@ -111,7 +111,7 @@ test('一覧の管理読込はHTTP圧縮に依存せず保存元のETagを返す
 
 test('アップロードを完了してから一覧を更新し、失敗時は公開しない', async () => {
   const repository = fileURLToPath(new URL('../../', import.meta.url));
-  const owner = path.join(repository, 'Generated/DistributionContent');
+  const owner = path.join(repository, 'LocalWork/Tests/DistributionContent');
   await mkdir(owner, {recursive:true});
   const root = await mkdtemp(path.join(owner, 'test-'));
   const source = path.join(root, 'source');
@@ -140,7 +140,7 @@ test('アップロードを完了してから一覧を更新し、失敗時は�
 });
 
 test('GameAssetsとPackagesの開始シーンと共通Git設定を保存できる', async () => {
-  const owner = fileURLToPath(new URL('../../Generated/DistributionContent/', import.meta.url));
+  const owner = fileURLToPath(new URL('../../LocalWork/Tests/DistributionContent/', import.meta.url));
   await mkdir(owner, {recursive:true});
   const root = await mkdtemp(path.join(owner, 'sample-valid-'));
   try {
@@ -157,7 +157,7 @@ test('GameAssetsとPackagesの開始シーンと共通Git設定を保存でき�
 });
 
 test('開始シーンGUIDと本体とmetaが不整合なサンプルを公開前に拒否する', async () => {
-  const owner = fileURLToPath(new URL('../../Generated/DistributionContent/', import.meta.url));
+  const owner = fileURLToPath(new URL('../../LocalWork/Tests/DistributionContent/', import.meta.url));
   await mkdir(owner, {recursive:true});
   const root = await mkdtemp(path.join(owner, 'sample-invalid-'));
   const cases = [
@@ -188,7 +188,7 @@ test('開始シーンGUIDと本体とmetaが不整合なサンプルを公開前
 });
 
 test('ZIP内の階層逸脱と大文字小文字の重複を公開前に拒否する', async () => {
-  const owner = fileURLToPath(new URL('../../Generated/DistributionContent/', import.meta.url));
+  const owner = fileURLToPath(new URL('../../LocalWork/Tests/DistributionContent/', import.meta.url));
   await mkdir(owner, {recursive:true});
   const root = await mkdtemp(path.join(owner, 'zip-test-'));
   try {

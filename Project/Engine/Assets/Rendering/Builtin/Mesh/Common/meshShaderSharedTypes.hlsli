@@ -74,7 +74,9 @@ struct SubMeshShaderData {
 
 	// 同じMaterialと表面方式をまとめた描画グループ
 	uint renderGroupIndex;
-	uint3 _renderGroupPad;
+	uint useRasterHitMaterial;
+	uint primitiveShape;
+	uint primitiveShapeOffset;
 };
 
 struct MeshInstance {

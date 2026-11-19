@@ -123,8 +123,8 @@ namespace Engine::ShaderGraphMaterialBuilder {
 
 	void ApplyToMaterial(const ShaderGraphArtifact& artifact, MaterialAsset& material) {
 
-		// 既存の編集値を保ち、展開で増えた初期値だけを加える
-		ShaderGraphParameterDefaults::ApplyMissing(artifact.compileOutput.defaultParameters, material.parameters);
+		ShaderGraphParameterDefaults::ApplyToMaterial(artifact.compileOutput.defaultParameters,
+			artifact.compileOutput.parameters, material.parameters);
 
 		if (MaterialPassBinding* pass = FindPass(material, MaterialPassKind::ZPrepass)) {
 			if (artifact.depthPipelineID) {

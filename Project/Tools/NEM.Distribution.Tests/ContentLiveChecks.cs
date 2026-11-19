@@ -36,7 +36,7 @@ internal static class ContentLiveChecks {
         await new AssetDownloadService(client).SaveAsync(asset, Path.Combine(store.Root, "Downloads"), saved, false,
             new ConsoleProgress(), default);
         check(await DistributionStorage.HashAsync(saved) == asset.Package.Sha256, "公開アセットの内容が一致しません");
-        DistributionStorage.Write(Path.Combine(repository, "Generated/ContentDistributionValidation/live.json"), new {
+        DistributionStorage.Write(Path.Combine(repository, "LocalWork/Tests/Distribution/ContentDistributionValidation/live.json"), new {
             success = true, engineVersion = sample.EngineVersion, sample = new { sample.ID, sample.Version, sample.Package.Bytes },
             asset = new { asset.ID, asset.Version, asset.FileName, asset.Package.Bytes }
         });

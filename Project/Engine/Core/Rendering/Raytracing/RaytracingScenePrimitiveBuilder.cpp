@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -31,6 +32,7 @@
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <span>
 #include <unordered_set>
@@ -97,7 +99,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(work.scene.result.sceneSubMeshScratch_.size());
 
-		MeshSubMeshShaderData subMeshData = work.scene.materialResolver.BuildPrimitiveSubMeshData(
+		MeshSubMeshShaderData subMeshData = work.scene.materialResolver.BuildSubMeshData(
 			work.graphicsCore, work.assetDatabase, *material,
 			src.materialInstance, src.uvMatrix);
 		const MaterialParameterValue* alphaClip = src.materialInstance ? src.materialInstance->Find(MaterialParameterIDs::AlphaClip) : nullptr;
@@ -105,6 +107,27 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		const float threshold = alphaClip && std::holds_alternative<float>(alphaClip->value) ? std::get<float>(alphaClip->value) : 0.5f;
 		subMeshData._materialPad = (static_cast<uint32_t>(src.surfaceMode) << 16u) |
 			static_cast<uint32_t>(std::clamp(threshold, 0.0f, 1.0f) * 65535.0f);
+		subMeshData.renderGroupIndex = static_cast<uint32_t>(material->renderState.overridesRenderer ?
+			material->renderState.blendMode : renderer.blendMode);
+		subMeshData.useRasterHitMaterial = !FindPass(*material, MaterialPassKind::RayTracing) &&
+			!MaterialRenderPolicy::IsStandardSurface(*material) && src.surfaceMode != MaterialSurfaceMode::Transparent;
+
+		if (renderer.type == PrimitiveType::Ring || renderer.type == PrimitiveType::Cylinder) {
+
+			PrimitiveInstanceData instance{};
+			ApplyPrimitiveShapeToInstance(renderer, instance);
+			const bool isRing = renderer.type == PrimitiveType::Ring;
+			const size_t size = isRing ? sizeof(Vector4) :
+				offsetof(PrimitiveInstanceData, flags) - offsetof(PrimitiveInstanceData, shapeParams0);
+			static_assert(offsetof(PrimitiveInstanceData, flags) - offsetof(PrimitiveInstanceData, shapeParams0) == 80);
+			auto& words = work.scene.result.materialParameterWords_;
+			const size_t offset = (words.size() + 3u) & ~size_t(3u);
+			words.resize(offset + size / sizeof(uint32_t));
+			std::memcpy(words.data() + offset,
+				reinterpret_cast<const std::byte*>(&instance) + offsetof(PrimitiveInstanceData, shapeParams0), size);
+			subMeshData.primitiveShape = isRing ? 1u : 2u;
+			subMeshData.primitiveShapeOffset = static_cast<uint32_t>(offset * sizeof(uint32_t));
+		}
 		work.scene.result.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
@@ -130,7 +153,10 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 
 		RaytracingGeometryShaderData geometryData{};
 		geometryData.subMeshDataIndex = subMeshDataIndex;
+		AppendHitMaterial(work, material, src.materialInstance, geometryData);
 		geometryData.pickRecordIndex = pickRecordIndex;
+		geometryData.boundsSphere = {geometry->boundsCenter.x, geometry->boundsCenter.y,
+			geometry->boundsCenter.z, geometry->boundsRadius};
 		work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 		work.scene.result.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
 			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent});
@@ -138,7 +164,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		RaytracingTLASInstance instance{};
 		instance.blas = geometry->blas.GetResource();
 		instance.instanceID = shaderInstanceIndex;
-		instance.hitGroupIndex = 0;
+		instance.hitGroupIndex = instanceShaderData.geometryDataOffset;
 		// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける
 		instance.mask = kRaytracingMaskAlwaysHit;
 		if (src.castShadows) {

@@ -170,6 +170,8 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 		}
 	}
 
+	std::vector<std::wstring> originalNames;
+	originalNames.reserve(libraryExports.size());
 	std::vector<CompiledShader> compiledShaders{};
 	compiledShaders.reserve(libraryExports.size());
 	for (const std::string& exportName : libraryExports) {
@@ -180,6 +182,7 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 				"[レイトレーシングパイプライン] Exportが見つかりません: {}", exportName);
 			return false;
 		}
+		originalNames.emplace_back(stage->exportAlias.empty() ? std::wstring{} : Algorithm::ConvertString(stage->entry));
 		CompiledShader compiled = RaytracingShaderLibrary::Load(compiler, *stage);
 		if (!compiled.IsValid()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
@@ -218,7 +221,7 @@ bool Engine::RaytracingPipelineBuilder::BuildStateObject(RaytracingPipelineState
 
 	for (size_t index = 0; index < compiledShaders.size(); ++index) {
 		exportDescs.push_back({
-			libraryExportNames[index].c_str(), nullptr, D3D12_EXPORT_FLAG_NONE });
+			libraryExportNames[index].c_str(), originalNames[index].empty() ? nullptr : originalNames[index].c_str(), D3D12_EXPORT_FLAG_NONE });
 		D3D12_DXIL_LIBRARY_DESC libraryDesc{};
 		libraryDesc.DXILLibrary = ToByteCode(compiledShaders[index]);
 		libraryDesc.NumExports = 1;

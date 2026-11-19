@@ -26,6 +26,7 @@ namespace Engine {
 		UUID node{};
 		std::string shaderName;
 		uint32_t shaderRegister = 0;
+		uint32_t hitRegisterSpace = 0;
 		PipelineStaticSamplerSettings settings{};
 	};
 

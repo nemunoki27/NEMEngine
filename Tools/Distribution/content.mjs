@@ -77,7 +77,7 @@ export async function publishContent(request, suppliedClient, signal) {
     console.log('配布一覧から取り下げました: ' + request.id);
     return next;
   }
-  const root = path.join(repository, 'Generated/DistributionContent');
+  const root = path.join(repository, suppliedClient ? 'LocalWork/Tests/DistributionContent' : 'Generated/DistributionContent');
   await mkdir(root, {recursive:true});
   const stage = await mkdtemp(path.join(root, 'publish-'));
   try {

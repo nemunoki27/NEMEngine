@@ -73,7 +73,7 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);
 
-	SyncAndBindRegistry(*pipelineState, context, commandList);
+	SyncAndBindRegistry(*pipelineState, context, commandList, item->cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
@@ -123,6 +123,17 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	return true;
 }
 
+const Engine::MeshGPUResource* Engine::ParticleRenderBackend::ResolveModelMesh(const RenderDrawContext& context, AssetID model) {
+
+	const MeshGPUResource* mesh = meshResourceManager_.Find(model);
+	if (!mesh) {
+		meshResourceManager_.RequestMesh(*context.assetDatabase, model);
+		meshResourceManager_.FlushUploads();
+		mesh = meshResourceManager_.Find(model);
+	}
+	return mesh;
+}
+
 bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& context, const RenderItem* item,
 	const ParticleRenderSettings& settings,
 	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
@@ -133,13 +144,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 	D3D12_GPU_VIRTUAL_ADDRESS viewAddress) {
 
 	// Model粒子、メッシュのGPUリソースを引きインスタンシング描画する
-	const MeshGPUResource* meshResource = meshResourceManager_.Find(settings.model);
-	if (!meshResource) {
-
-		meshResourceManager_.RequestMesh(*context.assetDatabase, settings.model);
-		meshResourceManager_.FlushUploads();
-		meshResource = meshResourceManager_.Find(settings.model);
-	}
+	const MeshGPUResource* meshResource = ResolveModelMesh(context, settings.model);
 	if (!meshResource || !meshResource->vertexSRV.buffer || meshResource->indexCount == 0) {
 		return false;
 	}
@@ -151,7 +156,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(context, *pipelineState, item->blendMode);
 
-	SyncAndBindRegistry(*pipelineState, context, commandList);
+	SyncAndBindRegistry(*pipelineState, context, commandList, item->cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);
@@ -206,7 +211,7 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);
 
-	SyncAndBindRegistry(*pipelineState, context, commandList);
+	SyncAndBindRegistry(*pipelineState, context, commandList, item->cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAddress);

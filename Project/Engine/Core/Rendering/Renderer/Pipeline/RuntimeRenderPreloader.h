@@ -11,6 +11,8 @@
 namespace Engine {
 
 	class GraphicsCore;
+	class MaterialResolver;
+	struct SceneExecutionContext;
 	class AssetDatabase;
 	class RenderAssetLibrary;
 	class PostProcessAssetGenerator;
@@ -36,6 +38,9 @@ namespace Engine {
 	};
 
 	namespace RuntimeRenderPreloader {
+		// 初めて表示するMeshの描画パスをシーンの準備時に作成する
+		void PrepareHiddenMeshPipelines(GraphicsCore& graphicsCore, const SceneExecutionContext& scene,
+			RenderAssetLibrary& assets, PipelineStateCache& pipelines, MaterialResolver& resolver);
 		// 描画用AssetとPipelineを事前に生成する
 		void Preload(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, RuntimeRenderPreloadContext& context,
 			std::span<const AssetID> requestedAssets);

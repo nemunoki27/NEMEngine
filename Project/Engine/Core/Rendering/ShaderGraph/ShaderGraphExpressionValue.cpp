@@ -21,12 +21,29 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitValueNode(const ShaderG
 			return {};
 		}
 		const ShaderGraphParameter& parameter = *found->second;
+		if (parameter.type == ShaderGraphValueType::Matrix2 || parameter.type == ShaderGraphValueType::Matrix3 ||
+			parameter.type == ShaderGraphValueType::Matrix4 || parameter.type == ShaderGraphValueType::Gradient ||
+			parameter.type == ShaderGraphValueType::SamplerState || parameter.type == ShaderGraphValueType::Invalid) {
+			AddDiagnostic(node.id, "この型は公開パラメータとして使用できません。専用ノードを使用してください");
+			return {};
+		}
 		return ShaderGraphExpression{
 			parameter.type,
 			"graphParameters." + parameterFields_.at(parameter.id.value),
 		};
 	}
 	case ShaderGraphNodeKind::Constant:
+		if (node.valueType == ShaderGraphValueType::Matrix2 || node.valueType == ShaderGraphValueType::Matrix3 ||
+			node.valueType == ShaderGraphValueType::Matrix4 || node.valueType == ShaderGraphValueType::Gradient) {
+			auto constant = node;
+			constant.kind = node.valueType == ShaderGraphValueType::Matrix2 ? ShaderGraphNodeKind::Matrix2 :
+				(node.valueType == ShaderGraphValueType::Matrix3 ? ShaderGraphNodeKind::Matrix3 : ShaderGraphNodeKind::Matrix4);
+			if (node.valueType == ShaderGraphValueType::Gradient) {
+				constant.kind = ShaderGraphNodeKind::Gradient;
+				return EmitGenericInputNode(constant, outputSlot);
+			}
+			return EmitGenericMatrixNode(constant, outputSlot);
+		}
 		return ShaderGraphExpression{
 			node.valueType,
 			MakeLiteral(node.value, node.valueType),

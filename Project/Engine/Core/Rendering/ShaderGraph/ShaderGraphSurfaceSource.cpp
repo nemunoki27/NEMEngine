@@ -1,4 +1,4 @@
-#include "ShaderGraphStageSource.h"
+﻿#include "ShaderGraphStageSource.h"
 
 //============================================================================
 //	include
@@ -47,141 +47,11 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphExpression transmissionColor = is3D ? context.EmitInput(*output, 9u, ShaderGraphValueType::Float3, "1.0f.xxx") :
 			ShaderGraphExpression{ShaderGraphValueType::Float3, "1.0f.xxx"};
 
-		// 各描画経路で使う表面入力を宣言する
-		std::string source = "#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n"
-							 "#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n"
-							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n"
-							 "#ifdef NEM_SHADER_GRAPH_EXPLICIT_LOD\n"
-							 "#define NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv) texture.SampleLevel(sampler, uv, 0.0f)\n"
-							 "#else\n"
-							 "#define NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv) texture.Sample(sampler, uv)\n"
-							 "#endif\n\n";
-		source += "Texture2D<float4> gShaderGraphSceneColor : register(t0, space4);\n"
-				  "Texture2D<float> gShaderGraphSceneDepth : register(t1, space4);\n"
-				  "Texture2D<float4> gShaderGraphSceneNormal : register(t2, space4);\n"
-				  "Texture2D<float4> gShaderGraphScenePosition : register(t3, space4);\n"
-				  "Texture2D<float4> gShaderGraphSceneMaterial : register(t4, space4);\n"
-				  "Texture2D<float4> gShaderGraphSceneEmissive : register(t5, space4);\n"
-				  "Texture2D<uint> gShaderGraphSceneFlags : register(t6, space4);\n\n"
-				  "cbuffer ShaderGraphTimeConstants : register(b4) {\n\n"
-				  "\tfloat shaderGraphTime;\n"
-				  "\tfloat shaderGraphDeltaTime;\n"
-				  "\tfloat shaderGraphSmoothDeltaTime;\n"
-				  "\tfloat shaderGraphUnscaledTime;\n"
-				  "};\n\n";
-		source += context.BuildSamplerDeclarations();
-		source += context.BuildParameterStructure();
-		source += "\nstruct ShaderGraphSurfaceInput {\n\n"
-				  "\tfloat2 uv;\n"
-				  "\tfloat3 worldNormal;\n"
-				  "\tfloat3 worldPosition;\n"
-				  "\tfloat3 objectPosition;\n"
-				  "\tfloat3 objectNormal;\n"
-				  "\tfloat3 objectTangent;\n"
-				  "\tfloat3 viewDirection;\n"
-				  "\tfloat4 screenPosition;\n"
-				  "\tfloat4 vertexColor;\n"
-				  "\tfloat3x3 tangentToWorld;\n"
-				  "\tfloat3 particleVelocity;\n"
-				  "\tfloat particleAge;\n"
-				  "\tfloat particleLifetime;\n"
-				  "\tfloat particleNormalizedAge;\n"
-				  "\tfloat particleRandom;\n"
-				  "\tfloat4 particleCustomData1;\n"
-				  "\tfloat4 particleCustomData2;\n"
-				  "\tfloat4 particleColor;\n"
-				  "};\n\n"
-				  "struct ShaderGraphSurface {\n\n"
-				  "\tfloat4 baseColor;\n"
-				  "\tfloat3 normal;\n"
-				  "\tfloat metallic;\n"
-				  "\tfloat roughness;\n"
-				  "\tfloat ambientOcclusion;\n"
-				  "\tfloat3 emissive;\n"
-				  "\tfloat opacity;\n"
-				  "\tfloat alphaClip;\n"
-				  "\tfloat transmission;\n"
-				  "\tfloat3 transmissionColor;\n"
-				  "};\n\n";
-		const bool particleTarget = graph.target == ShaderGraphTarget::Particle || graph.target == ShaderGraphTarget::Trail;
-		// 画面座標はピクセル単位で4x4のしきい値を繰り返す
-		source += "float ShaderGraphDitherThreshold(float2 pixelPosition) {\n\n"
-				  "\tstatic const float thresholds[16] = {\n"
-				  "\t\t1.0f, 9.0f, 3.0f, 11.0f,\n"
-				  "\t\t13.0f, 5.0f, 15.0f, 7.0f,\n"
-				  "\t\t4.0f, 12.0f, 2.0f, 10.0f,\n"
-				  "\t\t16.0f, 8.0f, 14.0f, 6.0f\n"
-				  "\t};\n"
-				  "\tuint2 cell = uint2(floor(frac(pixelPosition / 4.0f) * 4.0f));\n"
-				  "\treturn thresholds[cell.x * 4u + cell.y] / 17.0f;\n"
-				  "}\n\n";
-		// Particleは個別Textureを固定の入力へ配置する
-		if (particleTarget) {
-			uint32_t textureRegister = 1;
-			for (const ShaderGraphParameter& parameter : graph.parameters) {
-				if (parameter.type != ShaderGraphValueType::Texture2D) {
-					continue;
-				}
-				source +=
-					"Texture2D<float4> " +
-					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
-					" : register(t" + std::to_string(textureRegister++) + ", space2);\n";
-			}
-			source +=
-				"\nfloat4 SampleGraphTexture(uint textureIndex, float2 uv, SamplerState sampler, float4 fallbackValue) {\n\n";
-			uint32_t textureIndex = 0;
-			for (const ShaderGraphParameter& parameter : graph.parameters) {
-				if (parameter.type != ShaderGraphValueType::Texture2D) {
-					continue;
-				}
-				source +=
-					"\tif (textureIndex == " + std::to_string(textureIndex++) + "u) return " +
-					"NEM_SAMPLE_GRAPH_TEXTURE(" + MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
-					", sampler, uv);\n";
-			}
-			source += "\treturn fallbackValue;\n}\n\n";
-		} else {
-			source +=
-				"float4 SampleGraphTexture(uint textureIndex, float2 uv, SamplerState sampler, float4 fallbackValue) {\n\n"
-				"\tif (textureIndex == 0xFFFFFFFFu) {\n"
-				"\t\treturn fallbackValue;\n"
-				"\t}\n"
-				"\tTexture2D<float4> texture = NEM_TEXTURE2D(textureIndex);\n"
-				"\treturn NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv);\n"
-				"}\n\n";
-		}
-		source += "float ShaderGraphHash(float2 value) {\n\n"
-				  "\treturn frac(sin(dot(value, float2(127.1f, 311.7f))) * 43758.5453f);\n"
-				  "}\n\n"
-				  "float ShaderGraphSimpleNoise(float2 uv) {\n\n"
-				  "\tfloat2 cell = floor(uv);\n"
-				  "\tfloat2 local = frac(uv);\n"
-				  "\tfloat2 blend = local * local * (3.0f - 2.0f * local);\n"
-				  "\tfloat a = ShaderGraphHash(cell);\n"
-				  "\tfloat b = ShaderGraphHash(cell + float2(1.0f, 0.0f));\n"
-				  "\tfloat c = ShaderGraphHash(cell + float2(0.0f, 1.0f));\n"
-				  "\tfloat d = ShaderGraphHash(cell + float2(1.0f, 1.0f));\n"
-				  "\treturn lerp(lerp(a, b, blend.x), lerp(c, d, blend.x), blend.y);\n"
-				  "}\n\n"
-				  "float2 ShaderGraphVoronoi(float2 uv, float angleOffset) {\n\n"
-				  "\tfloat2 cell = floor(uv);\n"
-				  "\tfloat2 local = frac(uv);\n"
-				  "\tfloat minimumDistance = 8.0f;\n"
-				  "\tfloat cellValue = 0.0f;\n"
-				  "\t[unroll] for (int y = -1; y <= 1; ++y) {\n"
-				  "\t\t[unroll] for (int x = -1; x <= 1; ++x) {\n"
-				  "\t\t\tfloat2 offset = float2(x, y);\n"
-				  "\t\t\tfloat random = ShaderGraphHash(cell + offset);\n"
-				  "\t\t\tfloat2 featurePoint = 0.5f + 0.5f * float2(sin(random * 6.283185307f + angleOffset), cos(random * "
-				  "6.283185307f + angleOffset));\n"
-				  "\t\t\tfloat distanceValue = distance(local, offset + featurePoint);\n"
-				  "\t\t\tif (distanceValue < minimumDistance) { minimumDistance = distanceValue; cellValue = random; }\n"
-				  "\t\t}\n"
-				  "\t}\n"
-				  "\treturn float2(minimumDistance, cellValue);\n"
-				  "}\n\n";
-		// 共有評価式から表面の出力値を組み立てる
-		source += context.BuildCustomFunctionDeclarations();
+		const auto refraction = is3D ? context.EmitInput(*output, 10u, ShaderGraphValueType::Boolean, "0u") :
+			ShaderGraphExpression{ShaderGraphValueType::Boolean, "0u"};
+
+		std::string source = BuildCommonSource(graph, context);
+		source += "#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n";
 		source += "ShaderGraphSurface EvaluateShaderGraphSurface(\n"
 				  "\tShaderGraphSurfaceInput graphInput,\n"
 				  "\tShaderGraphParameters graphParameters) {\n\n"
@@ -197,6 +67,7 @@ namespace Engine::ShaderGraphStageSource {
 		source += "\tresult.alphaClip = saturate(" + alphaClip.code + ");\n";
 		source += "\tresult.transmission = saturate(" + transmission.code + ");\n";
 		source += "\tresult.transmissionColor = saturate(" + transmissionColor.code + ");\n";
+		source += "\tresult.refraction = (" + refraction.code + " != 0u);\n";
 		source += "\treturn result;\n"
 				  "}\n\n"
 				  "#endif // NEM_GENERATED_SHADER_GRAPH_SURFACE\n";

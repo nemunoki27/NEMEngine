@@ -14,9 +14,10 @@ cbuffer ViewConstants : register(b0) {
 
 	float4x4 viewProjection;
 	float3 cameraPosition;
-	float _viewPad0;
+	float geometryMode;
 	float3 cameraForward;
 	float orthographic;
+	float4 geometryBounds;
 };
 
 struct ParticleGeometryData {
@@ -57,6 +58,7 @@ struct VSOutput {
 	float2 texcoord : TEXCOORD0;
 	float4 vertexColor : COLOR0;
 	nointerpolation uint particleIndex : PARTICLE_INDEX;
+	nointerpolation uint geometryIndex : GEOMETRY_INDEX;
 };
 
 #include "particleCylinderProfile.hlsli"

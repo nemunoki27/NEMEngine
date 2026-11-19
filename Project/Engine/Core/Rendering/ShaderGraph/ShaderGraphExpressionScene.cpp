@@ -49,20 +49,18 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitSceneNode(const ShaderG
 	}
 	case ShaderGraphNodeKind::SceneDepth:
 	case ShaderGraphNodeKind::SceneFlags: {
-		const ShaderGraphExpression uv = EmitInput(node, 0, ShaderGraphValueType::Float2, "graphInput.uv");
+		const std::string defaultUV = node.kind == ShaderGraphNodeKind::SceneFlags &&
+			graph_.domain != ShaderGraphDomain::PostProcess ?
+			"ShaderGraphSceneFlagsDefaultUV(graphInput.screenPosition.xy, graphInput.uv)" : "graphInput.uv";
+		const ShaderGraphExpression uv = EmitInput(node, 0, ShaderGraphValueType::Float2, defaultUV);
 		if (outputSlot != 0) {
 			AddDiagnostic(node.id, "Scene Textureの出力ピンが不正です");
 			return {};
 		}
 		if (node.kind == ShaderGraphNodeKind::SceneFlags) {
-			const std::string pixel = graph_.domain == ShaderGraphDomain::PostProcess
-										  ? "uint2(saturate(" + uv.code +
-												") * "
-												"max(resolution - 1.0f.xx, 0.0f.xx))"
-										  : "uint2(graphInput.screenPosition.xy)";
 			return {
 				ShaderGraphValueType::Float,
-				"(float)" + std::string(ShaderGraphBindingNames::kSceneFlags) + ".Load(int3(" + pixel + ", 0))",
+				"(float)ShaderGraphLoadSceneFlags(" + uv.code + ")",
 			};
 		}
 		return {
@@ -79,9 +77,10 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitSceneNode(const ShaderG
 		}
 		const char* textureName = node.kind == ShaderGraphNodeKind::SceneNormal ? ShaderGraphBindingNames::kSceneNormal
 																				: ShaderGraphBindingNames::kScenePosition;
+		const std::string sample = std::string(textureName) + ".SampleLevel(gSampler, " + uv.code + ", 0.0f).xyz";
 		return {
 			ShaderGraphValueType::Float3,
-			std::string(textureName) + ".SampleLevel(gSampler, " + uv.code + ", 0.0f).xyz",
+			node.kind == ShaderGraphNodeKind::SceneNormal ? "ShaderGraphDecodeSceneNormal(" + sample + ")" : sample,
 		};
 	}
 	case ShaderGraphNodeKind::RayTrace: {

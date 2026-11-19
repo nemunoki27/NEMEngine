@@ -6,6 +6,8 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphFrameConstants.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
 
 // c++
 #include <cstdint>
@@ -64,7 +66,14 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		UUID preparedScene_{};
+		std::vector<RaytracingHitMaterial> geometryMaterials_;
+		std::vector<RaytracingHitMaterial> hitMaterials_;
+		std::vector<uint8_t> hitRecords_;
+		uint64_t hitRecordPipeline_ = 0;
+
 		FrameConstantBufferAllocator constantBufferAllocator_{};
+		ShaderGraphFrameConstantBuffer shaderGraphFrameConstants_;
 		std::unordered_map<uint64_t, MaterialParameterLayout>
 			parameterLayoutCache_{};
 		uint64_t allocatorFrameSerial_ = 0;

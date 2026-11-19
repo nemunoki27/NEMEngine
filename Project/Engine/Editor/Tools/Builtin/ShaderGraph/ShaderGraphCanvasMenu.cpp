@@ -9,7 +9,6 @@
 #include "ShaderGraphGroupEditor.h"
 #include "ShaderGraphNodeTransfer.h"
 #include "ShaderGraphNodePreviewUtility.h"
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
 
@@ -18,9 +17,11 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <cfloat>
+#include <string_view>
+#include <vector>
 // imgui
 #include <imgui.h>
-#include <imgui_stdlib.h>
 #include <imgui_node_editor.h>
 
 using namespace Engine::ShaderGraphCanvasID;
@@ -55,7 +56,7 @@ void Engine::ShaderGraphCanvasMenu::Reset() {
 	contextNode_ = {};
 }
 
-void Engine::ShaderGraphCanvasMenu::Draw() {
+void Engine::ShaderGraphCanvasMenu::Draw(ImTextureID searchIcon) {
 
 	if (ImGui::BeginPopup(kNodeContextPopup)) {
 		const auto group = std::find_if(editSession_.GetDraft().groups.begin(), editSession_.GetDraft().groups.end(),
@@ -66,20 +67,20 @@ void Engine::ShaderGraphCanvasMenu::Draw() {
 		if (group != editSession_.GetDraft().groups.end()) {
 			ImGui::TextUnformatted(group->name.c_str());
 			ImGui::Separator();
-			if (ImGui::MenuItem("グループを複製")) {
+			if (ImGui::MenuItem("Duplicate Group")) {
 				groupEditor_.DuplicateGroup(contextNode_);
 			}
-			if (ImGui::MenuItem("グループを削除")) {
+			if (ImGui::MenuItem("Delete Group")) {
 				groupEditor_.RemoveGroup(contextNode_);
 			}
 		} else {
 			if (node != editSession_.GetDraft().nodes.end()) {
-				ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node->kind).data()));
+				ImGui::TextUnformatted(GetShaderGraphNodeName(node->kind).data());
 			}
 			ImGui::Separator();
 			if (node != editSession_.GetDraft().nodes.end() && IsPreviewableNode(node->kind)) {
 
-				if (ImGui::MenuItem("プレビューを表示", nullptr, node->previewExpanded)) {
+				if (ImGui::MenuItem("Show Preview", nullptr, node->previewExpanded)) {
 
 					node->previewExpanded = !node->previewExpanded;
 					editSession_.MarkDirty();
@@ -88,17 +89,17 @@ void Engine::ShaderGraphCanvasMenu::Draw() {
 			}
 			ImGui::BeginDisabled(
 				node == editSession_.GetDraft().nodes.end() || contextNode_ == editSession_.GetDraft().outputNode);
-			if (ImGui::MenuItem("ノードを複製")) {
+			if (ImGui::MenuItem("Duplicate Node")) {
 				DuplicateNode(contextNode_);
 			}
-			if (ImGui::MenuItem("ノードを削除")) {
+			if (ImGui::MenuItem("Delete Node")) {
 				editSession_.RemoveNode(contextNode_);
 			}
 			ImGui::EndDisabled();
 
 			const bool canGroup = 2 <= canvas_.GetSelectedNodes(editSession_.GetDraft()).size();
 			ImGui::BeginDisabled(!canGroup);
-			if (ImGui::MenuItem("選択ノードをグループ化")) {
+			if (ImGui::MenuItem("選択項目をグループ化")) {
 
 				groupEditor_.GroupSelectedNodes(canvas_.GetSelectedNodes(editSession_.GetDraft()));
 			}
@@ -107,18 +108,21 @@ void Engine::ShaderGraphCanvasMenu::Draw() {
 		ImGui::EndPopup();
 	}
 
-	DrawNodeCreationMenu();
+	DrawNodeCreationMenu(searchIcon);
 }
 
-void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
+void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu(ImTextureID searchIcon) {
 
+	if (ImGui::IsPopupOpen(kCreateNodePopup)) {
+		ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
+	}
 	if (!ImGui::BeginPopup(kCreateNodePopup)) {
 		return;
 	}
 
 	const bool canGroup = 2 <= canvas_.GetSelectedNodes(editSession_.GetDraft()).size();
 	ImGui::BeginDisabled(!canGroup);
-	if (ImGui::MenuItem("選択ノードをグループ化")) {
+	if (ImGui::MenuItem("選択項目をグループ化")) {
 
 		groupEditor_.GroupSelectedNodes(canvas_.GetSelectedNodes(editSession_.GetDraft()));
 	}
@@ -145,15 +149,14 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 		ImGui::EndMenu();
 	}
 	ImGui::Separator();
-	ImGui::SetNextItemWidth(280.0f);
-	ImGui::InputTextWithHint("##NodeSearch", "ノードを検索", &nodeSearch_);
+	nodeSearch_.DrawInput("##NodeSearch", searchIcon, "ノードを検索...");
 	if (editSession_.GetDraft().domain == ShaderGraphDomain::Surface &&
 		SupportsShaderGraphVertexOutput(editSession_.GetDraft().target) && !editSession_.GetDraft().vertexOutputNode &&
 		ImGui::MenuItem("頂点出力を追加")) {
 
 		AddNode(ShaderGraphNodeKind::VertexOutput, createNodePosition_);
 	}
-	if (ImGui::BeginMenu("定数")) {
+	if (ImGui::BeginMenu("Constant")) {
 		const std::array constantTypes{
 			ShaderGraphValueType::Float,
 			ShaderGraphValueType::Float2,
@@ -164,14 +167,15 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 			ShaderGraphValueType::Integer,
 		};
 		for (ShaderGraphValueType type : constantTypes) {
-			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(type)))) {
+			const char* typeName = ImGuiUtility::GetEnumDisplayName(magic_enum::enum_type_name<ShaderGraphValueType>(),
+				EnumAdapter<ShaderGraphValueType>::ToString(type));
+			if (ImGui::MenuItem(typeName)) {
 				AddConstantNode(type, createNodePosition_);
 			}
 		}
 		ImGui::EndMenu();
 	}
 
-	const std::string search = Algorithm::ToLower(nodeSearch_);
 	const auto isCreatable = [this](const ShaderGraphNodeDescriptor& descriptor) {
 		if (descriptor.kind == ShaderGraphNodeKind::RayTrace) {
 			return editSession_.GetDraft().domain == ShaderGraphDomain::RayTracingEffect;
@@ -183,39 +187,43 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 			   descriptor.kind != ShaderGraphNodeKind::Constant && descriptor.kind != ShaderGraphNodeKind::Keyword;
 	};
 	const auto& descriptors = ShaderGraphNodeRegistry::GetDescriptors();
-	if (!search.empty()) {
+	if (nodeSearch_.IsActive()) {
 		for (const ShaderGraphNodeDescriptor& descriptor : descriptors) {
 			if (!isCreatable(descriptor)) {
 				continue;
 			}
-			const std::string searchable =
-				Algorithm::ToLower(std::string(descriptor.name) + " " + std::string(descriptor.category) + " " +
-					ImGuiUtility::GetDisplayName(descriptor.name.data()));
-			if (searchable.find(search) != std::string::npos && ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.name.data()))) {
+			const std::string searchable = std::string(descriptor.name) + " " + std::string(descriptor.category) + " " +
+				ImGuiUtility::GetDisplayName(descriptor.name.data());
+			if (nodeSearch_.Matches(searchable) && ImGui::MenuItem(descriptor.name.data())) {
 				AddNode(descriptor.kind, createNodePosition_);
 			}
 		}
 	} else {
-		std::vector<std::string_view> categories;
-		for (const ShaderGraphNodeDescriptor& descriptor : descriptors) {
-			if (isCreatable(descriptor) &&
-				std::find(categories.begin(), categories.end(), descriptor.category) == categories.end()) {
-				categories.emplace_back(descriptor.category);
-			}
-		}
-		for (std::string_view category : categories) {
-			if (!ImGui::BeginMenu(category.data())) {
-				continue;
-			}
+		const auto drawCategory = [&](const auto& draw, std::string_view parent) -> void {
+			std::vector<std::string_view> categories;
 			for (const ShaderGraphNodeDescriptor& descriptor : descriptors) {
-				if (isCreatable(descriptor) && descriptor.category == category && ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.name.data()))) {
-					AddNode(descriptor.kind, createNodePosition_);
+				if (!isCreatable(descriptor)) continue;
+				if (descriptor.category == parent) {
+					if (ImGui::MenuItem(descriptor.name.data())) AddNode(descriptor.kind, createNodePosition_);
+					continue;
 				}
+				if (!parent.empty() && (!descriptor.category.starts_with(parent) ||
+					descriptor.category.size() <= parent.size() || descriptor.category[parent.size()] != '/')) continue;
+				const auto remaining = descriptor.category.substr(parent.empty() ? 0 : parent.size() + 1);
+				const auto category = remaining.substr(0, remaining.find('/'));
+				if (std::find(categories.begin(), categories.end(), category) == categories.end()) categories.emplace_back(category);
 			}
-			ImGui::EndMenu();
-		}
+			for (std::string_view category : categories) {
+				const std::string label(category);
+				if (!ImGui::BeginMenu(label.c_str())) continue;
+				const std::string path = parent.empty() ? label : std::string(parent) + "/" + label;
+				draw(draw, path);
+				ImGui::EndMenu();
+			}
+		};
+		drawCategory(drawCategory, {});
 	}
-	if (ImGui::BeginMenu("パラメータ")) {
+	if (ImGui::BeginMenu("Parameter")) {
 		for (const ShaderGraphParameter& parameter : editSession_.GetDraft().parameters) {
 
 			if (ImGui::MenuItem(parameter.name.c_str())) {
@@ -225,7 +233,7 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu() {
 		}
 		ImGui::EndMenu();
 	}
-	if (ImGui::BeginMenu("キーワード")) {
+	if (ImGui::BeginMenu("Keyword")) {
 		for (const ShaderGraphKeyword& keyword : editSession_.GetDraft().keywords) {
 			if (ImGui::MenuItem(keyword.name.c_str())) {
 				AddKeywordNode(keyword.id, createNodePosition_);

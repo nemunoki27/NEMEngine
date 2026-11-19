@@ -4,6 +4,11 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RuntimeRenderPreloader.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
@@ -100,6 +105,50 @@ namespace {
 		}
 		return false;
 	}
+}
+
+void Engine::RuntimeRenderPreloader::PrepareHiddenMeshPipelines(GraphicsCore& graphicsCore, const SceneExecutionContext& scene,
+	RenderAssetLibrary& assets, PipelineStateCache& pipelines, MaterialResolver& resolver) {
+
+	RenderDrawContext draw{};
+	draw.graphicsCore = &graphicsCore;
+	draw.assetDatabase = scene.assetDatabase;
+	draw.assetLibrary = &assets;
+	draw.pipelineCache = &pipelines;
+	draw.materialResolver = &resolver;
+	draw.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	draw.dsvFormat = scene.resources->GetSceneMain()->GetDepthTexture()->GetDSVFormat();
+	auto prepare = [&](MeshSubMeshRenderState state) {
+		const auto id = resolver.ResolveORDefault(*draw.assetDatabase, state.material, DefaultMaterialSlot::Mesh);
+		const auto* material = assets.LoadMaterial(id);
+		if (!material) return;
+		if (material->renderState.overridesRenderer && !state.surfaceModeOverridden) state.surfaceMode = material->renderState.surfaceMode;
+		const bool transparent = state.surfaceMode == MaterialSurfaceMode::Transparent;
+		draw.passKind = transparent ? MaterialPassKind::Transparent : MaterialPassKind::Draw;
+		BackendDrawCommon::ResolvedMaterialPass pass;
+		if (!ResolveMeshPass(draw, id, state.surfaceMode, pass)) return;
+		auto* target = transparent ? scene.resources->GetSceneFinal() : scene.resources->GetSceneMain();
+		draw.numRTVFormats = target->GetColorCount();
+		for (uint32_t i = 0; i < draw.numRTVFormats; ++i) draw.rtvFormats[i] = target->GetColorTexture(i)->GetFormat();
+		BackendDrawCommon::ResolveGraphicsPipeline(draw, *pass.pass, nullptr);
+	};
+	scene.world->ForEach<MeshRendererComponent>([&](Entity entity, const MeshRendererComponent& renderer) {
+		const auto* object = scene.world->TryGetComponent<SceneObjectComponent>(entity);
+		const bool hidden = !renderer.visible || (object && !object->activeInHierarchy);
+		draw.renderSettings = &renderer.renderSettings;
+		const auto subMeshes = GetMeshSubMeshes(std::as_const(*scene.world), entity);
+		if (subMeshes.empty() && hidden) {
+			prepare({ renderer.material, renderer.queue == RenderPhase::Transparent ?
+				MaterialSurfaceMode::Transparent : MaterialSurfaceMode::Opaque });
+		}
+		for (const auto& subMesh : subMeshes) {
+			if (hidden || !subMesh.visible) prepare(MeshDrawPathCommon::ResolveSubMeshRenderState(renderer, subMesh));
+		}
+		if (hidden && scene.world->HasComponent<SkinnedAnimationComponent>(entity)) {
+			pipelines.GetORCreate(graphicsCore.GetDXObject(), assets, BuiltinAssets::Pipelines::Skinning,
+				PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
+		}
+	});
 }
 
 bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& context,

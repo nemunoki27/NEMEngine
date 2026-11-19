@@ -24,9 +24,8 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		shaderOverrideAsset == rhs.shaderOverrideAsset &&
 		resolvedKind == rhs.resolvedKind &&
 		formatHash == rhs.formatHash &&
-		meshEnabled == rhs.meshEnabled &&
-		inlineRayTracingEnabled == rhs.inlineRayTracingEnabled &&
-		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
+		stateVariantIndex == rhs.stateVariantIndex &&
+		geometryVariantIndex == rhs.geometryVariantIndex &&
 		depthForcedTestWrite == rhs.depthForcedTestWrite &&
 		twoSidedRasterizer == rhs.twoSidedRasterizer &&
 		samplerHash == rhs.samplerHash &&
@@ -62,12 +61,11 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	key.geometryShaderAsset = geometryVariant->shader;
 	key.shaderOverrideAsset = shaderOverrideAssetID;
 	key.resolvedKind = geometryVariant->kind;
-	key.meshEnabled = runtimeFeatures.useMeshShader;
-	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
-	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
+	key.stateVariantIndex = static_cast<uint32_t>(stateVariant - statePipeline->variants.data());
+	key.geometryVariantIndex = static_cast<uint32_t>(geometryVariant - geometryPipeline->variants.data());
 	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.rendererSettings = NormalizeRendererPipelineSettings(renderSettings);
-	key.formatHash = HashFormats(runtimeRTVFormats,
+	key.formatHash = HashFormats(ResolveRTVFormats(*stateVariant, runtimeRTVFormats),
 		(stateVariant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? stateVariant->dsvFormat : runtimeDSVFormat);
 
 	if (auto found = cache_.find(key); found != cache_.end()) {
@@ -183,15 +181,14 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.pipelineShaderAsset = variant->shader;
 	key.shaderOverrideAsset = shaderOverrideAssetID;
 	key.resolvedKind = variant->kind;
-	key.meshEnabled = runtimeFeatures.useMeshShader;
-	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
-	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
-	key.depthForcedTestWrite = forceDepthTestWrite;
-	key.twoSidedRasterizer = forceTwoSidedRasterizer;
-	key.rendererSettings = NormalizeRendererPipelineSettings(renderSettings);
-	key.formatHash = HashFormats(runtimeRTVFormats,
-		variant->dsvFormat != DXGI_FORMAT_UNKNOWN ?
-		variant->dsvFormat : runtimeDSVFormat);
+	key.stateVariantIndex = static_cast<uint32_t>(variant - pipelineAsset->variants.data());
+	if (variant->kind != PipelineVariantKind::Compute) {
+		key.depthForcedTestWrite = forceDepthTestWrite;
+		key.twoSidedRasterizer = forceTwoSidedRasterizer;
+		key.rendererSettings = NormalizeRendererPipelineSettings(renderSettings);
+		key.formatHash = HashFormats(ResolveRTVFormats(*variant, runtimeRTVFormats),
+			variant->dsvFormat != DXGI_FORMAT_UNKNOWN ? variant->dsvFormat : runtimeDSVFormat);
+	}
 	key.samplerHash = HashStaticSamplerOverrides(samplerOverrides);
 
 	// キャッシュに存在する場合はそれを返す
@@ -428,9 +425,8 @@ namespace Engine {
 		h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 4);
 		h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 5);
 		h ^= (std::hash<uint64_t>{}(key.formatHash) << 6);
-		h ^= (std::hash<bool>{}(key.meshEnabled) << 7);
-		h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
-		h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
+		h ^= (std::hash<uint32_t>{}(key.stateVariantIndex) << 7);
+		h ^= (std::hash<uint32_t>{}(key.geometryVariantIndex) << 8);
 		h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
 		h ^= (std::hash<bool>{}(key.twoSidedRasterizer) << 11);
 		h ^= (std::hash<uint64_t>{}(key.samplerHash) << 12);

@@ -21,40 +21,28 @@ void Engine::BuiltinRenderBackendBase::BeginFrameCommon() {
 
 	constantBufferAllocator_.BeginFrame();
 	materialParamBinder_.BeginFrame();
-	shaderGraphTimeGPUAddress_ = 0;
+	shaderGraphFrameConstants_.BeginFrame();
 }
 
 void Engine::BuiltinRenderBackendBase::SyncAndBindRegistry(const PipelineState& pipelineState,
-	const RenderDrawContext& context, ID3D12GraphicsCommandList* commandList) {
+	const RenderDrawContext& context, ID3D12GraphicsCommandList* commandList, RenderCameraDomain cameraDomain) {
 
 	registryAutoBindTable_.Sync(pipelineState, *context.bufferRegistry);
 	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
 	perDrawBindCache_.Sync(pipelineState);
 	if (!perDrawBindCache_.Has(shaderGraphTimeCBVSlot_) ||
-		!context.graphicsCore || !context.systemContext) {
+		!context.graphicsCore || !context.systemContext || !context.view) {
 
 		return;
 	}
 
-	if (shaderGraphTimeGPUAddress_ == 0) {
-		const SystemContext& systemContext = *context.systemContext;
-		const ShaderGraphTimeConstantsGPU constants{
-			.time = systemContext.time,
-			.deltaTime = systemContext.deltaTime,
-			.smoothDeltaTime = systemContext.smoothDeltaTime,
-			.unscaledTime = systemContext.unscaledTime,
-		};
-		const FrameConstantBufferAllocation allocation =
-			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(),
-			context.graphicsCore->GetDXObject().GetDevice(),
-				constants);
-		shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
-	}
-	if (shaderGraphTimeGPUAddress_ != 0) {
+	const auto address = shaderGraphFrameConstants_.GetAddress(
+		*context.graphicsCore, *context.systemContext, *context.view, cameraDomain, context.viewport);
+	if (address != 0) {
 		RootBindingCommand::SetGraphicsCBV(
 			commandList,
 			perDrawBindCache_.Get(shaderGraphTimeCBVSlot_),
-			shaderGraphTimeGPUAddress_);
+			address);
 	}
 }
 

@@ -12,6 +12,14 @@
 
 namespace Engine {
 
+	struct ShaderGraphNodePreview {
+
+		ImTextureID textureID = 0;
+		Vector2 uvMinimum{0.0f, 0.0f};
+		Vector2 uvMaximum{1.0f, 1.0f};
+		std::string diagnostic;
+	};
+
 	//============================================================================
 	//	ShaderGraphPreviewEvaluator class
 	//	ノードのGPU評価と描画資源を所有する
@@ -37,7 +45,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const EditorToolRenderTexture* FindTexture(const std::string& name) const;
+		const ShaderGraphNodePreview* FindPreview(UUID nodeID) const;
 
 	  private:
 		//========================================================================

@@ -70,6 +70,14 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	const DepthTexture2D* boundDepth = depthOverride
 		? depthOverride
 		: (surface ? surface->GetDepthTexture() : nullptr);
+	if (sceneContext.useViewportRect && surface == sceneContext.defaultSurface) {
+		drawContext.viewport = {static_cast<float>(sceneContext.viewportX), static_cast<float>(sceneContext.viewportY),
+			static_cast<float>(sceneContext.viewportWidth), static_cast<float>(sceneContext.viewportHeight)};
+	} else if (surface) {
+		drawContext.viewport = {0.0f, 0.0f, static_cast<float>(surface->GetWidth()), static_cast<float>(surface->GetHeight())};
+	} else if (boundDepth) {
+		drawContext.viewport = {0.0f, 0.0f, static_cast<float>(boundDepth->GetWidth()), static_cast<float>(boundDepth->GetHeight())};
+	}
 
 	// 深度描画のみを行うか
 	if (depthOnly) {

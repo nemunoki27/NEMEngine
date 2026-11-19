@@ -364,7 +364,7 @@ void Engine::MeshMaterialEditSession::CollectParameters(const ShaderReflectionIn
 
 	// 専用項目と未使用の値を除外する
 	for (const ShaderConstantBufferVariable& variable : layout.GetVariables()) {
-		if (!variable.used || MaterialParameterEditor::IsInternalPaddingParameter(variable) ||
+		if (!variable.used || !MaterialParameterEditor::IsExposedParameter(variable) ||
 			IsDedicatedSubMeshProperty(variable)) {
 			continue;
 		}

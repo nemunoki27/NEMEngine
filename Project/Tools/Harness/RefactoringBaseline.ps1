@@ -32,7 +32,7 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $engineRoot = Join-Path $repoRoot "Project\Engine"
 $shaderRoot = Join-Path $engineRoot "Assets\Rendering"
-$generatedRoot = Join-Path $repoRoot "Generated\Refactoring"
+$generatedRoot = Join-Path $repoRoot "LocalWork\Verification\Refactoring"
 
 if ([string]::IsNullOrWhiteSpace($BaselinePath)) {
     $BaselinePath = Join-Path $PSScriptRoot "RefactoringBaseline.json"
@@ -434,7 +434,7 @@ function Invoke-ShaderCompile {
     $outputRoot = [System.IO.Path]::GetFullPath((Join-Path $generatedRoot "ShaderCheck"))
     $expectedPrefix = [System.IO.Path]::GetFullPath($generatedRoot).TrimEnd("\") + "\"
     if (-not $outputRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Shader出力先がGenerated外です"
+        throw "Shader出力先が検証ディレクトリ外です"
     }
     if (Test-Path -LiteralPath $outputRoot) {
         Remove-Item -LiteralPath $outputRoot -Recurse -Force

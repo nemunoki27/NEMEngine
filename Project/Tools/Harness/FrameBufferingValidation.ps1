@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
 . (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
-$validationRoot = Join-Path $engineRoot 'Generated/Refactoring/DoubleBuffering'
+$validationRoot = Join-Path $engineRoot 'LocalWork/Verification/Refactoring/DoubleBuffering'
 $null = New-Item -ItemType Directory -Path $validationRoot -Force
 if ($Mode -eq 'Build') {
     if ($BuildDebugAssimp) {
@@ -66,7 +66,7 @@ if ($Mode -eq 'Filters') {
     $previousReference = $env:NEM_GPU_FILTER_REFERENCE_ROOT
     $previousPerformance = $env:NEM_GPU_FILTER_PERFORMANCE
     try {
-        $env:NEM_GPU_FILTER_REFERENCE_ROOT = Join-Path $engineRoot 'Generated/Refactoring/GPUOptimization/Reference'
+        $env:NEM_GPU_FILTER_REFERENCE_ROOT = Join-Path $engineRoot 'LocalWork/Verification/Refactoring/GPUOptimization/Reference'
         $env:NEM_GPU_FILTER_PERFORMANCE = if ($Performance) { '1' } else { $null }
         $start = @{
             FilePath = Join-Path $engineRoot "Generated/Output/$Configuration/NEMTests/NEMTests.exe"
@@ -86,7 +86,7 @@ if ($Mode -eq 'Filters') {
     return
 }
 $outputRoot = Join-Path $validationRoot "EditorValidation/$View$InitialFrameCount"
-if ($RunLabel) { $outputRoot = Join-Path $engineRoot "Generated/Refactoring/GPUOptimization/$RunLabel" }
+if ($RunLabel) { $outputRoot = Join-Path $engineRoot "LocalWork/Verification/Refactoring/GPUOptimization/$RunLabel" }
 if ($Mode -eq 'Telemetry') {
     $monitor = Get-Command nvidia-smi -ErrorAction Stop
     $csv = Join-Path $outputRoot 'GPU.csv'

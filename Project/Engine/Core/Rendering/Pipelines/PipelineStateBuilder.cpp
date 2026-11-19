@@ -102,6 +102,10 @@ std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateCompu
 
 bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Device8* device, DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc) {
 
+	const bool sharedBlendState = desc.blendOverride.has_value() ||
+		std::none_of(desc.rtvFormats, desc.rtvFormats + desc.numRenderTargets, [&](DXGI_FORMAT format) {
+			return IsBlendableRenderTargetFormat(device, format);
+		});
 	Logger::BeginSection(LogType::Engine);
 	Logger::Output(LogType::Engine, "GraphicsPipelineの作成を開始します {} / {}",
 		desc.preRaster.file, desc.pixel.file);
@@ -189,6 +193,9 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
+			if ((desc.normalBlendOnly || sharedBlendState) && blendMode != BlendMode::Normal) {
+				continue;
+			}
 			pipelineDesc.BlendState = desc.blendOverride ? *desc.blendOverride :
 				MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets, desc.disableNormalBlending);
 
@@ -251,6 +258,9 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 
 			// BlendModeとMRT数からブレンドステートを生成
 			BlendMode blendMode = EnumAdapter<BlendMode>::FromString(mode).value_or(BlendMode::Normal);
+			if ((desc.normalBlendOnly || sharedBlendState) && blendMode != BlendMode::Normal) {
+				continue;
+			}
 			pipelineDesc.BlendState = desc.blendOverride ? *desc.blendOverride :
 				MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets, desc.disableNormalBlending);
 
@@ -277,6 +287,10 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 		}
 		break;
 	}
+	}
+	// 全モードで同じ描画状態なら単一のPSOを共有する
+	if (!desc.normalBlendOnly && (sharedBlendState)) {
+		state.graphicsPipelines_.fill(state.graphicsPipelines_[static_cast<uint32_t>(BlendMode::Normal)]);
 	}
 	Logger::Output(LogType::Engine, success ?
 		"GraphicsPipelineを作成しました" : "GraphicsPipelineの作成に失敗しました");

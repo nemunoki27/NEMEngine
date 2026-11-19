@@ -14,7 +14,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 	RenderFeatureProfileAsset profile{};
 	{
 		RenderFeaturePassSettings pass{};
-		pass.id = UUID{0x52545245464c4543ull};
+		pass.id = CameraSurfacePassIDs::ReflectionTrace;
 		pass.name = "Reflection Trace";
 		pass.type = RenderFeaturePassType::RayTracing;
 		pass.anchor = RenderFeatureAnchor::AfterLighting;
@@ -40,6 +40,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 			.history = false, .historyShaderResource = "",
 		});
 		pass.sceneInputs["gSourceAlbedo"] = "SceneColorMain";
+		pass.sceneInputs["gSourceEmissive"] = "SceneEmissiveMain";
 		pass.sceneInputs["gSourceDepth"] = "SceneDepth";
 		pass.sceneInputs["gSourceFlags"] = "SceneFlagsMain";
 		pass.sceneInputs["gSourceMaterial"] = "SceneMaterialMain";
@@ -56,7 +57,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.material = AssetID{0x4e454d4153534554ull, 0x375384bc3bf6bb7dull};
 		pass.materialPass = MaterialPassKind::PostProcess;
 		pass.sourceKind = RenderFeatureSourceKind::PassOutput;
-		pass.source = {UUID{0x52545245464c4543ull}, "Raw"};
+		pass.source = {CameraSurfacePassIDs::ReflectionTrace, "Raw"};
 		pass.outputs.push_back(RenderFeatureOutputSettings{
 			.name = "Filtered", .shaderResource = "gDestColor",
 			.format = RenderFeatureTextureFormat::RGBA16_FLOAT,
@@ -67,7 +68,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.sceneInputs["gSourceMaterial"] = "SceneMaterialMain";
 		pass.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 		pass.sceneInputs["gSourcePosition"] = "ScenePositionMain";
-		pass.passInputs["gReflectionHitDistance"] = {UUID{0x52545245464c4543ull}, "HitDistance"};
+		pass.passInputs["gReflectionHitDistance"] = {CameraSurfacePassIDs::ReflectionTrace, "HitDistance"};
 		pass.parameterOverrides.Set("antiFirefly", MaterialParameterValue{.value = 1.0f});
 		profile.passes.emplace_back(std::move(pass));
 	}
@@ -91,7 +92,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.sceneInputs["gSourceMaterial"] = "SceneMaterialMain";
 		pass.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 		pass.sceneInputs["gSourcePosition"] = "ScenePositionMain";
-		pass.passInputs["gReflectionHitDistance"] = {UUID{0x52545245464c4543ull}, "HitDistance"};
+		pass.passInputs["gReflectionHitDistance"] = {CameraSurfacePassIDs::ReflectionTrace, "HitDistance"};
 		profile.passes.emplace_back(std::move(pass));
 	}
 	{
@@ -114,7 +115,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.sceneInputs["gSourceMaterial"] = "SceneMaterialMain";
 		pass.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 		pass.sceneInputs["gSourcePosition"] = "ScenePositionMain";
-		pass.passInputs["gReflectionHitDistance"] = {UUID{0x52545245464c4543ull}, "HitDistance"};
+		pass.passInputs["gReflectionHitDistance"] = {CameraSurfacePassIDs::ReflectionTrace, "HitDistance"};
 		pass.parameterOverrides.Set("stepWidth", MaterialParameterValue{.value = 2.0f});
 		profile.passes.emplace_back(std::move(pass));
 	}
@@ -138,7 +139,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.sceneInputs["gSourceMaterial"] = "SceneMaterialMain";
 		pass.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 		pass.sceneInputs["gSourcePosition"] = "ScenePositionMain";
-		pass.passInputs["gReflectionHitDistance"] = {UUID{0x52545245464c4543ull}, "HitDistance"};
+		pass.passInputs["gReflectionHitDistance"] = {CameraSurfacePassIDs::ReflectionTrace, "HitDistance"};
 		pass.parameterOverrides.Set("stepWidth", MaterialParameterValue{.value = 2.0f});
 		profile.passes.emplace_back(std::move(pass));
 	}
@@ -180,7 +181,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		pass.sceneInputs["gSourceMotion"] = "SceneMotionMain";
 		pass.sceneInputs["gSourceNormal"] = "SceneNormalMain";
 		pass.sceneInputs["gSourcePosition"] = "ScenePositionMain";
-		pass.passInputs["gCurrentHitGeometry"] = {UUID{0x52545245464c4543ull}, "HitGeometry"};
+		pass.passInputs["gCurrentHitGeometry"] = {CameraSurfacePassIDs::ReflectionTrace, "HitGeometry"};
 		profile.passes.emplace_back(std::move(pass));
 	}
 	{

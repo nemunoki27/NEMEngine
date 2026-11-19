@@ -19,6 +19,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphFrameConstants.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
 // c++
@@ -208,6 +209,20 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			continue;
 		}
 		if (binding.kind == ShaderBindingKind::CBV) {
+			if (binding.name == "ShaderGraphTimeConstants" && context.view) {
+				auto constants = BuildShaderGraphFrameConstants(*context.systemContext, *context.view,
+					RenderCameraDomain::Perspective, {0.0f, 0.0f,
+						static_cast<float>(dest->GetWidth()), static_cast<float>(dest->GetHeight())});
+				constants.time = elapsedTime_;
+				constants.unscaledTime = elapsedTime_;
+				constants.deltaTime = context.systemContext->unscaledDeltaTime;
+				constants.smoothDeltaTime = constants.deltaTime;
+				auto& platform = graphicsCore.GetDXObject();
+				const auto allocation = constantBufferAllocator_.AllocateAndUpload(
+					platform.GetResourceRetirement(), platform.GetDevice(), constants);
+				binds.push_back({binding.name, ComputeBindValueType::CBV, allocation.gpuAddress, {}, binding.bindPoint, binding.space});
+				continue;
+			}
 			// ライト等の共通定数を同じViewの登録内容から取得する
 			const auto* buffer = context.bufferRegistry.Find(binding.name);
 			if (!buffer || !buffer->gpuAddress) {

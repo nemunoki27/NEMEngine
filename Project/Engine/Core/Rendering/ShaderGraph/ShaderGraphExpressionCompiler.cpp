@@ -4,8 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
 
 // c++
+#include <algorithm>
 #include <utility>
 
 using namespace Engine;
@@ -25,7 +27,9 @@ ShaderGraphExpressionCompiler::ShaderGraphExpressionCompiler(
 	graph_(graph), output_(output) {
 
 	for (const ShaderGraphNode& node : graph.nodes) {
-		nodes_[node.id.value] = &node;
+		if (!nodes_.emplace(node.id.value, &node).second) {
+			AddDiagnostic(node.id, "ノードのIDが重複しています");
+		}
 	}
 	for (const ShaderGraphSamplerBinding& sampler : output.samplers) {
 		samplerNames_[sampler.node.value] = sampler.shaderName;
@@ -72,6 +76,15 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitInput(
 		.slot = slot,
 	});
 	if (found == incoming_.end()) {
+		if (node.kind >= ShaderGraphNodeKind::Exponential && slot < node.inputPorts.size() && node.inputPorts[slot].hasDefault) {
+			const auto& port = node.inputPorts[slot];
+			return ConvertExpression({ port.type, MakeLiteral(port.defaultValue, port.type) }, target);
+		}
+		const auto input = GetShaderGraphInputDefault(node, slot);
+		if (input.type != ShaderGraphValueType::Invalid) {
+			const std::string code = input.binding.empty() ? MakeLiteral(input.value, input.type) : std::string(input.binding);
+			return ConvertExpression({ input.type, code }, target);
+		}
 		return ShaderGraphExpression{target, std::string(fallback)};
 	}
 	const ShaderGraphLink& link = *found->second;
@@ -99,6 +112,10 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNode(Engine::UUID nodeI
 		AddDiagnostic(nodeID, "リンク先のノードが見つかりません");
 		return {};
 	}
+	if (GetShaderGraphOutputCount(*node) <= outputSlot) {
+		AddDiagnostic(nodeID, "出力ピンが範囲外です");
+		return {};
+	}
 	// 評価中のNodeへ戻った接続を循環として扱う
 	if (!visiting_.insert(nodeID.value).second) {
 		AddDiagnostic(nodeID, "グラフに循環参照があります");
@@ -107,6 +124,15 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNode(Engine::UUID nodeI
 
 	ShaderGraphExpression result = EmitNodeExpression(*node, outputSlot);
 	visiting_.erase(nodeID.value);
+	// 再合流する接続でも同じ式を何度も展開しない
+	if (result.type == ShaderGraphValueType::Float || result.type == ShaderGraphValueType::Float2 ||
+		result.type == ShaderGraphValueType::Float3 || result.type == ShaderGraphValueType::Float4 ||
+		result.type == ShaderGraphValueType::Color || result.type == ShaderGraphValueType::Matrix2 ||
+		result.type == ShaderGraphValueType::Matrix3 || result.type == ShaderGraphValueType::Matrix4) {
+		const std::string variable = MakeNodeVariable("value" + std::to_string(outputSlot), nodeID);
+		evaluationStatements_ += "\tconst " + HLSLType(result.type) + " " + variable + " = " + result.code + ";\n";
+		result.code = variable;
+	}
 	cache_[cacheKey] = result;
 	return result;
 }
@@ -125,7 +151,9 @@ std::string ShaderGraphExpressionCompiler::BuildSamplerDeclarations() const {
 
 	std::string source;
 	for (const ShaderGraphSamplerBinding& sampler : output_.samplers) {
-		source += "SamplerState " + sampler.shaderName + " : register(s" + std::to_string(sampler.shaderRegister) + ");\n";
+		const std::string declaration = "SamplerState " + sampler.shaderName + " : register(s" + std::to_string(sampler.shaderRegister);
+		source += "#ifdef NEM_REFLECTION_CUSTOM_HIT\n" + declaration + ", space" + std::to_string(sampler.hitRegisterSpace) +
+			");\n#else\n" + declaration + ");\n#endif\n";
 	}
 	return source;
 }
@@ -181,6 +209,7 @@ std::string ShaderGraphExpressionCompiler::BuildCustomFunctionDeclarations() con
 
 	std::string source;
 	std::unordered_set<std::string> files;
+	std::unordered_set<std::string> bodies;
 	for (const ShaderGraphNode& node : graph_.nodes) {
 		if (node.kind != ShaderGraphNodeKind::CustomFunction) {
 			continue;
@@ -189,7 +218,7 @@ std::string ShaderGraphExpressionCompiler::BuildCustomFunctionDeclarations() con
 			if (!node.functionFile.empty() && files.insert(node.functionFile).second) {
 				source += "#include \"" + node.functionFile + "\"\n";
 			}
-		} else if (!node.functionBody.empty()) {
+		} else if (!node.functionBody.empty() && bodies.insert(node.functionBody).second) {
 			source += node.functionBody + "\n";
 		}
 	}
@@ -232,6 +261,14 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitDynamicInput(
 		.slot = slot,
 	});
 	if (found == incoming_.end()) {
+		if (node.kind >= ShaderGraphNodeKind::Exponential && slot < node.inputPorts.size() && node.inputPorts[slot].hasDefault) {
+			const auto& port = node.inputPorts[slot];
+			return { port.type, MakeLiteral(port.defaultValue, port.type) };
+		}
+		const auto input = GetShaderGraphInputDefault(node, slot);
+		if (input.type != ShaderGraphValueType::Invalid) {
+			return { input.type, input.binding.empty() ? MakeLiteral(input.value, input.type) : std::string(input.binding) };
+		}
 		return ShaderGraphExpression{
 			ShaderGraphValueType::Float,
 			std::string(fallback),
@@ -245,6 +282,30 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitBinary(const ShaderGrap
 
 	ShaderGraphExpression a = EmitDynamicInput(node, 0, "0.0f");
 	ShaderGraphExpression b = EmitDynamicInput(node, 1, "0.0f");
+	const auto matrixWidth = [](ShaderGraphValueType type) {
+		return type == ShaderGraphValueType::Matrix2 ? 2u :
+			(type == ShaderGraphValueType::Matrix3 ? 3u : (type == ShaderGraphValueType::Matrix4 ? 4u : 0u));
+	};
+	const uint32_t widthA = matrixWidth(a.type);
+	const uint32_t widthB = matrixWidth(b.type);
+	if (operation == "*" && (widthA != 0 || widthB != 0)) {
+		if (widthA != 0 && widthB != 0) {
+			if (widthA != widthB) { AddDiagnostic(node.id, "乗算する行列の幅を揃えてください"); return {}; }
+			return { a.type, "mul(" + a.code + ", " + b.code + ")" };
+		}
+		const auto& matrix = widthA != 0 ? a : b;
+		auto vector = widthA == 0 ? a : b;
+		if (!IsNumeric(vector.type)) { AddDiagnostic(node.id, "行列には行列または数値を乗算してください"); return {}; }
+		if (ComponentCount(vector.type) == 1) {
+			return { matrix.type, "(" + matrix.code + " * " + vector.code + ")" };
+		}
+		const uint32_t width = std::max(widthA, widthB);
+		const auto type = width == 2 ? ShaderGraphValueType::Float2 :
+			(width == 3 ? ShaderGraphValueType::Float3 : ShaderGraphValueType::Float4);
+		vector = ConvertExpression(std::move(vector), type);
+		return { type, widthA == 0 ? "mul(" + vector.code + ", " + matrix.code + ")" :
+			"mul(" + matrix.code + ", " + vector.code + ")" };
+	}
 	if (!IsNumeric(a.type) || !IsNumeric(b.type)) {
 		AddDiagnostic(node.id, "演算ノードには数値を接続してください");
 		return {};
@@ -339,5 +400,5 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNodeExpression(const Sh
 	case ShaderGraphNodeKind::VertexOutput:
 		return EmitCustomNode(node, outputSlot);
 	}
-	return {};
+	return EmitGenericNode(node, outputSlot);
 }

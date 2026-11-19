@@ -11,6 +11,10 @@ namespace Engine {
 
 namespace Engine::ShaderGraphArtifactBuilder {
 
+	// Sampler設定をGPU記述へ変換する
+	D3D12_STATIC_SAMPLER_DESC MakeGraphSampler(const Engine::PipelineStaticSamplerSettings& settings,
+		uint32_t shaderRegister);
+
 	// Pixel Shaderの構成を作成する
 	Engine::ShaderAsset MakePixelShader(std::string_view name, Engine::AssetID shaderID, const std::filesystem::path& path,
 		std::string_view entry, const std::vector<Engine::ShaderParameterMetadata>& parameters);

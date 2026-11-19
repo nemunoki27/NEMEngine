@@ -148,6 +148,23 @@ namespace Engine::MaterialParameterEditor {
 			toLower(var.name[nameIndex + 2]) == 'd';
 	}
 
+	bool IsExposedParameter(const ShaderConstantBufferVariable& variable) {
+
+		return variable.exposed && !IsInternalPaddingParameter(variable);
+	}
+
+	bool IsExposedParameter(MaterialParameterID id, const ShaderReflectionInfo& reflection) {
+
+		return std::find(reflection.hiddenParameters.begin(), reflection.hiddenParameters.end(), id) == reflection.hiddenParameters.end();
+	}
+
+	bool IsExposedTextureResource(const ShaderResourceBinding& resource, const ShaderReflectionInfo& reflection) {
+
+		if (!resource.exposed || !IsMaterialTextureResource(resource) || !IsExposedParameter(resource.parameterID, reflection)) return false;
+		const auto* variable = FindReflectedTextureParameter(resource, reflection);
+		return !variable || IsExposedParameter(*variable);
+	}
+
 	bool IsColorParameter(const ShaderConstantBufferVariable& var) {
 
 		return MaterialParameterDefaults::IsColor(var);
@@ -286,7 +303,7 @@ namespace Engine::MaterialParameterEditor {
 	ValueEditResult DrawValueEdit(const ShaderConstantBufferVariable& var, MaterialParameterValue& value,
 		const FloatEditSetting& floatSetting) {
 
-		if (IsInternalPaddingParameter(var)) {
+		if (!IsExposedParameter(var)) {
 			return ValueEditResult{};
 		}
 		const char* label = var.name.c_str();
@@ -336,12 +353,12 @@ namespace Engine::MaterialParameterEditor {
 			ValueEditResult result = MyGUI::DragInt(label, v);
 			if (result.valueChanged) { value.value = v; }
 			return result;
-		} else if (var.valueType == D3D_SVT_UINT) {
+		} else if (var.valueType == D3D_SVT_UINT && !std::holds_alternative<bool>(value.value)) {
 			int32_t iv = ReadIntegerEditValue(value);
 			ValueEditResult result = MyGUI::DragInt(label, iv);
 			if (result.valueChanged) { value.value = static_cast<uint32_t>((std::max)(0, iv)); }
 			return result;
-		} else if (var.valueType == D3D_SVT_BOOL) {
+		} else if (var.valueType == D3D_SVT_BOOL || var.valueType == D3D_SVT_UINT) {
 			bool v = std::visit([](const auto& val) -> bool {
 				using T = std::decay_t<decltype(val)>;
 				if constexpr (std::is_same_v<T, bool>) return val;
@@ -371,7 +388,7 @@ namespace Engine::MaterialParameterEditor {
 				continue;
 			}
 			for (const ShaderConstantBufferVariable& var : cb.variables) {
-				if (IsInternalPaddingParameter(var) ||
+				if (!IsExposedParameter(var) ||
 					IsReflectedTextureParam(var, reflection)) {
 					continue;
 				}

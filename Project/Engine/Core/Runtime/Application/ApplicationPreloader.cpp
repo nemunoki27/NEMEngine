@@ -14,6 +14,9 @@
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Audio/AudioSystem.h>
@@ -22,6 +25,22 @@
 #include <chrono>
 
 using namespace Engine;
+
+void ApplicationPreloader::PrepareReflectionAnimations(GraphicsCore& graphicsCore, ECSWorld& world,
+	AssetDatabase& assets, SkinnedMeshAnimationManager& animations) {
+
+	if (!graphicsCore.GetDXObject().ShouldUseDispatchRays()) return;
+	bool reflectionEnabled = false;
+	world.ForEach<PerspectiveCameraComponent>([&](Entity, const PerspectiveCameraComponent& camera) {
+		reflectionEnabled |= camera.common.enabled && camera.common.reflectionEnabled;
+	});
+	if (!reflectionEnabled) return;
+	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent>(
+		[&](Entity, const MeshRendererComponent& mesh, const SkinnedAnimationComponent& animation) {
+			if (mesh.mesh && animation.enabled) animations.RequestLoadAsync(assets, mesh.mesh);
+		});
+	animations.WaitAll();
+}
 
 bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore, [[maybe_unused]] ApplicationPreloadContext& context,
 	[[maybe_unused]] bool editor) {

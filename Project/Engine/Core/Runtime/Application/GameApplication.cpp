@@ -92,6 +92,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	Audio::GetInstance()->Init();
 
 	InitFirstScene();
+	ApplicationPreloader::PrepareReflectionAnimations(graphicsCore, worldManager_.GetEditWorld(), assetDatabase_, skinnedAnimationManager_);
 	managedStarted_ = true;
 	ManagedScriptRuntime::GetInstance().Init();
 	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());

@@ -24,6 +24,7 @@ VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
 	output.texcoord = v.uv;
 	output.vertexColor = ResolveParticleVertexColor(v.position.xyz, instance);
 	output.particleIndex = instanceID;
+	output.geometryIndex = instanceID;
 
 	return output;
 }

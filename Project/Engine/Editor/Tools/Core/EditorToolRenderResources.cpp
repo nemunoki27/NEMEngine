@@ -16,7 +16,7 @@ void Engine::EditorToolRenderResources::EndEditorToolFrame() {
 
 EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(const std::string& name,
 	const Vector2I& size, const Color4& clearColor, uint32_t colorCount,
-	bool withDepth) {
+	bool withDepth, DXGI_FORMAT colorFormat) {
 
 	if (EditorToolRenderTexture* texture = FindRenderTexture(name)) {
 		return texture;
@@ -61,7 +61,7 @@ EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(
 		const std::string colorName = i == 0 ? name + "_Color" :
 			name + "_Color" + std::to_string(i);
 		createDesc.colors.push_back(ColorAttachmentDesc{ .name = colorName,
-			.format = DXGI_FORMAT_R32G32B32A32_FLOAT,.clearColor = clearColor,.createUAV = false, });
+			.format = colorFormat,.clearColor = clearColor,.createUAV = false, });
 	}
 
 	if (withDepth) {

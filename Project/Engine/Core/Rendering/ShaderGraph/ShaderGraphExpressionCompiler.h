@@ -107,6 +107,26 @@ namespace Engine {
 		ShaderGraphExpression EmitSceneNode(const ShaderGraphNode& node, uint32_t outputSlot);
 		// 外部関数と出力Nodeの診断を作る
 		ShaderGraphExpression EmitCustomNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		// 汎用ノードの生成先を選ぶ
+		ShaderGraphExpression EmitGenericNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		// 汎用数値演算を生成する
+		ShaderGraphExpression EmitGenericMathNode(const ShaderGraphNode& node);
+		// 色とチャンネルの演算を生成する
+		ShaderGraphExpression EmitGenericColorNode(const ShaderGraphNode& node);
+		// 行列の演算を生成する
+		ShaderGraphExpression EmitGenericMatrixNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		// 組込み値とグラデーションを生成する
+		ShaderGraphExpression EmitGenericInputNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		// UVとテクスチャの演算を生成する
+		ShaderGraphExpression EmitGenericUVNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		// 図形とノイズを生成する
+		ShaderGraphExpression EmitGenericProceduralNode(const ShaderGraphNode& node);
+		// 数値入力の成分数を合わせる
+		std::vector<ShaderGraphExpression> EmitNumericInputs(
+			const ShaderGraphNode& node, uint32_t count);
+		// 入力式を取得する
+		std::string EmitInputCode(const ShaderGraphNode& node, uint32_t slot,
+			ShaderGraphValueType type);
 		// 実行時Keywordの宣言を追加する
 		void AppendKeywordFields(std::string& source) const;
 		// 公開値とKeywordの宣言を追加する

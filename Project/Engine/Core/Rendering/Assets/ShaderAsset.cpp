@@ -78,6 +78,9 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderAsset& outAsset) {
 				item.value("isColor", false);
 			parameter.isTexture =
 				item.value("isTexture", false);
+			parameter.exposed = item.value("exposed", true);
+			parameter.valueType = item.value("valueType", D3D_SVT_VOID);
+			parameter.componentCount = item.value("componentCount", 0u);
 			if (!parameter.shaderName.empty() &&
 				parameter.id) {
 
@@ -116,6 +119,9 @@ nlohmann::json Engine::ToJson(const ShaderAsset& asset) {
 			{ "semantic", EnumAdapter<MaterialParameterSemantic>::ToString(parameter.semantic) },
 			{ "isColor", parameter.isColor },
 			{ "isTexture", parameter.isTexture },
+			{ "exposed", parameter.exposed },
+			{ "valueType", parameter.valueType },
+			{ "componentCount", parameter.componentCount },
 			});
 	}
 	return data;
@@ -136,7 +142,7 @@ const Engine::ShaderStageEntry* Engine::FindShaderExport(
 	std::string_view entry) {
 
 	for (const ShaderStageEntry& candidate : asset.stages) {
-		if (candidate.stage == stage && candidate.entry == entry) {
+		if (candidate.stage == stage && (candidate.exportAlias.empty() ? candidate.entry : candidate.exportAlias) == entry) {
 			return &candidate;
 		}
 	}
@@ -200,8 +206,8 @@ void Engine::ApplyShaderParameterMetadata(
 			asset.parameters.begin(),
 			asset.parameters.end(),
 			[&](const ShaderParameterMetadata& parameter) {
-				return parameter.shaderName ==
-					variable.name;
+				return parameter.shaderName == variable.name ||
+					(parameter.id && parameter.id == variable.parameterID);
 			});
 		if (metadata == asset.parameters.end()) {
 			return;
@@ -211,6 +217,7 @@ void Engine::ApplyShaderParameterMetadata(
 		variable.semantic = metadata->semantic;
 		variable.isColor |= metadata->isColor;
 		variable.isTexture |= metadata->isTexture;
+		variable.exposed = metadata->exposed;
 		if (!metadata->displayName.empty()) {
 			variable.name = metadata->displayName;
 		}
@@ -249,5 +256,10 @@ void Engine::ApplyShaderParameterMetadata(
 		}
 		resource.parameterID = metadata->id;
 		resource.semantic = metadata->semantic;
+		resource.exposed = metadata->exposed;
+	}
+	for (const auto& parameter : asset.parameters) {
+		std::erase(reflection.hiddenParameters, parameter.id);
+		if (!parameter.exposed && parameter.id) reflection.hiddenParameters.push_back(parameter.id);
 	}
 }

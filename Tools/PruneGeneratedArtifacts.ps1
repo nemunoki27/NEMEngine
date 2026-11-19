@@ -9,7 +9,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Generated配下の実体だけを削除対象にする
+# 指定したルート配下の実体だけを削除対象にする
 function Resolve-ArtifactPath([string]$Root, [string]$Path) {
     $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar)
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -94,7 +94,7 @@ $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $generatedRoot = Join-Path $engineRoot 'Generated'
 $removedBytes = 0L
 if ($ValidationImages -and !(Get-Process NEMEditor -ErrorAction SilentlyContinue)) {
-    $removedBytes += Limit-ValidationImages (Join-Path $generatedRoot 'Refactoring') ($MaximumCaptureMB * 1MB) `
+    $removedBytes += Limit-ValidationImages (Join-Path $engineRoot 'LocalWork/Verification/Refactoring') ($MaximumCaptureMB * 1MB) `
         $PreserveCaptureDirectory $ResetCaptureDirectory
 }
 if ($AssimpObjects -and !(Get-Process cl,link,lib -ErrorAction SilentlyContinue)) {

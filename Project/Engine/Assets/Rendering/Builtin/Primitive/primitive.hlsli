@@ -17,6 +17,7 @@ cbuffer ViewConstants : register(b0) {
 	float materialPadding;
 	uint unassignedMaterialTextureMask;
 	float2 _viewPad;
+	float4 geometryBounds;
 };
 // GraphのMaterial定数と標準定数を分ける
 #ifndef NEM_PRIMITIVE_SHADER_GRAPH
@@ -87,6 +88,7 @@ struct VSOutput {
 	float4 uvCoordinates : TEXCOORD10;
 	nointerpolation float4 ringParams : TEXCOORD11;
 	nointerpolation float4 uvBasis : TEXCOORD12;
+	nointerpolation uint instanceID : TEXCOORD13;
 };
 
 VSOutput BuildPrimitiveVertexOutput(
@@ -96,9 +98,10 @@ VSOutput BuildPrimitiveVertexOutput(
 	float tangentSign,
 	float2 uv,
 	float4 vertexColor,
-	PrimitiveInstance instance) {
+	PrimitiveInstance instance, uint instanceID) {
 
 	VSOutput output;
+	output.instanceID = instanceID;
 	output.uvCoordinates = float4(localPosition.xy, uv);
 	output.ringParams = instance.shapeParams1.z > 0.5f ? instance.shapeParams0 : 0.0f.xxxx;
 	output.uvBasis = float4(instance.uvMatrix[0].xy, instance.uvMatrix[1].xy);
@@ -141,6 +144,13 @@ VSOutput BuildPrimitiveVertexOutput(
 	output.entityIndex = instance.entityIndex;
 	output.entityGeneration = instance.entityGeneration;
 	return output;
+}
+
+VSOutput BuildPrimitiveVertexOutput(
+	float3 localPosition, float3 localNormal, float3 localTangent, float tangentSign,
+	float2 uv, float4 vertexColor, PrimitiveInstance instance) {
+
+	return BuildPrimitiveVertexOutput(localPosition, localNormal, localTangent, tangentSign, uv, vertexColor, instance, 0u);
 }
 
 #endif // NEM_PRIMITIVE_HLSLI

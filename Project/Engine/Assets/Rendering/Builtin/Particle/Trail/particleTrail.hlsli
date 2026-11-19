@@ -47,7 +47,7 @@ float3 GetTrailSide(ParticleTrailPointData trailPoint) {
 	return NormalizeTrailVector(side, float3(1.0f, 0.0f, 0.0f));
 }
 
-VSOutput BuildTrailVertex(ParticleTrailPointData trailPoint, float sideSign, float uvY, uint materialIndex) {
+VSOutput BuildTrailVertex(ParticleTrailPointData trailPoint, float sideSign, float uvY, uint materialIndex, uint segmentIndex) {
 
 	VSOutput output;
 	const float3 worldPosition = trailPoint.position +
@@ -56,6 +56,7 @@ VSOutput BuildTrailVertex(ParticleTrailPointData trailPoint, float sideSign, flo
 	output.texcoord = float2(trailPoint.ribbonT, uvY);
 	output.vertexColor = trailPoint.color;
 	output.particleIndex = materialIndex;
+	output.geometryIndex = segmentIndex;
 	return output;
 }
 

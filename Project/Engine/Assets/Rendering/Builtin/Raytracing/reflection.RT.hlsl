@@ -2,6 +2,9 @@
 //	include
 //============================================================================
 #include "../Mesh/Common/deferredGBuffer.hlsli"
+#include "raytracingSceneData.hlsli"
+#include "../Primitive/primitiveUV.hlsli"
+#include "../Primitive/primitiveInstanceColor.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
 #include "../Particle/GPU/particlePaintRead.hlsli"
 #include "../Particle/GPU/particleGPUShared.hlsli"
@@ -75,26 +78,7 @@ struct ReflectionPayload {
 	float hitDistance;
 
 	float3 worldNormal;
-	float _pad0;
-};
-struct RaytracingInstanceShaderData {
-
-	uint vertexDescriptorIndex;
-	uint indexDescriptorIndex;
-	uint vertexOffset;
-	uint geometryDataOffset;
-
-	uint renderFlags;
-	uint entityIndex;
-	uint entityGeneration;
-	uint _pad;
-};
-struct RaytracingGeometryShaderData {
-
-	uint subMeshDataIndex;
-	uint indexOffset;
-	uint pickRecordIndex;
-	uint _pad0;
+	uint transmissionDepth;
 };
 struct LightClusterHeader {
 
@@ -282,6 +266,34 @@ float3 ComputeBarycentrics(float2 bary) {
 	return float3(1.0f - bary.x - bary.y, bary.x, bary.y);
 }
 
+ByteAddressBuffer gRaytracingMaterialParameters : register(t0, space34);
+
+void ResolveHitPrimitiveSurface(SubMeshShaderData subMesh, MeshVertex v0, MeshVertex v1, MeshVertex v2,
+	float3 bary, float2 localUV, out float2 uv, out float4 vertexColor) {
+
+	uv = mul(float4(localUV, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	vertexColor = 1.0f.xxxx;
+	if (subMesh.primitiveShape == 0u) return;
+
+	uint offset = subMesh.primitiveShapeOffset;
+	float4 shape = asfloat(gRaytracingMaterialParameters.Load4(offset));
+	if (subMesh.primitiveShape == 1u) {
+		float2 position = v0.position.xy * bary.x + v1.position.xy * bary.y + v2.position.xy * bary.z;
+		float4 basis = float4(subMesh.uvMatrix[0].xy, subMesh.uvMatrix[1].xy);
+		uv = ResolvePrimitivePixelUV(uv, float4(position, localUV), shape, basis);
+	} else {
+		PrimitiveInstance instance = (PrimitiveInstance)0;
+		instance.shapeParams0 = shape;
+		instance.shapeParams1 = asfloat(gRaytracingMaterialParameters.Load4(offset + 16u));
+		instance.topColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 32u));
+		instance.centerColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 48u));
+		instance.bottomColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 64u));
+		vertexColor = ResolvePrimitiveVertexColor(v0.position.xyz, instance) * bary.x +
+			ResolvePrimitiveVertexColor(v1.position.xyz, instance) * bary.y +
+			ResolvePrimitiveVertexColor(v2.position.xyz, instance) * bary.z;
+	}
+}
+
 float4 SampleHitTexture(uint textureIndex, float2 uv,
 	float mipLevel, float4 fallbackValue) {
 
@@ -299,6 +311,7 @@ void ResolveRaytracingHitGeometry(
 	out SubMeshShaderData subMesh,
 	out float2 uv,
 	out float2 paintUV,
+	out float4 vertexColor,
 	out float3 worldPosition,
 	out float3x3 tangentToWorld) {
 
@@ -326,7 +339,7 @@ void ResolveRaytracingHitGeometry(
 	float3 bary = ComputeBarycentrics(attr.barycentrics);
 	uv = v0.uv * bary.x + v1.uv * bary.y + v2.uv * bary.z;
 	paintUV = uv;
-	uv = mul(float4(uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	ResolveHitPrimitiveSurface(subMesh, v0, v1, v2, bary, paintUV, uv, vertexColor);
 
 	float3 objectNormal = SafeNormalize(
 		v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z,
@@ -386,13 +399,14 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	SubMeshShaderData subMesh;
 	float2 uv;
 	float2 paintUV;
+	float4 vertexColor;
 	float3x3 tangentToWorld;
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh,
-		uv, paintUV, worldPosition, tangentToWorld);
+		uv, paintUV, vertexColor, worldPosition, tangentToWorld);
 	// レイ距離に応じたMipを使い遠距離ヒットの高周波ノイズを抑える
 	float textureMip = max(log2(1.0f + RayTCurrent() * 0.02f), 0.0f);
 
-	float4 baseColor = subMesh.importedBaseColor * subMesh.color;
+	float4 baseColor = subMesh.importedBaseColor * subMesh.color * vertexColor;
 	baseColor *= SampleHitTexture(
 		subMesh.baseColorTextureIndex, uv, textureMip, 1.0f.xxxx);
 	baseColor.a *= SampleHitTexture(
@@ -619,7 +633,7 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 float3 EvaluateRaytracingSurfaceLighting(
 	float3 worldPosition,
 	ResolvedPBRMaterial material,
-	uint renderFlags) {
+	uint renderFlags, float transmission = 0.0f) {
 
 	if ((renderFlags & MESH_INSTANCE_FLAG_LIGHTING) == 0u) {
 		return material.baseColor.rgb + material.emissive;
@@ -629,6 +643,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 	float3 V = SafeNormalize(-WorldRayDirection(), material.N);
 	float3 F0 = lerp(
 		gFresnelMin.xxx, material.baseColor.rgb, material.metallic);
+	material.baseColor.rgb *= 1.0f - saturate(transmission);
 	// 二次ヒット地点から影を判定し、主カメラの画面範囲に依存しない照明にする
 	float3 lighting = 0.0f.xxx;
 	[loop]
@@ -727,13 +742,92 @@ void ReflectionMiss(inout ReflectionPayload payload) {
 	payload.worldPosition = 0.0f.xxx;
 	payload.hitDistance = 0.0f;
 	payload.worldNormal = 0.0f.xxx;
-	payload._pad0 = 0.0f;
 }
 
 //============================================================================
 //	closesthit
 //============================================================================
+float3 ResolveReflectionTransparency(float3 color, float opacity, float transmission, float3 tint,
+	bool refraction, float3 normal, float3 worldPosition, uint blendMode, uint depth) {
+
+	opacity = saturate(opacity);
+	if (blendMode == 0u && opacity == 1.0f) return color;
+	float3 direction = WorldRayDirection();
+	if (refraction) {
+		direction = refract(direction, faceforward(normal, direction, normal), 1.0f / 1.5f);
+	}
+	float3 background;
+	if (depth == 0u) {
+		RayDesc ray;
+		ray.Origin = worldPosition + direction * 0.001f;
+		ray.Direction = direction;
+		ray.TMin = 0.0001f;
+		ray.TMax = gMaxReflectionDistance;
+		ReflectionPayload behind = (ReflectionPayload)0;
+		behind.transmissionDepth = 1u;
+		TraceRay(gSceneTLAS, RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+			kRaytracingMaskReflectionCaster, 0, 1, 0, ray, behind);
+		background = behind.hit != 0u ? behind.color : EvaluateReflectionEnvironment(direction, 0.0f);
+	} else {
+		background = EvaluateReflectionEnvironment(direction, 0.0f);
+	}
+	if (refraction) {
+		float transmitted = (1.0f - opacity) * saturate(transmission);
+		color = (color * opacity + background * tint * transmitted) / max(opacity + transmitted, 0.0001f);
+		opacity += transmitted;
+	}
+	switch (blendMode) {
+	case 1u: return background + color * opacity;
+	case 2u: return background - color * opacity;
+	case 3u: return background * color;
+	case 4u: return background + color * (1.0f - background);
+	case 5u: return color + background * (1.0f - opacity);
+	default: return lerp(background, color, opacity);
+	}
+}
+
 #ifndef NEM_REFLECTION_CUSTOM_HIT
+Texture2D<float4> gSourceEmissive : register(t0, space6);
+
+// 同じ面が画面内にあるときはラスタライズ済みの材質を使う
+bool LoadRasterHitMaterial(float3 worldPosition, float footprint, inout ResolvedPBRMaterial material) {
+
+	int2 pixel;
+	float viewDepth;
+	if (!ProjectWorldToPixel(worldPosition, pixel, viewDepth)) return false;
+	if ((gSourceFlags.Load(int3(pixel, 0)) & kMaterialFlagSurface) == 0u) return false;
+	float3 rasterPosition = gSourcePosition.Load(int3(pixel, 0)).xyz;
+	float tolerance = clamp(footprint * 1.5f, 0.0002f, 0.05f);
+	float3 delta = rasterPosition - worldPosition;
+	if (dot(delta, delta) > tolerance * tolerance) return false;
+
+	float4 packed = gSourceMaterial.Load(int3(pixel, 0));
+	material.baseColor = gSourceAlbedo.Load(int3(pixel, 0));
+	material.N = DecodeWorldNormal(gSourceNormal.Load(int3(pixel, 0)).xyz);
+	material.metallic = saturate(packed.r);
+	material.roughness = clamp(packed.g, 0.04f, 1.0f);
+	material.ao = saturate(packed.b);
+	material.emissive = gSourceEmissive.Load(int3(pixel, 0)).rgb;
+	return true;
+}
+
+[shader("anyhit")]
+void ReflectionAnyHit(inout ReflectionPayload payload, in BuiltInTriangleIntersectionAttributes attr) {
+
+	RaytracingInstanceShaderData instanceData;
+	SubMeshShaderData subMesh;
+	float2 uv, paintUV;
+	float4 vertexColor;
+	float3 position;
+	float3x3 tangentToWorld;
+	ResolveRaytracingHitGeometry(attr, instanceData, subMesh, uv, paintUV, vertexColor, position, tangentToWorld);
+	if ((subMesh._materialPad >> 16u) != 2u) return;
+	float alpha = subMesh.importedBaseColor.a * subMesh.color.a * vertexColor.a;
+	alpha *= SampleHitTexture(subMesh.baseColorTextureIndex, uv, 0.0f, 1.0f.xxxx).a;
+	alpha *= SampleHitTexture(subMesh.opacityTextureIndex, uv, 0.0f, 1.0f.xxxx).r;
+	if (alpha < float(subMesh._materialPad & 65535u) / 65535.0f) IgnoreHit();
+}
+
 [shader("closesthit")]
 void ReflectionClosestHit(
 	inout ReflectionPayload payload,
@@ -746,17 +840,25 @@ void ReflectionClosestHit(
 	// 画面外の投影も命中点の照明前に合成する
 	const float footprint = 2.0f / max(1e-5f, abs(gProjection[1][1]) * gRenderSize.y) *
 		(gProjection[3][3] > 0.5f ? 1.0f : length(worldPosition - gCameraPosition));
-	ApplyRaytracingDecals(instanceData.geometryDataOffset + GeometryIndex(), worldPosition, footprint,
-		instanceData.renderFlags >> 8u, gEnvironmentSampler, material.baseColor.rgb, material.N,
-		material.metallic, material.roughness, material.emissive);
+	RaytracingGeometryShaderData geometry = gRaytracingGeometries[instanceData.geometryDataOffset + GeometryIndex()];
+	SubMeshShaderData subMesh = gRaytracingSubMeshes[geometry.subMeshDataIndex];
+	// GBufferに合成済みのDecalを重ねない
+	if (subMesh.useRasterHitMaterial == 0u || !LoadRasterHitMaterial(worldPosition, footprint, material)) {
+		ApplyRaytracingDecals(instanceData.geometryDataOffset + GeometryIndex(), worldPosition, footprint,
+			instanceData.renderFlags >> 8u, gEnvironmentSampler, material.baseColor.rgb, material.N,
+			material.metallic, material.roughness, material.emissive);
+	}
 
 	payload.hit = 1u;
 	payload.color = EvaluateRaytracingSurfaceLighting(
 		worldPosition, material, instanceData.renderFlags);
+	if ((subMesh._materialPad >> 16u) == 3u) {
+		payload.color = ResolveReflectionTransparency(payload.color, material.baseColor.a, 0.0f, 1.0f.xxx,
+			false, material.N, worldPosition, subMesh.renderGroupIndex, payload.transmissionDepth);
+	}
 	payload.worldPosition = worldPosition;
 	payload.hitDistance = RayTCurrent();
 	payload.worldNormal = material.N;
-	payload._pad0 = 0.0f;
 }
 #endif
 
@@ -871,16 +973,13 @@ void ReflectionRayGen() {
 		payload.worldPosition = 0.0f.xxx;
 		payload.hitDistance = 0.0f;
 		payload.worldNormal = 0.0f.xxx;
-		payload._pad0 = 0.0f;
+		payload.transmissionDepth = 0u;
 
 		// CastReflection無効のインスタンスはマスクで除外される
-		// SBTは全ジオメトリで1つのHitGroupを共有するためGeometryIndexを加算しない
 		TraceRay(gSceneTLAS,
 			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-			// 反射の表面判定は従来の不透明扱いを保つ
-			RAY_FLAG_FORCE_OPAQUE |
 			RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
-			kRaytracingMaskReflectionCaster, 0, 0, 0, ray, payload);
+			kRaytracingMaskReflectionCaster, 0, 1, 0, ray, payload);
 
 		float3 incomingRadiance = 0.0f.xxx;
 		if (payload.hit != 0u) {

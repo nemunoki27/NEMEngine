@@ -11,6 +11,7 @@ void Engine::RaytracingSceneResult::Init(GraphicsCore& graphicsCore) {
 	sceneInstances_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	sceneGeometries_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	sceneSubMeshes_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
+	materialParameters_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	// 事前にある程度の容量を確保しておく
 	sceneInstances_.EnsureCapacity(256);
 	sceneGeometries_.EnsureCapacity(256);
@@ -26,6 +27,9 @@ void Engine::RaytracingSceneResult::Release() {
 	sceneInstances_.Release();
 	sceneGeometries_.Release();
 	sceneSubMeshes_.Release();
+	materialParameters_.Release();
+	materialParameterWords_.clear();
+	hitMaterials_.clear();
 	sceneInstanceScratch_.clear();
 	sceneGeometryScratch_.clear();
 	sceneGeometryBounds_.clear();
@@ -41,6 +45,8 @@ void Engine::RaytracingSceneResult::Upload() {
 	sceneInstances_.Upload(sceneInstanceScratch_);
 	sceneGeometries_.Upload(sceneGeometryScratch_);
 	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
+	if (materialParameterWords_.empty()) materialParameterWords_.resize(4);
+	materialParameters_.Upload(materialParameterWords_);
 	sceneUploadFrameSerials_[GraphicsFrameState::GetCurrentIndex()] =
 		GraphicsFrameState::GetFrameSerial();
 }
@@ -53,10 +59,7 @@ void Engine::RaytracingSceneResult::UploadCached() {
 		return;
 	}
 
-	sceneInstances_.Upload(sceneInstanceScratch_);
-	sceneGeometries_.Upload(sceneGeometryScratch_);
-	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
-	sceneUploadFrameSerials_[frameIndex] = frameSerial;
+	Upload();
 }
 
 void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
@@ -68,6 +71,11 @@ void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 	context.raytracing.instanceWorldMatrices = instanceWorldMatrices_;
 	context.raytracing.geometryBounds = sceneGeometryBounds_;
 	context.raytracing.instanceData = sceneInstanceScratch_;
+	context.raytracing.hitMaterials = hitMaterials_;
+	if (!materialParameterWords_.empty()) {
+		context.bufferRegistry.Register({.alias = "gRaytracingMaterialParameters",
+			.resource = materialParameters_.GetResource(), .gpuAddress = materialParameters_.GetGPUAddress()});
+	}
 
 	// インスタンスの転送先を公開
 	if (sceneInstances_.GetResource()) {

@@ -44,6 +44,19 @@ namespace Engine::ShaderGraphEditOperations {
 		return value;
 	}
 
+	Vector4 GetVector4Value(const MaterialParameterValue& value, const Vector4& fallback) {
+
+		if (const auto* vector = std::get_if<Vector4>(&value.value)) return *vector;
+		if (const auto* color = std::get_if<Color4>(&value.value)) return {color->r, color->g, color->b, color->a};
+		return fallback;
+	}
+
+	Color4 GetColorValue(const MaterialParameterValue& value) {
+
+		const Vector4 color = GetVector4Value(value, {1.0f, 1.0f, 1.0f, 1.0f});
+		return {color.x, color.y, color.z, color.w};
+	}
+
 	// Nodeとその接続を削除する
 	void RemoveNode(ShaderGraphAsset& graph, UUID nodeID) {
 

@@ -24,5 +24,5 @@ VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
 		v.tangentSign,
 		v.uv,
 		ResolvePrimitiveVertexColor(v.position.xyz, instance),
-		instance);
+		instance, instanceID);
 }

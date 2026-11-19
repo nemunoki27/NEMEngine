@@ -138,6 +138,9 @@ namespace Engine {
 		struct SceneState {
 
 			RaytracingTLASState tlasState{};
+			RaytracingTLASState legacyTLAS{};
+			uint64_t legacyGeneration = 0;
+			std::vector<RaytracingTLASInstance> legacyInstances;
 			RaytracingSceneResult result{};
 			std::vector<std::shared_ptr<const uint8_t>> buildingMeshOwnerships;
 			std::vector<std::shared_ptr<const uint8_t>> publishedMeshOwnerships;
@@ -163,6 +166,7 @@ namespace Engine {
 			std::shared_ptr<const RegistryRevision> cachedExtractorRevision;
 			UUID cachedSceneInstanceID{};
 			uint64_t cachedRenderRevision = 0;
+			uint64_t cachedMeshColorRevision = 0;
 			uint64_t cachedTransformRevision = 0;
 			uint64_t cachedMeshResourceRevision = 0;
 			uint64_t cachedGeometryContentHash = 0;
@@ -204,6 +208,9 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// ジオメトリに対応する命中Shaderと個別Material値を記録する
+		void AppendHitMaterial(SceneBuildWork& work, const MaterialAsset* material,
+			const MaterialParameterSet* overrides, RaytracingGeometryShaderData& geometry);
 		// MeshのBLASとインスタンスを構築する
 		void BuildMeshInstances(std::span<const CollectedMeshInstance> sceneMeshes, SceneBuildWork& work);
 		// PrimitiveのBLASとインスタンスを構築する

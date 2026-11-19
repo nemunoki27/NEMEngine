@@ -9,6 +9,7 @@
 // c++
 #include <fstream>
 #include <utility>
+#include <tuple>
 
 NEMTests::ShaderGraphCompileFixture::ShaderGraphCompileFixture(
 	std::filesystem::path generatedRoot, std::filesystem::path shaderRoot)
@@ -54,7 +55,8 @@ bool NEMTests::ShaderGraphCompileFixture::WriteGeneratedGraph(
 		return false;
 	}
 	if ((!generated.depthPixelHLSL.empty() && !write(graphRoot / "depth.PS.hlsl", generated.depthPixelHLSL)) ||
-		(!generated.pickingPixelHLSL.empty() && !write(graphRoot / "picking.PS.hlsl", generated.pickingPixelHLSL))) {
+		(!generated.pickingPixelHLSL.empty() && !write(graphRoot / "picking.PS.hlsl", generated.pickingPixelHLSL)) ||
+		(!generated.outlinePixelHLSL.empty() && !write(graphRoot / "outline.PS.hlsl", generated.outlinePixelHLSL))) {
 
 		return false;
 	}
@@ -68,15 +70,28 @@ bool NEMTests::ShaderGraphCompileFixture::WriteGeneratedGraph(
 }
 
 // 頂点とPixelの定数衝突を実際のコンパイルで確認する
-bool NEMTests::ShaderGraphCompileFixture::CompileRasterShaders(std::string_view name) const {
+bool NEMTests::ShaderGraphCompileFixture::CompileRasterShaders(std::string_view name, Engine::ShaderGraphTarget target) const {
 
 	Engine::DxShaderCompiler compiler;
 	compiler.Init();
 	const auto root = generatedRoot_ / std::string(name);
 	for (const char* file : { "opaque.PS.hlsl", "transparent.PS.hlsl" }) {
-		const wchar_t* entry = std::string_view(file) == "transparent.PS.hlsl" ? L"mainTransparent" : L"main";
-		if (!compiler.CompileShader((root / file).wstring(), L"ps_6_6", entry, Engine::ShaderStage::PS).IsValid()) return false;
+		const wchar_t* entry = std::string_view(file) == "transparent.PS.hlsl" && Engine::IsShaderGraph3DTarget(target) ?
+			L"mainTransparent" : L"main";
+		if (!compiler.CompileShader((root / file).wstring(), L"ps_6_0", entry, Engine::ShaderStage::PS).IsValid()) return false;
 	}
-	return compiler.CompileShader((root / "vertex.VS.hlsl").wstring(), L"vs_6_6", L"main", Engine::ShaderStage::VS).IsValid() &&
-		compiler.CompileShader((root / "mesh.MS.hlsl").wstring(), L"ms_6_6", L"main", Engine::ShaderStage::MS).IsValid();
+	for (const char* file : {"depth.PS.hlsl", "picking.PS.hlsl", "outline.PS.hlsl"}) {
+		if (std::filesystem::exists(root / file) &&
+			!compiler.CompileShader((root / file).wstring(), L"ps_6_0", L"main", Engine::ShaderStage::PS).IsValid()) return false;
+	}
+	for (const auto& [file, profile, stage] : {
+		std::tuple{"vertex.VS.hlsl", L"vs_6_6", Engine::ShaderStage::VS},
+		std::tuple{"mesh.MS.hlsl", L"ms_6_6", Engine::ShaderStage::MS}}) {
+		if (!std::filesystem::exists(root / file)) {
+			if (Engine::IsShaderGraph3DTarget(target)) return false;
+			continue;
+		}
+		if (!compiler.CompileShader((root / file).wstring(), profile, L"main", stage).IsValid()) return false;
+	}
+	return true;
 }

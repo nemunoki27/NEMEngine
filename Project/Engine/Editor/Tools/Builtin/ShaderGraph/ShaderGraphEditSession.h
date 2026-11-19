@@ -11,6 +11,7 @@
 
 namespace Engine {
 
+	class AssetDatabase;
 	struct EditorToolContext;
 
 	//============================================================================
@@ -30,6 +31,8 @@ namespace Engine {
 		bool SaveAndCompile(const EditorToolContext& context, const std::filesystem::path& graphPath);
 		bool CompilePreview(const EditorToolContext& context);
 		void Import(ShaderGraphAsset imported);
+		// 子Graphの更新後に公開ピンを同期する
+		void RefreshReferences(const EditorToolContext& context);
 		// Nodeと接続を削除して編集状態を更新する
 		void RemoveNode(UUID nodeID);
 		// 描画対象に合わせて出力と接続を更新する
@@ -70,6 +73,9 @@ namespace Engine {
 		std::string compiledGraphState_{};
 		std::vector<ShaderGraphDiagnostic> latestDiagnostics_{};
 		std::string statusMessage_{};
+		const AssetDatabase* referenceDatabase_ = nullptr;
+		uint64_t referenceStructureRevision_ = UINT64_MAX;
+		uint64_t referenceContentRevision_ = UINT64_MAX;
 
 		//--------- functions ----------------------------------------------------
 

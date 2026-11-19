@@ -2,7 +2,7 @@ param([string]$ID = '', [int]$Limit = 30)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$output = Join-Path $repository 'Generated/BugReports'
+$output = Join-Path $repository 'LocalWork/BugReports'
 if ($Limit -lt 1 -or $Limit -gt 100) { throw '取得件数は1〜100を指定してください' }
 if ($ID -and $ID -notmatch '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$') { throw '受付番号の形式が不正です' }
 $query = if ($ID) { "SELECT * FROM reports WHERE id='$ID' AND state='ready' AND received_at >= unixepoch()-2592000" }

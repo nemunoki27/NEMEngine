@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 
@@ -16,6 +17,7 @@ namespace Engine {
 	class AssetDatabase;
 	class MaterialParameterSet;
 	struct MaterialAsset;
+	struct ShaderAsset;
 
 	//============================================================================
 	//	RaytracingMaterialResolver class
@@ -28,16 +30,20 @@ namespace Engine {
 		//========================================================================
 
 		// 標準Materialを反射用データへ変換する
-		MeshSubMeshShaderData BuildPrimitiveSubMeshData(GraphicsCore& graphicsCore,
+		MeshSubMeshShaderData BuildSubMeshData(GraphicsCore& graphicsCore,
 			AssetDatabase& assetDatabase, const MaterialAsset& material,
 			const MaterialParameterSet* materialInstance, const Matrix4x4& uvMatrix);
+		// Hit ShaderごとのMaterial値を16Byte境界に配置する
+		uint32_t AppendHitParameters(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
+			const ShaderAsset& shader, const MaterialAsset& material, const MaterialParameterSet* overrides,
+			std::vector<uint32_t>& words);
 		// TextureをDescriptorへ解決する
 		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap = false);
 		// 解決cacheを破棄する
 		void Clear();
 		// 現在FrameのTexture待ちを解除
-		void ResetPending();
+		void ResetPending(bool prepareTextures);
 		// 公開したSceneで使用しないTextureの所有を解除する
 		void CommitTextures();
 
@@ -61,11 +67,13 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		std::unordered_map<AssetID, MaterialParameterLayout> hitLayouts_;
 		std::unordered_map<AssetID, CachedTextureDescriptor> textureDescriptorIndexCache_{};
 		std::unordered_map<AssetID, CachedTextureDescriptor> sRGBTextureDescriptorIndexCache_{};
 		// 法線用途の変換済みTextureを区別する
 		std::unordered_map<AssetID, CachedTextureDescriptor> normalTextureDescriptorIndexCache_{};
 		// 読込中は次のFrameでもMaterial値を再解決
 		bool hasPendingTextureDescriptors_ = false;
+		bool prepareTextures_ = false;
 	};
 }

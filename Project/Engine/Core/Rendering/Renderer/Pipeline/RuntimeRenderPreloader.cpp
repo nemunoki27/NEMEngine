@@ -316,12 +316,15 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 			if (!materialPass) {
 				continue;
 			}
+			PipelineStaticSamplerOverrideSet samplerOverrides{};
+			samplerOverrides.fillMissingSamplers = true;
+			samplerOverrides.byName = featurePass.samplerOverrides;
 			if (featurePass.type == RenderFeaturePassType::RayTracing) {
 				++pipelineRequests;
 				if (context.raytracingPipelines.GetOrCreate(
 					graphicsCore.GetDXObject(), context.assetLibrary,
 					materialPass->pipeline,
-					materialPass->shaderOverride)) {
+					materialPass->shaderOverride, &samplerOverrides)) {
 
 					++pipelineCount;
 				}
@@ -331,9 +334,6 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				continue;
 			}
 			++pipelineRequests;
-			PipelineStaticSamplerOverrideSet samplerOverrides{};
-			samplerOverrides.fillMissingSamplers = true;
-			samplerOverrides.byName = featurePass.samplerOverrides;
 			if (context.pipelines.GetORCreate(graphicsCore.GetDXObject(), context.assetLibrary,
 				materialPass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
 				runtimeFeatures, nullptr, false, &samplerOverrides,

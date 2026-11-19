@@ -4,6 +4,7 @@ Project/GameProjects/
 # Visual Studio / Premake generated
 .vs/
 Generated/
+/LocalWork/
 *.sln
 *.slnx
 *.vcxproj

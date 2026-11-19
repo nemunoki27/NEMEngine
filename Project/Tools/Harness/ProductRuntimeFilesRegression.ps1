@@ -15,7 +15,7 @@ $engineRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\..")
 if (-not $Probe) { $Probe = Join-Path $engineRoot "Generated\Output\Debug\GameBuildServiceProbe\GameBuildServiceProbe.exe" }
 if (-not $BuildTool) { $BuildTool = Join-Path $engineRoot "Generated\Output\Release\NEMBuildTool\NEMBuildTool.exe" }
 # Windows PowerShellの長いパス制限に検証用の階層を持ち込まない
-$testRoot = Join-Path $engineRoot ("Generated\RT\" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
+$testRoot = Join-Path $engineRoot ("LocalWork\Tests\RT\" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
 $gameRoot = Join-Path $testRoot "Game"
 $settingsRoot = Join-Path $gameRoot "CustomSettings"
 New-Item -ItemType Directory -Path $settingsRoot, (Join-Path $gameRoot "Engine"), (Join-Path $gameRoot "GameAssets") | Out-Null

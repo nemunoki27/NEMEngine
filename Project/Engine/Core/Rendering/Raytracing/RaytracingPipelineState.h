@@ -67,6 +67,10 @@ namespace Engine {
 		const RootBindingLocation* FindBindingByName(
 			std::string_view name, ShaderBindingKind kind) const;
 		uint64_t GetUniqueID() const { return uniqueID_; }
+		uint32_t GetHitGroupCount() const { return hitGroupCount_; }
+		std::span<const uint8_t> GetHitGroupIdentifier(uint32_t group) const {
+			return std::span(hitGroupIdentifiers_).subspan(static_cast<size_t>(group) * kHandleSize, kHandleSize);
+		}
 		uint32_t GetRayGenerationCount() const { return rayGenerationCount_; }
 		bool IsValid() const { return stateObject_ && stateProps_ && shaderTable_; }
 	private:
@@ -96,6 +100,7 @@ namespace Engine {
 		uint32_t rayGenerationCount_ = 0;
 		uint32_t missCount_ = 0;
 		uint32_t hitGroupCount_ = 0;
+		std::vector<uint8_t> hitGroupIdentifiers_;
 		uint32_t callableCount_ = 0;
 		uint64_t uniqueID_ = NextUniqueID();
 

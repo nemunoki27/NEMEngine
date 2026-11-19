@@ -78,6 +78,8 @@ namespace Engine {
 		std::span<const Matrix4x4> instanceWorldMatrices;
 		std::span<const RaytracingGeometryBounds> geometryBounds;
 		std::span<const RaytracingInstanceShaderData> instanceData;
+		std::span<const RaytracingHitMaterial> hitMaterials;
+		std::function<ID3D12Resource*(GraphicsCore&)> resolveLegacyTLAS;
 	};
 	// シーンを処理する描画パスの実行に必要なコンテキスト
 	struct SceneExecutionContext {

@@ -68,6 +68,9 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	state.cachedSceneMaterialHash = 0;
 	state.textureRevision = 0;
 	state.tlasState.ResetState();
+	state.legacyTLAS.ResetState();
+	state.legacyGeneration = 0;
+	state.legacyInstances.clear();
 	state.builtThisFrame = false;
 	state.builtWorld = nullptr;
 	state.builtWorldLifetime.reset();
@@ -79,6 +82,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	state.cachedExtractorRevision.reset();
 	state.cachedSceneInstanceID = {};
 	state.cachedRenderRevision = 0;
+	state.cachedMeshColorRevision = 0;
 	state.cachedTransformRevision = 0;
 	state.cachedMeshResourceRevision = 0;
 	state.cachedGeometryContentHash = 0;
@@ -142,6 +146,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	// Worldに変更がなくてもMaterialの編集結果を構築し直す
 	if (state.materialRevision != assetLibrary.GetMaterialRevision()) {
 		state.materialRevision = assetLibrary.GetMaterialRevision();
+		state.materialResolver.Clear();
 		state.cachedStaticScene = false;
 		state.builtThisFrame = false;
 	}
@@ -166,6 +171,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		renderBatch.MatchesExtractors(state.cachedExtractorRevision) &&
 		state.cachedSceneInstanceID == context.sceneInstance->instanceID &&
 		state.cachedRenderRevision == renderBatch.GetSourceRenderRevision() &&
+		state.cachedMeshColorRevision == context.world->GetMeshColorRevision() &&
 		state.cachedMeshResourceRevision == meshResourceRevision && state.tlasState.IsBuilt();
 	if (matchesStaticScene) {
 		for (const auto& key : state.publishedBLASKeys) {
@@ -303,8 +309,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 		requiredMeshes.emplace_back(meshAssetID);
 	}
+	const bool prepareReflection = state.cachedSceneInstanceID != context.sceneInstance->instanceID &&
+		context.postProcessCamera.surfaceSettings.reflectionEnabled && graphicsCore.GetDXObject().ShouldUseDispatchRays();
 	if (meshBackend && !requiredMeshes.empty()) {
-		meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);
+		if (prepareReflection && !meshBackend->AreMeshesReady(requiredMeshes)) meshBackend->PreloadMeshes(graphicsCore, assetDatabase, requiredMeshes);
+		else meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);
 	}
 
 	ID3D12Device8* device = graphicsCore.GetDXObject().GetDevice();
@@ -314,9 +323,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.renderTextureInputs.clear();
 	state.result.sceneInstanceScratch_.clear();
 	state.result.sceneGeometryScratch_.clear();
+	state.result.hitMaterials_.clear();
+	state.result.materialParameterWords_.clear();
 	state.result.sceneGeometryBounds_.clear();
 	state.result.sceneSubMeshScratch_.clear();
-	state.materialResolver.ResetPending();
+	state.materialResolver.ResetPending(prepareReflection);
 
 	// BLASの構築とTLASインスタンスの準備
 	std::vector<RaytracingTLASInstance> tlasInstances;
@@ -388,7 +399,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		graphicsCore, tlasInstances, state.cachedTLASInstances, state.cachedTLASInstanceCount, requireTLASRebuild, blasContentsChanged);
 
 	// 構築済みにする
-	const uint64_t sceneMaterialHash = ComputeSceneMaterialHash(state.result.sceneSubMeshScratch_);
+	uint64_t sceneMaterialHash = ComputeSceneMaterialHash(state.result.sceneSubMeshScratch_);
+	for (const auto& hit : state.result.hitMaterials_) {
+		Algorithm::HashCombine(sceneMaterialHash, std::hash<AssetID>{}(hit.shader));
+		Algorithm::HashCombine(sceneMaterialHash, std::hash<AssetID>{}(hit.pipeline));
+	}
+	for (uint32_t word : state.result.materialParameterWords_) Algorithm::HashCombine(sceneMaterialHash, word);
 	if (state.cachedSceneMaterialHash != sceneMaterialHash || state.sceneMaterialGeneration == 0) {
 
 		state.cachedSceneMaterialHash = sceneMaterialHash;
@@ -404,6 +420,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.cachedExtractorRevision = renderBatch.GetExtractorRevision();
 	state.cachedSceneInstanceID = context.sceneInstance->instanceID;
 	state.cachedRenderRevision = renderBatch.GetSourceRenderRevision();
+	state.cachedMeshColorRevision = context.world ? context.world->GetMeshColorRevision() : 0;
 	state.cachedTransformRevision = renderBatch.GetSourceTransformRevision();
 	state.cachedMeshResourceRevision = meshResourceRevision;
 	state.cachedBLASGeometryCount = blasGeometryCount;
@@ -428,6 +445,22 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.publishedMeshOwnerships = std::move(state.buildingMeshOwnerships);
 }
 
+void Engine::RaytracingSceneBuilder::AppendHitMaterial(SceneBuildWork& work, const MaterialAsset* material,
+	const MaterialParameterSet* overrides, RaytracingGeometryShaderData& geometry) {
+
+	auto& hit = work.scene.result.hitMaterials_.emplace_back();
+	if (!material) return;
+	const auto* pass = FindPass(*material, MaterialPassKind::RayTracing);
+	if (!pass || !pass->pipeline) return;
+	hit.pipeline = pass->pipeline;
+	hit.shader = pass->shaderOverride;
+	if (hit.shader) {
+		const auto* shader = work.assetLibrary.LoadShader(hit.shader);
+		if (shader) geometry.parameterOffset = work.scene.materialResolver.AppendHitParameters(work.graphicsCore,
+			work.assetDatabase, *shader, *material, overrides, work.scene.result.materialParameterWords_);
+	}
+}
+
 void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context, SceneState& state) {
 
 	// TLASの再利用中も共有BLASを保持する
@@ -437,4 +470,17 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 
 	state.result.Publish(context, state.tlasState.GetResource(), state.sceneMaterialGeneration, !state.materialResolver.HasPendingTextures(), state.cachedTLASInstances);
 	context.raytracing.geometryGeneration = state.tlasState.GetContentGeneration();
+	context.raytracing.resolveLegacyTLAS = [&state](GraphicsCore& graphicsCore) {
+		const uint64_t generation = state.tlasState.GetContentGeneration();
+		if (state.legacyGeneration != generation || !state.legacyTLAS.IsBuilt()) {
+			auto instances = state.cachedTLASInstances;
+			for (auto& instance : instances) instance.hitGroupIndex = 0;
+			state.legacyTLAS.BuildORUpdate(graphicsCore, instances, state.legacyInstances,
+				static_cast<uint32_t>(state.legacyInstances.size()), false, true);
+			state.legacyTLAS.RecordInstances(instances);
+			state.legacyInstances = std::move(instances);
+			state.legacyGeneration = generation;
+		}
+		return state.legacyTLAS.GetResource();
+	};
 }

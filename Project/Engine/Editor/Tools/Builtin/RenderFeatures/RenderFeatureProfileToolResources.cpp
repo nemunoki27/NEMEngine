@@ -245,7 +245,7 @@ void Engine::RenderFeatureProfileTool::DrawResources(const EditorToolContext& co
 			renderPipeline->GetRenderAssetLibrary().LoadMaterial(pass.material) :
 			nullptr;
 		for (const ShaderConstantBufferVariable& variable : *variables) {
-			if (MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
+			if (!MaterialParameterEditor::IsExposedParameter(variable)) {
 				continue;
 			}
 			MaterialParameterValue value =
@@ -274,7 +274,7 @@ void Engine::RenderFeatureProfileTool::DrawResources(const EditorToolContext& co
 		pass.material, pass.materialPass)) {
 		const RenderFeatureProfileAsset& profile = service.GetProfile();
 		for (const ShaderResourceBinding& binding : *resources) {
-			if (binding.kind != ShaderBindingKind::SRV || binding.name.empty()) {
+			if (!binding.exposed || binding.kind != ShaderBindingKind::SRV || binding.name.empty()) {
 				continue;
 			}
 			ImGui::PushID(binding.name.c_str());

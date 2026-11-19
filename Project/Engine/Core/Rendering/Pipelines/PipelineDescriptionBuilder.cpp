@@ -31,6 +31,15 @@ namespace Engine::PipelineDescriptionBuilder {
 		default:                      return "";
 		}
 	}
+	std::span<const DXGI_FORMAT> ResolveRTVFormats(const PipelineVariantDesc& variant, std::span<const DXGI_FORMAT> runtimeFormats) {
+
+		if (variant.numRenderTargets == 0) return {};
+		if (!variant.dynamicRenderTargetFormats && !variant.rtvFormats.empty()) runtimeFormats = variant.rtvFormats;
+		static constexpr DXGI_FORMAT fallback = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		if (runtimeFormats.empty()) return { &fallback, 1 };
+		return runtimeFormats.first((std::min)(size_t(8), runtimeFormats.size()));
+	}
+
 	// パイプラインバリアントの情報とシェーダーアセットからグラフィックスパイプラインの記述を構築する
 	bool BuildGraphicsPipelineDesc(const Engine::PipelineVariantDesc& variant, const Engine::ShaderAsset& shaderAsset,
 		std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
@@ -116,24 +125,8 @@ namespace Engine::PipelineDescriptionBuilder {
 			return false;
 		}
 
-		std::vector<DXGI_FORMAT> finalRTVFormats = variant.rtvFormats;
-
-		if (variant.numRenderTargets == 0) {
-			outDesc.numRenderTargets = 0;
-			outDesc.dsvFormat = (variant.dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant.dsvFormat : runtimeDSVFormat;
-			return true;
-		}
-
-		if (variant.dynamicRenderTargetFormats || finalRTVFormats.empty()) {
-			finalRTVFormats.assign(runtimeRTVFormats.begin(), runtimeRTVFormats.end());
-		}
-
-		// 動的指定でも空だった場合だけ1枚フォールバック
-		if (finalRTVFormats.empty()) {
-
-			finalRTVFormats.emplace_back(DXGI_FORMAT_R32G32B32A32_FLOAT);
-		}
-		outDesc.numRenderTargets = static_cast<UINT>((std::min)(size_t(8), finalRTVFormats.size()));
+		const auto finalRTVFormats = ResolveRTVFormats(variant, runtimeRTVFormats);
+		outDesc.numRenderTargets = static_cast<UINT>(finalRTVFormats.size());
 		for (UINT i = 0; i < outDesc.numRenderTargets; ++i) {
 			outDesc.rtvFormats[i] = finalRTVFormats[i];
 		}

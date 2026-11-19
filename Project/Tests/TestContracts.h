@@ -73,6 +73,7 @@ namespace NEMTests {
 	bool TestShaderPathDependencies();
 	bool TestRayTracingPipelineSerialization();
 	bool TestShaderGraphCompile();
+	bool TestShaderGraphNodePreviews();
 	bool TestRendererLayerCulling();
 	bool TestRenderCameraHistory();
 	bool TestSceneGridProjection();

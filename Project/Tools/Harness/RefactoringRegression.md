@@ -20,7 +20,7 @@ pwsh -File Project/Tools/Harness/RefactoringBaseline.ps1 -Mode Verify -Scope Ful
 pwsh -File Project/Tools/Harness/RefactoringBaseline.ps1 -Mode Capture -Scope Full
 ```
 
-計測結果は`Generated/Refactoring/BaselineReport.json`へ出力される。
+計測結果は`LocalWork/Verification/Refactoring/BaselineReport.json`へ出力される。
 
 ## 自動検証範囲
 

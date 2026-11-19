@@ -199,8 +199,27 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Material/MaterialCreationPublication.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPublication.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewFingerprint.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewDependencies.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphScenePreview.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphAssetAuthoring.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphCanvasContext.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphCanvasID.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphCanvasMenu.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditOperations.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditSession.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphHistory.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphGroupEditor.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodeCreation.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodeTransfer.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodeDrawer.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodeValueEditor.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodePreviews.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphNodePreviewUtility.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewEvaluator.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewPipeline.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Core/EditorToolRenderResources.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Core/EditorToolRenderTypes.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Common/TextSearchFilter.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Material/MaterialCreationDocument.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Material/MaterialCreationImportUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/Camera/SceneViewCameraSettings.cpp"),
@@ -281,5 +300,5 @@ project "NEMTests"
     NEM_AddEngineIncludeSettings()
     NEM_AddEngineDllLinkSettings()
     NEM_ApplyDefaultConfigFilters()
-    links { "NEMCore", "d3d12", "imgui" }
-    dependson { "NEMCore" }
+    links { "NEMCore", "d3d12", "imgui", "imgui-node-editor" }
+    dependson { "NEMCore", "imgui-node-editor" }

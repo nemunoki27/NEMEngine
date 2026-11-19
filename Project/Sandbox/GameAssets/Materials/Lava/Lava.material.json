@@ -1,0 +1,152 @@
+{
+    "domain": "Surface",
+    "name": "Lava",
+    "parameters": [
+        {
+            "id": "01e6363c4c61eeb4",
+            "name": "displacementScale",
+            "semantic": "DisplacementScale",
+            "value": 0.0
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "EmissiveIntensity",
+            "value": 0.0
+        },
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "c4617cc0ecd319d1",
+            "name": "emissiveColor",
+            "semantic": "EmissiveColor",
+            "value": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            }
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "Roughness",
+            "value": 0.5
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "Metallic",
+            "value": 0.0
+        },
+        {
+            "id": "e021b96b50184d6a",
+            "name": "displacementMidpoint",
+            "semantic": "DisplacementMidpoint",
+            "value": 0.5
+        },
+        {
+            "id": "a6ef6168961d7b4f",
+            "name": "模様のスケール",
+            "semantic": "None",
+            "value": 2.3
+        },
+        {
+            "id": "0a25373d638d79b9",
+            "name": "割れ目の太さ",
+            "semantic": "None",
+            "value": 0.1
+        },
+        {
+            "id": "c9106cc588483a02",
+            "name": "岩色",
+            "semantic": "None",
+            "value": {
+                "r": 0.045,
+                "g": 0.034,
+                "b": 0.032,
+                "a": 1.0
+            }
+        },
+        {
+            "id": "4d506a1e1591fd80",
+            "name": "流速",
+            "semantic": "None",
+            "value": 0.7
+        },
+        {
+            "id": "51f1e040a81863f7",
+            "name": "発光強度",
+            "semantic": "None",
+            "value": 4.5
+        },
+        {
+            "id": "1657fdeaede6057d",
+            "name": "溶岩色",
+            "semantic": "None",
+            "value": {
+                "r": 1.0,
+                "g": 0.19,
+                "b": 0.01,
+                "a": 1.0
+            }
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "ZPrepass",
+            "pipeline": "19214d2adc8e447d492d6bfd820769a6",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "487fb370ee9b759a203794762027bc49"
+        },
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "1c2b732a2be0c23c2457edfa53d4bdeb",
+            "preferredVariant": "GraphicsVertex",
+            "shaderOverride": "1c2b732a2be0c23c2457edfa53d4bdeb"
+        },
+        {
+            "passKind": "Draw",
+            "pipeline": "6d9b0580313710cbc77d883051a1da80",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "bcac14258da6afcf1ec380065b7ef084"
+        },
+        {
+            "passKind": "Masked",
+            "pipeline": "6d9b0580313710cbc77d883051a1da80",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "bcac14258da6afcf1ec380065b7ef084"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "2a2140ced0773bda319308d14c166701",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "6158278eb523bd69f741a7f0219fe942"
+        },
+        {
+            "passKind": "RayTracing",
+            "pipeline": "558a336ece64be8da571239b3029721a",
+            "preferredVariant": "Raytracing",
+            "shaderOverride": "c4adac8fad8d4fc405fbfc77456f8dbb"
+        }
+    ],
+    "renderState": {
+        "blendMode": "Normal",
+        "castShadows": true,
+        "overridesRenderer": true,
+        "phase": "Opaque",
+        "receiveShadows": true,
+        "surfaceMode": "Opaque"
+    },
+    "shaderGraph": "52c0a5947477ae0bb048be87a60238a0",
+    "usage": "Mesh"
+}

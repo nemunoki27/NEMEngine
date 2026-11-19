@@ -4,19 +4,18 @@
 //	include
 //============================================================================
 #include "ShaderGraphEditOperations.h"
+#include "ShaderGraphGenericNodeInspector.h"
+#include "ShaderGraphNodePreviewUtility.h"
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include "ShaderGraphEnumWidget.h"
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
 
 #include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
 // c++
 #include <algorithm>
 #include <cfloat>
-#include <filesystem>
 #include <string>
 #include <variant>
 // imgui
@@ -42,7 +41,9 @@ void Engine::ShaderGraphNodeInspector::Draw(
 
 	ShaderGraphNode& node = *found;
 	ImGui::SeparatorText("選択ノード");
-	ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node.kind).data()));
+	ImGui::TextUnformatted(GetShaderGraphNodeName(node.kind).data());
+	DrawPreviewSettings(session, node);
+	ShaderGraphGenericNodeInspector::Draw(session, node);
 	if (node.kind != ShaderGraphNodeKind::SamplerState) {
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphSelectedNode");
 		session.MarkDirty(MyGUI::EnumCombo("精度", node.precision).valueChanged);
@@ -51,14 +52,14 @@ void Engine::ShaderGraphNodeInspector::Draw(
 
 		// Sample時の補間と境界の扱いを編集する
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphSamplerState");
-		session.MarkDirty(D3D12EnumCombo("フィルタ", node.sampler.filter).valueChanged);
-		session.MarkDirty(D3D12EnumCombo("アドレスU", node.sampler.addressU).valueChanged);
-		session.MarkDirty(D3D12EnumCombo("アドレスV", node.sampler.addressV).valueChanged);
-		session.MarkDirty(D3D12EnumCombo("アドレスW", node.sampler.addressW).valueChanged);
-		session.MarkDirty(D3D12EnumCombo("比較関数", node.sampler.comparisonFunc).valueChanged);
-		session.MarkDirty(D3D12EnumCombo("境界色", node.sampler.borderColor).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Filter", node.sampler.filter).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Address U", node.sampler.addressU).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Address V", node.sampler.addressV).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Address W", node.sampler.addressW).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Comparison", node.sampler.comparisonFunc).valueChanged);
+		session.MarkDirty(D3D12EnumCombo("Border Color", node.sampler.borderColor).valueChanged);
 		int32_t maxAnisotropy = static_cast<int32_t>(node.sampler.maxAnisotropy);
-		if (MyGUI::DragInt("異方性", maxAnisotropy,
+		if (MyGUI::DragInt("Anisotropy", maxAnisotropy,
 				{
 					.dragSpeed = 1.0f,
 					.minValue = 1,
@@ -68,9 +69,9 @@ void Engine::ShaderGraphNodeInspector::Draw(
 			node.sampler.maxAnisotropy = static_cast<uint32_t>(maxAnisotropy);
 			session.MarkDirty();
 		}
-		session.MarkDirty(MyGUI::DragFloat("ミップLODバイアス", node.sampler.mipLODBias).valueChanged);
-		session.MarkDirty(MyGUI::DragFloat("最小LOD", node.sampler.minLOD).valueChanged);
-		session.MarkDirty(MyGUI::DragFloat("最大LOD", node.sampler.maxLOD).valueChanged);
+		session.MarkDirty(MyGUI::DragFloat("Mip LOD Bias", node.sampler.mipLODBias).valueChanged);
+		session.MarkDirty(MyGUI::DragFloat("Min LOD", node.sampler.minLOD).valueChanged);
+		session.MarkDirty(MyGUI::DragFloat("Max LOD", node.sampler.maxLOD).valueChanged);
 		return;
 	}
 
@@ -82,43 +83,15 @@ void Engine::ShaderGraphNodeInspector::Draw(
 			node.subGraph = subGraph;
 			node.inputPorts.clear();
 			node.outputPorts.clear();
+			node.previewOutputSlot = 0;
 			std::erase_if(session.GetDraft().links,
 				[&](const ShaderGraphLink& link) { return link.inputNode == node.id || link.outputNode == node.id; });
-			AssetDatabase* database = context.toolContext.assetDatabase;
-			ShaderGraphAsset child{};
-			const std::filesystem::path childPath =
-				database && subGraph ? database->ResolveFullPath(subGraph) : std::filesystem::path{};
-			if (!childPath.empty() && FromJson(JsonAdapter::Load(childPath, true), child)) {
-				for (const ShaderGraphParameter& parameter : child.parameters) {
-					if (!parameter.exposed) {
-						continue;
-					}
-					node.inputPorts.emplace_back(ShaderGraphPort{
-						.id = UUID::New(),
-						.name = parameter.name,
-						.type = parameter.type,
-						.defaultValue = parameter.defaultValue,
-					});
-				}
-				const auto output = std::find_if(child.nodes.begin(), child.nodes.end(),
-					[&](const ShaderGraphNode& value) { return value.id == child.outputNode; });
-				if (output != child.nodes.end()) {
-					const ShaderGraphNodeDescriptor* descriptor = ShaderGraphNodeRegistry::Find(output->kind);
-					for (uint32_t slot = 0; slot < GetShaderGraphInputCount(*output); ++slot) {
-						ShaderGraphValueType type = ShaderGraphValueType::Float;
-						if (!output->inputPorts.empty()) {
-							type = output->inputPorts[slot].type;
-						} else if (descriptor && slot < descriptor->inputs.size()) {
-							type = descriptor->inputs[slot].type;
-						}
-						node.outputPorts.emplace_back(ShaderGraphPort{
-							.id = UUID::New(),
-							.name = std::string(GetShaderGraphInputName(*output, slot)),
-							.type = type,
-							.defaultValue = DefaultValueForGraphType(type),
-						});
-					}
-				}
+			ShaderGraphAsset child;
+			if (ShaderGraphAssetReferences::Load(subGraph, context.toolContext.assetDatabase, child)) {
+				const ShaderGraphAssetResolver resolver = [&](AssetID id, ShaderGraphAsset& asset) {
+					return ShaderGraphAssetReferences::Load(id, context.toolContext.assetDatabase, asset);
+				};
+				ShaderGraphAssetReferences::RefreshSubGraphPorts(node, child, resolver);
 			}
 			session.MarkDirty();
 		}
@@ -164,6 +137,13 @@ void Engine::ShaderGraphNodeInspector::Draw(
 		}
 		auto& ports = input ? node.inputPorts : node.outputPorts;
 		ports.erase(ports.begin() + index);
+		if (!input) {
+			if (index < node.previewOutputSlot) {
+				--node.previewOutputSlot;
+			} else if (ports.size() <= node.previewOutputSlot) {
+				node.previewOutputSlot = ports.empty() ? 0 : static_cast<uint32_t>(ports.size() - 1);
+			}
+		}
 		session.MarkDirty();
 	};
 	const auto drawPorts = [&](const char* label, bool input) {
@@ -206,4 +186,36 @@ void Engine::ShaderGraphNodeInspector::Draw(
 	};
 	drawPorts("入力", true);
 	drawPorts("出力", false);
+}
+
+void Engine::ShaderGraphNodeInspector::DrawPreviewSettings(ShaderGraphEditSession& session, ShaderGraphNode& node) {
+
+	if (!ShaderGraphNodePreviewUtility::IsPreviewableNode(node)) {
+		return;
+	}
+
+	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphNodePreview");
+	session.MarkDirty(MyGUI::EnumCombo("プレビュー", node.previewMode).valueChanged);
+	const uint32_t outputCount = GetShaderGraphOutputCount(node);
+	if (outputCount <= 1) {
+		return;
+	}
+
+	std::vector<std::string> outputs;
+	outputs.reserve(outputCount);
+	for (uint32_t slot = 0; slot < outputCount; ++slot) {
+		const std::string name(ShaderGraphNodePreviewUtility::OutputPinLabel(node, slot));
+		const bool duplicate = std::any_of(outputs.begin(), outputs.end(),
+			[&](const std::string& value) { return value == name; });
+		outputs.emplace_back(duplicate || name.empty() ? name + " [" + std::to_string(slot + 1) + "]" : name);
+	}
+	const uint32_t selected = (std::min)(node.previewOutputSlot, outputCount - 1);
+	std::string output = outputs[selected];
+	if (MyGUI::StringCombo("プレビュー出力", output, outputs).valueChanged) {
+		const auto found = std::find(outputs.begin(), outputs.end(), output);
+		if (found != outputs.end()) {
+			node.previewOutputSlot = static_cast<uint32_t>(std::distance(outputs.begin(), found));
+			session.MarkDirty();
+		}
+	}
 }

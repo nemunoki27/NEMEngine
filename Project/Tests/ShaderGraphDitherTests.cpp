@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderReflectionParser.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSourceUtility.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 
 // c++
@@ -72,8 +73,11 @@ namespace NEMTests {
 					masked->shaderOverride != ditherArtifact.opaqueShaderID) {
 					return false;
 				}
+				std::string positionCode = "graphInput.screenPosition";
 				if (explicitPosition) {
-					connect(addNode(Engine::ShaderGraphNodeKind::ScreenPosition), dither, 1);
+					const auto position = addNode(Engine::ShaderGraphNodeKind::ScreenPosition);
+					connect(position, dither, 1);
+					positionCode = Engine::ShaderGraphSourceUtility::MakeNodeVariable("value0", position);
 				}
 				const auto compiled = Engine::ShaderGraphCompiler::Compile(ditherGraph, "surface.hlsli");
 				if (compiled.vertexHLSL.empty() || compiled.meshHLSL.empty() ||
@@ -84,7 +88,7 @@ namespace NEMTests {
 					return false;
 				}
 				if (!compiled.Succeeded() ||
-					compiled.surfaceHLSL.find("ShaderGraphDitherThreshold((graphInput.screenPosition).xy)") ==
+					compiled.surfaceHLSL.find("ShaderGraphDitherThreshold((" + positionCode + ").xy)") ==
 						std::string::npos ||
 					compiled.surfaceHLSL.find("cell.x * 4u + cell.y") == std::string::npos ||
 					compiled.surfaceHLSL.find(" / 17.0f") == std::string::npos ||

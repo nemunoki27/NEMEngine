@@ -1,0 +1,1506 @@
+{
+    "defaultPrecision": "Float",
+    "domain": "Surface",
+    "groups": [],
+    "keywords": [],
+    "links": [
+        {
+            "id": "b19971d59ae094c7",
+            "inputNode": "266af123499ba26f",
+            "inputSlot": 0,
+            "outputNode": "6253f258f9d31fe8",
+            "outputSlot": 0
+        },
+        {
+            "id": "7ad9609b9935cb39",
+            "inputNode": "07d665eddf4b2375",
+            "inputSlot": 0,
+            "outputNode": "266af123499ba26f",
+            "outputSlot": 0
+        },
+        {
+            "id": "c41686114dc39ffc",
+            "inputNode": "38efe61d33618716",
+            "inputSlot": 1,
+            "outputNode": "07d665eddf4b2375",
+            "outputSlot": 0
+        },
+        {
+            "id": "dc9621391263cc00",
+            "inputNode": "42f5b7957573883a",
+            "inputSlot": 0,
+            "outputNode": "90025da1c7fa13c3",
+            "outputSlot": 0
+        },
+        {
+            "id": "192b3780438d9a90",
+            "inputNode": "38efe61d33618716",
+            "inputSlot": 4,
+            "outputNode": "42f5b7957573883a",
+            "outputSlot": 2
+        },
+        {
+            "id": "8d9f3022345322f2",
+            "inputNode": "9604230d2e10d39a",
+            "inputSlot": 0,
+            "outputNode": "a6c3d4435e9a0500",
+            "outputSlot": 0
+        },
+        {
+            "id": "bbe2c79915d98445",
+            "inputNode": "9604230d2e10d39a",
+            "inputSlot": 1,
+            "outputNode": "cf88e68b4bab0346",
+            "outputSlot": 0
+        },
+        {
+            "id": "4fc186b20c21acae",
+            "inputNode": "38efe61d33618716",
+            "inputSlot": 6,
+            "outputNode": "9604230d2e10d39a",
+            "outputSlot": 0
+        },
+        {
+            "id": "b1f8420ef2aee826",
+            "inputNode": "c97f69bc05911dad",
+            "inputSlot": 0,
+            "outputNode": "33ef6514b200f858",
+            "outputSlot": 0
+        },
+        {
+            "id": "4a4fb39ea9dca39f",
+            "inputNode": "38efe61d33618716",
+            "inputSlot": 7,
+            "outputNode": "c97f69bc05911dad",
+            "outputSlot": 0
+        },
+        {
+            "id": "28eabc396e225964",
+            "inputNode": "db9a9df9db4c612a",
+            "inputSlot": 0,
+            "outputNode": "c97f69bc05911dad",
+            "outputSlot": 0
+        },
+        {
+            "id": "c08927a8af99b1c2",
+            "inputNode": "db9a9df9db4c612a",
+            "inputSlot": 1,
+            "outputNode": "9604230d2e10d39a",
+            "outputSlot": 0
+        },
+        {
+            "id": "14651ad38c298ed5",
+            "inputNode": "d9a5cee3c56a3702",
+            "inputSlot": 0,
+            "outputNode": "cfc6539a3a71721b",
+            "outputSlot": 0
+        },
+        {
+            "id": "d28a90f813ae50c1",
+            "inputNode": "d9a5cee3c56a3702",
+            "inputSlot": 1,
+            "outputNode": "db9a9df9db4c612a",
+            "outputSlot": 0
+        },
+        {
+            "id": "5b3952b257dafa26",
+            "inputNode": "0567adf8e7b501ca",
+            "inputSlot": 0,
+            "outputNode": "d9a5cee3c56a3702",
+            "outputSlot": 0
+        },
+        {
+            "id": "378ab9a08ffa8c35",
+            "inputNode": "0567adf8e7b501ca",
+            "inputSlot": 1,
+            "outputNode": "f91d50ae58fb29d8",
+            "outputSlot": 0
+        },
+        {
+            "id": "e06b74946d18d0ac",
+            "inputNode": "38efe61d33618716",
+            "inputSlot": 5,
+            "outputNode": "0567adf8e7b501ca",
+            "outputSlot": 0
+        }
+    ],
+    "name": "Dissolve",
+    "nodes": [
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "38efe61d33618716",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SurfaceOutput",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 1400.0,
+                "y": 230.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "6253f258f9d31fe8",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "f9638adea25e23e9",
+            "position": {
+                "x": 180.0,
+                "y": 0.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "266af123499ba26f",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TextureSample",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 500.0,
+                "y": 0.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 0.5,
+                "r": 0.5
+            },
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "07d665eddf4b2375",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "NormalUnpack",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 900.0,
+                "y": 0.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "90025da1c7fa13c3",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "af11b21c4eb167a7",
+            "position": {
+                "x": 707.0,
+                "y": 190.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "42f5b7957573883a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TextureSample",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 900.0,
+                "y": 200.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "9604230d2e10d39a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SimpleNoise",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 303.0,
+                "y": 454.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a6c3d4435e9a0500",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "UV",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 0.0,
+                "y": 380.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cf88e68b4bab0346",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "6e42822b6e5d3207",
+            "position": {
+                "x": 0.0,
+                "y": 490.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "c97f69bc05911dad",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Fraction",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 300.0,
+                "y": 650.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "33ef6514b200f858",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Time",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 0.0,
+                "y": 650.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "db9a9df9db4c612a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Subtract",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 550.0,
+                "y": 590.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "d9a5cee3c56a3702",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Step",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 803.0,
+                "y": 620.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cfc6539a3a71721b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 550.0,
+                "y": 780.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": -0.03999999910593033,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0567adf8e7b501ca",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 1100.0,
+                "y": 650.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f91d50ae58fb29d8",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "4f65105ef36b6c94",
+            "position": {
+                "x": 805.0,
+                "y": 805.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "previewMode": "Inherit",
+            "previewOutputSlot": 0,
+            "settings": {
+                "blend": "Overlay",
+                "channelMask": 15,
+                "colorFrom": "RGB",
+                "colorTo": "HSV",
+                "comparison": "Equal",
+                "degrees": false,
+                "dielectricMaterial": "Common",
+                "gradientAlphas": [],
+                "gradientColors": [],
+                "gradientMode": "Blend",
+                "mathBase": "BaseE",
+                "matrixAxis": "Row",
+                "matrixRows": [
+                    {
+                        "w": 0.0,
+                        "x": 1.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0
+                    },
+                    {
+                        "w": 0.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 1.0
+                    },
+                    {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    }
+                ],
+                "metalMaterial": "Iron",
+                "normalBlend": "Default",
+                "normalMap": false,
+                "normalSpace": "Tangent",
+                "normalize": true,
+                "spaceFrom": "World",
+                "spaceTo": "Object",
+                "swizzle": [
+                    0,
+                    1,
+                    2,
+                    3
+                ],
+                "transformType": "Position",
+                "transformationMatrix": "ObjectToWorld"
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        }
+    ],
+    "outputNode": "38efe61d33618716",
+    "parameters": [
+        {
+            "defaultValue": "",
+            "exposed": true,
+            "id": "f9638adea25e23e9",
+            "name": "NormalMap",
+            "precision": "Inherit",
+            "referenceName": "NormalMap",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": "",
+            "exposed": true,
+            "id": "af11b21c4eb167a7",
+            "name": "OcclusionMap",
+            "precision": "Inherit",
+            "referenceName": "OcclusionMap",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": 50.0,
+            "exposed": true,
+            "id": "6e42822b6e5d3207",
+            "name": "NoiseScale",
+            "precision": "Inherit",
+            "referenceName": "NoiseScale",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": {
+                "a": 1.0,
+                "b": 0.11999999731779099,
+                "g": 1.2999999523162842,
+                "r": 4.0
+            },
+            "exposed": true,
+            "id": "4f65105ef36b6c94",
+            "name": "EdgeEmission",
+            "precision": "Inherit",
+            "referenceName": "EdgeEmission",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Color"
+        }
+    ],
+    "renderState": {
+        "alphaClipping": true,
+        "blendMode": "Normal",
+        "castShadows": true,
+        "cullMode": "D3D12_CULL_MODE_BACK",
+        "depthClipEnable": true,
+        "depthFunc": "D3D12_COMPARISON_FUNC_LESS_EQUAL",
+        "depthTest": true,
+        "depthWrite": true,
+        "fillMode": "D3D12_FILL_MODE_SOLID",
+        "frontCounterClockwise": false,
+        "receiveShadows": true,
+        "stencilEnable": false
+    },
+    "schemaVersion": 9,
+    "surfaceMode": "Opaque",
+    "target": "Mesh",
+    "vertexOutputNode": ""
+}

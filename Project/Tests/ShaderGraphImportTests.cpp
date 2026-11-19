@@ -10,9 +10,11 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSettingsImporter.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <algorithm>
+#include <array>
 #include <iostream>
 
 namespace NEMTests {
@@ -196,6 +198,96 @@ namespace NEMTests {
 			}
 		}
 
+		return true;
+	}
+
+	bool TestShaderGraphRuntimeInputs(const ShaderGraphCompileFixture& fixture) {
+
+		using namespace Engine;
+		struct Input {
+
+			ShaderGraphNodeKind kind;
+			uint32_t outputSlot;
+			ShaderGraphValueType type;
+			const char* name;
+		};
+		const std::array inputs{
+			Input{ShaderGraphNodeKind::Camera, 0, ShaderGraphValueType::Float3, "cameraPosition"},
+			Input{ShaderGraphNodeKind::Camera, 1, ShaderGraphValueType::Float3, "cameraDirection"},
+			Input{ShaderGraphNodeKind::Object, 0, ShaderGraphValueType::Float3, "objectPosition"},
+			Input{ShaderGraphNodeKind::Object, 4, ShaderGraphValueType::Float3, "objectSize"},
+			Input{ShaderGraphNodeKind::Transform, 0, ShaderGraphValueType::Float3, "transformed"},
+			Input{ShaderGraphNodeKind::TransformationMatrix, 0, ShaderGraphValueType::Matrix4, "objectMatrix"},
+			Input{ShaderGraphNodeKind::Screen, 0, ShaderGraphValueType::Float, "screenWidth"},
+			Input{ShaderGraphNodeKind::WorldNormal, 0, ShaderGraphValueType::Float3, "normal"},
+			Input{ShaderGraphNodeKind::BitangentVector, 0, ShaderGraphValueType::Float3, "bitangent"},
+			Input{ShaderGraphNodeKind::IsFrontFace, 0, ShaderGraphValueType::Boolean, "front"},
+			Input{ShaderGraphNodeKind::TextureSample, 0, ShaderGraphValueType::Float4, "sample"},
+		};
+		for (const auto target : {ShaderGraphTarget::Mesh, ShaderGraphTarget::Primitive3D, ShaderGraphTarget::Sprite,
+			ShaderGraphTarget::Text, ShaderGraphTarget::Primitive2D, ShaderGraphTarget::Particle, ShaderGraphTarget::Trail}) {
+			auto graph = CreateDefaultSurfaceShaderGraph("RuntimeInputs", target);
+			const auto addNode = [&](ShaderGraphNodeKind kind) {
+				const Engine::UUID id = Engine::UUID::New();
+				graph.nodes.emplace_back(ShaderGraphNode{.id = id, .kind = kind});
+				return id;
+			};
+			const auto connect = [&](Engine::UUID source, uint32_t sourceSlot, Engine::UUID destination, uint32_t destinationSlot) {
+				graph.links.emplace_back(ShaderGraphLink{
+					.id = Engine::UUID::New(), .outputNode = source, .outputSlot = sourceSlot,
+					.inputNode = destination, .inputSlot = destinationSlot,
+				});
+			};
+			ShaderGraphNode function{.id = Engine::UUID::New(), .kind = ShaderGraphNodeKind::CustomFunction};
+			function.functionName = "CheckRuntimeInputs";
+			function.functionBody =
+				"void CheckRuntimeInputs(float3 cameraPosition, float3 cameraDirection, float3 objectPosition, "
+				"float3 objectSize, float3 transformed, float4x4 objectMatrix, float screenWidth, float3 normal, "
+				"float3 bitangent, uint front, float4 sample, out float4 color) { "
+				"float3 sum = cameraPosition + cameraDirection + objectPosition + objectSize + transformed + "
+				"objectMatrix[0].xyz + screenWidth.xxx + normal + bitangent + float(front).xxx; "
+				"color = float4(sum, 1) * sample; }";
+			for (uint32_t slot = 0; slot < inputs.size(); ++slot) {
+				const auto& input = inputs[slot];
+				function.inputPorts.emplace_back(ShaderGraphPort{
+					.id = Engine::UUID::New(), .name = input.name, .type = input.type,
+				});
+				const Engine::UUID nodeID = addNode(input.kind);
+				connect(nodeID, input.outputSlot, function.id, slot);
+				if (input.kind == ShaderGraphNodeKind::Transform) {
+					connect(addNode(ShaderGraphNodeKind::WorldPosition), 0, nodeID, 0);
+				}
+				if (input.kind == ShaderGraphNodeKind::TextureSample) {
+					const Engine::UUID parameterID = Engine::UUID::New();
+					graph.parameters.emplace_back(ShaderGraphParameter{
+						.id = parameterID, .name = "Map", .type = ShaderGraphValueType::Texture2D,
+						.defaultValue = {AssetID{}},
+					});
+					const Engine::UUID parameterNode = addNode(ShaderGraphNodeKind::Parameter);
+					graph.nodes.back().parameterID = parameterID;
+					connect(parameterNode, 0, nodeID, 0);
+				}
+			}
+			function.outputPorts.emplace_back(ShaderGraphPort{
+				.id = Engine::UUID::New(), .name = "Color", .type = ShaderGraphValueType::Float4,
+			});
+			std::erase_if(graph.links, [&](const ShaderGraphLink& link) {
+				return link.inputNode == graph.outputNode && link.inputSlot == 0;
+			});
+			connect(function.id, 0, graph.outputNode, 0);
+			graph.nodes.emplace_back(std::move(function));
+			const auto generated = ShaderGraphCompiler::Compile(graph, "surface.hlsli");
+			if (!generated.Succeeded()) return false;
+			for (const auto* source : {&generated.opaquePixelHLSL, &generated.transparentPixelHLSL}) {
+				if (source->find("graphInput.cameraPosition =") == std::string::npos ||
+					source->find("graphInput.worldToObject =") == std::string::npos ||
+					source->find("graphInput.isFrontFace =") == std::string::npos) return false;
+			}
+			if (!generated.particleGPUPixelHLSL.empty() &&
+				generated.particleGPUPixelHLSL.find("graphInput.cameraPosition =") == std::string::npos) return false;
+			const std::string name = std::string("RuntimeInputs_") + EnumAdapter<ShaderGraphTarget>::ToString(target);
+			if (!fixture.WriteGeneratedGraph(graph, name) || !fixture.CompileRasterShaders(name, target)) return false;
+		}
 		return true;
 	}
 

@@ -9,6 +9,7 @@ namespace Engine {
 
 	namespace CameraSurfacePassIDs {
 
+		inline constexpr UUID ReflectionTrace{0x52545245464c4543ull};
 		inline constexpr UUID AmbientOcclusionTrace{0x414f545241434500ull};
 		inline constexpr UUID AmbientOcclusionFilter{0x414f46494c544552ull};
 	}

@@ -24,6 +24,17 @@ namespace Engine {
 	// ピックなど常に当てたいレイ用、全インスタンスで必ず立てる
 	static constexpr uint8_t kRaytracingMaskAlwaysHit = 1u << 2;
 
+	// 反射の命中時に使うMaterial Pass
+	struct RaytracingHitMaterial {
+
+		AssetID shader{};
+		AssetID pipeline{};
+		bool operator==(const RaytracingHitMaterial&) const = default;
+		bool operator<(const RaytracingHitMaterial& rhs) const {
+			return shader != rhs.shader ? shader < rhs.shader : pipeline < rhs.pipeline;
+		}
+	};
+
 	// BLASへ登録する1つのジオメトリ
 	struct RaytracingBLASGeometryInput {
 
@@ -87,8 +98,10 @@ namespace Engine {
 		uint32_t indexOffset = 0;
 		// エディターピック記録のインデックス
 		uint32_t pickRecordIndex = 0;
-		uint32_t _pad = 0;
+		uint32_t parameterOffset = 0;
+		Vector4 boundsSphere{};
 	};
+	static_assert(sizeof(RaytracingGeometryShaderData) == 32);
 	// 投影候補を選別するCPU側のGeometry境界
 	struct RaytracingGeometryBounds {
 

@@ -42,7 +42,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// フォルダアイコンのテクスチャIDを取得
-		ImTextureID GetFolderIconTextureID() const;
+		ImTextureID GetFolderIconTextureID(bool empty) const;
 		ImTextureID GetAssetTextureID(const std::string& assetPath, AssetType type);
 		// 読み込み済みサムネイルの実ピクセルサイズを取得する
 		bool TryGetAssetTextureSize(const std::string& assetPath, Vector2& outSize) const;
@@ -70,7 +70,6 @@ namespace Engine {
 		// 表示するアイコン
 		std::unordered_map<AssetType, IconEntry> defaultIcons_;
 		std::unordered_map<std::string, IconEntry> customExtensionIcons_;
-		std::string folderIconKey_;
 
 		// キャッシュの初期化フラグ
 		bool initialized_ = false;

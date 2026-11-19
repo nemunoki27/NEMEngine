@@ -174,6 +174,11 @@ namespace Engine::RaytracingSceneGeometryUtility {
 				subMesh.metallicTextureIndex);
 			Engine::Algorithm::HashCombine(hash,
 				subMesh.roughnessTextureIndex);
+			Engine::Algorithm::HashCombine(hash, subMesh.useRasterHitMaterial);
+			Engine::Algorithm::HashCombine(hash, subMesh.primitiveShape);
+			Engine::Algorithm::HashCombine(hash, subMesh.primitiveShapeOffset);
+			Engine::Algorithm::HashCombine(hash, subMesh.renderGroupIndex);
+			Engine::Algorithm::HashCombine(hash, subMesh._materialPad);
 			hashFloat(subMesh.metallic);
 			hashFloat(subMesh.roughness);
 			hashColor(subMesh.importedBaseColor);

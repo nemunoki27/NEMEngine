@@ -81,6 +81,7 @@ namespace Engine {
 		std::filesystem::path playGate_;
 		bool playRequested_ = false;
 		CaptureMode captureMode_ = CaptureMode::Final;
+		bool captureStartup_ = false;
 		// 起動から全frameを一秒単位で集計する
 		bool continuousCapture_ = false;
 		uint64_t capturedGPUFrameID_ = 0;
@@ -113,6 +114,8 @@ namespace Engine {
 		void BeginPhase(GraphicsCore& graphicsCore);
 		// 比較する機能と段階数を検証環境から読み込む
 		void InitComparisonConditions();
+		void ApplyObjectEdits();
+		std::chrono::steady_clock::time_point lastEditFrame_{};
 		// 表示出力を通常の設定窓口から切り替える
 		void BeginDisplayOutputPhase(GraphicsCore& graphicsCore);
 		// 検証前の表示設定へ戻す
@@ -131,8 +134,8 @@ namespace Engine {
 		void InitCaptureSettings();
 		// 今回の結果を保存して次の描画経路へ進む
 		void FinishPhase(GraphicsCore& graphicsCore);
-		// 計測終了後のViewを画像へ保存する
-		void CaptureViews(GraphicsCore& graphicsCore);
+		// 描画済みのViewを画像へ保存する
+		void CaptureViews(GraphicsCore& graphicsCore, const char* prefix = "");
 		// 読込中も連続記録し短い停止を残す
 		void CaptureContinuousFrame(GraphicsCore& graphicsCore, float deltaTime);
 	};

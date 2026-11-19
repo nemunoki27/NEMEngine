@@ -130,7 +130,9 @@ namespace Engine {
 
 		// 同じMaterialと表面方式をまとめた描画グループ
 		uint32_t renderGroupIndex = 0;
-		uint32_t _renderGroupPad[3] = { 0, 0, 0 };
+		uint32_t useRasterHitMaterial = 0;
+		uint32_t primitiveShape = 0;
+		uint32_t primitiveShapeOffset = 0;
 	};
 	static_assert(sizeof(MeshSubMeshShaderData) == 320,
 		"MeshSubMeshShaderData must match HLSL SubMeshShaderData layout");

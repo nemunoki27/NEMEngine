@@ -16,6 +16,7 @@ struct ParticleGPUVertexOutput {
 	nointerpolation float4 velocityAge : TEXCOORD7;
 	nointerpolation float2 lifetimeRandom : TEXCOORD8;
 	nointerpolation float4 particleColor : TEXCOORD9;
+	nointerpolation uint geometryIndex : TEXCOORD10;
 };
 
 struct ParticleGPUPixelOutput {

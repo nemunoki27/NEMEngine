@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphFrameConstants.h>
 
 namespace Engine {
 
@@ -52,7 +53,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		MaterialParameterBinder materialParamBinder_{};
 		FrameConstantBufferAllocator constantBufferAllocator_{};
-		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
+		ShaderGraphFrameConstantBuffer shaderGraphFrameConstants_;
 		// reflection駆動のサブメッシュ単位マテリアルパラメータ構造化バッファのスロット
 		PipelineBindingCache::SlotID subMeshMaterialParamSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 

@@ -190,7 +190,7 @@ pwsh -NoProfile -File Tools/BugReports/Get-Reports.ps1
 pwsh -NoProfile -File Tools/BugReports/Get-Reports.ps1 -ID 00000000-0000-0000-0000-000000000000
 ~~~
 
-取得したファイルはGenerated/BugReports/受付番号に保存します。調査を依頼されたCodexも同じ管理ツールから確認できます。保存期間を過ぎた報告は取得できません。
+取得したファイルはLocalWork/BugReports/受付番号に保存します。調査を依頼されたCodexも同じ管理ツールから確認できます。保存期間を過ぎた報告は取得できません。
 
 [最初のゲームを作る](./first-game) · [製品ビルド](/manual/build)
 `);

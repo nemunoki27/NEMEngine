@@ -66,6 +66,10 @@ namespace {
 		return {};
 	}
 
+}
+
+namespace Engine::ShaderGraphArtifactBuilder {
+
 	// Sampler設定をGPU記述へ変換する
 	D3D12_STATIC_SAMPLER_DESC MakeGraphSampler(const Engine::PipelineStaticSamplerSettings& settings, uint32_t shaderRegister) {
 
@@ -85,9 +89,6 @@ namespace {
 		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		return sampler;
 	}
-}
-
-namespace Engine::ShaderGraphArtifactBuilder {
 
 	// Pixel Shaderの構成を作成する
 	Engine::ShaderAsset MakePixelShader(std::string_view name, Engine::AssetID shaderID, const std::filesystem::path& path,
@@ -112,7 +113,7 @@ namespace Engine::ShaderGraphArtifactBuilder {
 		const std::vector<Engine::ShaderParameterMetadata>& parameters, bool renderFeature) {
 
 		// 実行領域に合わせてExport順を固定する
-		constexpr std::string_view effectEntries[] = {"RenderFeatureRayGeneration", "ReflectionMiss", "ReflectionClosestHit"};
+		constexpr std::string_view effectEntries[] = {"RenderFeatureRayGeneration", "ReflectionMiss", "ReflectionClosestHit", "ReflectionAnyHit"};
 		constexpr std::string_view surfaceEntries[] = {"ReflectionClosestHit", "ReflectionAnyHit"};
 		const std::span<const std::string_view> entries = renderFeature ? std::span<const std::string_view>(effectEntries)
 																		: std::span<const std::string_view>(surfaceEntries);
@@ -209,7 +210,8 @@ namespace Engine::ShaderGraphArtifactBuilder {
 			}
 			for (const Engine::ShaderGraphSamplerBinding& sampler : compileOutput.samplers) {
 
-				const D3D12_STATIC_SAMPLER_DESC graphSampler = MakeGraphSampler(sampler.settings, sampler.shaderRegister);
+				D3D12_STATIC_SAMPLER_DESC graphSampler = MakeGraphSampler(sampler.settings, sampler.shaderRegister);
+				if (graph.domain == Engine::ShaderGraphDomain::Surface) graphSampler.RegisterSpace = sampler.hitRegisterSpace;
 				const auto found = std::find_if(variant.staticSamplers.begin(), variant.staticSamplers.end(),
 					[&graphSampler](const D3D12_STATIC_SAMPLER_DESC& current) {
 						return current.ShaderRegister == graphSampler.ShaderRegister &&

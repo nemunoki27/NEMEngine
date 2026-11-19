@@ -5,10 +5,30 @@
 //============================================================================
 const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, const char* name) {
 
+	if (type.ends_with("ShaderGraphValueType")) {
+		const std::string_view value = name;
+		if (value == "Float") return "float";
+		if (value == "Float2") return "Vector2";
+		if (value == "Float3") return "Vector3";
+		if (value == "Float4") return "Vector4";
+		if (value == "Boolean") return "bool";
+		if (value == "Integer") return "int";
+		if (value == "Matrix2") return "Matrix2x2";
+		if (value == "Matrix3") return "Matrix3x3";
+		if (value == "Matrix4") return "Matrix4x4";
+		return name;
+	}
+	if (type.ends_with("ShaderGraphPreviewMode")) {
+		const std::string_view value = name;
+		if (value == "TwoDimensional") return "2D";
+		if (value == "ThreeDimensional") return "3D";
+		return name;
+	}
+	if (type.find("ShaderGraph") != std::string_view::npos) { return name; }
 	if (type.ends_with("EasingType") || type.ends_with("RendererFillMode") ||
 		type.ends_with("RendererCullMode") || type.ends_with("RendererDepthComparison") ||
 		type.ends_with("RendererStencilOperation") || type.ends_with("BlendMode") ||
-		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") ||
+		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") || type.ends_with("MaterialParameterSemantic") ||
 		type.ends_with("ShaderGraphSurfaceMode") || type.ends_with("ShaderGraphDomain") ||
 		type.ends_with("ShaderGraphTarget") || type.ends_with("MaterialCreateType") ||
 		type.ends_with("PrimitiveType") || type.ends_with("ParticleEmitterShape") ||

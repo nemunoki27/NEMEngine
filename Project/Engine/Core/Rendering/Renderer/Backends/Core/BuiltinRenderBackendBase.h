@@ -48,7 +48,7 @@ namespace Engine {
 
 		// レジストリのオートバインドとパイプラインのスロット同期をまとめて行う
 		void SyncAndBindRegistry(const PipelineState& pipelineState, const RenderDrawContext& context,
-			ID3D12GraphicsCommandList* commandList);
+			ID3D12GraphicsCommandList* commandList, RenderCameraDomain cameraDomain);
 
 		// reflection駆動のマテリアルパラメータとテクスチャをバインドする、宣言しないBuiltinは無回帰
 		void BindMaterial(const RenderDrawContext& context, const PipelineState& pipelineState,
@@ -67,6 +67,6 @@ namespace Engine {
 		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID shaderGraphTimeCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
+		ShaderGraphFrameConstantBuffer shaderGraphFrameConstants_;
 	};
 } // Engine

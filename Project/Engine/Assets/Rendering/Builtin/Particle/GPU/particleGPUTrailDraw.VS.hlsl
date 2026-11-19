@@ -30,6 +30,7 @@ ParticleGPUVertexOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_I
 	float u = progress;
 	if (textureMode != 0) u = (current.distance - ReadParticleTrailPoint(trail, segment.x, 0).distance) / tileLength;
 	ParticleGPUVertexOutput output;
+	output.geometryIndex = encoded;
 	output.position = mul(float4(position, 1), viewProjection);
 	output.uv = float2(u, corner.y * 0.5f + 0.5f);
 	output.color = color;

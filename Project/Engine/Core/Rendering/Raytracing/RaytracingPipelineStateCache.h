@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineState.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
 
 // c++
 #include <array>
@@ -50,6 +51,11 @@ namespace Engine {
 			AssetID shaderOverrideAssetID = {},
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
+		// 共有のRayGenへ各Materialの命中Shaderを組み合わせる
+		RaytracingPipelineState* GetMaterialReflection(GraphicsPlatform& platform, RenderAssetLibrary& assets,
+			const PipelineStaticSamplerOverrideSet& samplers, std::span<const RaytracingHitMaterial> materials,
+			bool prepareScene, std::span<const RaytracingHitMaterial>& activeMaterials);
+
 		// データクリア
 		void Clear();
 		// 指定Pipelineから生成したState Objectだけを破棄する
@@ -74,6 +80,23 @@ namespace Engine {
 			std::future<std::unique_ptr<RaytracingPipelineState>> result;
 			uint64_t revision = 0;
 		};
+
+		struct MaterialReflectionState {
+			std::vector<RaytracingHitMaterial> materials;
+			uint64_t samplerHash = 0;
+			std::vector<RaytracingHitMaterial> activeMaterials;
+			std::vector<RaytracingHitMaterial> buildingMaterials;
+			std::vector<AssetID> shaderDependencies;
+			PendingBuild build;
+			uint64_t revision = 1;
+			uint64_t requestedRevision = 0;
+			uint64_t lastPollFrame = UINT64_MAX;
+			bool dirty = false;
+			std::unique_ptr<RaytracingPipelineState> state;
+		};
+		std::vector<MaterialReflectionState> materialReflections_;
+		bool StartMaterialReflectionBuild(GraphicsPlatform& platform, RenderAssetLibrary& assets,
+			const PipelineStaticSamplerOverrideSet& samplers, MaterialReflectionState& entry);
 
 		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::unordered_map<RaytracingPipelineCacheKey,

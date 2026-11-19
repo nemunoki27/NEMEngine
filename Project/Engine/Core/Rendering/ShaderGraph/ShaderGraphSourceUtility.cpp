@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Math.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 
 // c++
 #include <bit>
@@ -75,6 +76,12 @@ namespace Engine::ShaderGraphSourceUtility {
 			return "int";
 		case ShaderGraphValueType::Matrix4:
 			return "float4x4";
+		case ShaderGraphValueType::Matrix2:
+			return "float2x2";
+		case ShaderGraphValueType::Matrix3:
+			return "float3x3";
+		case ShaderGraphValueType::Gradient:
+			return "ShaderGraphGradient";
 		default:
 			return "float";
 		}
@@ -101,6 +108,32 @@ namespace Engine::ShaderGraphSourceUtility {
 	std::string MakeNodeVariable(std::string_view prefix, Engine::UUID id) {
 
 		return std::string(prefix) + "_" + ToString(id);
+	}
+
+	// グラフ内で使用中の識別子を収集する
+	std::unordered_set<uint64_t> CollectIdentifiers(const ShaderGraphAsset& graph) {
+
+		std::unordered_set<uint64_t> identifiers;
+		for (const auto& parameter : graph.parameters) { identifiers.insert(parameter.id.value); }
+		for (const auto& keyword : graph.keywords) { identifiers.insert(keyword.id.value); }
+		for (const auto& link : graph.links) { identifiers.insert(link.id.value); }
+		for (const auto& node : graph.nodes) {
+			identifiers.insert(node.id.value);
+			for (const auto& port : node.inputPorts) { identifiers.insert(port.id.value); }
+			for (const auto& port : node.outputPorts) { identifiers.insert(port.id.value); }
+		}
+		return identifiers;
+	}
+
+	// 用途ごとの衝突しない識別子を作る
+	Engine::UUID MakeUniqueID(std::unordered_set<uint64_t>& identifiers,
+		uint64_t seed, Engine::UUID owner, uint32_t channel) {
+
+		uint64_t id = Algorithm::MixHash(seed, owner.value);
+		id = Algorithm::MixHash(id, channel);
+		while (id == 0 || identifiers.contains(id)) { ++id; }
+		identifiers.insert(id);
+		return Engine::UUID{ id };
 	}
 
 	// 保存値をHLSLリテラルへ変換する
@@ -133,6 +166,7 @@ namespace Engine::ShaderGraphSourceUtility {
 		};
 
 		if (type == ShaderGraphValueType::Texture2D) { return "kNoTexture"; }
+		if (type == ShaderGraphValueType::SamplerState) { return "gSampler"; }
 		if (type == ShaderGraphValueType::Boolean) { return component(0, 0.0f) != 0.0f ? "1u" : "0u"; }
 		if (type == ShaderGraphValueType::Integer) {
 
@@ -149,7 +183,12 @@ namespace Engine::ShaderGraphSourceUtility {
 			return std::to_string(integer);
 		}
 		if (type == ShaderGraphValueType::Matrix4) {
-			return "float4x4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)";
+			return "float4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)";
+		}
+		if (type == ShaderGraphValueType::Matrix2) { return "float2x2(1, 0, 0, 1)"; }
+		if (type == ShaderGraphValueType::Matrix3) { return "float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1)"; }
+		if (type == ShaderGraphValueType::Gradient) {
+			return "ShaderGraphDefaultGradient()";
 		}
 		const uint32_t count = ComponentCount(type);
 		if (count <= 1) { return FormatFloat(component(0, 0.0f)); }

@@ -6,6 +6,7 @@
 // c++
 #include <array>
 #include <algorithm>
+#include <vector>
 
 namespace {
 
@@ -38,6 +39,7 @@ namespace {
 		Port{ "Alpha Clip", Type::Float },
 		Port{ "Transmission", Type::Float },
 		Port{ "Transmission Color", Type::Float3 },
+		Port{ "Refraction", Type::Boolean },
 	};
 	constexpr std::array kUnlitInputs{
 		Port{ "Color", Type::Float4 },
@@ -171,75 +173,75 @@ namespace {
 	}
 
 	const std::array kDescriptors{
-		Node{ Kind::SurfaceOutput, "PBR Surface", "出力", Stage::Fragment, Ports(kSurfaceInputs), EmptyPorts(), false, false },
-		Node{ Kind::UnlitOutput, "Unlit Surface", "出力", Stage::Fragment, Ports(kUnlitInputs), EmptyPorts(), false, false },
-		Node{ Kind::PostProcessOutput, "Post Process", "出力", Stage::Compute, Ports(kPostProcessInputs), EmptyPorts(), false, false },
-		Node{ Kind::RayTracingOutput, "Ray Tracing Effect", "出力", Stage::RayGeneration, Ports(kPostProcessInputs), EmptyPorts(), false, false },
-		Node{ Kind::VertexOutput, "Vertex", "出力", Stage::Vertex, Ports(kVertexInputs), EmptyPorts(), false, false },
-		Node{ Kind::Parameter, "Parameter", "入力", Stage::Any, EmptyPorts(), Ports(kValueOutput), true, false },
-		Node{ Kind::Constant, "Constant", "入力", Stage::Any, EmptyPorts(), Ports(kValueOutput), true, false },
-		Node{ Kind::Keyword, "Keyword", "入力", Stage::Any, EmptyPorts(), Ports(kValueOutput), true, false },
-		Node{ Kind::UV, "UV", "入力", Stage::Any, EmptyPorts(), Ports(kFloat2Output) },
-		Node{ Kind::WorldNormal, "World Normal", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::WorldPosition, "World Position", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::ObjectPosition, "Object Position", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::ObjectNormal, "Object Normal", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::ObjectTangent, "Object Tangent", "入力", Stage::Any, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::ViewDirection, "View Direction", "入力", Stage::Fragment, EmptyPorts(), Ports(kFloat3Output) },
-		Node{ Kind::ScreenPosition, "Screen Position", "入力", Stage::Fragment, EmptyPorts(), Ports(kFloat4Output) },
-		Node{ Kind::ParticleData, "Particle Data", "入力", Stage::Fragment, EmptyPorts(), Ports(kParticleOutputs) },
-		Node{ Kind::VertexColor, "Vertex Color", "入力", Stage::Any, EmptyPorts(), Ports(kFloat4Output) },
-		Node{ Kind::Time, "Time", "入力", Stage::Any, EmptyPorts(), Ports(kTimeOutputs) },
-		Node{ Kind::Add, "Add", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Subtract, "Subtract", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Multiply, "Multiply", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Divide, "Divide", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Power, "Power", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Minimum, "Minimum", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Maximum, "Maximum", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Dot, "Dot Product", "ベクトル", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Cross, "Cross Product", "ベクトル", Stage::Any, Ports(kBinaryInputs), Ports(kFloat3Output) },
-		Node{ Kind::Distance, "Distance", "ベクトル", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Reflect, "Reflect", "ベクトル", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Lerp, "Lerp", "演算", Stage::Any, Ports(kLerpInputs), Ports(kValueOutput) },
-		Node{ Kind::Clamp, "Clamp", "演算", Stage::Any, Ports(kClampInputs), Ports(kValueOutput) },
-		Node{ Kind::Smoothstep, "Smoothstep", "演算", Stage::Any, Ports(kSmoothstepInputs), Ports(kValueOutput) },
-		Node{ Kind::Step, "Step", "演算", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
-		Node{ Kind::Branch, "Branch", "ロジック", Stage::Any, Ports(kBranchInputs), Ports(kValueOutput) },
-		Node{ Kind::OneMinus, "One Minus", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Saturate, "Saturate", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Sine, "Sine", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Cosine, "Cosine", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Absolute, "Absolute", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Floor, "Floor", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Fraction, "Fraction", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::SquareRoot, "Square Root", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Negate, "Negate", "演算", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Normalize, "Normalize", "ベクトル", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Length, "Length", "ベクトル", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
-		Node{ Kind::Remap, "Remap", "演算", Stage::Any, Ports(kRemapInputs), Ports(kValueOutput) },
+		Node{ Kind::SurfaceOutput, "PBR Surface", "Output", Stage::Fragment, Ports(kSurfaceInputs), EmptyPorts(), false, false },
+		Node{ Kind::UnlitOutput, "Unlit Surface", "Output", Stage::Fragment, Ports(kUnlitInputs), EmptyPorts(), false, false },
+		Node{ Kind::PostProcessOutput, "Post Process", "Output", Stage::Compute, Ports(kPostProcessInputs), EmptyPorts(), false, false },
+		Node{ Kind::RayTracingOutput, "Ray Tracing Effect", "Output", Stage::RayGeneration, Ports(kPostProcessInputs), EmptyPorts(), false, false },
+		Node{ Kind::VertexOutput, "Vertex", "Output", Stage::Vertex, Ports(kVertexInputs), EmptyPorts(), false, false },
+		Node{ Kind::Parameter, "Parameter", "Input", Stage::Any, EmptyPorts(), Ports(kValueOutput), true },
+		Node{ Kind::Constant, "Constant", "Input", Stage::Any, EmptyPorts(), Ports(kValueOutput), true },
+		Node{ Kind::Keyword, "Keyword", "Input", Stage::Any, EmptyPorts(), Ports(kValueOutput), true },
+		Node{ Kind::UV, "UV", "Input", Stage::Any, EmptyPorts(), Ports(kFloat2Output) },
+		Node{ Kind::WorldNormal, "World Normal", "Input", Stage::Any, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::WorldPosition, "World Position", "Input", Stage::Any, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::ObjectPosition, "Object Position", "Input", Stage::Any, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::ObjectNormal, "Object Normal", "Input", Stage::Any, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::ObjectTangent, "Object Tangent", "Input", Stage::Any, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::ViewDirection, "View Direction", "Input", Stage::Fragment, EmptyPorts(), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::ScreenPosition, "Screen Position", "Input", Stage::Fragment, EmptyPorts(), Ports(kFloat4Output) },
+		Node{ Kind::ParticleData, "Particle Data", "Input", Stage::Fragment, EmptyPorts(), Ports(kParticleOutputs) },
+		Node{ Kind::VertexColor, "Vertex Color", "Input", Stage::Any, EmptyPorts(), Ports(kFloat4Output) },
+		Node{ Kind::Time, "Time", "Input", Stage::Any, EmptyPorts(), Ports(kTimeOutputs) },
+		Node{ Kind::Add, "Add", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Subtract, "Subtract", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Multiply, "Multiply", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Divide, "Divide", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Power, "Power", "Math/Advanced", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Minimum, "Minimum", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Maximum, "Maximum", "Math/Basic", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Dot, "Dot Product", "Vector", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Cross, "Cross Product", "Vector", Stage::Any, Ports(kBinaryInputs), Ports(kFloat3Output) },
+		Node{ Kind::Distance, "Distance", "Vector", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Reflect, "Reflect", "Vector", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Lerp, "Lerp", "Math/Interpolation", Stage::Any, Ports(kLerpInputs), Ports(kValueOutput) },
+		Node{ Kind::Clamp, "Clamp", "Math/Range", Stage::Any, Ports(kClampInputs), Ports(kValueOutput) },
+		Node{ Kind::Smoothstep, "Smoothstep", "Math/Interpolation", Stage::Any, Ports(kSmoothstepInputs), Ports(kValueOutput) },
+		Node{ Kind::Step, "Step", "Math/Range", Stage::Any, Ports(kBinaryInputs), Ports(kValueOutput) },
+		Node{ Kind::Branch, "Branch", "Logic", Stage::Any, Ports(kBranchInputs), Ports(kValueOutput) },
+		Node{ Kind::OneMinus, "One Minus", "Math/Basic", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Saturate, "Saturate", "Math/Range", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Sine, "Sine", "Math/Trigonometry", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Cosine, "Cosine", "Math/Trigonometry", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Absolute, "Absolute", "Math/Basic", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Floor, "Floor", "Math/Rounding", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Fraction, "Fraction", "Math/Rounding", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::SquareRoot, "Square Root", "Math/Advanced", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Negate, "Negate", "Math/Basic", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Normalize, "Normalize", "Vector", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Length, "Length", "Vector", Stage::Any, Ports(kUnaryInput), Ports(kValueOutput) },
+		Node{ Kind::Remap, "Remap", "Math/Range", Stage::Any, Ports(kRemapInputs), Ports(kValueOutput) },
 		Node{ Kind::TilingAndOffset, "Tiling And Offset", "UV", Stage::Any, Ports(kTilingInputs), Ports(kFloat2Output) },
 		Node{ Kind::PolarCoordinates, "Polar Coordinates", "UV", Stage::Any, Ports(kPolarInputs), Ports(kFloat2Output) },
 		Node{ Kind::Rotate, "Rotate", "UV", Stage::Any, Ports(kRotateInputs), Ports(kFloat2Output) },
-		Node{ Kind::Split, "Split", "チャンネル", Stage::Any, Ports(kUnaryInput), Ports(kSplitOutputs) },
-		Node{ Kind::Combine, "Combine", "チャンネル", Stage::Any, Ports(kCombineInputs), Ports(kCombineOutputs) },
-		Node{ Kind::TextureSample, "Sample Texture 2D", "テクスチャ", Stage::Any, Ports(kTextureInputs), Ports(kTextureOutputs) },
-		Node{ Kind::SamplerState, "Sampler State", "テクスチャ", Stage::Any, EmptyPorts(), Ports(kSamplerOutput), true, false },
-		Node{ Kind::NormalUnpack, "Unpack Normal", "テクスチャ", Stage::Fragment, Ports(kUnaryInput), Ports(kFloat3Output) },
-		Node{ Kind::SceneColor, "Scene Color", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
-		Node{ Kind::SceneDepth, "Scene Depth", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kFloatOutput) },
-		Node{ Kind::SceneNormal, "Scene Normal", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kFloat3Output) },
-		Node{ Kind::ScenePosition, "Scene Position", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kFloat3Output) },
-		Node{ Kind::SceneMaterial, "Scene Material", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
-		Node{ Kind::SceneEmissive, "Scene Emissive", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
-		Node{ Kind::SceneFlags, "Scene Flags", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kFloatOutput) },
-		Node{ Kind::RayTrace, "Trace Scene", "レイトレーシング", Stage::RayGeneration, Ports(kRayTraceInputs), Ports(kRayTraceOutputs), false, false },
-		Node{ Kind::Fresnel, "Fresnel Effect", "入力", Stage::Fragment, Ports(kFresnelInputs), Ports(kValueOutput) },
-		Node{ Kind::SimpleNoise, "Simple Noise", "プロシージャル", Stage::Any, Ports(kNoiseInputs), Ports(kValueOutput) },
-		Node{ Kind::Dither, "Dither", "プロシージャル", Stage::Fragment, Ports(kDitherInputs), Ports(kValueOutput) },
-		Node{ Kind::Voronoi, "Voronoi", "プロシージャル", Stage::Any, Ports(kVoronoiInputs), Ports(kVoronoiOutputs) },
-		Node{ Kind::SubGraph, "Sub Graph", "グラフ", Stage::Any, EmptyPorts(), EmptyPorts(), true },
-		Node{ Kind::CustomFunction, "Custom Function", "グラフ", Stage::Any, EmptyPorts(), EmptyPorts(), true },
+		Node{ Kind::Split, "Split", "Channel", Stage::Any, Ports(kUnaryInput), Ports(kSplitOutputs) },
+		Node{ Kind::Combine, "Combine", "Channel", Stage::Any, Ports(kCombineInputs), Ports(kCombineOutputs) },
+		Node{ Kind::TextureSample, "Sample Texture 2D", "Texture", Stage::Any, Ports(kTextureInputs), Ports(kTextureOutputs) },
+		Node{ Kind::SamplerState, "Sampler State", "Texture", Stage::Any, EmptyPorts(), Ports(kSamplerOutput), true, false },
+		Node{ Kind::NormalUnpack, "Unpack Normal", "Texture", Stage::Fragment, Ports(kUnaryInput), Ports(kFloat3Output), false, true, true },
+		Node{ Kind::SceneColor, "Scene Color", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
+		Node{ Kind::SceneDepth, "Scene Depth", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kFloatOutput) },
+		Node{ Kind::SceneNormal, "Scene Normal", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kFloat3Output) },
+		Node{ Kind::ScenePosition, "Scene Position", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kFloat3Output) },
+		Node{ Kind::SceneMaterial, "Scene Material", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
+		Node{ Kind::SceneEmissive, "Scene Emissive", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
+		Node{ Kind::SceneFlags, "Scene Flags", "Scene", Stage::Any, Ports(kFloat2Output), Ports(kFloatOutput) },
+		Node{ Kind::RayTrace, "Trace Scene", "Ray Tracing", Stage::RayGeneration, Ports(kRayTraceInputs), Ports(kRayTraceOutputs), false, false },
+		Node{ Kind::Fresnel, "Fresnel Effect", "Input", Stage::Fragment, Ports(kFresnelInputs), Ports(kValueOutput), false, true, true },
+		Node{ Kind::SimpleNoise, "Simple Noise", "Procedural", Stage::Any, Ports(kNoiseInputs), Ports(kValueOutput) },
+		Node{ Kind::Dither, "Dither", "Procedural", Stage::Fragment, Ports(kDitherInputs), Ports(kValueOutput) },
+		Node{ Kind::Voronoi, "Voronoi", "Procedural", Stage::Any, Ports(kVoronoiInputs), Ports(kVoronoiOutputs) },
+		Node{ Kind::SubGraph, "Sub Graph", "Graph", Stage::Any, EmptyPorts(), EmptyPorts(), true },
+		Node{ Kind::CustomFunction, "Custom Function", "Graph", Stage::Any, EmptyPorts(), EmptyPorts(), true },
 	};
 }
 
@@ -249,16 +251,24 @@ namespace {
 std::span<const Engine::ShaderGraphNodeDescriptor>
 Engine::ShaderGraphNodeRegistry::GetDescriptors() {
 
-	return kDescriptors;
+	static const std::vector<ShaderGraphNodeDescriptor> descriptors = [] {
+
+		std::vector<ShaderGraphNodeDescriptor> result(kDescriptors.begin(), kDescriptors.end());
+		const auto generic = GetGenericShaderGraphNodeDescriptors();
+		result.insert(result.end(), generic.begin(), generic.end());
+		return result;
+	}();
+	return descriptors;
 }
 
 const Engine::ShaderGraphNodeDescriptor*
 Engine::ShaderGraphNodeRegistry::Find(ShaderGraphNodeKind kind) {
 
+	const auto descriptors = GetDescriptors();
 	const auto found = std::find_if(
-		kDescriptors.begin(), kDescriptors.end(),
+		descriptors.begin(), descriptors.end(),
 		[kind](const ShaderGraphNodeDescriptor& descriptor) {
 			return descriptor.kind == kind;
 		});
-	return found != kDescriptors.end() ? &*found : nullptr;
+	return found != descriptors.end() ? &*found : nullptr;
 }

@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSourceUtility.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 
 // c++
 #include <algorithm>
@@ -19,6 +20,56 @@ namespace NEMTests {
 
 	// 演算ノードの既定値と保存値を確認する
 	bool TestShaderGraphNodeDefaults() {
+
+		// 非公開値とGlobal値も保存された既定値を持つ
+		for (const auto scope : {Engine::ShaderGraphParameterScope::PerMaterial,
+			Engine::ShaderGraphParameterScope::PerInstance, Engine::ShaderGraphParameterScope::Global}) {
+			for (const bool exposed : {false, true}) {
+				auto parameterGraph = Engine::CreateDefaultSurfaceShaderGraph("ParameterDefault");
+				const auto parameterID = Engine::UUID::New(), nodeID = Engine::UUID::New();
+				parameterGraph.parameters.emplace_back(Engine::ShaderGraphParameter{
+					.id = parameterID, .name = "Tint", .type = Engine::ShaderGraphValueType::Float4,
+					.defaultValue = {Engine::Vector4(.2f, .4f, .6f, .75f)}, .scope = scope, .exposed = exposed,
+				});
+				parameterGraph.nodes.emplace_back(Engine::ShaderGraphNode{
+					.id = nodeID, .kind = Engine::ShaderGraphNodeKind::Parameter, .parameterID = parameterID,
+				});
+				std::erase_if(parameterGraph.links, [&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == parameterGraph.outputNode && link.inputSlot == 0;
+				});
+				parameterGraph.links.emplace_back(Engine::ShaderGraphLink{
+					.id = Engine::UUID::New(), .outputNode = nodeID, .inputNode = parameterGraph.outputNode,
+				});
+				const auto compiled = Engine::ShaderGraphCompiler::Compile(parameterGraph, "surface.hlsli");
+				const auto* initial = compiled.defaultParameters.Find(Engine::MaterialParameterID::FromUUID(parameterID));
+				if (!compiled.Succeeded() || !initial || !std::holds_alternative<Engine::Vector4>(initial->value)) return false;
+				const auto& value = std::get<Engine::Vector4>(initial->value);
+				if (value.x != .2f || value.y != .4f || value.z != .6f || value.w != .75f) return false;
+				const auto parameterIDValue = Engine::MaterialParameterID::FromUUID(parameterID);
+				const auto field = std::find_if(compiled.parameters.begin(), compiled.parameters.end(),
+					[&](const Engine::ShaderParameterMetadata& metadata) { return metadata.id == parameterIDValue; });
+				const bool canOverride = exposed && scope != Engine::ShaderGraphParameterScope::Global;
+				if (field == compiled.parameters.end() || field->exposed != canOverride) return false;
+
+				// 公開値の編集を保ち、内部値は再コンパイル後の既定値へ更新する
+				Engine::ShaderGraphArtifact artifact;
+				artifact.compileOutput = compiled;
+				auto material = Engine::ShaderGraphArtifactCache::CreateMaterial(parameterGraph, {71, 40});
+				const Engine::Vector4 authored(.9f, .8f, .7f, .6f);
+				material.parameters.Set(parameterIDValue, "Tint", Engine::MaterialParameterSemantic::None, {authored});
+				Engine::ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+				const auto* applied = material.parameters.Find(parameterIDValue);
+				const Engine::Vector4 expected = canOverride ? authored : value;
+				if (!applied || !std::holds_alternative<Engine::Vector4>(applied->value) ||
+					std::get<Engine::Vector4>(applied->value) != expected) return false;
+				const Engine::Vector4 changed(.3f, .6f, .9f, .5f);
+				artifact.compileOutput.defaultParameters.Set(parameterIDValue, "Tint",
+					Engine::MaterialParameterSemantic::None, {changed});
+				Engine::ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+				applied = material.parameters.Find(parameterIDValue);
+				if (!applied || std::get<Engine::Vector4>(applied->value) != (canOverride ? authored : changed)) return false;
+			}
+		}
 
 		// 整数の境界値と実数の変換失敗を確認する
 		const std::array<std::pair<Engine::MaterialParameterValue, std::string_view>, 8> integerCases{{
@@ -138,11 +189,11 @@ namespace NEMTests {
 	bool TestShaderGraphTimeOutputs() {
 
 		constexpr std::array timeExpressions{
-			"(shaderGraphTime).xxxx",
-			"(sin(shaderGraphTime)).xxxx",
-			"(cos(shaderGraphTime)).xxxx",
-			"(shaderGraphDeltaTime).xxxx",
-			"(shaderGraphSmoothDeltaTime).xxxx",
+			"shaderGraphTime",
+			"sin(shaderGraphTime)",
+			"cos(shaderGraphTime)",
+			"shaderGraphDeltaTime",
+			"shaderGraphSmoothDeltaTime",
 		};
 		for (uint32_t outputSlot = 0; outputSlot < timeExpressions.size(); ++outputSlot) {
 
@@ -165,7 +216,10 @@ namespace NEMTests {
 			});
 			const Engine::ShaderGraphCompileOutput timeOutput =
 				Engine::ShaderGraphCompiler::Compile(timeGraph, "NEMTimeTest.surface.hlsli");
-			if (!timeOutput.Succeeded() || timeOutput.surfaceHLSL.find(timeExpressions[outputSlot]) == std::string::npos) {
+			const std::string variable = Engine::ShaderGraphSourceUtility::MakeNodeVariable("value" + std::to_string(outputSlot), timeNodeID);
+			if (!timeOutput.Succeeded() || timeOutput.surfaceHLSL.find("const float " + variable + " = " +
+				timeExpressions[outputSlot] + ";") == std::string::npos ||
+				timeOutput.surfaceHLSL.find("(" + variable + ").xxxx") == std::string::npos) {
 
 				return false;
 			}

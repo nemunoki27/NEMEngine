@@ -30,7 +30,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// Graphicsの全BlendModeを生成する
+		// Graphicsの指定されたBlendModeを生成する
 		static bool BuildGraphics(PipelineState& state, ID3D12Device8* device, DxShaderCompiler* compiler,
 			const GraphicsPipelineDesc& desc);
 		// ComputeのRootとPSOを生成する

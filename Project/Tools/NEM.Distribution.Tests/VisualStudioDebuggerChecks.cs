@@ -8,7 +8,7 @@ using NEMEngine.ProjectTool;
 // 実際のVisual Studioと配布EditorでScriptの停止を確認する
 internal static class VisualStudioDebuggerChecks {
     public static void CloseGeneratedSessions(string repository) => RunSTA(() => {
-        foreach (string directory in Directory.EnumerateDirectories(Path.Combine(repository, "Generated/LT"))) {
+        foreach (string directory in Directory.EnumerateDirectories(Path.Combine(repository, "LocalWork/Tests/Distribution/LT"))) {
             string solution = Path.Combine(directory, "IDE/Projects/デバッグ確認/デバッグ確認.slnx");
             using var session = VisualStudioSession.FindOpen(solution);
             if (session == null) continue;
@@ -18,7 +18,7 @@ internal static class VisualStudioDebuggerChecks {
     });
 
     public static async Task RunAsync(string repository, string root, string version, bool contextOnly, Action<bool, string> check) {
-        string reports = Path.Combine(repository, "Generated/LauncherDebuggerReport");
+        string reports = Path.Combine(repository, "LocalWork/Tests/Distribution/LauncherDebuggerReport");
         Directory.CreateDirectory(reports);
         string engineRoot = Path.Combine(root, "IDE/Engine");
         ZipFile.ExtractToDirectory(Path.Combine(repository, "Generated/Distribution", version, "nemengine-" + version + "-win-x64.zip"), engineRoot);

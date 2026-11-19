@@ -59,6 +59,10 @@ namespace Engine {
 		// サブメッシュインスタンスバッファ
 		StructuredInstanceBuffer<MeshSubMeshShaderData> sceneSubMeshes_{ "gRaytracingSubMeshes" };
 
+		StructuredInstanceBuffer<uint32_t> materialParameters_{ "gRaytracingMaterialParameters" };
+		std::vector<uint32_t> materialParameterWords_;
+		std::vector<RaytracingHitMaterial> hitMaterials_;
+
 		// インスタンスデータ
 		std::vector<RaytracingInstanceShaderData> sceneInstanceScratch_{};
 		std::vector<RaytracingGeometryShaderData> sceneGeometryScratch_{};

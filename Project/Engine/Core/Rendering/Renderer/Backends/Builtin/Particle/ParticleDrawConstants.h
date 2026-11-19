@@ -12,10 +12,12 @@ namespace Engine {
 
 		Engine::Matrix4x4 viewProjection = Engine::Matrix4x4::Identity();
 		Engine::Vector3 cameraPosition = Engine::Vector3::AnyInit(0.0f);
-		float pad0 = 0.0f;
+		float geometryMode = 0.0f;
 		Engine::Vector3 cameraForward = Engine::Vector3(0, 0, 1);
 		float orthographic = 0.0f;
+		Engine::Vector4 geometryBounds{};
 	};
+	static_assert(sizeof(ParticleViewConstants) == 112);
 	// パラメトリック形状生成で渡す定数バッファ
 	struct ParticleShapeConstants {
 

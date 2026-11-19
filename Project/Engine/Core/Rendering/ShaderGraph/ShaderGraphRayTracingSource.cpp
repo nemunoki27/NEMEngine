@@ -1,4 +1,5 @@
 #include "ShaderGraphStageSource.h"
+#include "ShaderGraphRuntimeInputSource.h"
 
 //============================================================================
 //	include
@@ -10,7 +11,7 @@ using namespace Engine::ShaderGraphSourceUtility;
 namespace Engine::ShaderGraphStageSource {
 
 	// RayTracingのShaderを生成する
-	std::string BuildRayTracingSource(std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context) {
+	std::string BuildRayTracingSource(std::string_view surfaceIncludeFile) {
 
 		std::string source = "// Shader Graph generated Ray Tracing library\n"
 							 "#define NEM_REFLECTION_CUSTOM_HIT\n"
@@ -19,15 +20,13 @@ namespace Engine::ShaderGraphStageSource {
 							 "#include \"" +
 							 std::string(surfaceIncludeFile) + "\"\n\n";
 		// 命中面の属性を表面評価へ渡す
-		source += context.BuildMaterialConstantBuffer(5, "RayTracingParameters");
-		source += "\n" + context.BuildMaterialParameterGetter() + "\n";
-		source += "ShaderGraphSurface EvaluateRayTracingShaderGraph(\n"
+		source += "ShaderGraphSurface EvaluateRayTracingShaderGraph(out SubMeshShaderData subMesh,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
 				  "\tRaytracingInstanceShaderData instanceData =\n"
 				  "\t\tgRaytracingSceneInstances[InstanceID()];\n"
 				  "\tRaytracingGeometryShaderData geometryData =\n"
 				  "\t\tgRaytracingGeometries[instanceData.geometryDataOffset + GeometryIndex()];\n"
-				  "\tSubMeshShaderData subMesh =\n"
+				  "\tsubMesh =\n"
 				  "\t\tgRaytracingSubMeshes[geometryData.subMeshDataIndex];\n"
 				  "\tStructuredBuffer<uint> indices =\n"
 				  "\t\tResourceDescriptorHeap[NonUniformResourceIndex(instanceData.indexDescriptorIndex)];\n"
@@ -67,27 +66,36 @@ namespace Engine::ShaderGraphStageSource {
 				  "\t\tworldNormal = -worldNormal;\n"
 				  "\t\tworldBitangent = -worldBitangent;\n"
 				  "\t}\n"
-				  "\tShaderGraphSurfaceInput graphInput;\n"
-				  "\tgraphInput.uv = mul(float4(uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
+				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
+				  "\tfloat4 vertexColor;\n\tResolveHitPrimitiveSurface(subMesh, v0, v1, v2, bary, uv, graphInput.uv, vertexColor);\n"
 				  "\tgraphInput.worldNormal = worldNormal;\n"
 				  "\tgraphInput.worldPosition = WorldRayOrigin() +\n"
 				  "\t\tWorldRayDirection() * RayTCurrent();\n"
-				  "\tgraphInput.objectPosition = mul(float4(objectPosition, 1.0f),\n"
-				  "\t\tsubMesh.localMatrix).xyz;\n"
-				  "\tgraphInput.objectNormal = localNormal;\n"
-				  "\tgraphInput.objectTangent = localTangent;\n"
+				  "\tgraphInput.objectPosition = objectPosition;\n"
+				  "\tgraphInput.objectNormal = objectNormal;\n"
+				  "\tgraphInput.objectTangent = objectTangent;\n"
 				  "\tgraphInput.viewDirection = normalize(-WorldRayDirection());\n"
-				  "\tgraphInput.screenPosition = float4(DispatchRaysIndex().xy, 0.0f, 1.0f);\n"
+				  "\tfloat4 hitClip = mul(float4(graphInput.worldPosition, 1.0f), shaderGraphWorldToClip);\n"
+				  "\tfloat3 ndc = hitClip.xyz / (abs(hitClip.w) > 1e-6f ? hitClip.w : 1e-6f);\n"
+				  "\tgraphInput.screenPosition = float4(shaderGraphViewport.xy + (ndc.xy * float2(0.5f, -0.5f) + 0.5f) * shaderGraphViewport.zw, ndc.z, 1.0f);\n"
 				  "\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 				  "\tgraphInput.tangentToWorld = float3x3(\n"
 				  "\t\tworldTangent, worldBitangent, worldNormal);\n"
-				  "\treturn EvaluateShaderGraphSurface(\n"
-				  "\t\tgraphInput, GetShaderGraphParameters());\n"
+				  "\tfloat4x3 instanceWorld = ObjectToWorld4x3();\n"
+				  "\tfloat4x4 graphWorld = float4x4(float4(instanceWorld[0], 0), float4(instanceWorld[1], 0),\n"
+				  "\t\tfloat4(instanceWorld[2], 0), float4(instanceWorld[3], 1));\n" +
+				  BuildObjectInputAssignments("mul(subMesh.localMatrix, graphWorld)", "0.0f.xxx", "0.0f.xxx") +
+				  BuildSphereBoundsAssignments("geometryData.boundsSphere.xyz", "geometryData.boundsSphere.w", "graphWorld") +
+				  "\tgraphInput.isFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;\n"
+				  "\tShaderGraphSurface graph = EvaluateShaderGraphSurface(\n"
+				  "\t\tgraphInput, gRaytracingMaterialParameters.Load<ShaderGraphParameters>(geometryData.parameterOffset));\n\tgraph.baseColor *= vertexColor;\n\treturn graph;\n"
 				  "}\n\n"
 				  "[shader(\"anyhit\")]\n"
 				  "void ReflectionAnyHit(inout ReflectionPayload payload,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
-				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(attr);\n"
+				  "\tSubMeshShaderData subMesh;\n"
+				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, attr);\n"
 				  "\tif (graph.baseColor.a * graph.opacity < graph.alphaClip) {\n"
 				  "\t\tIgnoreHit();\n"
 				  "\t}\n"
@@ -95,7 +103,8 @@ namespace Engine::ShaderGraphStageSource {
 				  "[shader(\"closesthit\")]\n"
 				  "void ReflectionClosestHit(inout ReflectionPayload payload,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
-				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(attr);\n"
+				  "\tSubMeshShaderData subMesh;\n"
+				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, attr);\n"
 				  "\tRaytracingInstanceShaderData instanceData =\n"
 				  "\t\tgRaytracingSceneInstances[InstanceID()];\n"
 				  "\tfloat3 worldPosition = WorldRayOrigin() +\n"
@@ -109,11 +118,15 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tmaterial.emissive = graph.emissive;\n"
 				  "\tpayload.hit = 1u;\n"
 				  "\tpayload.color = EvaluateRaytracingSurfaceLighting(\n"
-				  "\t\tworldPosition, material, instanceData.renderFlags);\n"
+				  "\t\tworldPosition, material, instanceData.renderFlags, (subMesh._materialPad >> 16u) == 3u ? graph.transmission : 0.0f);\n"
+				  "\tif ((subMesh._materialPad >> 16u) == 3u) {\n"
+				  "\t\tpayload.color = ResolveReflectionTransparency(payload.color, graph.baseColor.a * graph.opacity,\n"
+				  "\t\t\tgraph.transmission, graph.transmissionColor, graph.refraction, graph.normal, worldPosition,\n"
+				  "\t\t\tsubMesh.renderGroupIndex, payload.transmissionDepth);\n"
+				  "\t}\n"
 				  "\tpayload.worldPosition = worldPosition;\n"
 				  "\tpayload.hitDistance = RayTCurrent();\n"
 				  "\tpayload.worldNormal = graph.normal;\n"
-				  "\tpayload._pad0 = 0.0f;\n"
 				  "}\n";
 		return source;
 	}
@@ -123,7 +136,6 @@ namespace Engine::ShaderGraphStageSource {
 
 		const ShaderGraphNode* output = context.FindNode(graph.outputNode);
 		if (!output || output->kind != ShaderGraphNodeKind::RayTracingOutput) {
-
 			context.AddDiagnostic(graph.outputNode, "Ray Tracing Effect出力ノードが見つかりません");
 			return {};
 		}
@@ -131,133 +143,59 @@ namespace Engine::ShaderGraphStageSource {
 			*output, 0, ShaderGraphValueType::Float4, "gSourceColor.SampleLevel(gSampler, graphInput.uv, 0.0f)");
 
 		std::string source = "// Shader Graph generated RayTracing Feature\n"
-							 "#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n\n"
-							 "#define gShaderGraphSceneColor gSourceColor\n"
-							 "#define gShaderGraphSceneDepth gSourceDepth\n"
-							 "#define gShaderGraphSceneNormal gSourceNormal\n"
-							 "#define gShaderGraphScenePosition gSourcePosition\n"
-							 "#define gShaderGraphSceneMaterial gSourceMaterial\n"
-							 "#define gShaderGraphSceneFlags gSourceFlags\n"
-							 "Texture2D<float4> gShaderGraphSceneEmissive : register(t17);\n\n"
-							 "cbuffer ShaderGraphTimeConstants : register(b4) {\n\n"
-							 "\tfloat shaderGraphTime;\n"
-							 "\tfloat shaderGraphDeltaTime;\n"
-							 "\tfloat shaderGraphSmoothDeltaTime;\n"
-							 "\tfloat shaderGraphUnscaledTime;\n"
-							 "};\n\n";
+			"#define NEM_SHADER_GRAPH_EXPLICIT_LOD 1\n"
+			"#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n"
+			"#define gShaderGraphSceneColor gSourceColor\n"
+			"#define gShaderGraphSceneDepth gSourceDepth\n"
+			"#define gShaderGraphSceneNormal gSourceNormal\n"
+			"#define gShaderGraphScenePosition gSourcePosition\n"
+			"#define gShaderGraphSceneMaterial gSourceMaterial\n"
+			"#define gShaderGraphSceneFlags gSourceFlags\n"
+			"Texture2D<float4> gShaderGraphSceneEmissive : register(t17);\n";
+		source += BuildCommonSource(graph, context, true, false);
 		source += context.BuildMaterialConstantBuffer(5, "RayTracingParameters");
-		source += "\n" + context.BuildParameterStructure();
-		source += "\n" + context.BuildMaterialParameterGetter();
-		source += "\n" + context.BuildSamplerDeclarations();
-		source += "\nstruct ShaderGraphSurfaceInput {\n\n"
-				  "\tfloat2 uv;\n"
-				  "\tfloat3 worldNormal;\n"
-				  "\tfloat3 worldPosition;\n"
-				  "\tfloat3 objectPosition;\n"
-				  "\tfloat3 objectNormal;\n"
-				  "\tfloat3 objectTangent;\n"
-				  "\tfloat3 viewDirection;\n"
-				  "\tfloat4 screenPosition;\n"
-				  "\tfloat4 vertexColor;\n"
-				  "\tfloat3x3 tangentToWorld;\n"
-				  "};\n\n"
-				  "struct ShaderGraphRayResult {\n\n"
-				  "\tfloat3 color;\n"
-				  "\tfloat hit;\n"
-				  "\tfloat distance;\n"
-				  "\tfloat3 position;\n"
-				  "\tfloat3 normal;\n"
-				  "};\n\n"
-				  "float4 SampleGraphTexture(uint textureIndex, float2 uv, "
-				  "SamplerState sampler, float4 fallbackValue) {\n\n"
-				  "\tif (textureIndex == 0xFFFFFFFFu) return fallbackValue;\n"
-				  "\tTexture2D<float4> texture = ResourceDescriptorHeap["
-				  "NonUniformResourceIndex(textureIndex)];\n"
-				  "\treturn texture.SampleLevel(sampler, uv, 0.0f);\n"
-				  "}\n\n"
-				  "float ShaderGraphHash(float2 value) {\n\n"
-				  "\treturn frac(sin(dot(value, float2(127.1f, 311.7f))) * "
-				  "43758.5453f);\n"
-				  "}\n\n"
-				  "float ShaderGraphSimpleNoise(float2 uv) {\n\n"
-				  "\tfloat2 cell = floor(uv);\n"
-				  "\tfloat2 local = frac(uv);\n"
-				  "\tfloat2 blend = local * local * (3.0f - 2.0f * local);\n"
-				  "\tfloat a = ShaderGraphHash(cell);\n"
-				  "\tfloat b = ShaderGraphHash(cell + float2(1.0f, 0.0f));\n"
-				  "\tfloat c = ShaderGraphHash(cell + float2(0.0f, 1.0f));\n"
-				  "\tfloat d = ShaderGraphHash(cell + float2(1.0f, 1.0f));\n"
-				  "\treturn lerp(lerp(a, b, blend.x), "
-				  "lerp(c, d, blend.x), blend.y);\n"
-				  "}\n\n"
-				  "float2 ShaderGraphVoronoi(float2 uv, float angleOffset) {\n\n"
-				  "\tfloat2 cell = floor(uv);\n"
-				  "\tfloat2 local = frac(uv);\n"
-				  "\tfloat minimumDistance = 8.0f;\n"
-				  "\tfloat cellValue = 0.0f;\n"
-				  "\t[unroll] for (int y = -1; y <= 1; ++y) {\n"
-				  "\t\t[unroll] for (int x = -1; x <= 1; ++x) {\n"
-				  "\t\t\tfloat2 offset = float2(x, y);\n"
-				  "\t\t\tfloat random = ShaderGraphHash(cell + offset);\n"
-				  "\t\t\tfloat2 featurePoint = 0.5f + 0.5f * float2("
-				  "sin(random * 6.283185307f + angleOffset), "
-				  "cos(random * 6.283185307f + angleOffset));\n"
-				  "\t\t\tfloat distanceValue = distance("
-				  "local, offset + featurePoint);\n"
-				  "\t\t\tif (distanceValue < minimumDistance) { "
-				  "minimumDistance = distanceValue; cellValue = random; }\n"
-				  "\t\t}\n"
-				  "\t}\n"
-				  "\treturn float2(minimumDistance, cellValue);\n"
-				  "}\n\n"
-				  "ShaderGraphRayResult ShaderGraphTraceScene(float3 origin, "
-				  "float3 direction, float minDistance, float maxDistance, "
-				  "uint mask) {\n\n"
-				  "\tRayDesc ray;\n"
-				  "\tray.Origin = origin;\n"
-				  "\tray.Direction = SafeNormalize(direction, float3(0.0f, 0.0f, 1.0f));\n"
-				  "\tray.TMin = max(minDistance, 0.0001f);\n"
-				  "\tray.TMax = max(maxDistance, ray.TMin);\n"
-				  "\tReflectionPayload payload = (ReflectionPayload) 0;\n"
-				  "\tTraceRay(gSceneTLAS, RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES, "
-				  "mask, 0, 0, 0, ray, payload);\n"
-				  "\tShaderGraphRayResult result;\n"
-				  "\tresult.color = payload.hit != 0u ? payload.color : "
-				  "EvaluateReflectionEnvironment(ray.Direction);\n"
-				  "\tresult.hit = payload.hit != 0u ? 1.0f : 0.0f;\n"
-				  "\tresult.distance = payload.hitDistance;\n"
-				  "\tresult.position = payload.worldPosition;\n"
-				  "\tresult.normal = payload.worldNormal;\n"
-				  "\treturn result;\n"
-				  "}\n\n";
-		source += context.BuildCustomFunctionDeclarations();
-		// 画面入力からRay生成の出力式を評価する
-		source += "\n[shader(\"raygeneration\")]\n"
-				  "void RenderFeatureRayGeneration() {\n\n"
-				  "\tuint2 pixel = DispatchRaysIndex().xy;\n"
-				  "\tuint2 dim = DispatchRaysDimensions().xy;\n"
-				  "\tif (any(pixel >= dim)) return;\n"
-				  "\tShaderGraphSurfaceInput graphInput;\n"
-				  "\tgraphInput.uv = (float2(pixel) + 0.5f) / float2(dim);\n"
-				  "\tgraphInput.worldPosition = gSourcePosition.Load(int3(pixel, 0)).xyz;\n"
-				  "\tgraphInput.worldNormal = DecodeWorldNormal("
-				  "gSourceNormal.Load(int3(pixel, 0)).xyz);\n"
-				  "\tgraphInput.objectPosition = graphInput.worldPosition;\n"
-				  "\tgraphInput.objectNormal = graphInput.worldNormal;\n"
-				  "\tgraphInput.objectTangent = float3(1.0f, 0.0f, 0.0f);\n"
-				  "\tgraphInput.viewDirection = SafeNormalize(gCameraPosition - "
-				  "graphInput.worldPosition, float3(0.0f, 0.0f, 1.0f));\n"
-				  "\tgraphInput.screenPosition = float4(pixel, 0.0f, 1.0f);\n"
-				  "\tgraphInput.vertexColor = 1.0f.xxxx;\n"
-				  "\tgraphInput.tangentToWorld = float3x3(1.0f, 0.0f, 0.0f, "
-				  "0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);\n"
-				  "\tShaderGraphParameters graphParameters = "
-				  "GetShaderGraphParameters();\n";
+		source += context.BuildMaterialParameterGetter();
+		source += "struct ShaderGraphRayResult {\n"
+			"\tfloat3 color;\n\tfloat hit;\n\tfloat distance;\n\tfloat3 position;\n\tfloat3 normal;\n};\n"
+			"ShaderGraphRayResult ShaderGraphTraceScene(float3 origin, float3 direction, float minDistance, float maxDistance, uint mask) {\n"
+			"\tRayDesc ray;\n"
+			"\tray.Origin = origin;\n"
+			"\tray.Direction = SafeNormalize(direction, float3(0.0f, 0.0f, 1.0f));\n"
+			"\tray.TMin = max(minDistance, 0.0001f);\n"
+			"\tray.TMax = max(maxDistance, ray.TMin);\n"
+			"\tReflectionPayload payload = (ReflectionPayload)0;\n"
+			"\tTraceRay(gSceneTLAS, RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES, mask, 0, 1, 0, ray, payload);\n"
+			"\tShaderGraphRayResult result;\n"
+			"\tresult.color = payload.hit != 0u ? payload.color : EvaluateReflectionEnvironment(ray.Direction);\n"
+			"\tresult.hit = payload.hit != 0u ? 1.0f : 0.0f;\n"
+			"\tresult.distance = payload.hitDistance;\n"
+			"\tresult.position = payload.worldPosition;\n"
+			"\tresult.normal = payload.worldNormal;\n"
+			"\treturn result;\n}\n"
+			"[shader(\"raygeneration\")]\n"
+			"void RenderFeatureRayGeneration() {\n"
+			"\tuint2 pixel = DispatchRaysIndex().xy;\n"
+			"\tuint2 dim = DispatchRaysDimensions().xy;\n"
+			"\tif (any(pixel >= dim)) return;\n"
+			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
+			"\tgraphInput.screenSize = float2(dim);\n"
+			"\tgraphInput.uv = (float2(pixel) + 0.5f) / float2(dim);\n"
+			"\tgraphInput.worldPosition = gSourcePosition.Load(int3(pixel, 0)).xyz;\n"
+			"\tgraphInput.worldNormal = ShaderGraphDecodeSceneNormal(gSourceNormal.Load(int3(pixel, 0)).xyz);\n"
+			"\tgraphInput.objectPosition = graphInput.worldPosition;\n"
+			"\tgraphInput.objectNormal = graphInput.worldNormal;\n"
+			"\tgraphInput.objectTangent = float3(1.0f, 0.0f, 0.0f);\n"
+			"\tgraphInput.viewDirection = SafeNormalize(graphInput.cameraPosition - graphInput.worldPosition, float3(0,0,1));\n"
+			"\tgraphInput.screenPosition = float4(float2(pixel) + 0.5f, 0.0f, 1.0f);\n"
+			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
+			"\tgraphInput.isFrontFace = true;\n"
+			"\tgraphInput.tangentToWorld = float3x3(1,0,0,0,1,0,0,0,1);\n" +
+			BuildObjectInputAssignments("float4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)",
+				"graphInput.worldPosition", "graphInput.worldPosition") +
+			"\tShaderGraphParameters graphParameters = GetShaderGraphParameters();\n";
 		source += context.GetEvaluationStatements();
-		source += "\tgDestColor[pixel] = " + color.code +
-				  ";\n"
-				  "}\n";
+		source += "\tgDestColor[pixel] = " + color.code + ";\n}\n";
 		return source;
 	}
-
 } // Engine::ShaderGraphStageSource

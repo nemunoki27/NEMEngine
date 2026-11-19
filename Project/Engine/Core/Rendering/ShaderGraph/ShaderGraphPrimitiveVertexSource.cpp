@@ -1,4 +1,5 @@
 #include "ShaderGraphStageSource.h"
+#include "ShaderGraphRuntimeInputSource.h"
 
 //============================================================================
 //	include
@@ -47,12 +48,13 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tfloat3 tangent;\n"
 				  "};\n\n"
 				  "ShaderGraphPrimitiveVertexResult EvaluatePrimitiveShaderGraphVertex(MeshVertex vertex, PrimitiveInstance "
-				  "instance, float shaderGraphTime) {\n\n"
+				  "instance, uint vertexID, float shaderGraphTime) {\n\n"
 				  "\tfloat4 originalWorldPosition = mul(float4(vertex.position.xyz, 1.0f), instance.worldMatrix);\n"
 				  "\tfloat3 originalWorldNormal = normalize(mul(vertex.normal, (float3x3)instance.worldMatrix));\n"
 				  "\tfloat3 originalWorldTangent = normalize(mul(vertex.tangent, (float3x3)instance.worldMatrix));\n"
 				  "\tfloat4 vertexColor = ResolvePrimitiveVertexColor(vertex.position.xyz, instance);\n"
-				  "\tShaderGraphSurfaceInput graphInput;\n"
+				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
 				  "\tgraphInput.uv = mul(float4(vertex.uv, 0.0f, 1.0f), instance.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = originalWorldNormal;\n"
 				  "\tgraphInput.worldPosition = originalWorldPosition.xyz;\n"
@@ -63,7 +65,10 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tgraphInput.screenPosition = mul(originalWorldPosition, viewProjection);\n"
 				  "\tgraphInput.vertexColor = vertexColor;\n"
 				  "\tgraphInput.tangentToWorld = float3x3(originalWorldTangent, cross(originalWorldNormal, "
-				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n"
+				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n" +
+				  BuildObjectInputAssignments("instance.worldMatrix", "0.0f.xxx", "0.0f.xxx") +
+				  BuildSphereBoundsAssignments("geometryBounds.xyz", "geometryBounds.w", "instance.worldMatrix") +
+				  "\tgraphInput.vertexID = vertexID;\n"
 				  "\tShaderGraphParameters graphParameters = GetShaderGraphParameters();\n"
 				  "\tShaderGraphPrimitiveVertexResult result;\n";
 		source += context.GetEvaluationStatements();
@@ -83,15 +88,15 @@ namespace Engine::ShaderGraphStageSource {
 		source += "VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {\n\n"
 				  "\tMeshVertex vertex = gVertices[vertexID];\n"
 				  "\tPrimitiveInstance instance = gInstances[instanceID];\n"
-				  "\tShaderGraphPrimitiveVertexResult graph = EvaluatePrimitiveShaderGraphVertex(vertex, instance, shaderGraphTime);\n"
+				  "\tShaderGraphPrimitiveVertexResult graph = EvaluatePrimitiveShaderGraphVertex(vertex, instance, vertexID, shaderGraphTime);\n"
 				  "\tVSOutput output = BuildPrimitiveVertexOutput(\n"
 				  "\t\tgraph.position, graph.normal, graph.tangent,\n"
 				  "\t\tvertex.tangentSign, vertex.uv,\n"
 				  "\t\tResolvePrimitiveVertexColor(vertex.position.xyz, instance),\n"
-				  "\t\tinstance);\n"
+				  "\t\tinstance, instanceID);\n"
 				  "\tPrimitiveInstance previousInstance = instance;\n"
 				  "\tpreviousInstance.worldMatrix = instance.motionFrameSerial == frameSerial ? instance.previousWorldMatrix : instance.worldMatrix;\n"
-				  "\tShaderGraphPrimitiveVertexResult previousGraph = EvaluatePrimitiveShaderGraphVertex(vertex, previousInstance, "
+				  "\tShaderGraphPrimitiveVertexResult previousGraph = EvaluatePrimitiveShaderGraphVertex(vertex, previousInstance, vertexID, "
 				  "shaderGraphTime - shaderGraphDeltaTime);\n"
 				  "\toutput.previousClipPosition = mul(mul(float4(previousGraph.position, 1.0f), previousInstance.worldMatrix), previousViewProjection);\n"
 				  "\toutput.uvCoordinates.xy = vertex.position.xy;\n"
@@ -125,16 +130,17 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tPrimitiveInstance instance = gInstances[groupID.y];\n"
 				  "\tconst uint indexBase = (triangleBase + groupThreadID) * 3u;\n"
 				  "\tfor (uint index = 0; index < 3u; ++index) {\n\n"
-				  "\t\tMeshVertex vertex = gVertices[gIndices[indexBase + index]];\n"
-				  "\t\tShaderGraphPrimitiveVertexResult graph = EvaluatePrimitiveShaderGraphVertex(vertex, instance, shaderGraphTime);\n"
+				  "\t\tuint vertexID = gIndices[indexBase + index];\n"
+"\t\tMeshVertex vertex = gVertices[vertexID];\n"
+				  "\t\tShaderGraphPrimitiveVertexResult graph = EvaluatePrimitiveShaderGraphVertex(vertex, instance, vertexID, shaderGraphTime);\n"
 				  "\t\tverts[groupThreadID * 3u + index] = BuildPrimitiveVertexOutput(\n"
 				  "\t\t\tgraph.position, graph.normal, graph.tangent,\n"
 				  "\t\t\tvertex.tangentSign, vertex.uv,\n"
 				  "\t\t\tResolvePrimitiveVertexColor(vertex.position.xyz, instance),\n"
-				  "\t\t\tinstance);\n"
+				  "\t\t\tinstance, groupID.y);\n"
 				  "\t\tPrimitiveInstance previousInstance = instance;\n"
 				  "\t\tpreviousInstance.worldMatrix = instance.motionFrameSerial == frameSerial ? instance.previousWorldMatrix : instance.worldMatrix;\n"
-				  "\t\tShaderGraphPrimitiveVertexResult previousGraph = EvaluatePrimitiveShaderGraphVertex(vertex, previousInstance, "
+				  "\t\tShaderGraphPrimitiveVertexResult previousGraph = EvaluatePrimitiveShaderGraphVertex(vertex, previousInstance, vertexID, "
 				  "shaderGraphTime - shaderGraphDeltaTime);\n"
 				  "\t\tverts[groupThreadID * 3u + index].previousClipPosition = mul(mul(float4(previousGraph.position, 1.0f), "
 				  "previousInstance.worldMatrix), previousViewProjection);\n"
@@ -161,6 +167,7 @@ namespace Engine::ShaderGraphStageSource {
 
 		// 2DのUV変換と頂点色を入力へ渡す
 		std::string source = "// Shader Graph generated Primitive2D vertex file\n"
+							 "#define NEM_SHADER_GRAPH_EXPLICIT_LOD 1\n"
 							 "#include \"Builtin/Primitive/primitive2D.hlsli\"\n"
 							 "#include \"Builtin/Mesh/Common/meshShaderSharedTypes.hlsli\"\n"
 							 "SamplerState gSampler : register(s0);\n"
@@ -177,11 +184,12 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tfloat3 tangent;\n"
 				  "};\n\n"
 				  "ShaderGraphPrimitive2DVertexResult EvaluatePrimitive2DShaderGraphVertex(MeshVertex vertex, "
-				  "PrimitiveInstance instance) {\n\n"
+				  "PrimitiveInstance instance, uint vertexID) {\n\n"
 				  "\tfloat4 originalWorldPosition = mul(float4(vertex.position.xyz, 1.0f), instance.worldMatrix);\n"
 				  "\tfloat3 originalWorldNormal = normalize(mul(vertex.normal, (float3x3)instance.worldMatrix));\n"
 				  "\tfloat3 originalWorldTangent = normalize(mul(vertex.tangent, (float3x3)instance.worldMatrix));\n"
-				  "\tShaderGraphSurfaceInput graphInput;\n"
+				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
 				  "\tfloat2 localTexcoord = ResolvePrimitive2DTexcoord(vertex.uv, instance);\n"
 				  "\tgraphInput.uv = mul(float4(localTexcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = originalWorldNormal;\n"
@@ -193,7 +201,10 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tgraphInput.screenPosition = mul(originalWorldPosition, viewProjection);\n"
 				  "\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 				  "\tgraphInput.tangentToWorld = float3x3(originalWorldTangent, cross(originalWorldNormal, "
-				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n"
+				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n" +
+				  BuildObjectInputAssignments("instance.worldMatrix", "0.0f.xxx", "0.0f.xxx") +
+				  BuildSphereBoundsAssignments("geometryBounds.xyz", "geometryBounds.w", "instance.worldMatrix") +
+				  "\tgraphInput.vertexID = vertexID;\n"
 				  "\tShaderGraphParameters graphParameters = GetShaderGraphParameters();\n"
 				  "\tShaderGraphPrimitive2DVertexResult result;\n";
 		source += context.GetEvaluationStatements();
@@ -205,8 +216,8 @@ namespace Engine::ShaderGraphStageSource {
 				  "VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {\n\n"
 				  "\tMeshVertex vertex = gVertices[vertexID];\n"
 				  "\tPrimitiveInstance instance = gInstances[instanceID];\n"
-				  "\tShaderGraphPrimitive2DVertexResult graph = EvaluatePrimitive2DShaderGraphVertex(vertex, instance);\n"
-				  "\tVSOutput output = BuildPrimitive2DVertexOutput(graph.position, vertex.uv, instance);\n"
+				  "\tShaderGraphPrimitive2DVertexResult graph = EvaluatePrimitive2DShaderGraphVertex(vertex, instance, vertexID);\n"
+				  "\tVSOutput output = BuildPrimitive2DVertexOutput(graph.position, vertex.uv, instance, instanceID);\n"
 				  "\toutput.uvCoordinates.xy = vertex.position.xy;\n"
 				  "\treturn output;\n"
 				  "}\n";

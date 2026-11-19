@@ -38,11 +38,9 @@ namespace Engine {
 		// フォーマットのハッシュ値
 		uint64_t formatHash = 0;
 
-		// メッシュシェーダーが有効か
-		bool meshEnabled = false;
-		// レイトレーシングが有効か
-		bool inlineRayTracingEnabled = false;
-		bool dispatchRaysEnabled = false;
+		// 機能設定から選択されたバリアント
+		uint32_t stateVariantIndex = 0;
+		uint32_t geometryVariantIndex = 0;
 		// 深度テスト+書き込みを強制した派生PSOか、3Dテキストなど次元で深度挙動を変える用途で別エントリにする
 		bool depthForcedTestWrite = false;
 		// Shadow Map用にCullModeをNONEへ上書きした派生PSOか

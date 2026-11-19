@@ -168,6 +168,2399 @@
         },
         {
             "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "56dbb5b99d5994ca27fe7d0ff1778c5e",
+                    "mesh": "afe74e10a33b5e34af497a027508f376",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "0a25373d638d79b9",
+                                    "name": "割れ目の太さ",
+                                    "semantic": "None",
+                                    "value": 0.029999999329447746
+                                },
+                                {
+                                    "id": "1657fdeaede6057d",
+                                    "name": "溶岩色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.009999990463256836,
+                                        "g": 0.009999990463256836,
+                                        "r": 1.0
+                                    }
+                                },
+                                {
+                                    "id": "4d506a1e1591fd80",
+                                    "name": "流速",
+                                    "semantic": "None",
+                                    "value": 5.53000020980835
+                                },
+                                {
+                                    "id": "51f1e040a81863f7",
+                                    "name": "発光強度",
+                                    "semantic": "None",
+                                    "value": 6.679999828338623
+                                },
+                                {
+                                    "id": "6cce61cdfda392e5",
+                                    "name": "normalTexture",
+                                    "semantic": "NormalTexture",
+                                    "value": "c5815856a8ef6059bf2c09bc6c4ed80d"
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.800000011920929,
+                                        "g": 0.800000011920929,
+                                        "r": 0.800000011920929
+                                    }
+                                },
+                                {
+                                    "id": "a6ef6168961d7b4f",
+                                    "name": "模様のスケール",
+                                    "semantic": "None",
+                                    "value": 46.29999923706055
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c9106cc588483a02",
+                                    "name": "岩色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.06408476829528809,
+                                        "g": 0.08936172723770142,
+                                        "r": 0.041068367660045624
+                                    }
+                                }
+                            ],
+                            "name": "horse_statue_01",
+                            "sourcePivot": {
+                                "x": -0.00406850129365921,
+                                "y": 0.11550600081682205,
+                                "z": -0.00040999986231327057
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "cc3e13c18ed7539d",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "0a25373d638d79b9",
+                                    "name": "割れ目の太さ",
+                                    "semantic": "None",
+                                    "value": 0.029999999329447746
+                                },
+                                {
+                                    "id": "1657fdeaede6057d",
+                                    "name": "溶岩色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.009999990463256836,
+                                        "g": 0.009999990463256836,
+                                        "r": 1.0
+                                    }
+                                },
+                                {
+                                    "id": "4d506a1e1591fd80",
+                                    "name": "流速",
+                                    "semantic": "None",
+                                    "value": 5.53000020980835
+                                },
+                                {
+                                    "id": "51f1e040a81863f7",
+                                    "name": "発光強度",
+                                    "semantic": "None",
+                                    "value": 6.679999828338623
+                                },
+                                {
+                                    "id": "6cce61cdfda392e5",
+                                    "name": "normalTexture",
+                                    "semantic": "NormalTexture",
+                                    "value": "c5815856a8ef6059bf2c09bc6c4ed80d"
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "b95dd73fc0bc76df28168b319c0ff17a"
+                                },
+                                {
+                                    "id": "a6ef6168961d7b4f",
+                                    "name": "模様のスケール",
+                                    "semantic": "None",
+                                    "value": 46.29999923706055
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c9106cc588483a02",
+                                    "name": "岩色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.06408476829528809,
+                                        "g": 0.08936172723770142,
+                                        "r": 0.041068367660045624
+                                    }
+                                }
+                            ],
+                            "name": "horse_statue_01_base",
+                            "sourcePivot": {
+                                "x": 2.9500573873519897e-05,
+                                "y": 0.005758999846875668,
+                                "z": 1.449882984161377e-05
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "d83364afb6e2fa90",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Horse"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "7fa8a08d58fe17da",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -7.950550556182861,
+                        "y": 0.47430017590522766,
+                        "z": 7.4943718910217285
+                    },
+                    "localRotation": {
+                        "w": 0.3409254252910614,
+                        "x": 0.0,
+                        "y": 0.9400903582572937,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 22.88750648498535,
+                        "y": 22.88740348815918,
+                        "z": 22.88750648498535
+                    }
+                }
+            },
+            "LocalFileID": "7fa8a08d58fe17da"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "427e4d3e90a850326796c6393e9234fc",
+                    "mesh": "66ccd3e3ca07330cd2db06575cb2b322",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Foot.L",
+                            "sourcePivot": {
+                                "x": 9.074574336409569e-07,
+                                "y": -0.00032929563894867897,
+                                "z": -0.0029289424419403076
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "c214b5f042c35e48",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Torso-0",
+                            "sourcePivot": {
+                                "x": 2.653687261044979e-05,
+                                "y": 0.0,
+                                "z": -0.0024347917642444372
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "d181f7506bc4b64a",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Torso-1",
+                            "sourcePivot": {
+                                "x": 4.253862425684929e-05,
+                                "y": -3.632763400673866e-05,
+                                "z": -0.0009138262830674648
+                            },
+                            "sourceSubMeshIndex": 2,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "bc97c5b13a52506a",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Head-0",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.000378401018679142,
+                                "z": -0.0030639641918241978
+                            },
+                            "sourceSubMeshIndex": 3,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "bcb70eb8ad5155bd",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Head-1",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0003924155607819557,
+                                "z": 0.0009928462095558643
+                            },
+                            "sourceSubMeshIndex": 4,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "9327adf16ff9be15",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.04624435305595398,
+                                        "g": 0.04624435305595398,
+                                        "r": 0.04624435305595398
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Head-2",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": -0.009091207757592201,
+                                "z": 0.0004946631379425526
+                            },
+                            "sourceSubMeshIndex": 5,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "7ae0ca0564033b14",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Shoulder.L",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 6,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "a06478a9607347e2",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Arm.L",
+                            "sourcePivot": {
+                                "x": -0.010395321995019913,
+                                "y": -0.00034898490412160754,
+                                "z": 0.0006189086707308888
+                            },
+                            "sourceSubMeshIndex": 7,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "7900a9b92030b620",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Shoulder.R",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 8,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "f92ad2958ed68d7e",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Arm.R",
+                            "sourcePivot": {
+                                "x": -9.313225746154785e-10,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 9,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "b6ce1ce7c3b41df7",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Leg.L",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": -0.0007373729022219777
+                            },
+                            "sourceSubMeshIndex": 10,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "02d0747271a86b67",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "LowerLeg.L",
+                            "sourcePivot": {
+                                "x": 9.605428203940392e-07,
+                                "y": 0.002117724157869816,
+                                "z": 0.00038248219061642885
+                            },
+                            "sourceSubMeshIndex": 11,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "5dc10fd813f69115",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Leg.R",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": -0.0007373729022219777
+                            },
+                            "sourceSubMeshIndex": 12,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "f3945d511dfe9f37",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "LowerLeg.R",
+                            "sourcePivot": {
+                                "x": -9.605428203940392e-07,
+                                "y": 0.002117724157869816,
+                                "z": 0.00038248219061642885
+                            },
+                            "sourceSubMeshIndex": 13,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "b5be2902065c7cec",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Foot.R",
+                            "sourcePivot": {
+                                "x": -9.074574336409569e-07,
+                                "y": -0.00032929563894867897,
+                                "z": -0.0029289424419403076
+                            },
+                            "sourceSubMeshIndex": 14,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "ffe87f601b2be189",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Hand.R-0",
+                            "sourcePivot": {
+                                "x": 0.02232196368277073,
+                                "y": -0.00011803547386080027,
+                                "z": 0.0006497121648862958
+                            },
+                            "sourceSubMeshIndex": 15,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "8ed3c57d376060cf",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Hand.R-1",
+                            "sourcePivot": {
+                                "x": 0.025270871818065643,
+                                "y": -0.0007573964539915323,
+                                "z": 0.0011696286965161562
+                            },
+                            "sourceSubMeshIndex": 16,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "442a9cec5675a429",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.03833760321140289,
+                                        "g": 0.2913144528865814,
+                                        "r": 0.5903283953666687
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Hand.L-0",
+                            "sourcePivot": {
+                                "x": -0.02232196368277073,
+                                "y": -0.00011803547386080027,
+                                "z": 0.0006497121648862958
+                            },
+                            "sourceSubMeshIndex": 17,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "99b4732c666b03f7",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "131ff2c654e118f2",
+                                    "name": "輪郭の発光強度",
+                                    "semantic": "None",
+                                    "value": 0.38999998569488525
+                                },
+                                {
+                                    "id": "2142cbbde99b9c95",
+                                    "name": "ホログラム色",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.026075202971696854,
+                                        "g": 0.6808511018753052,
+                                        "r": 0.49974289536476135
+                                    }
+                                },
+                                {
+                                    "id": "341a01eada2ef73a",
+                                    "name": "走査線の密度",
+                                    "semantic": "None",
+                                    "value": 14.569999694824219
+                                },
+                                {
+                                    "id": "512d2ecbb2246137",
+                                    "name": "走査速度",
+                                    "semantic": "None",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.3349650204181671,
+                                        "g": 0.37130042910575867,
+                                        "r": 0.3737579882144928
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 0.8999999761581421
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.10000000149011612
+                                }
+                            ],
+                            "name": "Hand.L-1",
+                            "sourcePivot": {
+                                "x": -0.025270871818065643,
+                                "y": -0.0007573964539915323,
+                                "z": 0.0011696286965161562
+                            },
+                            "sourceSubMeshIndex": 18,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "4fc9253ffd71cca4",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "RobotExpressive"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "b49e78b2be04e102",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkinnedAnimation": {
+                    "clip": "Default",
+                    "enabled": true,
+                    "isDisplayBone": false,
+                    "loop": true,
+                    "playInEditMode": true,
+                    "playbackSpeed": 1.0,
+                    "timeSource": {
+                        "mode": "Hierarchy",
+                        "source": {
+                            "kind": "Scene",
+                            "localFileId": "",
+                            "sourceAsset": ""
+                        }
+                    },
+                    "transitionDuration": 0.15000000596046448
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -4.697118759155273,
+                        "y": 5.594186782836914,
+                        "z": 5.16973876953125
+                    },
+                    "localRotation": {
+                        "w": 0.9816563129425049,
+                        "x": 0.0,
+                        "y": -0.1906590312719345,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.841799795627594,
+                        "y": 0.8417747020721436,
+                        "z": 0.841799795627594
+                    }
+                }
+            },
+            "LocalFileID": "b49e78b2be04e102"
+        },
+        {
+            "Components": {
                 "DirectionalLight": {
                     "color": {
                         "a": 1.0,
@@ -533,7 +2926,7 @@
                             "fail": "KEEP",
                             "pass": "KEEP"
                         },
-                        "inheritMaterial": true,
+                        "inheritMaterial": false,
                         "separateBackFace": false,
                         "stencilEnabled": false,
                         "stencilReadMask": 255,
@@ -587,13 +2980,13 @@
                                     "id": "c65b493a4e9d7f55",
                                     "name": "roughness",
                                     "semantic": "Roughness",
-                                    "value": 1.0
+                                    "value": 0.12999999523162842
                                 },
                                 {
                                     "id": "df9e0c473a8555c8",
                                     "name": "metallic",
                                     "semantic": "Metallic",
-                                    "value": 0.0
+                                    "value": 0.699999988079071
                                 }
                             ],
                             "name": "00_Floor",
@@ -1036,8 +3429,8 @@
                                     "value": {
                                         "a": 1.0,
                                         "b": 1.0,
-                                        "g": 0.3744680881500244,
-                                        "r": 0.0
+                                        "g": 0.9261205196380615,
+                                        "r": 0.6595745086669922
                                     }
                                 },
                                 {
@@ -1055,13 +3448,13 @@
                                     "id": "c65b493a4e9d7f55",
                                     "name": "roughness",
                                     "semantic": "Roughness",
-                                    "value": 1.0
+                                    "value": 0.28999999165534973
                                 },
                                 {
                                     "id": "df9e0c473a8555c8",
                                     "name": "metallic",
                                     "semantic": "Metallic",
-                                    "value": 0.0
+                                    "value": 1.0
                                 }
                             ],
                             "name": "06_TallBox",
@@ -1192,9 +3585,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 4.889999866485596,
-                        "y": 4.889999866485596,
-                        "z": 4.889999866485596
+                        "x": 8.459699630737305,
+                        "y": 8.459699630737305,
+                        "z": 8.459699630737305
                     }
                 }
             },
@@ -1212,8 +3605,8 @@
                     "castShadow": true,
                     "enableZPrepass": true,
                     "layer": 0,
-                    "lighting": true,
-                    "material": "",
+                    "lighting": false,
+                    "material": "878238f21416f99934e1d0dca3719f05",
                     "mesh": "719b8cc60aeb92c1ffe0974c742f4c5c",
                     "order": 0,
                     "queue": "Opaque",
@@ -1268,6 +3661,35 @@
                             "material": "",
                             "materialInstance": [
                                 {
+                                    "id": "09220cea2de81437",
+                                    "name": "FaceOpacity",
+                                    "semantic": "None",
+                                    "value": -0.019999999552965164
+                                },
+                                {
+                                    "id": "0973e20c0de8b234",
+                                    "name": "屈折",
+                                    "semantic": "None",
+                                    "value": true
+                                },
+                                {
+                                    "id": "20751295ab4b9442",
+                                    "name": "Roughness",
+                                    "semantic": "None",
+                                    "value": 0.875
+                                },
+                                {
+                                    "id": "25474f0511217f1d",
+                                    "name": "GlassTint",
+                                    "semantic": "None",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.8851063847541809,
+                                        "g": 0.8394529819488525,
+                                        "r": 0.7344499826431274
+                                    }
+                                },
+                                {
                                     "id": "77f5c18e246c6638",
                                     "name": "color",
                                     "semantic": "BaseColor",
@@ -1294,6 +3716,12 @@
                                         "g": 0.0,
                                         "r": 0.0
                                     }
+                                },
+                                {
+                                    "id": "fd2126a6baaf47c1",
+                                    "name": "EdgeOpacity",
+                                    "semantic": "None",
+                                    "value": 0.9100000262260437
                                 }
                             ],
                             "name": "mesh",
@@ -1332,9 +3760,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -3.6602389812469482,
-                        "y": 3.3070390224456787,
-                        "z": 3.6614105701446533
+                        "x": -0.06589433550834656,
+                        "y": 0.31527411937713623,
+                        "z": 7.548913955688477
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -1343,9 +3771,9 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
+                        "x": 2.547999858856201,
+                        "y": 2.547999858856201,
+                        "z": 2.547999858856201
                     }
                 }
             },

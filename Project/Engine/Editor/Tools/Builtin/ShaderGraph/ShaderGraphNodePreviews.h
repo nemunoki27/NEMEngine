@@ -28,6 +28,8 @@ namespace Engine {
 			const ShaderGraphAppearanceSetting& appearance, std::string& status);
 		// ノード内にプレビューを表示する
 		void DrawNodePreview(ShaderGraphNode& node, float nodeWidth, const ShaderGraphAppearanceSetting& appearance);
+		// Canvas外で診断のTooltipを表示する
+		void DrawTooltip();
 		// 評価結果を失効させる
 		void InvalidateNodePreviews();
 		// 作成した画像を破棄する
@@ -42,5 +44,6 @@ namespace Engine {
 
 		// 評価結果と描画資源の所有
 		ShaderGraphPreviewEvaluator evaluator_;
+		std::string hoveredDiagnostic_;
 	};
 } // Engine

@@ -59,7 +59,7 @@ Engine::MeshGraphicsBinding::MeshGraphicsBinding() {
 void Engine::MeshGraphicsBinding::BeginFrame() {
 
 	constantBufferAllocator_.BeginFrame();
-	shaderGraphTimeGPUAddress_ = 0;
+	shaderGraphFrameConstants_.BeginFrame();
 	materialParamBinder_.BeginFrame();
 }
 
@@ -86,25 +86,13 @@ void Engine::MeshGraphicsBinding::Bind(const RenderDrawContext& context,
 	if (sharedBindCache_.Has(shaderGraphTimeCBVSlot_) &&
 		context.systemContext) {
 
-		if (shaderGraphTimeGPUAddress_ == 0) {
-			const SystemContext& systemContext = *context.systemContext;
-			const ShaderGraphTimeConstantsGPU constants{
-				.time = systemContext.time,
-				.deltaTime = systemContext.deltaTime,
-				.smoothDeltaTime = systemContext.smoothDeltaTime,
-				.unscaledTime = systemContext.unscaledTime,
-			};
-			const FrameConstantBufferAllocation allocation =
-				constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(),
-			context.graphicsCore->GetDXObject().GetDevice(),
-					constants);
-			shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
-		}
-		if (shaderGraphTimeGPUAddress_ != 0) {
+		const auto address = shaderGraphFrameConstants_.GetAddress(*context.graphicsCore,
+			*context.systemContext, *context.view, prepared.items.front()->cameraDomain, context.viewport);
+		if (address != 0) {
 			RootBindingCommand::SetGraphicsCBV(
 				commandList,
 				sharedBindCache_.Get(shaderGraphTimeCBVSlot_),
-				shaderGraphTimeGPUAddress_);
+				address);
 		}
 	}
 	// シェーダーがMaterialParameters cbufferを宣言している場合のみ、reflection駆動でマテリアル値を詰めてバインドする

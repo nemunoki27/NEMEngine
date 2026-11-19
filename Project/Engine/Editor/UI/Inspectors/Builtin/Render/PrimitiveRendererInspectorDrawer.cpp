@@ -172,7 +172,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	for (const ShaderConstantBufferVariable& var : layout.GetVariables()) {
 
 		if (!var.used ||
-			MaterialParameterEditor::IsInternalPaddingParameter(var)) {
+			!MaterialParameterEditor::IsExposedParameter(var)) {
 			continue;
 		}
 		if (MaterialParameterEditor::IsReflectedTextureParam(
@@ -242,7 +242,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	std::vector<const ShaderResourceBinding*> textures;
 	for (const ShaderResourceBinding& resource : reflection->resources) {
 
-		if (!MaterialParameterEditor::IsMaterialTextureResource(resource)) {
+		if (!MaterialParameterEditor::IsExposedTextureResource(resource, *reflection)) {
 			continue;
 		}
 		if (const ShaderConstantBufferVariable* variable =

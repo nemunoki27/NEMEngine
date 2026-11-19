@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
 . (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
-$validationRoot = Join-Path $engineRoot 'Generated/Refactoring/ParticleSystemRefactor/ProductValidation'
+$validationRoot = Join-Path $engineRoot 'LocalWork/Verification/Refactoring/ParticleSystemRefactor/ProductValidation'
 $gameRoot = New-HarnessFixtureProject -Destination (Join-Path $validationRoot 'Sandbox') -Fixture Particles
 Copy-Item -LiteralPath (Join-Path $engineRoot 'Project/Sandbox/Sandbox.vcxproj') -Destination $gameRoot -Force
 @{ schemaVersion = 1; projectGuid = '4e454d41535345547061727470726f64'; name = 'Sandbox'
@@ -28,7 +28,7 @@ try {
     # Assetだけを分離し、実行ファイルは実際のSandboxから構築する
     $manifest.projectPath = Join-Path $engineRoot 'Project/Sandbox/Sandbox.vcxproj'
     # WindowsPowerShellでも配置先が長くなりすぎない場所を使う
-    $manifest.outputRoot = Join-Path $engineRoot 'Generated/PSP'
+    $manifest.outputRoot = Join-Path $engineRoot 'LocalWork/Tests/PSP'
     $manifest.gameWidth = 640
     $manifest.gameHeight = 360
     $manifest | ConvertTo-Json -Depth 64 | Set-Content -LiteralPath $manifestPath -Encoding utf8
@@ -39,7 +39,7 @@ try {
         -WorkingDirectory $engineRoot -TimeoutSeconds 1800
     $result.output | Set-Content -LiteralPath (Join-Path $validationRoot 'Build.log') -Encoding utf8
     if ($result.exitCode -ne 0 -or $result.timedOut) { throw "製品の構築とCookに失敗しました: $($result.output)" }
-    $productRoot = Join-Path $engineRoot 'Generated/PSP/ProductProbe'
+    $productRoot = Join-Path $engineRoot 'LocalWork/Tests/PSP/ProductProbe'
     $cook = Get-Content -LiteralPath (Join-Path $productRoot 'Cooked/Shaders/ShaderCookManifest.json') -Raw | ConvertFrom-Json
     foreach ($name in @('particleGPUSimulate', 'particleGPUView', 'particleGPURibbonSelect',
         'particleGPUTrailUpdate', 'particleGPUTrailPrepare', 'particleGPUTrailDraw', 'particleGPUDraw')) {

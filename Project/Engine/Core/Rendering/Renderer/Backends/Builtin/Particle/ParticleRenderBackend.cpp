@@ -149,7 +149,7 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);
 
-	SyncAndBindRegistry(*pipelineState, context, commandList);
+	SyncAndBindRegistry(*pipelineState, context, commandList, item->cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
@@ -269,9 +269,21 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// viewの定数バッファを確保する
 		ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 		ParticleViewConstants viewConstants{};
+		if (settings.model) {
+			if (const auto* mesh = ResolveModelMesh(context, settings.model)) {
+				viewConstants.geometryBounds = {mesh->boundsCenter.x, mesh->boundsCenter.y, mesh->boundsCenter.z, mesh->boundsRadius};
+			}
+		} else if (const auto* geometry = geometryManager_.GetOrCreate(graphicsCore, MakeShapeComponent(settings))) {
+			viewConstants.geometryBounds = {geometry->boundsCenter.x, geometry->boundsCenter.y,
+				geometry->boundsCenter.z, geometry->boundsRadius};
+		}
+		viewConstants.geometryMode = settings.shapeOverLifetime && !settings.model ?
+			(settings.shape == PrimitiveType::Ring ? 1.0f : settings.shape == PrimitiveType::Cylinder ? 2.0f : 0.0f) : 0.0f;
 		if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 			viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
 			viewConstants.cameraPosition = camera->cameraPos;
+			viewConstants.cameraForward = camera->forward;
+			viewConstants.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic ? 1.0f : 0.0f;
 		}
 		const FrameConstantBufferAllocation viewAlloc =
 			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, viewConstants);

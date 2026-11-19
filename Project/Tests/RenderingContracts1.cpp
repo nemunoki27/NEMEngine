@@ -191,7 +191,7 @@ namespace NEMTests {
 		const auto* primitiveView = Engine::FindConstantBuffer(
 			primitive2D.reflection, "ViewConstants");
 		if (!primitive2D.IsValid() || !primitiveView ||
-			primitiveView->size != 224u) {
+			primitiveView->size != 240u) {
 
 			return false;
 		}
@@ -202,6 +202,7 @@ namespace NEMTests {
 			{ "cameraPosition", 192u },
 			{ "frameSerial", 204u },
 			{ "materialPadding", 208u },
+			{ "geometryBounds", 224u },
 		};
 		for (const auto& [name, offset] : primitiveOffsets) {
 			const auto found = std::find_if(

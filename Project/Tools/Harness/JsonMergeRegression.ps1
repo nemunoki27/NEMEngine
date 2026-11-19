@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $executable = Join-Path $repoRoot "Generated/Output/$Configuration/NEMBuildTool/NEMBuildTool.exe"
-$fixtureRoot = Join-Path $repoRoot 'Generated/TestFixtures'
+$fixtureRoot = Join-Path $repoRoot 'LocalWork/Tests/TestFixtures'
 $directory = Join-Path $fixtureRoot ('Merge_' + [Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($directory) | Out-Null
 $basePath = Join-Path $directory 'base.json'

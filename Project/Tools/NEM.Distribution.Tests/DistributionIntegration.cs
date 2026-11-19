@@ -24,7 +24,7 @@ internal static class DistributionIntegration {
         string sdk = Path.Combine(engine.ToolchainRoot, "dotnet.exe");
         string shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell/v1.0/powershell.exe");
         await RunAsync(shell, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(repository, "Tools/Distribution/TestPowerShell.ps1"), "-Root", engine.Root],
-            repository, new(), Path.Combine(repository, "Generated/Launcher.PowerShell.Tests.log"));
+            repository, new(), Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.PowerShell.Tests.log"));
         check(true, "Windows PowerShellでの構文とInterop定義");
         string script = Path.Combine(game, "GameAssets/LauncherSmoke.cs");
         string scriptGUID = Guid.NewGuid().ToString("N");
@@ -45,7 +45,7 @@ internal static class DistributionIntegration {
         DistributionStorage.Write(script + ".meta", new {
             schemaVersion = 2, guid = scriptGUID, type = "Script", importer = "ScriptImporter", importerVersion = 1, settings = new { }
         });
-        string reports = Path.Combine(repository, "Generated/LauncherIntegrationReport");
+        string reports = Path.Combine(repository, "LocalWork/Tests/Distribution/LauncherIntegrationReport");
         Directory.CreateDirectory(reports);
         var environment = new Dictionary<string, string> {
             ["NEMENGINE_ROOT"] = engine.Root, ["NEMENGINE_TOOLCHAIN_ROOT"] = engine.ToolchainRoot,

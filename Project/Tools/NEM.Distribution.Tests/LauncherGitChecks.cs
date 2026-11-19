@@ -8,7 +8,7 @@ using NEMEngine.Launcher;
 
 internal static class LauncherGitChecks {
     public static void Run(string repository, string root, Window owner, Action<bool, string> check) {
-        var project = new ProjectEntry { Name = "TeamProject", Descriptor = Path.Combine(repository, "Generated/TeamProject.nemproject") };
+        var project = new ProjectEntry { Name = "TeamProject", Descriptor = Path.Combine(repository, "LocalWork/Tests/Distribution/TeamProject.nemproject") };
         var rename = new ProjectRenameDialog(owner, project);
         Capture(rename, repository, "Rename", check);
         check(rename.ProjectName == project.Name, "名前変更の初期値がありません");
@@ -16,7 +16,7 @@ internal static class LauncherGitChecks {
         var version = new ProjectDialog(owner, new[] { "0.1.3" }, "", "0.1.3");
         Capture(version, repository, "ChangeEngine", check);
         check(Descendants<Button>(version).Any(button => Equals(button.Content, "変更")), "バージョン変更のボタン名が旧表記です");
-        var clone = new GitCloneDialog(owner, Path.Combine(repository, "Generated"));
+        var clone = new GitCloneDialog(owner, Path.Combine(repository, "LocalWork/Tests/Distribution"));
         Capture(clone, repository, "Clone", check);
         int requests = 0;
         using var client = new HttpClient(new GitHubContractChecks.Handler((request, _) => {
@@ -96,7 +96,7 @@ internal static class LauncherGitChecks {
         bitmap.Render(element);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
-        using var stream = File.Create(Path.Combine(repository, "Generated/Launcher." + DistributionVersion.Current + "." + name + ".png"));
+        using var stream = File.Create(Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher." + DistributionVersion.Current + "." + name + ".png"));
         encoder.Save(stream);
     }
 

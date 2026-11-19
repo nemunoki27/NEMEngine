@@ -89,6 +89,9 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// Model粒子の描画用リソースを取得する
+		const MeshGPUResource* ResolveModelMesh(const RenderDrawContext& context, AssetID model);
+
 		// Camera固有の深度と表面設定を描画へ渡す
 		void BindGPUSurface(const RenderDrawContext& context, const RenderItem& item, const ParticleRenderSettings& settings,
 			const PipelineState& pipeline, bool customDataAvailable, AssetID normalTexture, ID3D12GraphicsCommandList* commands);

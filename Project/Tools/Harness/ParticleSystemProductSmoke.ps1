@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
-$productRoot = Join-Path $engineRoot 'Generated/PSP/ProductProbe'
-$logRoot = Join-Path $engineRoot 'Generated/Refactoring/ParticleSystemRefactor/ProductValidation'
+$productRoot = Join-Path $engineRoot 'LocalWork/Tests/PSP/ProductProbe'
+$logRoot = Join-Path $engineRoot 'LocalWork/Verification/Refactoring/ParticleSystemRefactor/ProductValidation'
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;

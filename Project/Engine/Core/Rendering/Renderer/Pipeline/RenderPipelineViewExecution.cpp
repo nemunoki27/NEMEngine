@@ -306,6 +306,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		cameraState.renderPassesAsset = extensionID;
 		cameraState.renderPassesAssetRevision = extensionRevision;
 		++cameraState.renderPassesGeneration;
+		cameraState.lastGeometryFrame = UINT64_MAX;
 	}
 	const ResolvedCameraView* mainGameCamera = gameViewState_.view.FindCamera(
 		extensionCamera && extensionCamera->projectionMode == ResolvedProjectionMode::Orthographic ?
@@ -346,8 +347,25 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	const bool boundedOutputs = !profile || std::none_of(profile->passes.begin(), profile->passes.end(), [](const auto& pass) {
 		return pass.anchor == RenderFeatureAnchor::BeforeLighting;
 	});
-	const auto albedoFormat = colorPrecision_.Resolve(graphicsCore, renderAssetLibrary_,
-		scenePreparation_.renderBatch_, request.assetDatabase, request.world, boundedOutputs);
+	// 編集中に表示物を減らしてもGBufferと描画PSOの形式は引き下げない
+	const bool editorView = sceneInstance && request.FindView(RenderViewKind::Scene);
+	const bool sceneChanged = sceneInstance && cameraState.precisionScene != sceneInstance->instanceID;
+	const bool prepareHiddenMeshes = editorView && sceneChanged;
+	// 初回のスキニングにも反射で使うメッシュを渡す
+	if (sceneChanged && meshBackend_ && request.assetDatabase && context.postProcessCamera.surfaceSettings.reflectionEnabled &&
+		graphicsCore.GetDXObject().ShouldUseDispatchRays() && !scenePreparation_.visibleMeshes_.empty() &&
+		!meshBackend_->AreMeshesReady(scenePreparation_.visibleMeshes_)) {
+		meshBackend_->PreloadMeshes(graphicsCore, *request.assetDatabase, scenePreparation_.visibleMeshes_);
+	}
+	if (!editorView || prepareHiddenMeshes) {
+		cameraState.precisionScene = sceneInstance ? sceneInstance->instanceID : UUID{};
+		cameraState.keepWideAlbedo = false;
+		cameraState.lastGeometryFrame = UINT64_MAX;
+	}
+	const auto albedoFormat = cameraState.keepWideAlbedo ? DXGI_FORMAT_R32G32B32A32_FLOAT :
+		colorPrecision_.Resolve(graphicsCore, renderAssetLibrary_, scenePreparation_.renderBatch_,
+			request.assetDatabase, request.world, boundedOutputs);
+	cameraState.keepWideAlbedo = editorView && albedoFormat == DXGI_FORMAT_R32G32B32A32_FLOAT;
 	resources.Resize(graphicsCore, context.view->width, context.view->height, albedoFormat);
 	if (!resources.IsValid()) {
 
@@ -358,6 +376,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		return context;
 	}
 	context.resources = &resources;
+	if (prepareHiddenMeshes && context.world && context.assetDatabase) {
+		RuntimeRenderPreloader::PrepareHiddenMeshPipelines(graphicsCore, context, renderAssetLibrary_, pipelineStateCache_, materialResolver_);
+	}
 	context.cullingResources = (context.cullingView == &gameViewState_.view) ?
 		&GetCameraState(gameViewState_.view).resources : &resources;
 	context.occlusionDepthPyramidReady =

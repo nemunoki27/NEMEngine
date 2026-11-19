@@ -58,7 +58,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 				v.uv,
 				ResolvePrimitiveVertexColor(
 					v.position.xyz, instance),
-				instance);
+				instance, instanceOffset + groupID.y);
 	}
 	tris[localTriangle] = uint3(localTriangle * 3u, localTriangle * 3u + 1u, localTriangle * 3u + 2u);
 }

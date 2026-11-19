@@ -44,7 +44,7 @@ void ParticleRenderBackend::DrawGPUTrails(const RenderDrawContext& context, cons
 	const auto trailConstants = MakeParticleGPUTrailConstants(trail, emitter.gpu->definition->settings->emitter.maxParticles);
 	const auto trailAllocation = constantBufferAllocator_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), trailConstants);
 	auto* commands = BackendDrawCommon::SetupGraphicsPipeline(context, *pipeline, item.blendMode);
-	SyncAndBindRegistry(*pipeline, context, commands);
+	SyncAndBindRegistry(*pipeline, context, commands, item.cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipeline, item, constantBufferAllocator_, commands);
 	RootBindingCommand::SetGraphicsCBV(commands, pipeline->FindBindingByName("ParticleGPUViewConstants", ShaderBindingKind::CBV), viewAllocation.gpuAddress);
 	RootBindingCommand::SetGraphicsCBV(commands, pipeline->FindBindingByName("ParticleGPUTrailConstants", ShaderBindingKind::CBV), trailAllocation.gpuAddress);

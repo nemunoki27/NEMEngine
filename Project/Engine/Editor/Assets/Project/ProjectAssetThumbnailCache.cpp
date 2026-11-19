@@ -38,7 +38,6 @@ void Engine::ProjectAssetThumbnailCache::Finalize() {
 
 	defaultIcons_.clear();
 	customExtensionIcons_.clear();
-	folderIconKey_.clear();
 	textureUploadService_ = nullptr;
 	assetDatabase_ = nullptr;
 	initialized_ = false;
@@ -50,8 +49,9 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 		return;
 	}
 
-	folderIconKey_ = "folder.png";
-	textureUploadService_->RequestTextureFile(folderIconKey_, EditorTextureHelper::MakeEditorTexturePath("File", folderIconKey_));
+	for (const char* key : {"folderEmpty.png", "folderFilled.png"}) {
+		textureUploadService_->RequestTextureFile(key, EditorTextureHelper::MakeEditorTexturePath("File", key));
+	}
 
 	defaultIcons_[AssetType::Scene].textureKey = "scene.png";
 	defaultIcons_[AssetType::Scene].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "scene.png");
@@ -129,9 +129,9 @@ ImTextureID Engine::ProjectAssetThumbnailCache::TryGetTextureID(const std::strin
 	return ImTextureID{};
 }
 
-ImTextureID Engine::ProjectAssetThumbnailCache::GetFolderIconTextureID() const {
+ImTextureID Engine::ProjectAssetThumbnailCache::GetFolderIconTextureID(bool empty) const {
 
-	return TryGetTextureID(folderIconKey_);
+	return TryGetTextureID(empty ? "folderEmpty.png" : "folderFilled.png");
 }
 
 ImTextureID Engine::ProjectAssetThumbnailCache::GetDefaultTypeIcon(AssetType type) const {

@@ -1,0 +1,1255 @@
+{
+  "baseline": "Unity Shader Graph 17.0.4",
+  "baselineURL": "https://docs.unity3d.com/Packages/com.unity.shadergraph@17.0/manual/Node-Library.html",
+  "newNodeKinds": 95,
+  "totalNodeKinds": 164,
+  "scope": "Generic node functionality; existing node runtime semantics and serialized identifiers are preserved",
+  "nodes": [
+    {
+      "unityName": "Channel Mixer",
+      "unityPage": "Channel-Mixer-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "ChannelMixer"
+    },
+    {
+      "unityName": "Contrast",
+      "unityPage": "Contrast-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "Contrast"
+    },
+    {
+      "unityName": "Hue",
+      "unityPage": "Hue-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "Hue"
+    },
+    {
+      "unityName": "Invert Colors",
+      "unityPage": "Invert-Colors-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "InvertColors"
+    },
+    {
+      "unityName": "Replace Color",
+      "unityPage": "Replace-Color-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "ReplaceColor"
+    },
+    {
+      "unityName": "Saturation",
+      "unityPage": "Saturation-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "Saturation"
+    },
+    {
+      "unityName": "White Balance",
+      "unityPage": "White-Balance-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "WhiteBalance"
+    },
+    {
+      "unityName": "Blend",
+      "unityPage": "Blend-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "Blend"
+    },
+    {
+      "unityName": "Dither",
+      "unityPage": "Dither-Node.html",
+      "category": "Artistic",
+      "status": "existing",
+      "nemNode": "Dither"
+    },
+    {
+      "unityName": "Channel Mask",
+      "unityPage": "Channel-Mask-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "ChannelMask"
+    },
+    {
+      "unityName": "Color Mask",
+      "unityPage": "Color-Mask-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "ColorMask"
+    },
+    {
+      "unityName": "Normal Blend",
+      "unityPage": "Normal-Blend-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "NormalBlend"
+    },
+    {
+      "unityName": "Normal From Height",
+      "unityPage": "Normal-From-Height-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "NormalFromHeight"
+    },
+    {
+      "unityName": "Normal Strength",
+      "unityPage": "Normal-Strength-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "NormalStrength"
+    },
+    {
+      "unityName": "Normal Unpack",
+      "unityPage": "Normal-Unpack-Node.html",
+      "category": "Artistic",
+      "status": "existing",
+      "nemNode": "NormalUnpack"
+    },
+    {
+      "unityName": "Colorspace Conversion",
+      "unityPage": "Colorspace-Conversion-Node.html",
+      "category": "Artistic",
+      "status": "added",
+      "nemNode": "ColorspaceConversion"
+    },
+    {
+      "unityName": "Combine",
+      "unityPage": "Combine-Node.html",
+      "category": "Channel",
+      "status": "existing",
+      "nemNode": "Combine"
+    },
+    {
+      "unityName": "Flip",
+      "unityPage": "Flip-Node.html",
+      "category": "Channel",
+      "status": "added",
+      "nemNode": "Flip"
+    },
+    {
+      "unityName": "Split",
+      "unityPage": "Split-Node.html",
+      "category": "Channel",
+      "status": "existing",
+      "nemNode": "Split"
+    },
+    {
+      "unityName": "Swizzle",
+      "unityPage": "Swizzle-Node.html",
+      "category": "Channel",
+      "status": "added",
+      "nemNode": "Swizzle"
+    },
+    {
+      "unityName": "Boolean",
+      "unityPage": "Boolean-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Boolean)"
+    },
+    {
+      "unityName": "Color",
+      "unityPage": "Color-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Color)"
+    },
+    {
+      "unityName": "Constant",
+      "unityPage": "Constant-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Float)"
+    },
+    {
+      "unityName": "Integer",
+      "unityPage": "Integer-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Integer)"
+    },
+    {
+      "unityName": "Slider",
+      "unityPage": "Slider-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Parameter(Float)"
+    },
+    {
+      "unityName": "Time",
+      "unityPage": "Time-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Time"
+    },
+    {
+      "unityName": "Float",
+      "unityPage": "Float-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Float)"
+    },
+    {
+      "unityName": "Vector 2",
+      "unityPage": "Vector-2-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Float2)"
+    },
+    {
+      "unityName": "Vector 3",
+      "unityPage": "Vector-3-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Float3)"
+    },
+    {
+      "unityName": "Vector 4",
+      "unityPage": "Vector-4-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Constant(Float4)"
+    },
+    {
+      "unityName": "Bitangent Vector",
+      "unityPage": "Bitangent-Vector-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "BitangentVector"
+    },
+    {
+      "unityName": "Normal Vector",
+      "unityPage": "Normal-Vector-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "WorldNormal / ObjectNormal / Transform"
+    },
+    {
+      "unityName": "Position",
+      "unityPage": "Position-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "WorldPosition / ObjectPosition / Transform"
+    },
+    {
+      "unityName": "Screen Position",
+      "unityPage": "Screen-Position-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "ScreenPosition"
+    },
+    {
+      "unityName": "Tangent Vector",
+      "unityPage": "Tangent-Vector-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "ObjectTangent / Transform"
+    },
+    {
+      "unityName": "UV",
+      "unityPage": "UV-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "UV"
+    },
+    {
+      "unityName": "Vertex Color",
+      "unityPage": "Vertex-Color-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "VertexColor"
+    },
+    {
+      "unityName": "View Direction",
+      "unityPage": "View-Direction-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "ViewDirection / Transform"
+    },
+    {
+      "unityName": "Vertex ID",
+      "unityPage": "Vertex-ID-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "VertexID"
+    },
+    {
+      "unityName": "Blackbody",
+      "unityPage": "Blackbody-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Blackbody"
+    },
+    {
+      "unityName": "Gradient",
+      "unityPage": "Gradient-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Gradient"
+    },
+    {
+      "unityName": "Sample Gradient",
+      "unityPage": "Sample-Gradient-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "SampleGradient"
+    },
+    {
+      "unityName": "Matrix 2x2",
+      "unityPage": "Matrix-2x2-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Matrix2"
+    },
+    {
+      "unityName": "Matrix 3x3",
+      "unityPage": "Matrix-3x3-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Matrix3"
+    },
+    {
+      "unityName": "Matrix 4x4",
+      "unityPage": "Matrix-4x4-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Matrix4"
+    },
+    {
+      "unityName": "Transformation Matrix",
+      "unityPage": "Transformation-Matrix-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "TransformationMatrix"
+    },
+    {
+      "unityName": "Compute Deformation Node",
+      "unityPage": "Compute-Deformation-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "UnityのDOTS/変形パイプライン専用"
+    },
+    {
+      "unityName": "Linear Blend Skinning Node",
+      "unityPage": "Linear-Blend-Skinning-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Unityのスキニングパイプライン専用"
+    },
+    {
+      "unityName": "Dielectric Specular",
+      "unityPage": "Dielectric-Specular-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "DielectricSpecular"
+    },
+    {
+      "unityName": "Metal Reflectance",
+      "unityPage": "Metal-Reflectance-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "MetalReflectance"
+    },
+    {
+      "unityName": "Ambient",
+      "unityPage": "Ambient-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "レンダーパイプラインの環境光/GI入力"
+    },
+    {
+      "unityName": "Camera",
+      "unityPage": "Camera-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Camera"
+    },
+    {
+      "unityName": "Fog",
+      "unityPage": "Fog-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Unityレンダーパイプラインの霧係数/霧色入力"
+    },
+    {
+      "unityName": "Baked GI",
+      "unityPage": "Baked-GI-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "ベイクGI入力"
+    },
+    {
+      "unityName": "Object",
+      "unityPage": "Object-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Object"
+    },
+    {
+      "unityName": "Reflection Probe",
+      "unityPage": "Reflection-Probe-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "反射プローブ/GI入力"
+    },
+    {
+      "unityName": "Scene Color",
+      "unityPage": "Scene-Color-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "SceneColor"
+    },
+    {
+      "unityName": "Scene Depth",
+      "unityPage": "Scene-Depth-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "SceneDepth"
+    },
+    {
+      "unityName": "Screen",
+      "unityPage": "Screen-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "Screen"
+    },
+    {
+      "unityName": "Eye Index",
+      "unityPage": "Eye-Index-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "UnityのXRレンダーパイプライン専用"
+    },
+    {
+      "unityName": "Cubemap Asset",
+      "unityPage": "Cubemap-Asset-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Cubemapは今回の対象外"
+    },
+    {
+      "unityName": "Sample Cubemap",
+      "unityPage": "Sample-Cubemap-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Cubemapは今回の対象外"
+    },
+    {
+      "unityName": "Sample Reflected Cubemap Node",
+      "unityPage": "Sample-Reflected-Cubemap-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Cubemapは今回の対象外"
+    },
+    {
+      "unityName": "Sample Texture 2D",
+      "unityPage": "Sample-Texture-2D-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "TextureSample"
+    },
+    {
+      "unityName": "Sample Texture 2D Array",
+      "unityPage": "Sample-Texture-2D-Array-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Texture2DArrayは今回の対象外"
+    },
+    {
+      "unityName": "Sample Texture 2D LOD",
+      "unityPage": "Sample-Texture-2D-LOD-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "TextureSampleLOD"
+    },
+    {
+      "unityName": "Sample Texture 3D",
+      "unityPage": "Sample-Texture-3D-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Texture3Dは今回の対象外"
+    },
+    {
+      "unityName": "Sample Virtual Texture",
+      "unityPage": "Sample-Virtual-Texture-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Virtual Textureは今回の対象外"
+    },
+    {
+      "unityName": "Sampler State",
+      "unityPage": "Sampler-State-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "SamplerState"
+    },
+    {
+      "unityName": "Texture Size",
+      "unityPage": "Texture-Size-Node.html",
+      "category": "Input",
+      "status": "added",
+      "nemNode": "TextureSize"
+    },
+    {
+      "unityName": "Texture 2D Array Asset",
+      "unityPage": "Texture-2D-Array-Asset-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Texture2DArrayは今回の対象外"
+    },
+    {
+      "unityName": "Texture 2D Asset",
+      "unityPage": "Texture-2D-Asset-Node.html",
+      "category": "Input",
+      "status": "existing",
+      "nemNode": "Parameter(Texture2D)"
+    },
+    {
+      "unityName": "Texture 3D Asset",
+      "unityPage": "Texture-3D-Asset-Node.html",
+      "category": "Input",
+      "status": "excluded",
+      "reason": "Texture3Dは今回の対象外"
+    },
+    {
+      "unityName": "Absolute",
+      "unityPage": "Absolute-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Absolute"
+    },
+    {
+      "unityName": "Exponential",
+      "unityPage": "Exponential-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Exponential"
+    },
+    {
+      "unityName": "Length",
+      "unityPage": "Length-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Length"
+    },
+    {
+      "unityName": "Log",
+      "unityPage": "Log-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Log"
+    },
+    {
+      "unityName": "Modulo",
+      "unityPage": "Modulo-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Modulo"
+    },
+    {
+      "unityName": "Negate",
+      "unityPage": "Negate-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Negate"
+    },
+    {
+      "unityName": "Normalize",
+      "unityPage": "Normalize-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Normalize"
+    },
+    {
+      "unityName": "Posterize",
+      "unityPage": "Posterize-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Posterize"
+    },
+    {
+      "unityName": "Reciprocal",
+      "unityPage": "Reciprocal-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Reciprocal"
+    },
+    {
+      "unityName": "Reciprocal Square Root",
+      "unityPage": "Reciprocal-Square-Root-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "ReciprocalSquareRoot"
+    },
+    {
+      "unityName": "Add",
+      "unityPage": "Add-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Add"
+    },
+    {
+      "unityName": "Divide",
+      "unityPage": "Divide-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Divide"
+    },
+    {
+      "unityName": "Multiply",
+      "unityPage": "Multiply-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Multiply"
+    },
+    {
+      "unityName": "Power",
+      "unityPage": "Power-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Power"
+    },
+    {
+      "unityName": "Square Root",
+      "unityPage": "Square-Root-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "SquareRoot"
+    },
+    {
+      "unityName": "Subtract",
+      "unityPage": "Subtract-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Subtract"
+    },
+    {
+      "unityName": "DDX",
+      "unityPage": "DDX-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "DDX"
+    },
+    {
+      "unityName": "DDXY",
+      "unityPage": "DDXY-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "DDXY"
+    },
+    {
+      "unityName": "DDY",
+      "unityPage": "DDY-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "DDY"
+    },
+    {
+      "unityName": "Inverse Lerp",
+      "unityPage": "Inverse-Lerp-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "InverseLerp"
+    },
+    {
+      "unityName": "Lerp",
+      "unityPage": "Lerp-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Lerp"
+    },
+    {
+      "unityName": "Smoothstep",
+      "unityPage": "Smoothstep-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Smoothstep"
+    },
+    {
+      "unityName": "Matrix Construction",
+      "unityPage": "Matrix-Construction-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "MatrixConstruction"
+    },
+    {
+      "unityName": "Matrix Determinant",
+      "unityPage": "Matrix-Determinant-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "MatrixDeterminant"
+    },
+    {
+      "unityName": "Matrix Split",
+      "unityPage": "Matrix-Split-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "MatrixSplit"
+    },
+    {
+      "unityName": "Matrix Transpose",
+      "unityPage": "Matrix-Transpose-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "MatrixTranspose"
+    },
+    {
+      "unityName": "Clamp",
+      "unityPage": "Clamp-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Clamp"
+    },
+    {
+      "unityName": "Fraction",
+      "unityPage": "Fraction-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Fraction"
+    },
+    {
+      "unityName": "Maximum",
+      "unityPage": "Maximum-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Maximum"
+    },
+    {
+      "unityName": "Minimum",
+      "unityPage": "Minimum-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Minimum"
+    },
+    {
+      "unityName": "One Minus",
+      "unityPage": "One-Minus-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "OneMinus"
+    },
+    {
+      "unityName": "Random Range",
+      "unityPage": "Random-Range-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "RandomRange"
+    },
+    {
+      "unityName": "Remap",
+      "unityPage": "Remap-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Remap"
+    },
+    {
+      "unityName": "Saturate",
+      "unityPage": "Saturate-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Saturate"
+    },
+    {
+      "unityName": "Ceiling",
+      "unityPage": "Ceiling-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Ceiling"
+    },
+    {
+      "unityName": "Floor",
+      "unityPage": "Floor-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Floor"
+    },
+    {
+      "unityName": "Round",
+      "unityPage": "Round-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Round"
+    },
+    {
+      "unityName": "Sign",
+      "unityPage": "Sign-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Sign"
+    },
+    {
+      "unityName": "Step",
+      "unityPage": "Step-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Step"
+    },
+    {
+      "unityName": "Truncate",
+      "unityPage": "Truncate-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Truncate"
+    },
+    {
+      "unityName": "Arccosine",
+      "unityPage": "Arccosine-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Arccosine"
+    },
+    {
+      "unityName": "Arcsine",
+      "unityPage": "Arcsine-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Arcsine"
+    },
+    {
+      "unityName": "Arctangent",
+      "unityPage": "Arctangent-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Arctangent"
+    },
+    {
+      "unityName": "Arctangent2",
+      "unityPage": "Arctangent2-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Arctangent2"
+    },
+    {
+      "unityName": "Cosine",
+      "unityPage": "Cosine-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Cosine"
+    },
+    {
+      "unityName": "Degrees to Radians",
+      "unityPage": "Degrees-To-Radians-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "DegreesToRadians"
+    },
+    {
+      "unityName": "Hyperbolic Cosine",
+      "unityPage": "Hyperbolic-Cosine-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "HyperbolicCosine"
+    },
+    {
+      "unityName": "Hyperbolic Sine",
+      "unityPage": "Hyperbolic-Sine-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "HyperbolicSine"
+    },
+    {
+      "unityName": "Hyperbolic Tangent",
+      "unityPage": "Hyperbolic-Tangent-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "HyperbolicTangent"
+    },
+    {
+      "unityName": "Radians to Degrees",
+      "unityPage": "Radians-To-Degrees-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "RadiansToDegrees"
+    },
+    {
+      "unityName": "Sine",
+      "unityPage": "Sine-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Sine"
+    },
+    {
+      "unityName": "Tangent",
+      "unityPage": "Tangent-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Tangent"
+    },
+    {
+      "unityName": "Cross Product",
+      "unityPage": "Cross-Product-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Cross"
+    },
+    {
+      "unityName": "Distance",
+      "unityPage": "Distance-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Distance"
+    },
+    {
+      "unityName": "Dot Product",
+      "unityPage": "Dot-Product-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Dot"
+    },
+    {
+      "unityName": "Fresnel Effect",
+      "unityPage": "Fresnel-Effect-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Fresnel"
+    },
+    {
+      "unityName": "Projection",
+      "unityPage": "Projection-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Projection"
+    },
+    {
+      "unityName": "Reflection",
+      "unityPage": "Reflection-Node.html",
+      "category": "Math",
+      "status": "existing",
+      "nemNode": "Reflect"
+    },
+    {
+      "unityName": "Rejection",
+      "unityPage": "Rejection-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Rejection"
+    },
+    {
+      "unityName": "Rotate About Axis",
+      "unityPage": "Rotate-About-Axis-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "RotateAboutAxis"
+    },
+    {
+      "unityName": "Sphere Mask",
+      "unityPage": "Sphere-Mask-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "SphereMask"
+    },
+    {
+      "unityName": "Transform",
+      "unityPage": "Transform-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "Transform"
+    },
+    {
+      "unityName": "Noise Sine Wave",
+      "unityPage": "Noise-Sine-Wave-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "NoiseSineWave"
+    },
+    {
+      "unityName": "Sawtooth Wave",
+      "unityPage": "Sawtooth-Wave-Node.html",
+      "category": "Math",
+      "status": "added",
+      "nemNode": "SawtoothWave"
+    },
+    {
+      "unityName": "Checkerboard",
+      "unityPage": "Checkerboard-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "Checkerboard"
+    },
+    {
+      "unityName": "Gradient Noise",
+      "unityPage": "Gradient-Noise-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "GradientNoise"
+    },
+    {
+      "unityName": "Simple Noise",
+      "unityPage": "Simple-Noise-Node.html",
+      "category": "Procedural",
+      "status": "existing",
+      "nemNode": "SimpleNoise"
+    },
+    {
+      "unityName": "Voronoi",
+      "unityPage": "Voronoi-Node.html",
+      "category": "Procedural",
+      "status": "existing",
+      "nemNode": "Voronoi"
+    },
+    {
+      "unityName": "Ellipse",
+      "unityPage": "Ellipse-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "Ellipse"
+    },
+    {
+      "unityName": "Polygon",
+      "unityPage": "Polygon-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "Polygon"
+    },
+    {
+      "unityName": "Rectangle",
+      "unityPage": "Rectangle-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "Rectangle"
+    },
+    {
+      "unityName": "Rounded Polygon",
+      "unityPage": "Rounded-Polygon-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "RoundedPolygon"
+    },
+    {
+      "unityName": "Rounded Rectangle",
+      "unityPage": "Rounded-Rectangle-Node.html",
+      "category": "Procedural",
+      "status": "added",
+      "nemNode": "RoundedRectangle"
+    },
+    {
+      "unityName": "Preview",
+      "unityPage": "Preview-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Preview"
+    },
+    {
+      "unityName": "Sub-Graph",
+      "unityPage": "Sub-graph-Node.html",
+      "category": "Utility",
+      "status": "existing",
+      "nemNode": "SubGraph"
+    },
+    {
+      "unityName": "All",
+      "unityPage": "All-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "All"
+    },
+    {
+      "unityName": "And",
+      "unityPage": "And-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "And"
+    },
+    {
+      "unityName": "Any",
+      "unityPage": "Any-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Any"
+    },
+    {
+      "unityName": "Branch",
+      "unityPage": "Branch-Node.html",
+      "category": "Utility",
+      "status": "existing",
+      "nemNode": "Branch"
+    },
+    {
+      "unityName": "Comparison",
+      "unityPage": "Comparison-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Comparison"
+    },
+    {
+      "unityName": "Is Infinite",
+      "unityPage": "Is-Infinite-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "IsInfinite"
+    },
+    {
+      "unityName": "Is NaN",
+      "unityPage": "Is-NaN-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "IsNaN"
+    },
+    {
+      "unityName": "Nand",
+      "unityPage": "Nand-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Nand"
+    },
+    {
+      "unityName": "Not",
+      "unityPage": "Not-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Not"
+    },
+    {
+      "unityName": "Or",
+      "unityPage": "Or-Node.html",
+      "category": "Utility",
+      "status": "added",
+      "nemNode": "Or"
+    },
+    {
+      "unityName": "Flipbook",
+      "unityPage": "Flipbook-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "Flipbook"
+    },
+    {
+      "unityName": "Radial Shear",
+      "unityPage": "Radial-Shear-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "RadialShear"
+    },
+    {
+      "unityName": "Spherize",
+      "unityPage": "Spherize-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "Spherize"
+    },
+    {
+      "unityName": "Triplanar",
+      "unityPage": "Triplanar-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "Triplanar"
+    },
+    {
+      "unityName": "Parallax Mapping",
+      "unityPage": "Parallax-Mapping-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "ParallaxMapping"
+    },
+    {
+      "unityName": "Polar Coordinates",
+      "unityPage": "Polar-Coordinates-Node.html",
+      "category": "UV",
+      "status": "existing",
+      "nemNode": "PolarCoordinates"
+    },
+    {
+      "unityName": "Rotate",
+      "unityPage": "Rotate-Node.html",
+      "category": "UV",
+      "status": "existing",
+      "nemNode": "Rotate"
+    },
+    {
+      "unityName": "Tiling and Offset",
+      "unityPage": "Tiling-And-Offset-Node.html",
+      "category": "UV",
+      "status": "existing",
+      "nemNode": "TilingandOffset"
+    },
+    {
+      "unityName": "Twirl",
+      "unityPage": "Twirl-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "Twirl"
+    },
+    {
+      "unityName": "Parallax Occlusion Mapping",
+      "unityPage": "Parallax-Occlusion-Mapping-Node.html",
+      "category": "UV",
+      "status": "added",
+      "nemNode": "ParallaxOcclusionMapping"
+    }
+  ],
+  "additionalGenericNodes": [
+    "SquareWave",
+    "TriangleWave",
+    "IsFrontFace"
+  ],
+  "compatibilityNotes": [
+    {
+      "node": "UV",
+      "note": "既存のUV0入力を維持。UnityのUV1〜3選択はメッシュ入力形式の拡張が必要なため未対応"
+    },
+    {
+      "node": "ScreenPosition",
+      "note": "既存のSV_POSITION相当のピクセル座標を維持。UnityのNormalized/Center/Tiled出力モードは含めない"
+    },
+    {
+      "node": "NormalUnpack",
+      "note": "既存の接空間法線デコード後にワールド空間へ変換する挙動を維持。接空間出力が必要な場合はTransformでWorldからTangentへ変換"
+    },
+    {
+      "node": "Object",
+      "note": "Rendererへ渡した境界を使用。GPU経路でローカル境界を保持しない場合は保守的な境界になる"
+    },
+    {
+      "node": "Constant",
+      "note": "Boolean/Color/Float/Integer/Vectorは既存の型付きConstantで共用。SliderはFloatパラメータで扱う"
+    },
+    {
+      "node": "Matrix/Gradient",
+      "note": "定数ノードと専用ノードで編集。MaterialParameterValueに行列とGradientを含めないため公開Materialパラメータにはしない"
+    },
+    {
+      "node": "RoundedPolygon",
+      "note": "正多角形の辺への符号付き距離に丸め半径を適用し、画面微分で輪郭を平滑化"
+    },
+    {
+      "node": "ParallaxOcclusionMapping",
+      "note": "高さマップ探索からUVとPixel Depth Offsetを出力。Surface出力へPixel Depth Offsetを直接書く機能は含めない"
+    },
+    {
+      "node": "WhiteBalance",
+      "note": "線形sRGBからXYZへ変換し、Bradford色順応でD65基準へ補正。色温度とTintの操作感を提供するがUnityのCAT02実装との数値一致は目的としない"
+    },
+    {
+      "node": "GradientNoise",
+      "note": "格子上の決定的な勾配ノイズ。整数ハッシュで勾配方向を選ぶためUnityのLegacy/Deterministicプリセットとのテクセル一致は含めない"
+    },
+    {
+      "node": "Checkerboard/RoundedRectangle",
+      "note": "チェッカー模様は画素幅で積分し、角丸四角形は符号付き距離で輪郭を平滑化。Unityの近似式との画素単位の一致は含めない"
+    },
+    {
+      "node": "Parameter scope",
+      "note": "未公開ParameterとGlobalの宣言にも既定値を渡す。Globalは現在も通常のMaterial定数領域を使い、実行中の全Materialへ値を配信する専用サービスは含めない"
+    }
+  ],
+  "mathReferences": [
+    {
+      "title": "W3C CSS Color 4 - sRGB transfer functions and chromatic adaptation",
+      "url": "https://www.w3.org/TR/css-color-4/"
+    },
+    {
+      "title": "W3C Compositing and Blending Level 1 - separable blend operations",
+      "url": "https://www.w3.org/TR/compositing-1/"
+    },
+    {
+      "title": "Morten S. Mikkelsen - Bump Mapping Unparametrized Surfaces on the GPU",
+      "url": "https://mmikk.github.io/papers3d/mm_sfgrad_bump.pdf"
+    }
+  ],
+  "implementation": "Unity公式資料はノード機能と入出力の参照に使用。UnityのC#ソースファイルやライブラリは組み込まず、共有の数式評価器を実装"
+}

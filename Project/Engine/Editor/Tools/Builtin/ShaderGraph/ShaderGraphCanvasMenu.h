@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderGraphNodeCreation.h"
+#include <Engine/Editor/UI/Common/TextSearchFilter.h>
 
 // c++
 #include <string>
@@ -32,7 +33,7 @@ namespace Engine {
 		// 指定位置へ追加するNodeを選ぶ
 		void OpenCreate(Vector2 position);
 		// 開いているpopupを表示する
-		void Draw();
+		void Draw(ImTextureID searchIcon);
 		// Graph切替時に操作対象を解除する
 		void Reset();
 
@@ -48,14 +49,14 @@ namespace Engine {
 		ShaderGraphGroupEditor& groupEditor_;
 		ShaderGraphNodeTransfer& nodeTransfer_;
 		ShaderGraphNodeCreation nodeCreation_;
-		std::string nodeSearch_{};
+		TextSearchFilter nodeSearch_;
 		Vector2 createNodePosition_{};
 		UUID contextNode_{};
 
 		//--------- functions ----------------------------------------------------
 
 		// Node追加の選択画面を表示する
-		void DrawNodeCreationMenu();
+		void DrawNodeCreationMenu(ImTextureID searchIcon);
 		// Nodeを複製して配置する
 		void DuplicateNode(UUID nodeID);
 		// 種類に応じたNodeを配置する

@@ -6,8 +6,7 @@
 #include "ShaderGraphCanvasID.h"
 #include "ShaderGraphNodePreviewUtility.h"
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
-
-#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSourceUtility.h>
 
 // c++
 #include <algorithm>
@@ -24,14 +23,6 @@ namespace {
 	namespace ed = ax::NodeEditor;
 	constexpr float kNodePinColumnGap = 32.0f;
 
-	// ユーザー定義のポート名は変えず組み込み表示だけを訳す
-	const char* GetPortDisplayName(const Engine::ShaderGraphNode& node, std::string_view name) {
-
-		if (node.kind == Engine::ShaderGraphNodeKind::CustomFunction || node.kind == Engine::ShaderGraphNodeKind::SubGraph) {
-			return name.data();
-		}
-		return Engine::ImGuiUtility::GetDisplayName(name.data());
-	}
 }
 
 Engine::ShaderGraphNodeDrawer::ShaderGraphNodeDrawer(
@@ -46,9 +37,9 @@ void Engine::ShaderGraphNodeDrawer::DrawNode(ShaderGraphNode& node) {
 	ImGui::PushID(static_cast<int>(node.id.value));
 	const float nodeWidth = CalculateNodeWidth(node);
 	const ImVec2 headerMinimum = ImGui::GetCursorScreenPos();
-	ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node.kind).data()));
+	ImGui::TextUnformatted(GetShaderGraphNodeName(node.kind).data());
 	float headerHeight = ImGui::GetItemRectSize().y;
-	if (IsPreviewableNode(node.kind)) {
+	if (IsPreviewableNode(node)) {
 
 		const float buttonSize = ImGui::GetFrameHeight();
 		ImGui::SetCursorScreenPos(ImVec2(headerMinimum.x + nodeWidth - buttonSize, headerMinimum.y));
@@ -106,7 +97,7 @@ void Engine::ShaderGraphNodeDrawer::DrawNodePins(const ShaderGraphNode& node, fl
 
 		const float rowY = rowsMinimum.y + rowHeight * row;
 		if (row < inputCount) {
-			const std::string name = "> " + std::string(GetPortDisplayName(node, GetShaderGraphInputName(node, row)));
+			const std::string name = "> " + std::string(GetShaderGraphInputName(node, row));
 			ImGui::SetCursorScreenPos(ImVec2(rowsMinimum.x, rowY));
 
 			const uintptr_t pinID = MakePinID(node.id, true, row);
@@ -123,7 +114,7 @@ void Engine::ShaderGraphNodeDrawer::DrawNodePins(const ShaderGraphNode& node, fl
 			ed::EndPin();
 		}
 		if (row < outputCount) {
-			const std::string name = std::string(GetPortDisplayName(node, GetShaderGraphOutputName(node, row))) + " >";
+			const std::string name = std::string(OutputPinLabel(node, row)) + " >";
 			const float textWidth = ImGui::CalcTextSize(name.c_str()).x;
 			ImGui::SetCursorScreenPos(ImVec2(rowsMinimum.x + nodeWidth - textWidth, rowY));
 
@@ -159,8 +150,8 @@ void Engine::ShaderGraphNodeDrawer::DrawNodeSeparator(float nodeWidth) const {
 float Engine::ShaderGraphNodeDrawer::CalculateNodeWidth(const ShaderGraphNode& node) const {
 
 	float nodeWidth = (std::max)(settings_.nodeMinimumWidth,
-		ImGui::CalcTextSize(ImGuiUtility::GetDisplayName(GetShaderGraphNodeName(node.kind).data())).x +
-			(IsPreviewableNode(node.kind) ? ImGui::GetStyle().ItemSpacing.x + ImGui::GetFrameHeight() : 0.0f));
+		ImGui::CalcTextSize(GetShaderGraphNodeName(node.kind).data()).x +
+			(IsPreviewableNode(node) ? ImGui::GetStyle().ItemSpacing.x + ImGui::GetFrameHeight() : 0.0f));
 	if (node.kind == ShaderGraphNodeKind::Parameter) {
 		const auto parameter = std::find_if(session_.GetDraft().parameters.begin(), session_.GetDraft().parameters.end(),
 			[&](const ShaderGraphParameter& value) { return value.id == node.parameterID; });
@@ -168,20 +159,31 @@ float Engine::ShaderGraphNodeDrawer::CalculateNodeWidth(const ShaderGraphNode& n
 			nodeWidth = (std::max)(nodeWidth, ImGui::CalcTextSize(parameter->name.c_str()).x);
 		}
 	}
-	if (IsPreviewableNode(node.kind) && node.previewExpanded) {
+	if (IsPreviewableNode(node) && node.previewExpanded) {
 		nodeWidth = (std::max)(nodeWidth, settings_.nodePreviewDisplaySize);
+	}
+	if (node.kind == ShaderGraphNodeKind::Constant &&
+		ShaderGraphValueType::Float2 <= node.valueType && node.valueType <= ShaderGraphValueType::Float4) {
+
+		const float count = static_cast<float>(ShaderGraphSourceUtility::ComponentCount(node.valueType));
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const float fieldWidth = ImGui::CalcTextSize("-0.000").x + style.FramePadding.x * 2.0f +
+			ImGui::CalcTextSize("W").x + style.ItemInnerSpacing.x;
+		const float rowWidth = ImGui::CalcTextSize("値").x + 4.0f + style.CellPadding.x * 4.0f +
+			fieldWidth * count + style.ItemInnerSpacing.x * (count - 1.0f);
+		nodeWidth = (std::max)(nodeWidth, rowWidth);
 	}
 
 	float inputWidth = 0.0f;
 	for (uint32_t slot = 0; slot < GetShaderGraphInputCount(node); ++slot) {
 
-		const std::string name = "> " + std::string(GetPortDisplayName(node, GetShaderGraphInputName(node, slot)));
+		const std::string name = "> " + std::string(GetShaderGraphInputName(node, slot));
 		inputWidth = (std::max)(inputWidth, ImGui::CalcTextSize(name.c_str()).x);
 	}
 	float outputWidth = 0.0f;
 	for (uint32_t slot = 0; slot < GetShaderGraphOutputCount(node); ++slot) {
 
-		const std::string name = std::string(GetPortDisplayName(node, GetShaderGraphOutputName(node, slot))) + " >";
+		const std::string name = std::string(OutputPinLabel(node, slot)) + " >";
 		outputWidth = (std::max)(outputWidth, ImGui::CalcTextSize(name.c_str()).x);
 	}
 	if (inputWidth != 0.0f && outputWidth != 0.0f) {

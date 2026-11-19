@@ -3,6 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
@@ -21,6 +25,31 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute([[maybe_unused]] Gra
 	// 選択アウトラインはSceneViewのEditor描画専用
 	if (!context.resources || context.kind != RenderViewKind::Scene) {
 		return;
+	}
+
+	// 最初の選択操作でマスクと合成のPSOを同期生成しないようにする
+	auto* main = context.resources->GetSceneMain();
+	auto* final = context.resources->GetSceneFinal();
+	if (!pipelinesPrepared_ && main && final && final->GetColorTexture(0) && deps_.pipelineCache && deps_.assetLibrary) {
+		const auto mask = RenderPathResources::BuildScreenSpaceOutlineMaskDesc(1, 1, {}, false);
+		const std::array maskFormats{ mask.colors.front().format };
+		const std::array finalFormats{ final->GetColorTexture(0)->GetFormat() };
+		auto* depth = context.outputDepth ? context.outputDepth : main->GetDepthTexture();
+		for (AssetID id : { BuiltinAssets::Materials::ScreenSpaceOutlineMask, BuiltinAssets::Materials::ScreenSpaceOutlineDilate,
+				BuiltinAssets::Materials::ScreenSpaceOutlineComposite }) {
+			const auto* material = deps_.assetLibrary->LoadMaterial(id);
+			if (!material) continue;
+			for (const auto& pass : material->passes) {
+				std::span<const DXGI_FORMAT> formats;
+				if (id == BuiltinAssets::Materials::ScreenSpaceOutlineMask) formats = maskFormats;
+				if (id == BuiltinAssets::Materials::ScreenSpaceOutlineComposite) formats = finalFormats;
+				const auto dsv = pass.passKind == MaterialPassKind::ScreenSpaceOutlineMask && depth ?
+					depth->GetDSVFormat() : DXGI_FORMAT_UNKNOWN;
+				deps_.pipelineCache->GetORCreate(graphicsCore.GetDXObject(), *deps_.assetLibrary,
+					pass.pipeline, pass.preferredVariant, formats, dsv);
+			}
+		}
+		pipelinesPrepared_ = true;
 	}
 
 	// Editorの選択サービスが積んだ要求から、現worldかつwidthが有効なものだけ拾う

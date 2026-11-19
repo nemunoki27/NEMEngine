@@ -435,6 +435,10 @@ bool NEMTests::TestInspectorPresentation() {
 		std::pair{"ShaderGraphSurfaceMode", "Opaque"}, std::pair{"ShaderGraphSurfaceMode", "Transparent"}}) {
 		if (std::string_view(ImGuiUtility::GetEnumDisplayName(type, name)) != name) return false;
 	}
+	for (const auto& [name, expected] : std::array{
+		std::pair{"Inherit", "Inherit"}, std::pair{"TwoDimensional", "2D"}, std::pair{"ThreeDimensional", "3D"}}) {
+		if (std::string_view(ImGuiUtility::GetEnumDisplayName("ShaderGraphPreviewMode", name)) != expected) return false;
+	}
 	// 表示だけで上位ビットや参照切れを失わない
 	ImGuiContext* previous = ImGui::GetCurrentContext();
 	ImGuiContext* gui = ImGui::CreateContext();

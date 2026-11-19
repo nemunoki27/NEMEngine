@@ -17,6 +17,7 @@ cbuffer ViewConstants : register(b0) {
 	float materialPadding;
 	uint unassignedMaterialTextureMask;
 	float2 _viewPad;
+	float4 geometryBounds;
 };
 
 struct PrimitiveInstance {
@@ -43,6 +44,7 @@ struct VSOutput {
 	float4 uvCoordinates : TEXCOORD2;
 	nointerpolation float4 ringParams : TEXCOORD3;
 	nointerpolation float4 uvBasis : TEXCOORD4;
+	nointerpolation uint instanceID : TEXCOORD5;
 };
 
 float2 ResolvePrimitive2DTexcoord(
@@ -60,9 +62,10 @@ float2 ResolvePrimitive2DTexcoord(
 VSOutput BuildPrimitive2DVertexOutput(
 	float3 localPosition,
 	float2 uv,
-	PrimitiveInstance instance) {
+	PrimitiveInstance instance, uint instanceID) {
 
 	VSOutput output;
+	output.instanceID = instanceID;
 	float4 worldPosition = mul(
 		float4(localPosition, 1.0f),
 		instance.worldMatrix);
@@ -76,6 +79,11 @@ VSOutput BuildPrimitive2DVertexOutput(
 		float4(output.localTexcoord, 0.0f, 1.0f),
 		instance.uvMatrix).xy;
 	return output;
+}
+
+VSOutput BuildPrimitive2DVertexOutput(float3 localPosition, float2 uv, PrimitiveInstance instance) {
+
+	return BuildPrimitive2DVertexOutput(localPosition, uv, instance, 0u);
 }
 
 #endif // NEM_PRIMITIVE2D_HLSLI

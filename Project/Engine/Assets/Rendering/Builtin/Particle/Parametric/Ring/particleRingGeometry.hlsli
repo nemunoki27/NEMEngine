@@ -55,6 +55,7 @@ void BuildParticleRingTriangle(uint triangleIndex, uint particleIndex, out VSOut
 		output.texcoord = uv;
 		output.vertexColor = instance.vertexColor;
 		output.particleIndex = particleIndex;
+		output.geometryIndex = particleIndex;
 		outputs[k] = output;
 	}
 }

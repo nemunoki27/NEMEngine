@@ -194,6 +194,7 @@ namespace Engine::RenderFeatureResourceUtility {
 			Engine::RenderTargetNames::kSceneNormalMain);
 		setDefault("gSourcePosition",
 			Engine::RenderTargetNames::kScenePositionMain);
+		setDefault("gSourceEmissive", Engine::RenderTargetNames::kSceneEmissiveMain);
 		setDefault("gSourceMaterial",
 			Engine::RenderTargetNames::kSceneMaterialMain);
 		setDefault(Engine::PostProcessBindingNames::kSourceFlags,

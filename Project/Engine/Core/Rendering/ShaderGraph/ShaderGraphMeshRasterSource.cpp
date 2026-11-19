@@ -1,4 +1,5 @@
 #include "ShaderGraphStageSource.h"
+#include "ShaderGraphRuntimeInputSource.h"
 
 //============================================================================
 //	include
@@ -32,15 +33,20 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tuint clampedIndex = min(localSubMeshIndex, safeCount - 1u);\n"
 				  "\treturn gMeshMaterialParameters[instance.subMeshDataOffset + clampedIndex];\n"
 				  "}\n\n"
-				  "ShaderGraphSurface EvaluateRasterShaderGraph(VSOutput input) {\n\n"
+				  "ShaderGraphSurface EvaluateRasterShaderGraph(VSOutput input, bool isFrontFace) {\n\n"
 				  "\tSubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);\n"
-				  "\tShaderGraphSurfaceInput graphInput;\n"
+				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
 				  "\tgraphInput.uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = normalize(input.normal);\n"
-				  "\tgraphInput.worldPosition = input.worldPos;\n"
-				  "\tgraphInput.objectPosition = input.worldPos;\n"
-				  "\tgraphInput.objectNormal = input.normal;\n"
-				  "\tgraphInput.objectTangent = input.tangent;\n"
+				  "\tgraphInput.worldPosition = input.worldPos;\n" +
+				  BuildObjectInputAssignments("GetInstanceSubMeshWorldMatrix(input.instanceID, input.subMeshIndex)",
+					  "0.0f.xxx", "0.0f.xxx") +
+				  BuildSphereBoundsAssignments("meshBoundsCenter", "meshBoundsRadius", "gMeshInstances[input.instanceID].worldMatrix") +
+				  "\tgraphInput.objectPosition = mul(float4(input.worldPos, 1.0f), graphInput.worldToObject).xyz;\n"
+				  "\tgraphInput.objectNormal = normalize(mul(input.normal, transpose((float3x3)graphInput.objectToWorld)));\n"
+				  "\tgraphInput.objectTangent = normalize(mul(input.tangent, (float3x3)graphInput.worldToObject));\n"
+				  "\tgraphInput.isFrontFace = isFrontFace;\n"
 				  "\tgraphInput.viewDirection = normalize(renderCameraPos - input.worldPos);\n"
 				  "\tgraphInput.screenPosition = input.position;\n"
 				  "\tgraphInput.vertexColor = 1.0f.xxxx;\n"
@@ -50,8 +56,8 @@ namespace Engine::ShaderGraphStageSource {
 				  "}\n\n";
 
 		if (!transparent) {
-			source += "GBufferOutput main(VSOutput input) {\n\n"
-					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
+			source += "GBufferOutput main(VSOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
+					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input, isFrontFace);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "\tMeshSurface surface;\n"
 					  "\tsurface.albedo = graph.baseColor.rgb;\n"
@@ -66,11 +72,12 @@ namespace Engine::ShaderGraphStageSource {
 					  "\treturn EncodeGBuffer(surface);\n"
 					  "}\n";
 		} else {
-			source += "struct TransparentPSOutput {\n\n"
+			source += "#include \"Builtin/Mesh/Common/glassRefraction.hlsli\"\n"
+					  "struct TransparentPSOutput {\n\n"
 					  "\tfloat4 color : SV_TARGET0;\n"
 					  "};\n\n"
-					  "TransparentPSOutput mainTransparent(VSOutput input) {\n\n"
-					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
+					  "TransparentPSOutput mainTransparent(VSOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
+					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input, isFrontFace);\n"
 					  "\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
 					  "\tclip(alpha - graph.alphaClip);\n"
 					  "\tResolvedPBRMaterial material;\n"
@@ -82,6 +89,7 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tmaterial.emissive = graph.emissive;\n"
 					  "\tTransparentPSOutput output;\n"
 					  "\toutput.color = ApplyTransparentFog(float4(EvaluateMeshSurfaceLighting(input, material, graph.transmission), alpha), input.position);\n"
+					  "\tif (graph.refraction) output.color = ApplyGlassRefraction(output.color, graph, input.position.xy, input.worldPos);\n"
 					  "\treturn output;\n"
 					  "}\n";
 		}
@@ -106,15 +114,20 @@ namespace Engine::ShaderGraphStageSource {
 			"\tuint clampedIndex = min(localSubMeshIndex, safeCount - 1u);\n"
 			"\treturn gMeshMaterialParameters[instance.subMeshDataOffset + clampedIndex];\n"
 			"}\n\n"
-			"ShaderGraphSurface EvaluateRasterShaderGraph(VSOutput input) {\n\n"
+			"ShaderGraphSurface EvaluateRasterShaderGraph(VSOutput input, bool isFrontFace) {\n\n"
 			"\tSubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);\n"
-			"\tShaderGraphSurfaceInput graphInput;\n"
+			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
 			"\tgraphInput.uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
 			"\tgraphInput.worldNormal = normalize(input.normal);\n"
-			"\tgraphInput.worldPosition = input.worldPos;\n"
-			"\tgraphInput.objectPosition = input.worldPos;\n"
-			"\tgraphInput.objectNormal = input.normal;\n"
-			"\tgraphInput.objectTangent = input.tangent;\n"
+			"\tgraphInput.worldPosition = input.worldPos;\n" +
+			BuildObjectInputAssignments("GetInstanceSubMeshWorldMatrix(input.instanceID, input.subMeshIndex)",
+				"0.0f.xxx", "0.0f.xxx") +
+			BuildSphereBoundsAssignments("meshBoundsCenter", "meshBoundsRadius", "gMeshInstances[input.instanceID].worldMatrix") +
+			"\tgraphInput.objectPosition = mul(float4(input.worldPos, 1.0f), graphInput.worldToObject).xyz;\n"
+			"\tgraphInput.objectNormal = normalize(mul(input.normal, transpose((float3x3)graphInput.objectToWorld)));\n"
+			"\tgraphInput.objectTangent = normalize(mul(input.tangent, (float3x3)graphInput.worldToObject));\n"
+			"\tgraphInput.isFrontFace = isFrontFace;\n"
 			"\tgraphInput.viewDirection = normalize(renderCameraPos - input.worldPos);\n"
 			"\tgraphInput.screenPosition = input.position;\n"
 			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
@@ -123,15 +136,15 @@ namespace Engine::ShaderGraphStageSource {
 			"}\n\n";
 		// 同じ透明度評価を選択と影へ適用する
 		if (picking) {
-			source += "uint4 main(VSOutput input) : SV_Target0 {\n\n"
-					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
+			source += "uint4 main(VSOutput input, bool isFrontFace : SV_IsFrontFace) : SV_Target0 {\n\n"
+					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input, isFrontFace);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "\tMeshInstance instance = gMeshInstances[input.instanceID];\n"
 					  "\treturn uint4(instance.entityIndex, instance.entityGeneration, input.subMeshIndex, 1u);\n"
 					  "}\n";
 		} else {
-			source += "void main(VSOutput input) {\n\n"
-					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
+			source += "void main(VSOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
+					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input, isFrontFace);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "}\n";
 		}
@@ -178,12 +191,13 @@ namespace Engine::ShaderGraphStageSource {
 			"\tfloat3 normal;\n"
 			"\tfloat3 tangent;\n"
 			"};\n\n"
-			"ShaderGraphVertexResult EvaluateShaderGraphVertex(MeshVertex vertex, uint instanceID, uint localSubMeshIndex, "
+			"ShaderGraphVertexResult EvaluateShaderGraphVertex(MeshVertex vertex, uint vertexID, uint instanceID, uint localSubMeshIndex, "
 			"float4x4 worldMatrix, float4x4 normalMatrix, float shaderGraphTime) {\n\n"
 			"\tfloat3 originalWorldPosition = mul(vertex.position, worldMatrix).xyz;\n"
 			"\tfloat3 originalWorldNormal = TransformMeshNormalToWorld(vertex.normal, normalMatrix);\n"
 			"\tfloat3 originalWorldTangent = TransformMeshTangentToWorld(vertex.tangent, worldMatrix);\n"
-			"\tShaderGraphSurfaceInput graphInput;\n"
+			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
+			BuildFrameInputAssignments() +
 			"\tgraphInput.uv = vertex.uv;\n"
 			"\tgraphInput.worldNormal = originalWorldNormal;\n"
 			"\tgraphInput.worldPosition = originalWorldPosition;\n"
@@ -194,7 +208,10 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraphInput.screenPosition = mul(float4(originalWorldPosition, 1.0f), viewProjection);\n"
 			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 			"\tgraphInput.tangentToWorld = float3x3(originalWorldTangent, cross(originalWorldNormal, originalWorldTangent) * "
-			"vertex.tangentSign, originalWorldNormal);\n"
+			"vertex.tangentSign, originalWorldNormal);\n" +
+			BuildObjectInputAssignments("worldMatrix", "0.0f.xxx", "0.0f.xxx") +
+			BuildSphereBoundsAssignments("meshBoundsCenter", "meshBoundsRadius", "gMeshInstances[instanceID].worldMatrix") +
+			"\tgraphInput.vertexID = vertexID;\n"
 			"\tShaderGraphParameters graphParameters = GetShaderGraphVertexParameters(instanceID, localSubMeshIndex);\n"
 			"\tShaderGraphVertexResult result;\n";
 		source += context.GetEvaluationStatements();
@@ -217,7 +234,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tuint localSubMeshIndex = gVertexSubMeshIndices[vertexID];\n"
 				  "\tfloat4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceID, localSubMeshIndex);\n"
 				  "\tfloat4x4 normalMatrix = GetInstanceSubMeshNormalMatrix(instanceID, localSubMeshIndex);\n"
-				  "\tShaderGraphVertexResult graph = EvaluateShaderGraphVertex(vertex, instanceID, localSubMeshIndex, "
+				  "\tShaderGraphVertexResult graph = EvaluateShaderGraphVertex(vertex, vertexID, instanceID, localSubMeshIndex, "
 				  "worldMatrix, normalMatrix, shaderGraphTime);\n"
 				  "\tfloat4 worldPosition = mul(float4(graph.position, 1.0f), worldMatrix);\n"
 				  "\tVSOutput output;\n"
@@ -225,7 +242,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\toutput.currentClipPosition = mul(worldPosition, unjitteredViewProjection);\n"
 				  "\tfloat4x4 previousWorldMatrix = GetInstanceSubMeshPreviousWorldMatrix(instanceID, localSubMeshIndex);\n"
 				  "\tShaderGraphVertexResult previousGraph = EvaluateShaderGraphVertex(LoadMeshVertex(instanceID, vertexID), "
-				  "instanceID, localSubMeshIndex, previousWorldMatrix, BuildPreviousMeshNormalMatrix(previousWorldMatrix), "
+				  "vertexID, instanceID, localSubMeshIndex, previousWorldMatrix, BuildPreviousMeshNormalMatrix(previousWorldMatrix), "
 				  "shaderGraphTime - shaderGraphDeltaTime);\n"
 				  "\tfloat4 previousPosition = mul(float4(previousGraph.position, 1.0f), previousWorldMatrix);\n"
 				  "\toutput.previousClipPosition = mul(previousPosition, previousViewProjection);\n"
@@ -272,7 +289,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tif (groupThreadID < meshlet.vertexCount) {\n"
 				  "\t\tuint vertexIndex = LoadMeshletVertexIndex(meshlet.vertexOffset + groupThreadID);\n"
 				  "\t\tMeshVertex vertex = LoadMeshVertex(instanceIndex, vertexIndex);\n"
-				  "\t\tShaderGraphVertexResult graph = EvaluateShaderGraphVertex(vertex, instanceIndex, localSubMeshIndex, "
+				  "\t\tShaderGraphVertexResult graph = EvaluateShaderGraphVertex(vertex, vertexIndex, instanceIndex, localSubMeshIndex, "
 				  "gGraphWorldMatrix, gGraphNormalMatrix, shaderGraphTime);\n"
 				  "\t\tfloat4 worldPosition = mul(float4(graph.position, 1.0f), gGraphWorldMatrix);\n"
 				  "\t\tVSOutput output;\n"
@@ -280,7 +297,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\t\toutput.currentClipPosition = mul(worldPosition, unjitteredViewProjection);\n"
 				  "\t\tfloat4x4 previousWorldMatrix = GetInstanceSubMeshPreviousWorldMatrix(instanceIndex, localSubMeshIndex);\n"
 				  "\t\tShaderGraphVertexResult previousGraph = EvaluateShaderGraphVertex(LoadMeshVertex(instanceIndex, vertexIndex), "
-				  "instanceIndex, localSubMeshIndex, previousWorldMatrix, BuildPreviousMeshNormalMatrix(previousWorldMatrix), "
+				  "vertexIndex, instanceIndex, localSubMeshIndex, previousWorldMatrix, BuildPreviousMeshNormalMatrix(previousWorldMatrix), "
 				  "shaderGraphTime - shaderGraphDeltaTime);\n"
 				  "\t\tfloat4 previousPosition = mul(float4(previousGraph.position, 1.0f), previousWorldMatrix);\n"
 				  "\t\toutput.previousClipPosition = mul(previousPosition, previousViewProjection);\n"

@@ -26,6 +26,8 @@ namespace {
 			port.name = item.value("name", "");
 			port.type = EnumAdapter<ShaderGraphValueType>::FromString(item.value("type", "Float"))
 							.value_or(ShaderGraphValueType::Float);
+			port.hasDefault = item.value("hasDefault", true);
+			port.sourceID = FromString16Hex(item.value("sourceID", ""));
 			if (item.contains("defaultValue")) {
 				ParseMaterialParameterValue(item["defaultValue"], port.defaultValue);
 			}
@@ -48,6 +50,8 @@ namespace {
 				{"name", port.name},
 				{"type", EnumAdapter<ShaderGraphValueType>::ToString(port.type)},
 				{"defaultValue", SerializeMaterialParameterValue(port.defaultValue)},
+				{"hasDefault", port.hasDefault},
+				{"sourceID", port.sourceID ? ToString(port.sourceID) : ""},
 			});
 		}
 		return data;
@@ -114,8 +118,9 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
 		return false;
 	}
 
-	outAsset = ShaderGraphAsset{};
 	const uint32_t schemaVersion = data.value("schemaVersion", 0u);
+	if (schemaVersion > 9) return false;
+	outAsset = ShaderGraphAsset{};
 	outAsset.name = data.value("name", "NewShaderGraph");
 	outAsset.domain =
 		EnumAdapter<ShaderGraphDomain>::FromString(data.value("domain", "Surface")).value_or(ShaderGraphDomain::Surface);
@@ -239,8 +244,15 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
 			node.functionFileAsset = ParseAssetID(item, "functionFileAsset");
 			node.functionFile = item.value("functionFile", "");
 			node.functionBody = item.value("functionBody", "");
+			ReadShaderGraphNodeSettings(item.value("settings", nlohmann::json{}), node.settings);
 			node.previewExpanded = item.value(
 				"previewExpanded", node.kind != ShaderGraphNodeKind::Parameter && node.kind != ShaderGraphNodeKind::Constant);
+			node.previewMode = EnumAdapter<ShaderGraphPreviewMode>::FromString(item.value("previewMode", "Inherit"))
+								   .value_or(ShaderGraphPreviewMode::Inherit);
+			node.previewOutputSlot = item.value("previewOutputSlot", 0u);
+			if (GetShaderGraphOutputCount(node) <= node.previewOutputSlot) {
+				node.previewOutputSlot = 0;
+			}
 			if (node.id) {
 				outAsset.nodes.emplace_back(std::move(node));
 			}
@@ -313,7 +325,7 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
 nlohmann::json Engine::ToJson(const ShaderGraphAsset& asset) {
 
 	nlohmann::json data{
-		{"schemaVersion", 8},
+		{"schemaVersion", 9},
 		{"name", asset.name},
 		{"domain", EnumAdapter<ShaderGraphDomain>::ToString(asset.domain)},
 		{"surfaceMode", EnumAdapter<ShaderGraphSurfaceMode>::ToString(asset.surfaceMode)},
@@ -387,7 +399,10 @@ nlohmann::json Engine::ToJson(const ShaderGraphAsset& asset) {
 			{"functionFileAsset", ToAssetReferenceJson(node.functionFileAsset)},
 			{"functionFile", node.functionFile},
 			{"functionBody", node.functionBody},
+			{"settings", WriteShaderGraphNodeSettings(node.settings)},
 			{"previewExpanded", node.previewExpanded},
+			{"previewMode", EnumAdapter<ShaderGraphPreviewMode>::ToString(node.previewMode)},
+			{"previewOutputSlot", node.previewOutputSlot},
 		};
 		if (node.kind == ShaderGraphNodeKind::SamplerState) {
 			nodeData["sampler"] = WriteSampler(node.sampler);

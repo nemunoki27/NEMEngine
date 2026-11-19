@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "../../Mesh/Common/deferredGBuffer.hlsli"
+#include "../raytracingSceneData.hlsli"
 
 cbuffer PostProcessFrameConstants : register(b0) {
 
@@ -30,30 +31,12 @@ cbuffer PostProcessParameters : register(b1) {
 	uint opaqueGeometryAllowed;
 };
 
-struct AOInstance {
-
-	uint vertexDescriptorIndex;
-	uint indexDescriptorIndex;
-	uint vertexOffset;
-	uint geometryDataOffset;
-	uint renderFlags;
-	uint3 _pad;
-};
-
-struct AOGeometry {
-
-	uint subMeshDataIndex;
-	uint indexOffset;
-	uint pickRecordIndex;
-	uint _pad;
-};
-
 RaytracingAccelerationStructure gSceneTLAS : register(t0);
 Texture2D<float4> gSourcePosition : register(t1);
 Texture2D<float4> gSourceNormal : register(t2);
 Texture2D<uint> gSourceFlags : register(t3);
-StructuredBuffer<AOInstance> gRaytracingSceneInstances : register(t4);
-StructuredBuffer<AOGeometry> gRaytracingGeometries : register(t5);
+StructuredBuffer<RaytracingInstanceShaderData> gRaytracingSceneInstances : register(t4);
+StructuredBuffer<RaytracingGeometryShaderData> gRaytracingGeometries : register(t5);
 StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
 SamplerState gSampler : register(s0);
 RWTexture2D<float> gDestColor : register(u0);
@@ -69,9 +52,9 @@ uint HashAO(uint value) {
 
 bool AcceptAOHit(inout RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query) {
 
-	AOInstance instance = gRaytracingSceneInstances[query.CandidateInstanceID()];
+	RaytracingInstanceShaderData instance = gRaytracingSceneInstances[query.CandidateInstanceID()];
 	if (((instance.renderFlags >> 8u) & cullingMask) == 0u) return false;
-	AOGeometry geometry = gRaytracingGeometries[instance.geometryDataOffset + query.CandidateGeometryIndex()];
+	RaytracingGeometryShaderData geometry = gRaytracingGeometries[instance.geometryDataOffset + query.CandidateGeometryIndex()];
 	SubMeshShaderData material = gRaytracingSubMeshes[geometry.subMeshDataIndex];
 	uint mode = material._materialPad >> 16;
 	if (mode == 3u) return false;

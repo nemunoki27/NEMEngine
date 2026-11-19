@@ -123,7 +123,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 
 	// エラーテクスチャのSRVインデックスを取得する
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
-	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
+	const uint32_t fallbackSRVIndex = (fallback && fallback->valid) ? fallback->srvIndex : UINT32_MAX;
 
 	// 未指定Textureは未使用の番号を返す
 	auto ResolveSRVIndex = [&](AssetID assetID, bool sRGB) -> uint32_t {
@@ -134,7 +134,8 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
 			graphicsCore, drawContext.assetDatabase, assetID,
 			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear);
-		if (!texture || texture->srvIndex == UINT32_MAX) {
+		if (!texture || !texture->valid || texture->srvIndex == UINT32_MAX) {
+			usesFallbackTexture_ = true;
 			return fallbackSRVIndex;
 		}
 		if (texture == fallback) {

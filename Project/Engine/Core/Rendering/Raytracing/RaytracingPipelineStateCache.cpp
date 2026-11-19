@@ -4,10 +4,13 @@
 //	include
 //============================================================================
 #include "RaytracingPipelineBuilder.h"
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <chrono>
+#include <cstring>
+#include <algorithm>
 
 //============================================================================
 //	RaytracingPipelineStateCache classMethods
@@ -107,7 +110,140 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	return it->second.get();
 }
 
+Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetMaterialReflection(
+	GraphicsPlatform& platform, RenderAssetLibrary& assets, const PipelineStaticSamplerOverrideSet& samplers,
+	std::span<const RaytracingHitMaterial> materials, bool prepareScene, std::span<const RaytracingHitMaterial>& activeMaterials) {
+
+	retirement_ = &platform.GetResourceRetirement();
+	retiredStates_.Connect(*retirement_);
+	CollectRetiredStates();
+	const uint64_t hash = HashPipelineStaticSamplerOverrides(&samplers);
+	auto found = std::ranges::find(materialReflections_, hash, &MaterialReflectionState::samplerHash);
+	if (found == materialReflections_.end()) {
+		prepareScene = true;
+		found = materialReflections_.emplace(materialReflections_.end());
+		found->samplerHash = hash;
+	}
+	auto& entry = *found;
+	for (const auto& material : materials) {
+		const auto pos = std::lower_bound(entry.materials.begin(), entry.materials.end(), material);
+		if (pos == entry.materials.end() || *pos != material) {
+			entry.materials.insert(pos, material);
+			entry.dirty = true;
+		}
+	}
+
+	const uint64_t frame = GraphicsFrameState::GetFrameSerial();
+	// 初回描画では命中Shaderとシェーダーテーブルの割り当てを同時に確定する
+	for (;;) {
+		if (entry.build.result.valid()) {
+			if (!prepareScene && (entry.lastPollFrame == frame ||
+				entry.build.result.wait_for(std::chrono::seconds(0)) != std::future_status::ready)) break;
+			auto state = entry.build.result.get();
+			if (entry.build.revision == entry.revision) {
+				if (state) {
+					RetireState(std::move(entry.state));
+					state->SetRetirementQueue(*retirement_);
+					entry.state = std::move(state);
+					entry.activeMaterials.swap(entry.buildingMaterials);
+				} else {
+					Logger::Output(LogType::Engine, spdlog::level::err, "[レイトレーシングパイプライン] 反射用の命中Shaderの生成に失敗しました");
+				}
+			}
+		}
+		if (entry.materials.empty() || (!entry.dirty && entry.requestedRevision == entry.revision)) break;
+		entry.dirty = false;
+		entry.requestedRevision = entry.revision;
+		if (!StartMaterialReflectionBuild(platform, assets, samplers, entry)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "[レイトレーシングパイプライン] 反射用の命中Shaderを準備できません");
+			break;
+		}
+		if (!prepareScene) break;
+	}
+	entry.lastPollFrame = frame;
+	activeMaterials = entry.activeMaterials;
+	return entry.state ? entry.state.get() :
+		GetOrCreate(platform, assets, BuiltinAssets::Pipelines::RaytracingReflection, {}, &samplers);
+}
+
+bool Engine::RaytracingPipelineStateCache::StartMaterialReflectionBuild(GraphicsPlatform& platform, RenderAssetLibrary& assets,
+	const PipelineStaticSamplerOverrideSet& samplers, MaterialReflectionState& entry) {
+
+	const auto pipelineID = BuiltinAssets::Pipelines::RaytracingReflection;
+	const auto& features = platform.GetFeatureController().GetRuntimeFeatures();
+	const auto* pipeline = assets.LoadPipeline(pipelineID);
+	const auto* base = pipeline ? ResolveBestVariant(*pipeline, PipelineVariantKind::Raytracing, features) : nullptr;
+	if (!base || base->hitGroups.size() != 1) return false;
+	PipelineVariantDesc variant = *base;
+	const auto* shader = assets.LoadShader(variant.shader);
+	if (!shader) return false;
+	ShaderAsset combined = *shader;
+	entry.shaderDependencies = { variant.shader };
+	for (const auto& material : entry.materials) {
+
+		const auto reportInvalidHit = [&](AssetID shader) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[レイトレーシングパイプライン] 反射用の命中Shaderが無効です Pipeline={} Shader={}",
+				ToString(material.pipeline), ToString(shader));
+			return false;
+		};
+		const auto* materialPipeline = assets.LoadPipeline(material.pipeline);
+		const auto* hitVariant = materialPipeline ? ResolveBestVariant(*materialPipeline, PipelineVariantKind::Raytracing, features) : nullptr;
+		if (!hitVariant || hitVariant->hitGroups.empty()) return reportInvalidHit(material.shader);
+		entry.shaderDependencies.emplace_back(hitVariant->shader);
+		const auto* library = assets.LoadShader(hitVariant->shader);
+		if (!library) return reportInvalidHit(hitVariant->shader);
+		ShaderAsset hitShader = *library;
+		if (material.shader && material.shader != hitVariant->shader) {
+			const auto* overrideShader = assets.LoadShader(material.shader);
+			if (!overrideShader) return reportInvalidHit(material.shader);
+			OverlayShaderExports(hitShader, *overrideShader);
+		}
+		auto group = hitVariant->hitGroups.front();
+		const std::string suffix = "_" + std::to_string(variant.hitGroups.size());
+		group.exportName += suffix;
+		auto append = [&](std::string& name) {
+			if (name.empty()) return true;
+			const auto* stage = FindShaderExport(hitShader, ShaderStage::Lib, name);
+			if (!stage) return false;
+			auto exported = *stage;
+			name += suffix;
+			exported.exportAlias = name;
+			combined.stages.emplace_back(std::move(exported));
+			return true;
+		};
+		if (!append(group.closestHitExport) || !append(group.anyHitExport) || !append(group.intersectionExport))
+			return reportInvalidHit(material.shader ? material.shader : hitVariant->shader);
+		variant.hitGroups.emplace_back(std::move(group));
+		variant.maxPayloadSizeInBytes = (std::max)(variant.maxPayloadSizeInBytes, hitVariant->maxPayloadSizeInBytes);
+		variant.maxAttributeSizeInBytes = (std::max)(variant.maxAttributeSizeInBytes, hitVariant->maxAttributeSizeInBytes);
+		variant.maxRecursionDepth = (std::max)(variant.maxRecursionDepth, hitVariant->maxRecursionDepth);
+		for (const auto& sampler : hitVariant->staticSamplers) {
+			auto existing = std::ranges::find_if(variant.staticSamplers, [&](const auto& value) {
+				return value.ShaderRegister == sampler.ShaderRegister && value.RegisterSpace == sampler.RegisterSpace;
+			});
+			if (existing == variant.staticSamplers.end()) variant.staticSamplers.emplace_back(sampler);
+			else if (std::memcmp(&*existing, &sampler, sizeof(sampler)) != 0) {
+				Logger::Output(LogType::Engine, spdlog::level::err, "[レイトレーシングパイプライン] 命中ShaderのSampler設定が競合しています");
+				return false;
+			}
+		}
+	}
+	entry.buildingMaterials = entry.materials;
+	entry.build.revision = entry.revision;
+	ComPtr<ID3D12Device8> device = platform.GetDevice();
+	entry.build.result = std::async(std::launch::async,
+		[device, variant = std::move(variant), shader = std::move(combined), samplers]() mutable {
+			DxShaderCompiler compiler{};
+			compiler.Init();
+			return RaytracingPipelineBuilder::Create(device.Get(), &compiler, variant, shader, &samplers);
+		});
+	return true;
+}
+
 void Engine::RaytracingPipelineStateCache::Clear() {
+
+	materialReflections_.clear();
 
 	// DXR PSOを持つキャッシュはmap破棄任せにせず、終了時に明示resetする
 	for (auto& entry : cache_) {
@@ -135,6 +271,13 @@ void Engine::RaytracingPipelineStateCache::Clear() {
 void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 	AssetID pipelineAssetID) {
 
+	for (auto& entry : materialReflections_) {
+		if (pipelineAssetID == BuiltinAssets::Pipelines::RaytracingReflection ||
+			std::ranges::find(entry.materials, pipelineAssetID, &RaytracingHitMaterial::pipeline) != entry.materials.end()) {
+			++entry.revision;
+		}
+	}
+
 	// 初回生成に失敗した構成も更新後に再試行する
 	std::erase_if(failedRevisions_, [pipelineAssetID](const auto& entry) {
 		return entry.first.pipelineAsset == pipelineAssetID;
@@ -159,6 +302,13 @@ void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 
 void Engine::RaytracingPipelineStateCache::InvalidateByShaderAsset(
 	AssetID shaderAssetID) {
+
+	for (auto& entry : materialReflections_) {
+		if (std::ranges::find(entry.shaderDependencies, shaderAssetID) != entry.shaderDependencies.end() ||
+			std::ranges::find(entry.materials, shaderAssetID, &RaytracingHitMaterial::shader) != entry.materials.end()) {
+			++entry.revision;
+		}
+	}
 
 	// 有効な旧StateがなくてもShaderの修正を反映する
 	std::erase_if(failedRevisions_, [shaderAssetID](const auto& entry) {

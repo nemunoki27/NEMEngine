@@ -17,6 +17,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Raytracing/RayTracingExecutor.h>
@@ -198,6 +199,11 @@ void Engine::RenderFeaturePass::Execute(
 		if (!bypassPass) {
 			std::unordered_map<std::string, std::string> inputs{};
 			ApplyDefaultSceneInputs(inputs);
+			// 不透明色のコピー前は現在のViewの色を命中Shaderへ渡す
+			if (pass.type == RenderFeaturePassType::RayTracing && anchor_ <= RenderFeatureAnchor::BeforeTransparent) {
+				inputs[ShaderGraphBindingNames::kSceneColor] = anchor_ == RenderFeatureAnchor::BeforeLighting ?
+					RenderTargetNames::kSceneColorMain : sceneColorAlias;
+			}
 			for (const auto& [resourceName, targetName] : pass.sceneInputs) {
 				inputs.insert_or_assign(resourceName, targetName);
 			}

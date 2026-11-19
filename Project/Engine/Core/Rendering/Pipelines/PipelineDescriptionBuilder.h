@@ -10,6 +10,7 @@
 
 namespace Engine::PipelineDescriptionBuilder {
 
+	std::span<const DXGI_FORMAT> ResolveRTVFormats(const PipelineVariantDesc& variant, std::span<const DXGI_FORMAT> runtimeFormats);
 	// Assetと描画先からGraphics構成を確定する
 	bool BuildGraphicsPipelineDesc(const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
 		std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,

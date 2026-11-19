@@ -46,6 +46,8 @@ namespace Engine {
 		float nodeValuePopupWidth_ = 0.0f;
 		uint32_t nodeValuePopupViewportID_ = 0;
 		bool requestNodeValuePopup_ = false;
+		bool showNodeColorTooltip_ = false;
+		Color4 nodeColorTooltip_{};
 
 		//--------- functions ----------------------------------------------------
 

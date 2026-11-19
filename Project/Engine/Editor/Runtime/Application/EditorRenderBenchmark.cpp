@@ -6,6 +6,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
@@ -18,6 +22,8 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Editor/Commands/Entity/CloneEntityTreesCommand.h>
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <algorithm>
@@ -157,7 +163,7 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 	features_->SetAllowMeshShader(sceneSequence_.empty() && !report_.contains("ambientOcclusionSequence") &&
 		!report_.contains("shadowSequence") && !report_.contains("transformSequence") &&
 		!report_.contains("frameContextSequence") && !report_.contains("displayOutputSequence") &&
-		!report_.contains("antialiasingSequence") ? phase_ != 1 : originalMeshShader_);
+		!report_.contains("antialiasingSequence") && !report_.contains("objectEdits") ? phase_ != 1 : originalMeshShader_);
 	warmFrames_ = 0;
 	frames_ = nlohmann::json::array();
 	capturedIntervalCount_ = 0;
@@ -240,6 +246,13 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	const bool preparingScene = sceneReadPending_ && application_->pendingSceneRead_.valid() &&
 		application_->pendingSceneRead_.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
 	application_->Tick(graphicsCore, freezeAnimation_ ? 0.0f : deltaTime);
+	if (captureStartup_ && RenderFeatureProfileService::GetInstance().FindReflectionVariables(
+		BuiltinAssets::Materials::RaytracingReflection, MaterialPassKind::RayTracing) &&
+		application_->GetRenderedViewTexture(RenderViewKind::Game,
+		RenderFeatureResourceUtility::MakeOutputAlias({ CameraSurfacePassIDs::ReflectionTrace, "Raw" }))) {
+		CaptureViews(graphicsCore, "startup-");
+		captureStartup_ = false;
+	}
 	if (!playGate_.empty()) {
 
 		// 接続確認までは編集Worldを保つ
@@ -264,9 +277,23 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 			// 実際のドラッグ配置と同じ生成処理を使う
 			for (const auto& target : settings.at("targets")) {
 
-				const std::string path = target.at("asset").get<std::string>();
+				const bool duplicate = target.contains("duplicate");
+				const std::string path = target.at(duplicate ? "duplicate" : "asset").get<std::string>();
 				auto& reference = report_["transformTargets"][path];
-				if (reference.is_null()) {
+				if (reference.is_null() && duplicate) {
+
+					std::vector<Entity> sources;
+					world->ForEach<NameComponent>([&](Entity entity, const NameComponent& name) {
+						if (name.name == path) sources.push_back(entity);
+					});
+					if (sources.size() != 1 || !application_->editorManager_.ExecuteEditorCommand(
+						std::make_unique<CloneEntityTreesCommand>(std::move(sources)))) {
+						throw std::runtime_error("SRT比較のオブジェクトを複製できません: " + path);
+					}
+					const auto& selected = application_->editorManager_.GetEditorState().GetSelectedEntities();
+					if (selected.size() != 1) throw std::runtime_error("複製先を選択できません");
+					reference = { {"index", selected.front().index}, {"generation", selected.front().generation} };
+				} else if (reference.is_null()) {
 
 					const auto* meta = application_->assetDatabase_.FindByPath(path);
 					if (!meta) throw std::runtime_error("SRT比較のAssetがありません: " + path);
@@ -322,7 +349,8 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		return;
 	}
 	// Meshと画像のGPU公開が終わってから安定待ちを始める
-	if (!application_->AreSceneMeshesReady() || graphicsCore.GetTextureUploadService().HasPendingRequests()) {
+	const bool editStarted = report_.contains("objectEdits") && !frames_.empty();
+	if (!editStarted && (!application_->AreSceneMeshesReady() || graphicsCore.GetTextureUploadService().HasPendingRequests())) {
 
 		warmFrames_ = 0;
 		frames_ = nlohmann::json::array();
@@ -330,7 +358,7 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		return;
 	}
 	const uint64_t revision = graphicsCore.GetTextureUploadService().GetContentRevision();
-	if (revision != textureRevision_) {
+	if (!editStarted && revision != textureRevision_) {
 		textureRevision_ = revision;
 		warmFrames_ = 0;
 		frames_ = nlohmann::json::array();
@@ -340,6 +368,16 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	// 読込後の安定待ちを計測対象から外す
 	if (++warmFrames_ <= (quickCheck_ ? 30u : 180u) || elapsed < std::chrono::seconds(quickCheck_ ? 5 : 30)) {
 		return;
+	}
+	if (report_.contains("objectEdits")) {
+		const auto now = std::chrono::steady_clock::now();
+		if (frames_.empty()) {
+			ApplyObjectEdits();
+		} else {
+			report_["objectFrameMs"][std::to_string(phase_)].push_back(
+				std::chrono::duration<double, std::milli>(now - lastEditFrame_).count());
+		}
+		lastEditFrame_ = now;
 	}
 	auto& profiler = FrameProfiler::GetInstance();
 	const double seconds = std::chrono::duration<double>(elapsed).count();

@@ -48,12 +48,14 @@ std::string_view Engine::GetShaderGraphOutputName(ShaderGraphNodeKind kind, uint
 
 uint32_t Engine::GetShaderGraphInputCount(const ShaderGraphNode& node) {
 
-	return node.inputPorts.empty() ? GetShaderGraphInputCount(node.kind) : static_cast<uint32_t>(node.inputPorts.size());
+	const bool dynamic = node.kind == ShaderGraphNodeKind::CustomFunction || node.kind == ShaderGraphNodeKind::SubGraph;
+	return dynamic ? static_cast<uint32_t>(node.inputPorts.size()) : GetShaderGraphInputCount(node.kind);
 }
 
 uint32_t Engine::GetShaderGraphOutputCount(const ShaderGraphNode& node) {
 
-	return node.outputPorts.empty() ? GetShaderGraphOutputCount(node.kind) : static_cast<uint32_t>(node.outputPorts.size());
+	const bool dynamic = node.kind == ShaderGraphNodeKind::CustomFunction || node.kind == ShaderGraphNodeKind::SubGraph;
+	return dynamic ? static_cast<uint32_t>(node.outputPorts.size()) : GetShaderGraphOutputCount(node.kind);
 }
 
 std::string_view Engine::GetShaderGraphInputName(const ShaderGraphNode& node, uint32_t slot) {

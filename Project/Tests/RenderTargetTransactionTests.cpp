@@ -182,6 +182,13 @@ namespace {
 		registry.BeginFrame();
 		valid &= registry.ResizeTransient(context, active, 4, 4) == resumed;
 		registry.EndFrame();
+		const auto lastVisible = Engine::GraphicsFrameState::GetFrameSerial();
+		for (uint64_t frame = 0; frame <= Engine::kGraphicsResourceReuseFrames; ++frame) {
+			Engine::GraphicsFrameState::BeginFrame(0);
+			registry.BeginFrame();
+			registry.EndFrame(lastVisible);
+		}
+		valid &= registry.Find(active.name) == nullptr && registry.ResizeTransient(context, active, 4, 4) == resumed;
 		registry.Clear();
 		fixture.Drain();
 		return valid && fixture.IsEmpty();

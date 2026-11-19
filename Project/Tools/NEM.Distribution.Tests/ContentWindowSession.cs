@@ -23,7 +23,7 @@ internal static class ContentWindowSession {
         string toolchainRoot = Path.GetFullPath(Option("--content-toolchain-root") ?? throw new ArgumentException("--content-toolchain-rootを指定してください"));
         var manifest = EngineValidation.Read(engineRoot);
         if (!File.Exists(Path.Combine(toolchainRoot, "dotnet.exe"))) throw new IOException("C#ツールチェーンが見つかりません");
-        string directory = Path.Combine(repository, "Generated/ContentDistributionValidation");
+        string directory = Path.Combine(repository, "LocalWork/Tests/Distribution/ContentDistributionValidation");
         var store = new LauncherStore(Path.Combine(directory, "UIState"));
         store.State.InstallRoot = Path.Combine(store.Root, "Installations");
         store.State.ProjectsRoot = Path.Combine(directory, "UIProjects");

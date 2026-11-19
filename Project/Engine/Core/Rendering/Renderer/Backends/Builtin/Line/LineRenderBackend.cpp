@@ -120,7 +120,7 @@ void Engine::LineRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// ルートパラメータをバインド
 	{
 		// レジストリのオートバインドとスロット解決をまとめて行う
-		SyncAndBindRegistry(*pipelineState, context, commandList);
+		SyncAndBindRegistry(*pipelineState, context, commandList, items.front()->cameraDomain);
 		BackendDrawCommon::BindTransparentFog(context, *pipelineState, *items.front(), constantBufferAllocator_, commandList);
 		if (perDrawBindCache_.Has(viewCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),

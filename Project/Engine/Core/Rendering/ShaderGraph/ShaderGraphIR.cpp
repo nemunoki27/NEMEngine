@@ -74,6 +74,14 @@ namespace {
 		void ValidateStructure() {
 
 			ValidatePublicIdentifiers();
+			for (const auto& parameter : graph_.parameters) {
+				if (parameter.type == ShaderGraphValueType::Matrix2 || parameter.type == ShaderGraphValueType::Matrix3 ||
+					parameter.type == ShaderGraphValueType::Matrix4 || parameter.type == ShaderGraphValueType::Gradient ||
+					parameter.type == ShaderGraphValueType::SamplerState || parameter.type == ShaderGraphValueType::Invalid) {
+					AddDiagnostic(parameter.id, ShaderGraphStage::Any, UINT32_MAX,
+						"この型は公開パラメータとして使用できません。専用ノードを使用してください");
+				}
+			}
 
 			std::unordered_set<uint64_t> nodeIDs;
 			for (const ShaderGraphNode& node : graph_.nodes) {

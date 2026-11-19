@@ -106,6 +106,7 @@ void BuildParticleCylinderTriangle(uint triangleIndex, uint particleIndex, out V
 		output.texcoord = uvs[k];
 		output.vertexColor = ResolveParticleVertexColor(localPositions[k], instance);
 		output.particleIndex = particleIndex;
+		output.geometryIndex = particleIndex;
 		outputs[k] = output;
 	}
 }

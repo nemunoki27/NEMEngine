@@ -1,16 +1,16 @@
 #include "ShaderGraphParameterDefaults.h"
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	ShaderGraphParameterDefaults functions
 //============================================================================
 Engine::MaterialParameterSet Engine::ShaderGraphParameterDefaults::Build(const ShaderGraphAsset& graph) {
 
 	MaterialParameterSet parameters;
-	// 公開Parameterの初期値を登録する
+	// 宣言したParameterの初期値を描画時の定数へ渡す
 	for (const ShaderGraphParameter& parameter : graph.parameters) {
-		if (!parameter.exposed || parameter.scope == ShaderGraphParameterScope::Global) {
-			continue;
-		}
 		parameters.Set(
 			MaterialParameterID::FromUUID(parameter.id), parameter.name, parameter.semantic, parameter.defaultValue);
 	}
@@ -37,6 +37,19 @@ void Engine::ShaderGraphParameterDefaults::ApplyMissing(const MaterialParameterS
 	// 既存の編集値を保ち、未設定のIDだけを追加する
 	for (const MaterialParameterRecord& record : defaults.GetRecords()) {
 		if (!parameters.Find(record.id)) {
+			parameters.Set(record.id, record.namedValue.first, record.semantic, record.namedValue.second);
+		}
+	}
+}
+
+void Engine::ShaderGraphParameterDefaults::ApplyToMaterial(const MaterialParameterSet& defaults,
+	std::span<const ShaderParameterMetadata> metadata, MaterialParameterSet& parameters) {
+
+	for (const MaterialParameterRecord& record : defaults.GetRecords()) {
+		const auto field = std::find_if(metadata.begin(), metadata.end(),
+			[&](const ShaderParameterMetadata& value) { return value.id == record.id; });
+		const bool exposed = field != metadata.end() && field->exposed;
+		if (!exposed || !parameters.Find(record.id)) {
 			parameters.Set(record.id, record.namedValue.first, record.semantic, record.namedValue.second);
 		}
 	}

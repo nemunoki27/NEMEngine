@@ -19,3 +19,12 @@ struct VSOutput {
 	float4 currentClipPosition : TEXCOORD6;
 	float4 previousClipPosition : TEXCOORD7;
 };
+
+struct VSInstance {
+
+	float2 size;
+	float2 pivot;
+	float4x4 worldMatrix;
+	float4x4 previousWorldMatrix;
+};
+StructuredBuffer<VSInstance> gVSInstances : register(t0);

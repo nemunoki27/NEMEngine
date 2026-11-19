@@ -13,6 +13,8 @@
 #include "ShaderGraphCanvasID.h"
 #include "ShaderGraphEditOperations.h"
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 // c++
 #include <algorithm>
@@ -134,13 +136,16 @@ std::vector<Engine::ShaderGraphCanvasCommand> Engine::ShaderGraphCanvasView::Dra
 	const ImVec2 canvasMousePosition = ImGui::GetMousePos();
 	ed::Suspend();
 	nodeDrawer_.DrawPopup();
+	nodePreviews_.DrawTooltip();
 	ed::NodeId contextNodeID{};
 	if (ed::ShowNodeContextMenu(&contextNodeID)) {
 		canvasMenu_.OpenNode(UUID{static_cast<uint64_t>(contextNodeID.Get())});
 	} else if (ed::ShowBackgroundContextMenu()) {
 		canvasMenu_.OpenCreate(Vector2(canvasMousePosition.x, canvasMousePosition.y));
 	}
-	canvasMenu_.Draw();
+	const ImTextureID searchIcon = context.panelContext && context.panelContext->graphicsCore ?
+		EditorTextureHelper::GetSearchIcon(context.panelContext->graphicsCore->GetTextureUploadService()) : ImTextureID{};
+	canvasMenu_.Draw(searchIcon);
 	ed::Resume();
 	ed::End();
 	const ImGuiIO& io = ImGui::GetIO();

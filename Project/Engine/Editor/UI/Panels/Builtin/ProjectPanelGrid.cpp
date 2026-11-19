@@ -181,7 +181,8 @@ void Engine::ProjectPanel::DrawFolderGridItem(
 	ImGui::PushID(node.virtualPath.c_str());
 	ImGui::BeginGroup();
 
-	if (DrawProjectIconButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(), iconSize,
+	const bool empty = node.assets.empty() && node.GetChildren().empty();
+	if (DrawProjectIconButton("##FolderButton", thumbnailCache_.GetFolderIconTextureID(empty), iconSize,
 			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f))) {
 
 		// Project内のフォルダ移動ではInspectorの選択状態を変更しない

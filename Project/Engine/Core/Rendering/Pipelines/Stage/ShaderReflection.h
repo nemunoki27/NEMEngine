@@ -62,6 +62,7 @@ namespace Engine {
 		UINT space = 0;
 		ShaderStage stageMask = ShaderStage::None;
 		D3D_SHADER_INPUT_TYPE rawType{};
+		bool exposed = true;
 	};
 	// シェーダー入力セマンティクスの情報
 	struct ShaderInputSemantic {
@@ -100,6 +101,7 @@ namespace Engine {
 		bool isColor = false;
 		// Bindless番号をTextureアセットとして編集するか
 		bool isTexture = false;
+		bool exposed = true;
 	};
 	// 定数バッファの情報
 	struct ShaderConstantBufferInfo {
@@ -139,6 +141,8 @@ namespace Engine {
 		UINT threadGroupX = 1;
 		UINT threadGroupY = 1;
 		UINT threadGroupZ = 1;
+		// 最適化で消えた変数もMaterial編集欄では非公開を維持する
+		std::vector<MaterialParameterID> hiddenParameters;
 	};
 	// コンパイルされたシェーダーの情報
 	struct CompiledShader {

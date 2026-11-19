@@ -19,6 +19,7 @@
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Runtime/Application/RuntimeSystemRegistration.h>
 #include <Engine/Core/Runtime/Application/ApplicationSceneSettings.h>
+#include <Engine/Core/Runtime/Application/ApplicationPreloader.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -121,6 +122,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// 最初のシーンを作成
 	InitFirstScene();
+	ApplicationPreloader::PrepareReflectionAnimations(graphicsCore, worldManager_.GetEditWorld(), assetDatabase_, skinnedAnimationManager_);
 	// C#スクリプトランタイム初期化
 	managedStarted_ = true;
 	ManagedScriptRuntime::GetInstance().Init();

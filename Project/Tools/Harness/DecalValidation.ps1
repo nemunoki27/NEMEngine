@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
 . (Join-Path $PSScriptRoot 'HarnessFixtureProject.ps1')
-$outputRoot = Join-Path $engineRoot "Generated/Refactoring/Decals/$Mode"
+$outputRoot = Join-Path $engineRoot "LocalWork/Verification/Refactoring/Decals/$Mode"
 if ($Showcase) { $outputRoot += 'Showcase' }
 $gameRoot = New-HarnessFixtureProject -Destination (Join-Path $outputRoot 'FixtureProject') -Fixture Decals
 $fixtureRoot = Join-Path $gameRoot 'GameAssets/__DecalValidation'

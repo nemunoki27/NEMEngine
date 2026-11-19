@@ -26,6 +26,7 @@ namespace {
 			{ "used", variable.used },
 			{ "isColor", variable.isColor },
 			{ "isTexture", variable.isTexture },
+			{ "exposed", variable.exposed },
 		};
 	}
 
@@ -54,6 +55,7 @@ namespace {
 		outVariable.used = data.value("used", true);
 		outVariable.isColor = data.value("isColor", false);
 		outVariable.isTexture = data.value("isTexture", false);
+		outVariable.exposed = data.value("exposed", true);
 		return !outVariable.name.empty();
 	}
 }
@@ -85,6 +87,7 @@ namespace Engine::ShaderCookStorage {
 				{ "space", resource.space },
 				{ "stageMask", static_cast<uint32_t>(resource.stageMask) },
 				{ "rawType", static_cast<uint32_t>(resource.rawType) },
+				{ "exposed", resource.exposed },
 			});
 		}
 		for (const Engine::ShaderInputSemantic& input : reflection.inputs) {
@@ -122,6 +125,8 @@ namespace Engine::ShaderCookStorage {
 			}
 			data["structuredBuffers"].push_back(std::move(item));
 		}
+		data["hiddenParameters"] = nlohmann::json::array();
+		for (const auto id : reflection.hiddenParameters) data["hiddenParameters"].push_back(id.value);
 		return data;
 	}
 
@@ -133,6 +138,9 @@ namespace Engine::ShaderCookStorage {
 		}
 		outReflection = Engine::ShaderReflectionInfo{};
 		outReflection.requiresFlags = data.value("requiresFlags", uint64_t{ 0 });
+		for (const auto& id : data.value("hiddenParameters", nlohmann::json::array())) {
+			outReflection.hiddenParameters.push_back(MaterialParameterID{ id.get<uint64_t>() });
+		}
 		if (const auto found = data.find("threadGroup");
 			found != data.end() && found->is_array() && found->size() == 3) {
 			outReflection.threadGroupX = (*found)[0].get<UINT>();
@@ -150,6 +158,7 @@ namespace Engine::ShaderCookStorage {
 			resource.space = item.value("space", 0u);
 			resource.stageMask = static_cast<Engine::ShaderStage>(item.value("stageMask", 0u));
 			resource.rawType = static_cast<D3D_SHADER_INPUT_TYPE>(item.value("rawType", 0u));
+			resource.exposed = item.value("exposed", true);
 			outReflection.resources.emplace_back(std::move(resource));
 		}
 		for (const nlohmann::json& item : data.value("inputs", nlohmann::json::array())) {

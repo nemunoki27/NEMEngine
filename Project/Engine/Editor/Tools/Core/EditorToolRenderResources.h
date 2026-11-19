@@ -26,7 +26,8 @@ namespace Engine {
 		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
 			const Vector2I& size, const Color4& clearColor = Color4::Black(),
-			uint32_t colorCount = 1, bool withDepth = true);
+			uint32_t colorCount = 1, bool withDepth = true,
+			DXGI_FORMAT colorFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
 
 		// 作成済みRenderTextureを名前で取得する
 		EditorToolRenderTexture* FindRenderTexture(const std::string& name);
@@ -43,7 +44,7 @@ namespace Engine {
 		// RenderTextureを描画先にして、指定された描画関数を実行する
 		template <typename RenderFunc>
 		void RenderToTexture(EditorToolRenderTexture& texture, RenderFunc&& renderFunc,
-			const Color4& clearColor = Color4::Black());
+			const Color4& clearColor = Color4::Black(), bool clear = true);
 
 		// 直前のImGuiアイテムをEntityドロップ先として扱い、プレビュー対象を差し替える
 		bool AcceptPreviewEntityDragDrop(EditorToolRenderTexture& texture) const;
@@ -76,7 +77,7 @@ namespace Engine {
 	//============================================================================
 	template<typename RenderFunc>
 	inline void EditorToolRenderResources::RenderToTexture(EditorToolRenderTexture& texture,
-		RenderFunc&& renderFunc, const Color4& clearColor) {
+		RenderFunc&& renderFunc, const Color4& clearColor, bool clear) {
 
 		if (!currentGraphicsCore_ || !texture.IsValid()) {
 			return;
@@ -103,7 +104,7 @@ namespace Engine {
 		clearDesc.clearDepthValue = 1.0f;
 		clearDesc.clearStencil = true;
 		clearDesc.clearStencilValue = 0;
-		renderTarget->Clear(*dxCommand, clearDesc);
+		if (clear) renderTarget->Clear(*dxCommand, clearDesc);
 
 		dxCommand->SetDescriptorHeaps({ currentGraphicsCore_->GetSRVDescriptor().GetDescriptorHeap() });
 

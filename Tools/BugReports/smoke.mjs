@@ -2,7 +2,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
 const endpoint = 'https://nemengine-support.nemengine-distribution.workers.dev/reports';
-const output = path.resolve(import.meta.dirname,'../../Generated/BugReports/smoke.json');
+const output = path.resolve(import.meta.dirname,'../../LocalWork/BugReports/smoke.json');
 const receipts = [];
 for (const attachLogs of [false,true]) {
   // 実際のログや個人情報は検証へ使用しない

@@ -34,6 +34,7 @@ namespace {
 			found->used |= sourceVariable.used;
 			found->isColor |= sourceVariable.isColor;
 			found->isTexture |= sourceVariable.isTexture;
+			found->exposed &= sourceVariable.exposed;
 			found->size = (std::max)(found->size, sourceVariable.size);
 			found->declaredComponentCount = (std::max)(found->declaredComponentCount, sourceVariable.declaredComponentCount);
 			found->declaredByteSize = (std::max)(found->declaredByteSize, sourceVariable.declaredByteSize);
@@ -126,6 +127,7 @@ void Engine::MergeShaderReflection(ShaderReflectionInfo& target, const ShaderRef
 			});
 		if (found != target.resources.end()) {
 			found->stageMask |= resource.stageMask;
+			found->exposed &= resource.exposed;
 			// 0は非有界配列なので固定長との統合でも非有界を維持する
 			found->bindCount = found->bindCount == 0 || resource.bindCount == 0 ?
 				0 : (std::max)(found->bindCount, resource.bindCount);
@@ -164,4 +166,9 @@ void Engine::MergeShaderReflection(ShaderReflectionInfo& target, const ShaderRef
 		}
 	}
 	target.requiresFlags |= source.requiresFlags;
+	for (const auto id : source.hiddenParameters) {
+		if (std::find(target.hiddenParameters.begin(), target.hiddenParameters.end(), id) == target.hiddenParameters.end()) {
+			target.hiddenParameters.push_back(id);
+		}
+	}
 }

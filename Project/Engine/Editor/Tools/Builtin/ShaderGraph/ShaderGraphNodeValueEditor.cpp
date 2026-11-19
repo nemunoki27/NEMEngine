@@ -76,7 +76,7 @@ void Engine::ShaderGraphNodeValueEditor::DrawValue(ShaderGraphEditSession& sessi
 		break;
 	}
 	case ShaderGraphValueType::Float4: {
-		Vector4 value = std::get_if<Vector4>(&node.value.value) ? std::get<Vector4>(node.value.value) : Vector4{};
+		Vector4 value = ShaderGraphEditOperations::GetVector4Value(node.value);
 		FloatEditSetting setting{};
 		setting.propertyRow = NodeValueRowSetting("値", nodeWidth);
 		if (MyGUI::DragVector4("値", value, setting).valueChanged) {
@@ -87,8 +87,8 @@ void Engine::ShaderGraphNodeValueEditor::DrawValue(ShaderGraphEditSession& sessi
 		break;
 	}
 	case ShaderGraphValueType::Color: {
-		Color4 value = std::get_if<Color4>(&node.value.value) ? std::get<Color4>(node.value.value) : Color4::White();
-		const char* label = node.kind == ShaderGraphNodeKind::TextureSample ? "未設定時" : "値";
+		Color4 value = ShaderGraphEditOperations::GetColorValue(node.value);
+		const char* label = node.kind == ShaderGraphNodeKind::TextureSample ? "Fallback" : "値";
 		DrawNodeColorButton(node, label, value, nodeWidth);
 		break;
 	}
@@ -138,8 +138,9 @@ void Engine::ShaderGraphNodeValueEditor::DrawNodeValueTypeButton(ShaderGraphNode
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgHovered));
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetStyleColorVec4(ImGuiCol_FrameBgActive));
 	ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
-	const bool pressed =
-		ImGui::Button(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(node.valueType)), ImVec2(width, ImGui::GetFrameHeight()));
+	const char* typeName = ImGuiUtility::GetEnumDisplayName(magic_enum::enum_type_name<ShaderGraphValueType>(),
+		EnumAdapter<ShaderGraphValueType>::ToString(node.valueType));
+	const bool pressed = ImGui::Button(typeName, ImVec2(width, ImGui::GetFrameHeight()));
 	ImGui::PopStyleVar();
 	ImGui::PopStyleColor(3);
 
@@ -166,7 +167,12 @@ void Engine::ShaderGraphNodeValueEditor::DrawNodeColorButton(
 		return;
 	}
 	const ImVec4 color(value.r, value.g, value.b, value.a);
-	const bool pressed = ImGui::ColorButton("##Value", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoInputs);
+	const bool pressed = ImGui::ColorButton("##Value", color,
+		ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoTooltip);
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+		nodeColorTooltip_ = value;
+		showNodeColorTooltip_ = true;
+	}
 	const ImVec2 itemMin = ImGui::GetItemRectMin();
 	const ImVec2 itemMax = ImGui::GetItemRectMax();
 	const ImVec2 screenMin = ed::CanvasToScreen(itemMin);
@@ -181,6 +187,12 @@ void Engine::ShaderGraphNodeValueEditor::DrawNodeColorButton(
 
 void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& session) {
 
+	// Canvasの座標変換を解除して標準Tooltipを描画する
+	if (showNodeColorTooltip_) {
+		showNodeColorTooltip_ = false;
+		const float color[]{nodeColorTooltip_.r, nodeColorTooltip_.g, nodeColorTooltip_.b, nodeColorTooltip_.a};
+		ImGui::ColorTooltip("##Value", color, ImGuiColorEditFlags_None);
+	}
 	if (requestNodeValuePopup_) {
 		ImGui::OpenPopup(kNodeValuePopup);
 		requestNodeValuePopup_ = false;
@@ -222,7 +234,9 @@ void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& sessi
 
 				continue;
 			}
-			if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<ShaderGraphValueType>::ToString(valueType)), node.valueType == valueType)) {
+			const char* typeName = ImGuiUtility::GetEnumDisplayName(magic_enum::enum_type_name<ShaderGraphValueType>(),
+				EnumAdapter<ShaderGraphValueType>::ToString(valueType));
+			if (ImGui::Selectable(typeName, node.valueType == valueType)) {
 
 				node.valueType = valueType;
 				node.value = DefaultValueForGraphType(valueType);
@@ -232,7 +246,7 @@ void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& sessi
 		}
 		break;
 	case NodeValuePopupKind::Color: {
-		Color4 value = std::get_if<Color4>(&node.value.value) ? std::get<Color4>(node.value.value) : Color4::White();
+		Color4 value = ShaderGraphEditOperations::GetColorValue(node.value);
 		ImGui::SetNextItemWidth(ImGui::GetFrameHeight() * 12.0f);
 		if (MyGUI::ColorPicker("##NodeColorPicker", value,
 				ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaPreviewHalf).valueChanged) {
@@ -258,4 +272,5 @@ void Engine::ShaderGraphNodeValueEditor::Reset() {
 	nodeValuePopupWidth_ = 0.0f;
 	nodeValuePopupViewportID_ = 0;
 	requestNodeValuePopup_ = false;
+	showNodeColorTooltip_ = false;
 }

@@ -26,6 +26,7 @@ namespace NEMTests {
 		// 既存の検証順と最初の失敗を維持する
 		return RunTest("ShaderGraphDefaultDomains", [&] { return TestShaderGraphDefaultDomains(fixture, graph); }) &&
 			RunTest("ShaderGraphRasterTargets", [&] { return TestShaderGraphRasterTargets(fixture); }) &&
+			RunTest("ShaderGraphRuntimeInputs", [&] { return TestShaderGraphRuntimeInputs(fixture); }) &&
 			RunTest("ShaderGraphShaderDefinitions", TestShaderGraphShaderDefinitions) &&
 			RunTest("ShaderGraphStaticSamplers", [&] { return TestShaderGraphStaticSamplers(fixture); }) &&
 			RunTest("ShaderGraphVertexTargets", [&] { return TestShaderGraphVertexTargets(fixture); }) &&

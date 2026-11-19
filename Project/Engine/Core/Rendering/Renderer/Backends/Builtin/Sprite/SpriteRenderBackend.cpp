@@ -164,7 +164,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// ルートパラメータをバインド
 	{
 		// レジストリのオートバインドとスロット解決をまとめて行う
-		SyncAndBindRegistry(*pipelineState, context, commandList);
+		SyncAndBindRegistry(*pipelineState, context, commandList, items.front()->cameraDomain);
 		if (perDrawBindCache_.Has(viewCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_),
 				resources.GetViewGPUAddress());

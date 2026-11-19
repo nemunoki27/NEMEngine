@@ -10,15 +10,52 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
+#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
+void Engine::EditorRenderBenchmark::ApplyObjectEdits() {
+
+	auto& manager = application_->editorManager_;
+	for (const auto& edit : report_.at("objectEdits").at(phase_)) {
+		const std::string action = edit.at("action");
+		bool applied = false;
+		if (action == "undo") {
+			applied = manager.UndoEditorCommand();
+		} else if (action == "redo") {
+			applied = manager.RedoEditorCommand();
+		} else {
+			const std::string name = edit.at("name");
+			Entity target = Entity::Null();
+			application_->GetActiveWorld()->ForEach<NameComponent>([&](Entity entity, const NameComponent& component) {
+				if (component.name == name) target = entity;
+			});
+			if (target == Entity::Null()) throw std::runtime_error("対象のオブジェクトがありません: " + name);
+			if (action == "delete") applied = manager.ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(target));
+			if (action == "active") applied = manager.ExecuteEditorCommand(
+				std::make_unique<SetEntityActiveCommand>(target, edit.at("value").get<bool>()));
+		}
+		if (!applied) throw std::runtime_error("オブジェクト操作に失敗しました: " + action);
+	}
+}
+
 void Engine::EditorRenderBenchmark::InitComparisonConditions() {
 
 	InitCaptureSettings();
+	const auto edits = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_OBJECT_EDITS");
+	if (!edits.empty()) {
+		auto sequence = JsonFile::Load(edits, false);
+		if (!sequence.is_array() || sequence.empty()) throw std::runtime_error("オブジェクト操作の指定が不正です");
+		phaseCount_ = static_cast<uint32_t>(sequence.size());
+		report_["comparison"] = "ObjectEdits";
+		report_["phaseCount"] = phaseCount_;
+		report_["objectEdits"] = std::move(sequence);
+	}
 	// 表示設定の切替を同じEditorのまま比較する
 	const auto outputSequence = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_DISPLAY_OUTPUT");
 	if (!outputSequence.empty()) {

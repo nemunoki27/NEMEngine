@@ -140,105 +140,6 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 			const uint32_t subMeshDataIndex = static_cast<uint32_t>(work.scene.result.sceneSubMeshScratch_.size());
 
-			// サブメッシュデータを構築
-			MeshSubMeshShaderData subMeshData{};
-			subMeshData.importedBaseColor = importedSubMesh.baseColor;
-			AssetID baseColorTextureAsset =
-				MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			if (baseColorTextureAsset) {
-
-				subMeshData.baseColorTextureIndex = work.scene.materialResolver.ResolveTextureDescriptorIndex(
-					work.graphicsCore, work.assetDatabase, baseColorTextureAsset, true);
-			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(*meshResource, subMeshes, subMeshIndex)) {
-
-				// 宣言はあるが見つからない:エラーテクスチャ
-				subMeshData.baseColorTextureIndex =
-					work.scene.materialResolver.ResolveTextureDescriptorIndex(work.graphicsCore, work.assetDatabase, AssetID{}, true);
-			} else {
-
-				// Texture未指定時はモデルの色を使う
-				subMeshData.baseColorTextureIndex = UINT32_MAX;
-			}
-
-			AssetID normalAsset =
-				MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID metallicRoughnessAsset =
-				MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID metallicAsset =
-				MeshDrawPathCommon::ResolveSubMeshMetallicTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID roughnessAsset =
-				MeshDrawPathCommon::ResolveSubMeshRoughnessTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID emissiveAsset =
-				MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID occlusionAsset =
-				MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID opacityAsset =
-				MeshDrawPathCommon::ResolveSubMeshOpacityTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			AssetID specularAsset =
-				MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(*meshResource, subMeshes, subMeshIndex);
-			subMeshData.normalTextureIndex = normalAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-															   work.graphicsCore, work.assetDatabase, normalAsset, false, true)
-														 : UINT32_MAX;
-			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset
-															? work.scene.materialResolver.ResolveTextureDescriptorIndex(work.graphicsCore,
-																  work.assetDatabase, metallicRoughnessAsset, false)
-															: UINT32_MAX;
-			subMeshData.metallicTextureIndex = metallicAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-																   work.graphicsCore, work.assetDatabase, metallicAsset, false)
-															 : UINT32_MAX;
-			subMeshData.roughnessTextureIndex = roughnessAsset
-													? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-														  work.graphicsCore, work.assetDatabase, roughnessAsset, false)
-													: UINT32_MAX;
-			subMeshData.emissiveTextureIndex = emissiveAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-																   work.graphicsCore, work.assetDatabase, emissiveAsset, true)
-															 : UINT32_MAX;
-			subMeshData.occlusionTextureIndex = occlusionAsset
-													? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-														  work.graphicsCore, work.assetDatabase, occlusionAsset, false)
-													: UINT32_MAX;
-			subMeshData.opacityTextureIndex = opacityAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-																 work.graphicsCore, work.assetDatabase, opacityAsset, false)
-														   : UINT32_MAX;
-			subMeshData.specularTextureIndex = specularAsset ? work.scene.materialResolver.ResolveTextureDescriptorIndex(
-																   work.graphicsCore, work.assetDatabase, specularAsset, false)
-															 : UINT32_MAX;
-
-			// サブメッシュのMaterial値を初期化
-			subMeshData.localMatrix = Matrix4x4::Identity();
-			subMeshData.localNormalMatrix = Matrix4x4::Identity();
-			subMeshData.color = Color4::White();
-			subMeshData.emissiveColor = Color4(0.0f, 0.0f, 0.0f, 0.0f);
-			subMeshData.uvMatrix = Matrix4x4::Identity();
-			if (hasMesh) {
-
-				const auto& authoring = subMeshes[subMeshIndex];
-				// 標準Parameterから反射用のMaterial値を設定
-				const auto& params = authoring.materialInstance;
-				CollectRenderTextureParameters(params, work.assetDatabase, work.scene.renderTextureInputs);
-				auto findColor = [&](MaterialParameterID id, const Color4& fallback) -> Color4 {
-					const MaterialParameterValue* value = params.Find(id);
-					return value && std::holds_alternative<Color4>(value->value) ? std::get<Color4>(value->value) : fallback;
-				};
-				auto findFloat = [&](MaterialParameterID id, float fallback) -> float {
-					const MaterialParameterValue* value = params.Find(id);
-					return value && std::holds_alternative<float>(value->value) ? std::get<float>(value->value) : fallback;
-				};
-				// 解決済みのTexture番号を設定
-				subMeshData.color = findColor(MaterialParameterIDs::BaseColor, Color4::White());
-				subMeshData.emissiveColor = findColor(MaterialParameterIDs::EmissiveColor, Color4(0.0f, 0.0f, 0.0f, 0.0f));
-				// 発光色のAlphaへ発光強度を格納
-				subMeshData.emissiveColor.a = findFloat(MaterialParameterIDs::EmissiveIntensity, 1.0f);
-				subMeshData.metallic = findFloat(MaterialParameterIDs::Metallic, subMeshData.metallic);
-				subMeshData.roughness = findFloat(MaterialParameterIDs::Roughness, subMeshData.roughness);
-				subMeshData.uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(authoring);
-				subMeshData.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
-				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(subMeshData.localMatrix);
-				subMeshData.localNormalMatrix = localNormal.matrix;
-				subMeshData.localOrientationSign = localNormal.orientationSign;
-				subMeshData.sourcePivot = authoring.sourcePivot;
-			}
-			// 遮蔽判定用の表面方式と切り抜き閾値を詰める
 			MeshSubMeshRenderState renderState{};
 			if (src.renderer) {
 				renderState.material = src.renderer->material;
@@ -251,6 +152,25 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			if (material && material->renderState.overridesRenderer && !renderState.surfaceModeOverridden) {
 				renderState.surfaceMode = material->renderState.surfaceMode;
 			}
+			// 描画と同じMaterial既定値とサブメッシュ上書きを使用する
+			const auto* overrides = hasMesh ? &subMeshes[subMeshIndex].materialInstance : nullptr;
+			const auto uvMatrix = hasMesh ? MeshSubMeshRuntime::BuildUVMatrix(subMeshes[subMeshIndex]) : Matrix4x4::Identity();
+			MeshSubMeshShaderData subMeshData{};
+			if (material) {
+				CollectRenderTextureParameters(material->parameters, work.assetDatabase, work.scene.renderTextureInputs);
+				subMeshData = work.scene.materialResolver.BuildSubMeshData(work.graphicsCore, work.assetDatabase,
+					*material, overrides, uvMatrix);
+			}
+			if (overrides) CollectRenderTextureParameters(*overrides, work.assetDatabase, work.scene.renderTextureInputs);
+			subMeshData.localMatrix = localMatrix;
+			const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(localMatrix);
+			subMeshData.localNormalMatrix = localNormal.matrix;
+			subMeshData.localOrientationSign = localNormal.orientationSign;
+			if (hasMesh) subMeshData.sourcePivot = subMeshes[subMeshIndex].sourcePivot;
+			subMeshData.renderGroupIndex = static_cast<uint32_t>(material && material->renderState.overridesRenderer ?
+				material->renderState.blendMode : (src.renderer ? src.renderer->blendMode : BlendMode::Normal));
+			subMeshData.useRasterHitMaterial = material && !FindPass(*material, MaterialPassKind::RayTracing) &&
+				!MaterialRenderPolicy::IsStandardSurface(*material) && renderState.surfaceMode != MaterialSurfaceMode::Transparent;
 			const float alphaCutoff = hasMesh ? subMeshes[subMeshIndex].alphaCutoff : 0.5f;
 			subMeshData._materialPad = (static_cast<uint32_t>(renderState.surfaceMode) << 16u) |
 				static_cast<uint32_t>(std::clamp(alphaCutoff, 0.0f, 1.0f) * 65535.0f);
@@ -273,13 +193,15 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 			RaytracingGeometryShaderData geometryData{};
 			geometryData.subMeshDataIndex = subMeshDataIndex;
+			AppendHitMaterial(work, material, overrides, geometryData);
 			geometryData.indexOffset = importedSubMesh.indexOffset;
 			geometryData.pickRecordIndex = static_cast<uint32_t>(work.scene.result.scenePickRecords_.size() - 1);
-			work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 			RaytracingGeometryBounds bounds;
 			bounds.center = importedSubMesh.boundsCenter;
 			bounds.radius = importedSubMesh.boundsRadius;
 			MeshBoundsUtility::TransformSphere(localMatrix, bounds.center, bounds.radius);
+			geometryData.boundsSphere = {bounds.center.x, bounds.center.y, bounds.center.z, bounds.radius};
+			work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 			bounds.instanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
 			bounds.receiveDecals = src.renderer && src.renderer->receiveDecals && !meshResource->isSkinned &&
 				renderState.surfaceMode != MaterialSurfaceMode::Transparent;
@@ -430,7 +352,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		RaytracingTLASInstance instance{};
 		instance.blas = blasResource;
 		instance.instanceID = shaderInstanceIndex;
-		instance.hitGroupIndex = 0;
+		instance.hitGroupIndex = geometryDataOffset;
 		instance.mask = kRaytracingMaskAlwaysHit;
 		if (src.renderer) {
 			if (src.castShadows) {

@@ -176,7 +176,9 @@ bool NEMTests::RecordPipelineOwnerRetirement(ID3D12Device* device, ID3D12Graphic
 			std::ofstream file(libraryPath);
 			file << "struct Payload { uint value; }; [shader(\"raygeneration\")] void RayGeneration() {} "
 				"[shader(\"raygeneration\")] void RayGeneration2() {} "
-				"[shader(\"miss\")] void Miss(inout Payload payload) {}";
+				"[shader(\"miss\")] void Miss(inout Payload payload) {} "
+				"[shader(\"closesthit\")] void MaterialHit(inout Payload payload, "
+				"in BuiltInTriangleIntersectionAttributes attr) { payload.value = PrimitiveIndex(); }";
 			if (!file) return false;
 		}
 		Engine::ShaderAsset shaderAsset{};
@@ -185,12 +187,18 @@ bool NEMTests::RecordPipelineOwnerRetirement(ID3D12Device* device, ID3D12Graphic
 				.file = Engine::Algorithm::PathToUTF8(libraryPath), .entry = entry, .profile = "lib_6_3" });
 		}
 		Engine::PipelineVariantDesc variant{};
+		for (const char* alias : {"FirstHit", "SecondHit"}) {
+			shaderAsset.stages.push_back({.stage = Engine::ShaderStage::Lib, .file = Engine::Algorithm::PathToUTF8(libraryPath),
+				.entry = "MaterialHit", .profile = "lib_6_3", .exportAlias = alias});
+			variant.hitGroups.push_back({.exportName = std::string(alias) + "Group", .closestHitExport = alias});
+		}
 		variant.kind = Engine::PipelineVariantKind::Raytracing;
 		variant.rayGenerationExports = { "RayGeneration", "RayGeneration2" };
 		variant.missExports = { "Miss" };
 		auto rayPipeline = Engine::RaytracingPipelineBuilder::Create(device8.Get(), &compiler, variant, shaderAsset);
 		std::filesystem::remove(libraryPath);
-		if (!rayPipeline) return false;
+		if (!rayPipeline || rayPipeline->GetHitGroupCount() != 2 ||
+			rayPipeline->GetHitGroupIdentifier(1).size() != D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES) return false;
 		rayPipeline->SetRetirementQueue(retirement);
 		commands->SetComputeRootSignature(rayPipeline->GetRootSignature());
 		commands->SetPipelineState1(rayPipeline->GetStateObject());

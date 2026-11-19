@@ -64,7 +64,7 @@ internal static class LauncherThemeChecks {
         bitmap.CopyPixels(new Int32Rect(0, 0, 1, 1), corner, 4, 0);
         check(corner[0] < 64 && corner[1] < 64 && corner[2] < 64 && corner[3] == 255,
             "画面の背景が暗く描画されていません");
-        string image = Path.Combine(repository, "Generated/Launcher.Theme.png");
+        string image = Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.Theme.png");
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using (var stream = File.Create(image)) encoder.Save(stream);
@@ -82,7 +82,7 @@ internal static class LauncherThemeChecks {
         reportImage.Render(report);
         var reportEncoder = new PngBitmapEncoder();
         reportEncoder.Frames.Add(BitmapFrame.Create(reportImage));
-        using (var stream = File.Create(Path.Combine(repository, "Generated/Launcher." + DistributionVersion.Current + ".BugReport.png"))) reportEncoder.Save(stream);
+        using (var stream = File.Create(Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher." + DistributionVersion.Current + ".BugReport.png"))) reportEncoder.Save(stream);
         report.Close();
         dialog.Close();
         window.Close();

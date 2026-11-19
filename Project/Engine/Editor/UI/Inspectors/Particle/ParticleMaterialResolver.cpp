@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
 // c++
 #include <algorithm>
@@ -130,8 +131,7 @@ namespace Engine::ParticleMaterialResolver {
 
 		std::vector<ShaderResourceBinding> textures{};
 		for (const ShaderResourceBinding& resource : reflection.resources) {
-			if (resource.kind == ShaderBindingKind::SRV && resource.space == 2 &&
-				resource.rawType == D3D_SIT_TEXTURE &&
+			if (MaterialParameterEditor::IsExposedTextureResource(resource, reflection) &&
 				resource.name != MaterialParameterNames::BaseColorTexture) {
 				textures.emplace_back(resource);
 			}

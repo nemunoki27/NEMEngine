@@ -21,7 +21,7 @@ $configuration = $document.SelectSingleNode('//msb:PropertyGroup[msb:UseMultiToo
 if ($null -eq $configuration -or $configuration.UseMultiToolTask -ne 'true') {
     throw 'ソース単位のコンパイル設定がありません。Premakeを再生成してください'
 }
-$output = Join-Path $repoRoot ('Generated/Refactoring/NativeIncrementalBuild/' + [Guid]::NewGuid().ToString('N'))
+$output = Join-Path $repoRoot ('LocalWork/Verification/Refactoring/NativeIncrementalBuild/' + [Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($output) | Out-Null
 $projectPath = Join-Path $output 'NativeIncrementalBuild.vcxproj'
 $utf8 = [Text.UTF8Encoding]::new($false)

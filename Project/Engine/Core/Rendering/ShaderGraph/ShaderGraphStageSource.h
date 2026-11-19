@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 //============================================================================
 //	include
@@ -7,6 +7,13 @@
 
 namespace Engine::ShaderGraphStageSource {
 
+	// 各描画経路の共通宣言を生成する
+	std::string BuildCommonSource(const ShaderGraphAsset& graph, ShaderGraphExpressionCompiler& context,
+		bool bindlessTextures = false, bool declareSceneResources = true);
+	// NodeID順にSamplerの配置を決める
+	void BuildSamplerBindings(const ShaderGraphAsset& graph, ShaderGraphCompileOutput& output);
+	// 公開値の識別子と既定値を対応付ける
+	void BuildParameterBindings(const ShaderGraphAsset& graph, ShaderGraphCompileOutput& output);
 	// 表面のShaderを生成する
 	std::string BuildSurfaceSource(const ShaderGraphAsset& graph, ShaderGraphExpressionCompiler& context);
 	// Mesh描画のShaderを生成する
@@ -44,7 +51,7 @@ namespace Engine::ShaderGraphStageSource {
 	std::string BuildPixelSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
 		const ShaderGraphExpressionCompiler& context, bool transparent);
 	// RayTracingのShaderを生成する
-	std::string BuildRayTracingSource(std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context);
+	std::string BuildRayTracingSource(std::string_view surfaceIncludeFile);
 	// RayTracingのShaderを生成する
 	std::string BuildRayTracingEffectSource(const ShaderGraphAsset& graph, ShaderGraphExpressionCompiler& context);
 	// 画面効果のShaderを生成する

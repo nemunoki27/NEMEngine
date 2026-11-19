@@ -43,7 +43,7 @@ internal static class LauncherVisualChecks {
             projectRow.SetGitLink("https://github.com/example/project");
             projects.SelectedItem = projectRow;
             Pump(window);
-            Capture(window, Path.Combine(repository, "Generated/Launcher.0.1.4.Projects.png"));
+            Capture(window, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.0.1.4.Projects.png"));
             CheckList(projects, 4, check);
             var row = (DataGridRow)projects.ItemContainerGenerator.ContainerFromItem(projectRow);
             check(Descendants<Button>(row).Any(button => (string)button.Content == "開く" && button.Visibility == Visibility.Visible), "Gitのリンクボタンがありません");
@@ -64,7 +64,7 @@ internal static class LauncherVisualChecks {
                 new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(37, 37, 37))),
                 new Setter(Control.ForegroundProperty, Brushes.White), new Setter(Control.PaddingProperty, new Thickness(4)) } };
             OpenMenu(reference, row);
-            int oldWhite = CountLeftWhite(Capture(reference, Path.Combine(repository, "Generated/Launcher.0.1.4.Menu.Before.png")));
+            int oldWhite = CountLeftWhite(Capture(reference, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.0.1.4.Menu.Before.png")));
             reference.IsOpen = false;
             Pump(window);
             CheckMenu(window.CreateProjectMenu(project), row, repository, "Project", check);
@@ -75,7 +75,7 @@ internal static class LauncherVisualChecks {
             var engineRow = (DataGridRow)engines.ItemContainerGenerator.ContainerFromIndex(0);
             engines.SelectedIndex = 0;
             Pump(window);
-            Capture(window, Path.Combine(repository, "Generated/Launcher.0.1.4.Engines.png"));
+            Capture(window, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.0.1.4.Engines.png"));
             CheckMenu(window.CreateEngineMenu("0.1.3"), engineRow, repository, "EngineInstalled", check);
             CheckMenu(window.CreateEngineMenu("0.1.2"), engineRow, repository, "EngineAvailable", check);
             var disabled = window.CreateEngineMenu("0.1.1");
@@ -87,11 +87,11 @@ internal static class LauncherVisualChecks {
             window.Width = window.MinWidth;
             Pump(window);
             CheckList(engines, 4, check);
-            Capture(window, Path.Combine(repository, "Generated/Launcher.0.1.4.Engines.Minimum.png"));
+            Capture(window, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.0.1.4.Engines.Minimum.png"));
             tabs.SelectedIndex = 0;
             Pump(window);
             CheckList(projects, 4, check);
-            Capture(window, Path.Combine(repository, "Generated/Launcher.0.1.4.Projects.Minimum.png"));
+            Capture(window, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher.0.1.4.Projects.Minimum.png"));
             check(projects.Columns[0].SortMemberPath == "Name" && engines.Columns[1].SortMemberPath == "Status",
                 "テンプレート列のソート対象がありません");
             var view = CollectionViewSource.GetDefaultView(projects.ItemsSource);
@@ -106,7 +106,7 @@ internal static class LauncherVisualChecks {
             accounts.SelectedIndex = 1;
             Pump(window);
             check((long)accounts.SelectedValue == 8, "設定で使用アカウントを切り替えられません");
-            Capture(window, Path.Combine(repository, "Generated/Launcher." + DistributionVersion.Current + ".Settings.png"));
+            Capture(window, Path.Combine(repository, "LocalWork/Tests/Distribution/Launcher." + DistributionVersion.Current + ".Settings.png"));
             Console.WriteLine($"Popup確認: 旧メニュー左端の白い画素 {oldWhite} / 修正後 0");
         } finally { window.Close(); }
     }
@@ -126,14 +126,14 @@ internal static class LauncherVisualChecks {
         try {
             OpenMenu(menu, target);
             check(menu.IsOpen && PresentationSource.FromVisual(menu) != null, "実際のPopupが開いていません");
-            var bitmap = Capture(menu, Path.Combine(repository, $"Generated/Launcher.0.1.4.Menu.{name}.png"));
+            var bitmap = Capture(menu, Path.Combine(repository, $"LocalWork/Tests/Distribution/Launcher.0.1.4.Menu.{name}.png"));
             check(CountLeftWhite(bitmap) == 0, "右クリックメニューの左端に白い帯が残っています");
             check(menu.Items.Cast<MenuItem>().All(item => item.ActualWidth > 0 && item.ActualHeight >= 30),
                 "右クリックメニューの項目が欠けています");
             var first = (MenuItem)menu.Items[0];
             first.Focus();
             Pump(menu);
-            Capture(menu, Path.Combine(repository, $"Generated/Launcher.0.1.4.Menu.{name}.Focused.png"));
+            Capture(menu, Path.Combine(repository, $"LocalWork/Tests/Distribution/Launcher.0.1.4.Menu.{name}.Focused.png"));
         } finally { menu.IsOpen = false; Pump(target); }
     }
 

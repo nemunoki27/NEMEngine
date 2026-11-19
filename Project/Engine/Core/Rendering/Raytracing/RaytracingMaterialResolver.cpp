@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Assets/ShaderAsset.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
@@ -30,7 +32,7 @@ namespace {
 	}
 }
 
-Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitiveSubMeshData(
+Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildSubMeshData(
 	GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 	const MaterialAsset& material, const MaterialParameterSet* materialInstance,
 	const Matrix4x4& uvMatrix) {
@@ -118,9 +120,55 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 	return data;
 }
 
+uint32_t Engine::RaytracingMaterialResolver::AppendHitParameters(GraphicsCore& graphicsCore,
+	AssetDatabase& assetDatabase, const ShaderAsset& shader, const MaterialAsset& material,
+	const MaterialParameterSet* overrides, std::vector<uint32_t>& words) {
+
+	auto [entry, inserted] = hitLayouts_.try_emplace(shader.guid);
+	if (inserted) {
+		// 展開済みグラフと同じ宣言順で構造体の配置を作る
+		ShaderReflectionInfo reflection;
+		auto& buffer = reflection.structuredBuffers.emplace_back();
+		buffer.name = MaterialParameterCBuffer::kMesh;
+		for (const auto& parameter : shader.parameters) {
+			if (!parameter.componentCount) continue;
+			const uint32_t count = parameter.componentCount;
+			auto& var = buffer.variables.emplace_back();
+			var.name = parameter.displayName;
+			var.parameterID = parameter.id;
+			var.semantic = parameter.semantic;
+			var.offset = buffer.stride;
+			var.size = var.declaredByteSize = count * sizeof(uint32_t);
+			var.valueType = parameter.valueType;
+			var.valueClass = count == 1 ? D3D_SVC_SCALAR : D3D_SVC_VECTOR;
+			var.rows = 1;
+			var.columns = var.declaredComponentCount = count;
+			var.isColor = parameter.isColor;
+			var.isTexture = parameter.isTexture;
+			buffer.stride += var.size;
+		}
+		buffer.stride = (std::max)(buffer.stride, 4u);
+		entry->second.Build(reflection, buffer.name);
+	}
+	const auto& layout = entry->second;
+	const uint32_t count = (layout.GetSizeInBytes() + 15u) / 16u * 4u;
+	if (words.size() + count > UINT32_MAX / sizeof(uint32_t)) throw std::length_error("反射用Materialが上限を超えました");
+	const uint32_t offset = static_cast<uint32_t>(words.size());
+	words.resize(words.size() + count);
+	std::span<uint8_t> destination(reinterpret_cast<uint8_t*>(words.data() + offset), count * sizeof(uint32_t));
+	static const MaterialParameterSet empty{};
+	MaterialParameterBufferBuilder::BuildElementInto(destination, material.parameters, overrides ? *overrides : empty,
+		layout, [&](MaterialParameterSemantic semantic, const AssetID& id) {
+			return MaterialParameterBufferBuilder::TextureResolveResult{.index = ResolveTextureDescriptorIndex(
+				graphicsCore, assetDatabase, id, IsSRGBMaterialTexture(semantic), semantic == MaterialParameterSemantic::NormalTexture)};
+		});
+	return offset * sizeof(uint32_t);
+}
+
 uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap) {
 
+	if (!textureAssetID) return UINT32_MAX;
 	// Camera出力はサイズ変更とGPU状態をその都度解決する
 	const auto* meta = assetDatabase.Find(textureAssetID);
 	if (meta && meta->type == AssetType::RenderTexture) {
@@ -138,16 +186,18 @@ uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(Graph
 	}
 
 	const GPUTextureResource* errorTexture = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
-	const uint32_t errorIndex = (errorTexture && errorTexture->valid) ? errorTexture->srvIndex : 0;
+	const uint32_t errorIndex = (errorTexture && errorTexture->valid) ? errorTexture->srvIndex : UINT32_MAX;
 
-	if (!textureAssetID) {
-		return UINT32_MAX;
-	}
 
-	const RuntimeTextureResolver::BindlessResolveResult resolved =
-		RuntimeTextureResolver::ResolveBindless(
-			graphicsCore, &assetDatabase, textureAssetID,
+	const auto resolve = [&]() {
+		return RuntimeTextureResolver::ResolveBindless(graphicsCore, &assetDatabase, textureAssetID,
 			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear, normalMap);
+	};
+	auto resolved = resolve();
+	if (prepareTextures_ && resolved.retry) {
+		graphicsCore.GetTextureUploadService().WaitAll();
+		resolved = resolve();
+	}
 	hasPendingTextureDescriptors_ |= resolved.retry;
 	// 読込途中のエラー色を反射へ渡さない
 	if (resolved.retry) return UINT32_MAX;
@@ -162,15 +212,17 @@ uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(Graph
 
 void Engine::RaytracingMaterialResolver::Clear() {
 
+	hitLayouts_.clear();
 	textureDescriptorIndexCache_.clear();
 	sRGBTextureDescriptorIndexCache_.clear();
 	normalTextureDescriptorIndexCache_.clear();
 	hasPendingTextureDescriptors_ = false;
 }
 
-void Engine::RaytracingMaterialResolver::ResetPending() {
+void Engine::RaytracingMaterialResolver::ResetPending(bool prepareTextures) {
 
 	hasPendingTextureDescriptors_ = false;
+	prepareTextures_ = prepareTextures;
 	// 再構築中は旧SceneのTextureも保持する
 	const auto reset = [](auto& cache) {
 

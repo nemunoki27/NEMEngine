@@ -28,6 +28,8 @@
 #include "LogicPlacementTests.h"
 #include "DecalTests.h"
 #include "ParticleSystemRuntimeTests.h"
+#include "ShaderGraphNodePreviewCases.h"
+#include "ShaderGraphEditorUITests.h"
 
 //============================================================================
 //	include
@@ -407,6 +409,18 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		}
 		std::cout << "ECS chunk storage passed\n";
 		return 0;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--shader-graph-ui") {
+		return RunTest("TestShaderGraphEditorUI", TestShaderGraphEditorUI) ? 0 : 18;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--shader-graph-preview-images") {
+		return RunTest("WriteShaderGraphNodePreviewImages", WriteShaderGraphNodePreviewImages) ? 0 : 18;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--shader-graph-preview") {
+		return RunTest("TestShaderGraphNodePreviews", TestShaderGraphNodePreviews) ? 0 : 18;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--shader-graph-preview-fixtures") {
+		return RunTest("WriteShaderGraphNodePreviewFixtures", WriteShaderGraphNodePreviewFixtures) ? 0 : 18;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--shader-graph") {
 

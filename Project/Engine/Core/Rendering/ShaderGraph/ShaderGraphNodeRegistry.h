@@ -29,6 +29,15 @@ namespace Engine {
 		std::span<const ShaderGraphPortDescriptor> outputs;
 		bool dynamicPorts = false;
 		bool preview = true;
+		bool preview3D = false;
+	};
+
+	// 未接続入力の値と組込み入力
+	struct ShaderGraphInputDefault {
+
+		ShaderGraphValueType type = ShaderGraphValueType::Invalid;
+		MaterialParameterValue value{};
+		std::string_view binding;
 	};
 
 	//============================================================================
@@ -49,4 +58,9 @@ namespace Engine {
 		// ノード種別から定義を取得
 		static const ShaderGraphNodeDescriptor* Find(ShaderGraphNodeKind kind);
 	};
+
+	// 汎用ノードの定義を取得する
+	std::span<const ShaderGraphNodeDescriptor> GetGenericShaderGraphNodeDescriptors();
+	// 汎用ノードの未接続入力を取得する
+	ShaderGraphInputDefault GetShaderGraphInputDefault(const ShaderGraphNode& node, uint32_t slot);
 } // Engine

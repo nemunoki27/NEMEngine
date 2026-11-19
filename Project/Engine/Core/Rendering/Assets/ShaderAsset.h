@@ -26,6 +26,8 @@ namespace Engine {
 		std::string profile;
 		// 合成後もCook済みステージを元Shader Assetから引くための実行時ID
 		AssetID ownerShader{};
+		// 複数ライブラリを合成するときのState Object内の名前
+		std::string exportAlias;
 	};
 	// HLSL変数名とMaterial Instanceの安定IDを対応付けるメタデータ
 	struct ShaderParameterMetadata {
@@ -37,6 +39,9 @@ namespace Engine {
 			MaterialParameterSemantic::None;
 		bool isColor = false;
 		bool isTexture = false;
+		bool exposed = true;
+		D3D_SHADER_VARIABLE_TYPE valueType = D3D_SVT_VOID;
+		uint32_t componentCount = 0;
 	};
 	// シェーダーアセットの情報
 	struct ShaderAsset {

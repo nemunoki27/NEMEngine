@@ -1,10 +1,11 @@
-#include "ShaderGraphArtifactCache.h"
+﻿#include "ShaderGraphArtifactCache.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include "ShaderGraphArtifactBuilder.h"
 #include "ShaderGraphMaterialBuilder.h"
+#include "ShaderGraphAssetReferences.h"
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -89,24 +90,9 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 
 	// SubGraphと外部関数の参照を解決する
 	const ShaderGraphAssetResolver resolver = [database](AssetID assetID, ShaderGraphAsset& outGraph) {
-		if (!database) {
-			return false;
-		}
-		const std::filesystem::path path = database->ResolveFullPath(assetID);
-		return !path.empty() && FromJson(JsonAdapter::Load(path, true), outGraph);
+		return ShaderGraphAssetReferences::Load(assetID, database, outGraph);
 	};
-	ShaderGraphAsset resolvedGraph = graph;
-	if (database) {
-		for (ShaderGraphNode& node : resolvedGraph.nodes) {
-			if (node.customFunctionSource != ShaderGraphCustomFunctionSource::File || !node.functionFileAsset) {
-
-				continue;
-			}
-			const std::filesystem::path functionPath = database->ResolveFullPath(node.functionFileAsset);
-			node.functionFile = Algorithm::PathToUTF8(functionPath.lexically_normal());
-			std::replace(node.functionFile.begin(), node.functionFile.end(), '\\', '/');
-		}
-	}
+	ShaderGraphAsset resolvedGraph = ShaderGraphAssetReferences::ResolveFunctions(graph, database);
 	// Graphを解析してShaderソースを作る
 	artifact.compileOutput =
 		ShaderGraphCompiler::Compile(resolvedGraph, Algorithm::PathToUTF8(artifact.surfacePath.filename()), resolver);

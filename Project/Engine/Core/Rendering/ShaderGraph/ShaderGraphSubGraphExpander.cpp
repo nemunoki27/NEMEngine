@@ -1,4 +1,5 @@
 #include "ShaderGraphSubGraphExpander.h"
+#include "ShaderGraphReachability.h"
 
 //============================================================================
 //	include
@@ -51,9 +52,9 @@ namespace {
 
 	// 子Graphを展開して親の接続先へつなぐ
 	bool ExpandSubGraphs(ShaderGraphAsset& graph, const ShaderGraphAssetResolver& resolver,
-		std::vector<ShaderGraphDiagnostic>& diagnostics, std::unordered_set<AssetID>& resolving) {
+		std::vector<ShaderGraphDiagnostic>& diagnostics, std::unordered_set<AssetID>& resolving, bool reachableOutputsOnly) {
 
-		// 定数への置換前に公開値のIDを確認する
+		// 展開前に公開値のIDを確認する
 		if (!ShaderGraphIRBuilder::ValidatePublicIdentifiers(graph, diagnostics)) {
 			return false;
 		}
@@ -87,7 +88,14 @@ namespace {
 				AddExpansionDiagnostic(diagnostics, subGraphNode.id, "異なるDomainのSub Graphは接続できません");
 				return false;
 			}
-			if (!ExpandSubGraphs(child, resolver, diagnostics, resolving)) {
+			if (reachableOutputsOnly) {
+				std::vector<uint32_t> outputSlots;
+				for (const ShaderGraphLink& link : graph.links) {
+					if (link.outputNode == subGraphNode.id) outputSlots.emplace_back(link.outputSlot);
+				}
+				ShaderGraphReachability::Retain(child, child.outputNode, outputSlots, true);
+			}
+			if (!ExpandSubGraphs(child, resolver, diagnostics, resolving, reachableOutputsOnly)) {
 				resolving.erase(subGraphNode.subGraph);
 				return false;
 			}
@@ -114,6 +122,8 @@ namespace {
 			std::unordered_map<uint64_t, GraphEndpoint> endpointMap;
 			std::vector<ShaderGraphNode> expandedNodes;
 			std::vector<ShaderGraphKeyword> expandedKeywords;
+			std::vector<ShaderGraphParameter> expandedParameters;
+			std::unordered_map<uint64_t, Engine::UUID> parameterMap;
 			for (const ShaderGraphKeyword& keyword : child.keywords) {
 				ShaderGraphKeyword clone = keyword;
 				clone.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, keyword.id.value, 6)};
@@ -141,19 +151,25 @@ namespace {
 						}
 					}
 
-					ShaderGraphNode constant{
-						.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, source.id.value, 1)},
-						.kind = ShaderGraphNodeKind::Constant,
-						.valueType = parameter->type,
-						.value = parameter->defaultValue,
-						.position = source.position,
-						.previewExpanded = false,
-					};
+					auto foundParameter = parameterMap.find(parameter->id.value);
+					if (foundParameter == parameterMap.end()) {
+						auto cloneParameter = *parameter;
+						cloneParameter.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, parameter->id.value, 7)};
+						cloneParameter.exposed = false;
+						foundParameter = parameterMap.emplace(parameter->id.value, cloneParameter.id).first;
+						expandedParameters.emplace_back(std::move(cloneParameter));
+					}
+					ShaderGraphNode clone = source;
+					clone.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, source.id.value, 1)};
+					clone.kind = ShaderGraphNodeKind::Parameter;
+					clone.parameterID = foundParameter->second;
+					clone.valueType = parameter->type;
+					clone.previewExpanded = false;
 					endpointMap[source.id.value] = GraphEndpoint{
-						.node = constant.id,
+						.node = clone.id,
 						.slot = 0,
 					};
-					expandedNodes.emplace_back(std::move(constant));
+					expandedNodes.emplace_back(std::move(clone));
 					continue;
 				}
 
@@ -249,15 +265,18 @@ namespace {
 				std::make_move_iterator(expandedLinks.end()));
 			graph.keywords.insert(graph.keywords.end(), std::make_move_iterator(expandedKeywords.begin()),
 				std::make_move_iterator(expandedKeywords.end()));
+			graph.parameters.insert(graph.parameters.end(), std::make_move_iterator(expandedParameters.begin()),
+				std::make_move_iterator(expandedParameters.end()));
 		}
 	}
 
 } // namespace
 
 bool Engine::ShaderGraphSubGraphExpander::Expand(
-	ShaderGraphAsset& graph, const ShaderGraphAssetResolver& resolver, std::vector<ShaderGraphDiagnostic>& diagnostics) {
+	ShaderGraphAsset& graph, const ShaderGraphAssetResolver& resolver, std::vector<ShaderGraphDiagnostic>& diagnostics,
+	bool reachableOutputsOnly) {
 
 	// 呼出しごとに参照中の集合を作る
 	std::unordered_set<AssetID> resolving;
-	return ExpandSubGraphs(graph, resolver, diagnostics, resolving);
+	return ExpandSubGraphs(graph, resolver, diagnostics, resolving, reachableOutputsOnly);
 }

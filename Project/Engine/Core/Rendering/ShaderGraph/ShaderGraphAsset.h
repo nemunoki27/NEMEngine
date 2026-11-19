@@ -4,12 +4,15 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeSettings.h>
 
 // c++
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
+// magic_enum
+#include <magic_enum.hpp>
 
 namespace Engine {
 
@@ -48,6 +51,14 @@ namespace Engine {
 		Half,
 	};
 
+	// ノード内のプレビュー形状
+	enum class ShaderGraphPreviewMode : uint8_t {
+
+		Inherit,
+		TwoDimensional,
+		ThreeDimensional,
+	};
+
 	// Materialパラメータの更新単位
 	enum class ShaderGraphParameterScope : uint8_t {
 
@@ -81,6 +92,9 @@ namespace Engine {
 		Boolean,
 		Integer,
 		Matrix4,
+		Matrix2,
+		Matrix3,
+		Gradient,
 	};
 
 	// Keywordの種類
@@ -168,6 +182,101 @@ namespace Engine {
 		VertexOutput,
 		Dither,
 		ParticleData,
+		Exponential,
+		Log,
+		Modulo,
+		Posterize,
+		Reciprocal,
+		ReciprocalSquareRoot,
+		DDX,
+		DDXY,
+		DDY,
+		InverseLerp,
+		Matrix2,
+		Matrix3,
+		Matrix4,
+		MatrixConstruction,
+		MatrixDeterminant,
+		MatrixSplit,
+		MatrixTranspose,
+		RandomRange,
+		Ceiling,
+		Round,
+		Sign,
+		Truncate,
+		Arccosine,
+		Arcsine,
+		Arctangent,
+		Arctangent2,
+		DegreesToRadians,
+		HyperbolicCosine,
+		HyperbolicSine,
+		HyperbolicTangent,
+		RadiansToDegrees,
+		Tangent,
+		Projection,
+		Rejection,
+		RotateAboutAxis,
+		SphereMask,
+		Transform,
+		NoiseSineWave,
+		SawtoothWave,
+		SquareWave,
+		TriangleWave,
+		ChannelMixer,
+		Contrast,
+		Hue,
+		InvertColors,
+		ReplaceColor,
+		Saturation,
+		WhiteBalance,
+		Blend,
+		ChannelMask,
+		ColorMask,
+		NormalBlend,
+		NormalFromHeight,
+		NormalStrength,
+		ColorspaceConversion,
+		Flip,
+		Swizzle,
+		BitangentVector,
+		Blackbody,
+		Gradient,
+		SampleGradient,
+		TransformationMatrix,
+		DielectricSpecular,
+		MetalReflectance,
+		Camera,
+		Object,
+		Screen,
+		VertexID,
+		IsFrontFace,
+		TextureSize,
+		TextureSampleLOD,
+		Checkerboard,
+		GradientNoise,
+		Ellipse,
+		Polygon,
+		RoundedPolygon,
+		RoundedRectangle,
+		Rectangle,
+		Preview,
+		All,
+		And,
+		Any,
+		Comparison,
+		IsInfinite,
+		IsNaN,
+		Nand,
+		Not,
+		Or,
+		Flipbook,
+		RadialShear,
+		Spherize,
+		Triplanar,
+		ParallaxMapping,
+		ParallaxOcclusionMapping,
+		Twirl,
 	};
 
 	struct ShaderGraphPort {
@@ -176,6 +285,8 @@ namespace Engine {
 		std::string name;
 		ShaderGraphValueType type = ShaderGraphValueType::Float;
 		MaterialParameterValue defaultValue{};
+		bool hasDefault = true;
+		UUID sourceID{};
 	};
 
 	struct ShaderGraphParameter {
@@ -226,7 +337,10 @@ namespace Engine {
 		std::string functionFile;
 		std::string functionBody;
 		PipelineStaticSamplerSettings sampler{};
+		ShaderGraphNodeSettings settings{};
 		bool previewExpanded = true;
+		ShaderGraphPreviewMode previewMode = ShaderGraphPreviewMode::Inherit;
+		uint32_t previewOutputSlot = 0;
 	};
 
 	struct ShaderGraphLink {
@@ -308,3 +422,14 @@ namespace Engine {
 	bool FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset);
 	nlohmann::json ToJson(const ShaderGraphAsset& asset);
 } // Engine
+
+namespace magic_enum::customize {
+
+	// 追加ノードも保存名へ変換できる範囲を指定する
+	template<>
+	struct enum_range<Engine::ShaderGraphNodeKind> {
+
+		static constexpr int min = 0;
+		static constexpr int max = static_cast<int>(Engine::ShaderGraphNodeKind::Twirl);
+	};
+}

@@ -68,9 +68,10 @@ namespace {
 		float materialPadding = 0.0f;
 		uint32_t unassignedMaterialTextureMask = 0;
 		float _viewPad[2]{};
+		Engine::Vector4 geometryBounds{};
 	};
 	static_assert(offsetof(PrimitiveViewConstants, unassignedMaterialTextureMask) == 212);
-	static_assert(sizeof(PrimitiveViewConstants) == 224);
+	static_assert(sizeof(PrimitiveViewConstants) == 240);
 	// MeshShader経路でインデックス数を渡す定数バッファ
 	struct PrimitiveMeshConstants {
 
@@ -284,6 +285,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// viewの定数バッファを確保する
 	PrimitiveViewConstants viewConstants{};
+	viewConstants.geometryBounds = {geometry->boundsCenter.x, geometry->boundsCenter.y,
+		geometry->boundsCenter.z, geometry->boundsRadius};
 	// Border色が混ざるSamplerでは白の定数へ置き換えない
 	if (bindingMaterial && variant) {
 		const auto sampler = std::find_if(variant->staticSamplers.begin(), variant->staticSamplers.end(), [](const auto& value) {
@@ -315,7 +318,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		context, *pipelineState, item->blendMode);
 
 	// ルートパラメータをバインドする
-	SyncAndBindRegistry(*pipelineState, context, commandList);
+	SyncAndBindRegistry(*pipelineState, context, commandList, item->cameraDomain);
 	BackendDrawCommon::BindTransparentFog(context, *pipelineState, *item, constantBufferAllocator_, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(

@@ -45,7 +45,7 @@ D3D12_DISPATCH_RAYS_DESC Engine::RaytracingPipelineState::BuildDispatchDesc(
 	if (hitGroupCount_ > 0) {
 		desc.HitGroupTable.StartAddress = baseAddress + hitGroupTableOffset_;
 		desc.HitGroupTable.SizeInBytes = hitGroupCount_ * kRecordStride;
-		desc.HitGroupTable.StrideInBytes = kRecordStride;
+		desc.HitGroupTable.StrideInBytes = hitGroupCount_ == 1 ? 0 : kRecordStride;
 	}
 	if (callableCount_ > 0) {
 		desc.CallableShaderTable.StartAddress = baseAddress + callableTableOffset_;

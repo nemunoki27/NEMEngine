@@ -41,6 +41,7 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 		ScreenSpaceOutlineRenderer renderer_{};
+		bool pipelinesPrepared_ = false;
 		std::vector<ScreenSpaceOutlineRequest> requests_{};
 	};
 } // Engine

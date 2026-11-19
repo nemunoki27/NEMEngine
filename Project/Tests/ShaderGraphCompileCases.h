@@ -17,6 +17,8 @@ namespace NEMTests {
 
 	// 描画対象ごとのShaderと保存値を確認する
 	bool TestShaderGraphRasterTargets(const ShaderGraphCompileFixture& fixture);
+	// 各描画対象のCameraとObject入力をDXCで検証する
+	bool TestShaderGraphRuntimeInputs(const ShaderGraphCompileFixture& fixture);
 
 	// Shaderの入口と公開Parameterの構成を確認する
 	bool TestShaderGraphShaderDefinitions();

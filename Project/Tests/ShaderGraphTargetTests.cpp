@@ -10,15 +10,98 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactBuilder.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCookStorage.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 
 // c++
 #include <algorithm>
 #include <array>
+#include <cstring>
+
+namespace {
+
+	// 非公開設定を保存形式とGPU配置へ引き継ぐ
+	bool TestParameterVisibility() {
+
+		using namespace Engine;
+		const auto colorID = MaterialParameterID::FromName("PrivateColor");
+		const auto textureID = MaterialParameterID::FromName("PrivateMap");
+		const auto optimizedID = MaterialParameterID::FromName("OptimizedPrivate");
+		ShaderAsset shader;
+		shader.guid = {57, 59};
+		shader.parameters = {
+			{.shaderName = "Tint", .id = MaterialParameterID::FromName("Tint")},
+			{.shaderName = "PrivateColor", .displayName = "内部色", .id = colorID, .isColor = true, .exposed = false},
+			{.shaderName = "PrivateMap", .id = textureID, .semantic = MaterialParameterSemantic::BaseColorTexture,
+				.isTexture = true, .exposed = false},
+			{.shaderName = "OptimizedPrivate", .id = optimizedID, .exposed = false},
+		};
+		ShaderAsset restored;
+		if (!FromJson(ToJson(shader), restored) || restored.parameters.size() != 4 ||
+			!restored.parameters[0].exposed || restored.parameters[1].exposed ||
+			restored.parameters[2].exposed || restored.parameters[3].exposed) return false;
+		auto legacy = ToJson(shader);
+		legacy["parameters"][1].erase("exposed");
+		if (!FromJson(legacy, restored) || !restored.parameters[1].exposed) return false;
+		if (!ShaderCookStorage::ReadShaderMetadata(ShaderCookStorage::WriteShaderMetadata(shader), restored) ||
+			restored.guid != shader.guid || restored.parameters.size() != 4 || restored.parameters[1].exposed ||
+			restored.parameters[2].exposed || restored.parameters[3].exposed) return false;
+
+		ShaderReflectionInfo reflection;
+		const ShaderConstantBufferVariable variable{
+			.name = "PrivateColor", .size = 16, .valueClass = D3D_SVC_VECTOR, .valueType = D3D_SVT_FLOAT,
+			.rows = 1, .columns = 4, .declaredComponentCount = 4, .declaredByteSize = 16,
+		};
+		reflection.constantBuffers.emplace_back(ShaderConstantBufferInfo{
+			.name = "MaterialParameters", .size = 16, .variables = {variable},
+		});
+		reflection.structuredBuffers.emplace_back(ShaderStructuredBufferInfo{
+			.name = "gMeshMaterialParameters", .stride = 16, .variables = {variable},
+		});
+		reflection.resources.emplace_back(ShaderResourceBinding{.name = "PrivateMap", .kind = ShaderBindingKind::SRV});
+		ApplyShaderParameterMetadata(reflection, shader);
+		const auto& constant = reflection.constantBuffers.front().variables.front();
+		const auto& structured = reflection.structuredBuffers.front().variables.front();
+		const auto& resource = reflection.resources.front();
+		if (constant.parameterID != colorID || constant.exposed || !constant.isColor || constant.name != "内部色" ||
+			structured.parameterID != colorID || structured.exposed || resource.parameterID != textureID ||
+			resource.exposed || resource.name != "PrivateMap" ||
+			resource.semantic != MaterialParameterSemantic::BaseColorTexture || reflection.hiddenParameters.size() != 3 ||
+			std::ranges::find(reflection.hiddenParameters, optimizedID) == reflection.hiddenParameters.end()) return false;
+		ShaderReflectionInfo cooked;
+		if (!ShaderCookStorage::ReadReflection(ShaderCookStorage::WriteReflection(reflection), cooked) ||
+			cooked.hiddenParameters != reflection.hiddenParameters || cooked.constantBuffers.size() != 1 ||
+			cooked.structuredBuffers.size() != 1 || cooked.resources.size() != 1 ||
+			cooked.constantBuffers.front().variables.front().exposed ||
+			cooked.constantBuffers.front().variables.front().parameterID != colorID ||
+			cooked.structuredBuffers.front().variables.front().exposed ||
+			cooked.resources.front().exposed || cooked.resources.front().parameterID != textureID) return false;
+
+		// 複数Stageの統合でも最適化された内部値を保持する
+		ShaderReflectionInfo merged;
+		MergeShaderReflection(merged, cooked);
+		MergeShaderReflection(merged, cooked);
+		if (merged.hiddenParameters != cooked.hiddenParameters || merged.constantBuffers.size() != 1 ||
+			merged.constantBuffers.front().variables.front().exposed || merged.resources.size() != 1 ||
+			merged.resources.front().exposed) return false;
+		MaterialParameterLayout layout;
+		layout.Build(cooked);
+		MaterialParameterSet defaults;
+		const Vector4 color(.2f, .4f, .6f, .75f);
+		defaults.Set(colorID, "PrivateColor", MaterialParameterSemantic::None, {color});
+		const auto bytes = MaterialParameterBufferBuilder::BuildElement(defaults, {}, layout, {});
+		Vector4 packed{};
+		if (!layout.IsValid() || bytes.size() < sizeof(packed)) return false;
+		std::memcpy(&packed, bytes.data(), sizeof(packed));
+		return packed == color;
+	}
+}
 
 namespace NEMTests {
 
 	bool TestShaderGraphShaderDefinitions() {
 
+		if (!TestParameterVisibility()) return false;
 		using namespace Engine;
 		const AssetID shaderID{57, 58};
 		const std::filesystem::path path = "generated.hlsl";
@@ -54,7 +137,7 @@ namespace NEMTests {
 		}
 		// ShaderTableで使うExport順を維持する
 		const std::vector<std::string> surfaceEntries{"ReflectionClosestHit", "ReflectionAnyHit"};
-		const std::vector<std::string> effectEntries{"RenderFeatureRayGeneration", "ReflectionMiss", "ReflectionClosestHit"};
+		const std::vector<std::string> effectEntries{"RenderFeatureRayGeneration", "ReflectionMiss", "ReflectionClosestHit", "ReflectionAnyHit"};
 		for (const auto& [shader, entries] : {std::pair{&surface, &surfaceEntries}, std::pair{&effect, &effectEntries}}) {
 			if (shader->stages.size() != entries->size()) {
 				return false;
@@ -78,7 +161,7 @@ namespace NEMTests {
 			std::pair{Engine::ShaderGraphTarget::Text, "Builtin/Text/defaultText.hlsli"},
 			std::pair{Engine::ShaderGraphTarget::Primitive2D, "Builtin/Primitive/primitive2D.hlsli"},
 			std::pair{Engine::ShaderGraphTarget::Particle, "Builtin/Particle/Common/particle.hlsli"},
-			std::pair{Engine::ShaderGraphTarget::Trail, "Builtin/Particle/Common/particle.hlsli"},
+			std::pair{Engine::ShaderGraphTarget::Trail, "Builtin/Particle/Trail/particleTrail.hlsli"},
 		};
 		for (const auto& [target, include] : targetIncludes) {
 			const Engine::ShaderGraphAsset targetGraph = Engine::CreateDefaultSurfaceShaderGraph("NEMTargetTest", target);

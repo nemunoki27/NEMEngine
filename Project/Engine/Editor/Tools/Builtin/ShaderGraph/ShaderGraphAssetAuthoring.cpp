@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSettingsImporter.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
@@ -74,5 +75,6 @@ bool Engine::ShaderGraphAssetAuthoring::Import(AssetDatabase& database, const Sh
 	if (!ShaderGraphSettingsImporter::Import(destination, source, meta->type, resolver, output, status)) {
 		return false;
 	}
+	ShaderGraphAssetReferences::RefreshSubGraphs(output, &database);
 	return true;
 }

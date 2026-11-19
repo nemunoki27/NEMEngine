@@ -16,7 +16,7 @@
         {
           "exportName": "ReflectionHitGroup",
           "closestHitExport": "ReflectionClosestHit",
-          "anyHitExport": "",
+          "anyHitExport": "ReflectionAnyHit",
           "intersectionExport": "",
           "kind": "Triangles"
         }
@@ -41,7 +41,7 @@
       ],
       "maxPayloadSizeInBytes": 48,
       "maxAttributeSizeInBytes": 8,
-      "maxRecursionDepth": 1
+      "maxRecursionDepth": 2
     }
   ]
 }

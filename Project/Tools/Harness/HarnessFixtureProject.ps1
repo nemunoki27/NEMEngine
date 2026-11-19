@@ -5,9 +5,9 @@ function New-HarnessFixtureProject {
     )
 
     $fixtureEngineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
-    $generatedRoot = [IO.Path]::GetFullPath((Join-Path $fixtureEngineRoot 'Generated'))
+    $verificationRoot = [IO.Path]::GetFullPath((Join-Path $fixtureEngineRoot 'LocalWork/Verification'))
     $destinationRoot = [IO.Path]::GetFullPath($Destination)
-    if (!$destinationRoot.StartsWith($generatedRoot + [IO.Path]::DirectorySeparatorChar,
+    if (!$destinationRoot.StartsWith($verificationRoot + [IO.Path]::DirectorySeparatorChar,
         [StringComparison]::OrdinalIgnoreCase)) { throw '検証用Projectの配置先が不正です' }
 
     # 検証データはSandboxへ書き戻さない

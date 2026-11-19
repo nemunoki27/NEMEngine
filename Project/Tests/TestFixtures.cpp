@@ -39,7 +39,7 @@ namespace NEMTests {
 
 		// 他の検証やゲームAssetと作業先を分ける
 		const auto root =
-			parent.empty() ? Engine::RuntimePaths::GetEngineProjectRoot().parent_path() / "Generated/TestFixtures" : parent;
+			parent.empty() ? Engine::RuntimePaths::GetEngineProjectRoot().parent_path() / "LocalWork/Tests/TestFixtures" : parent;
 		std::filesystem::create_directories(root);
 		for (int attempt = 0; attempt < 8; ++attempt) {
 			const auto candidate =

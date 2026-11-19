@@ -14,7 +14,7 @@ internal static class TemplateScriptBuildChecks {
         document.Descendants("Analyzer").Remove();
         document.Save(project);
         DistributionStorage.WriteText(Path.Combine(game, "GameAssets/TemplateBuildCheck.cs"), "public sealed class TemplateBuildCheck { public float Value { get; set; } }\n");
-        string reports = Path.Combine(repository, "Generated/ContentDistributionValidation/ScriptBuild");
+        string reports = Path.Combine(repository, "LocalWork/Tests/Distribution/ContentDistributionValidation/ScriptBuild");
         Directory.CreateDirectory(reports);
         string dotnet = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
         var environment = new Dictionary<string, string> { ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1", ["DOTNET_NOLOGO"] = "1" };

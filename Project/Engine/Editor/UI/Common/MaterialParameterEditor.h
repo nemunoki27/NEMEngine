@@ -35,6 +35,12 @@ namespace Engine::MaterialParameterEditor {
 
 	// HLSLの16byte整列用メンバはユーザー編集対象にしない
 	bool IsInternalPaddingParameter(const ShaderConstantBufferVariable& var);
+	// 非公開の内部値を編集欄から除外する
+	bool IsExposedParameter(const ShaderConstantBufferVariable& variable);
+	// 最適化で消えた内部値も公開対象か判定する
+	bool IsExposedParameter(MaterialParameterID id, const ShaderReflectionInfo& reflection);
+	// 非公開のTextureを編集欄から除外する
+	bool IsExposedTextureResource(const ShaderResourceBinding& resource, const ShaderReflectionInfo& reflection);
 
 	// メタデータまたは変数名から色パラメータか判定する
 	bool IsColorParameter(const ShaderConstantBufferVariable& var);
