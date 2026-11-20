@@ -18,7 +18,10 @@ cbuffer ViewConstants : register(b0) {
 	uint unassignedMaterialTextureMask;
 	float2 _viewPad;
 	float4 geometryBounds;
+	float4 planarUVBounds;
 };
+
+#include "../Common/shineHighlight.hlsli"
 
 struct PrimitiveInstance {
 
@@ -34,6 +37,7 @@ struct PrimitiveInstance {
 	uint motionFrameSerial;
 	uint2 _pad;
 	float4 hexTiling;
+	ShineHighlightData shine;
 };
 static const uint PRIMITIVE_INSTANCE_FLAG_FLIP_SCREEN_V = 1u << 5;
 
@@ -47,6 +51,7 @@ struct VSOutput {
 	nointerpolation float4 uvBasis : TEXCOORD4;
 	nointerpolation uint instanceID : TEXCOORD5;
 	nointerpolation float4 hexTiling : TEXCOORD6;
+	float2 shineUV : TEXCOORD7;
 };
 
 float2 ResolvePrimitive2DTexcoord(
@@ -68,6 +73,7 @@ VSOutput BuildPrimitive2DVertexOutput(
 
 	VSOutput output;
 	output.instanceID = instanceID;
+	output.shineUV = (localPosition.xy - planarUVBounds.xy) * planarUVBounds.zw;
 	output.hexTiling = instance.hexTiling;
 	float4 worldPosition = mul(
 		float4(localPosition, 1.0f),

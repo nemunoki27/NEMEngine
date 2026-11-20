@@ -27,15 +27,6 @@ cbuffer MaterialParameters : register(b3) {
 	float outlineWidth;
 };
 
-struct PSInstance {
-
-	float2 atlasSize;
-	float pxRange;
-	float padding0;
-	float4x4 uvMatrix;
-};
-StructuredBuffer<PSInstance> gPSInstances : register(t2);
-
 //============================================================================
 //	functions
 //============================================================================
@@ -80,22 +71,13 @@ PSOutput main(VSOutput input) {
 		// 縁はoutlineColor、内側へ向かって本体色へ補間する
 		float3 rgb = lerp(outlineColor.rgb, fillColor.rgb, fillAlpha);
 		float regionAlpha = lerp(outlineColor.a, fillColor.a, fillAlpha);
-		float alpha = outerAlpha * regionAlpha;
-
-		// グリフ外の透明ピクセルを捨てる、3Dの深度書き込みで遮蔽させないため
-		if (alpha < (1.0f / 255.0f)) {
-			discard;
-		}
-		output.color = ApplyTransparentFog(float4(rgb, alpha), input.position);
-		return output;
+		output.color = float4(rgb, outerAlpha * regionAlpha);
+	} else {
+		output.color = float4(fillColor.rgb, fillAlpha * fillColor.a);
 	}
-
-	// アウトライン無効時は本体のみ
-	float alpha = fillAlpha * fillColor.a;
-	if (alpha < (1.0f / 255.0f)) {
-		discard;
-	}
-	output.color = ApplyTransparentFog(float4(fillColor.rgb, alpha), input.position);
-
+	// グリフ外の透明ピクセルには深度を書き込まない
+	clip(output.color.a - 1.0f / 255.0f);
+	output.color = ApplyShineHighlight(output.color, input.layoutTexcoord, instance.shine);
+	output.color = ApplyTransparentFog(output.color, input.position);
 	return output;
 }

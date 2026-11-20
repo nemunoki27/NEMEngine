@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableVertexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/ShineHighlightData.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Math.h>
@@ -47,7 +48,11 @@ namespace Engine {
 
 		// ワールド行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		// 文字列全体に対するグリフの範囲
+		Vector2 layoutUVMin{};
+		Vector2 layoutUVMax{};
 	};
+	static_assert(sizeof(TextVSInstanceData) == 128);
 	// ピクセルシェーダインスタンスデータ
 	// HLSL側のPSInstanceとオフセットを完全一致させるため並びとpaddingを固定する
 	struct TextPSInstanceData {
@@ -60,7 +65,9 @@ namespace Engine {
 		float padding0 = 0.0f;
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
+		ShineHighlightData shine{};
 	};
+	static_assert(sizeof(TextPSInstanceData) == 128);
 
 	//============================================================================
 	//	TextBatchResources class

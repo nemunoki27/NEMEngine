@@ -36,6 +36,7 @@ namespace Engine::AssetDependencyScanner {
 			{ "subGraph", Engine::AssetType::ShaderGraph },
 			{ "texture", Engine::AssetType::Texture },
 			{ "maskTexture", Engine::AssetType::Texture },
+			{ "rampTexture", Engine::AssetType::Texture },
 			{ "particleNormalTexture", Engine::AssetType::Texture },
 			{ "field", Engine::AssetType::Unknown },
 			{ "heightmap", Engine::AssetType::Texture },

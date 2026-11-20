@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { root, website, output, read, write, walk, formatDocumentation } from './paths.mjs';
 import { inventory } from './inventory.mjs';
+import { runtimeMemberDescription } from './runtime-notes.mjs';
 import { components, describeProperty } from './component-notes.mjs';
 import { componentDetails, componentExamples, componentReferenceTypes } from './component-details.mjs';
 import { hiddenTypes, hiddenReason, guideFor, memberDescription, modules } from './api-notes.mjs';
@@ -62,7 +63,7 @@ export function generate({ metadata = true } = {}) {
 		const rows = fields.map(property => {
 			const resolved = resolvedBindings.get(`${editor.name}.${property.managedName}`);
 			if (!resolved) throw new Error(`公開C#設定がありません: ${editor.name}.${property.managedName}`);
-			const description = describeProperty(property.nativeMember);
+			const description = runtimeMemberDescription(editor.name, property.managedName) || describeProperty(property.nativeMember);
 			if (!description) unresolved.push(`${editor.name}.${property.managedName}`);
 			const match = data.ui.find(field => (field.file === editor.source || field.owner === editor.name) &&
 				field.value.replace(/^draft\./, '') === property.nativeMember && (field.owner === editor.name || drawerPart.includes(field.label) ||

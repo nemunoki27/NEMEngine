@@ -42,6 +42,7 @@ namespace Engine {
 		uint32_t indexCount = 0;
 		Vector3 boundsCenter{};
 		float boundsRadius = 0.0f;
+		Vector4 planarUVBounds{};
 
 		BottomLevelAccelerationStructure blas{};
 		bool blasBuilt = false;

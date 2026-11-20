@@ -2,6 +2,13 @@
 //	Common VS/PS
 //============================================================================
 #include "../Common/temporalMotion.hlsli"
+#include "../Common/shineHighlight.hlsli"
+
+struct PSInstance {
+
+	float4x4 uvMatrix;
+	ShineHighlightData shine;
+};
 cbuffer ViewConstants : register(b0) {
 
 	float4x4 viewProjection;

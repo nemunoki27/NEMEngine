@@ -3,6 +3,7 @@
 #include "TrailRendererTests.h"
 #include "BeamRendererTests.h"
 #include "HexTilingTests.h"
+#include "ShineHighlightTests.h"
 #include "TimelineEditorTests.h"
 #include "TimelineEditorIntegrationTests.h"
 #include "TimelineRuntimeEditingTests.h"
@@ -78,6 +79,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			RunTest("TestEditorWindows", TestEditorWindows) ? 0 : 92;
 	}
 
+	if (1 < argc && std::string_view(argv[1]) == "--shine-highlight") {
+		return RunTest("TestShineHighlight", TestShineHighlight) && RunTest("TestShineHighlightManaged", TestShineHighlightManaged) ? 0 : 1;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--hex-tiling") {
 		return RunTest("TestHexTiling", TestHexTiling) && RunTest("TestHexTilingManaged", TestHexTilingManaged) ? 0 : 1;
 	}

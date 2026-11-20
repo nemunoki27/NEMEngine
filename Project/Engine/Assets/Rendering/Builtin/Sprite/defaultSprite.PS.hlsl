@@ -23,10 +23,6 @@ cbuffer MaterialParameters : register(b3) {
 	float4 color;
 };
 
-struct PSInstance {
-
-	float4x4 uvMatrix;
-};
 StructuredBuffer<PSInstance> gPSInstances : register(t2);
 
 //============================================================================
@@ -40,7 +36,7 @@ PSOutput main(VSOutput input) {
 	float4 textureColor = baseColorTexture.Sample(gSampler, transformUV.xy);
 
 	PSOutput output;
-	output.color = textureColor * color;
+	output.color = ApplyShineHighlight(textureColor * color, input.texcoord, instance.shine);
 
 	return output;
 }

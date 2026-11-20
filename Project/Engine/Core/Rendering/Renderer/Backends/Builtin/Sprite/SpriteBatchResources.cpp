@@ -1,4 +1,5 @@
 #include "SpriteBatchResources.h"
+#include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 
 //============================================================================
 //	include
@@ -57,10 +58,11 @@ void Engine::SpriteBatchResources::UpdateView(const ResolvedRenderView& view, Re
 	view_.Upload(constants);
 }
 
-void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& view,
-	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, RenderTransformHistory& history) {
+void Engine::SpriteBatchResources::UploadInstances(const RenderDrawContext& context, const std::span<const RenderItem* const>& items, RenderTransformHistory& history) {
 
 	// 描画アイテムからインスタンスデータを構築する
+	const auto& view = *context.view;
+	const auto& batch = *context.batch;
 	vsScratch_.clear();
 	psScratch_.clear();
 	if (vsScratch_.capacity() < items.size()) {
@@ -91,6 +93,7 @@ void Engine::SpriteBatchResources::UploadInstances(const ResolvedRenderView& vie
 		{
 			SpritePSInstanceData instance{};
 			instance.uvMatrix = payload->uvMatrix;
+			instance.shine = ResolveShineHighlight(context, *item);
 			psScratch_.emplace_back(instance);
 		}
 	}

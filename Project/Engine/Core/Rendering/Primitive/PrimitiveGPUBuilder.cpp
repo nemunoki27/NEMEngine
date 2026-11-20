@@ -11,6 +11,7 @@
 
 // c++
 #include <limits>
+#include <algorithm>
 
 bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescriptor* srvDescriptor,
 	const PrimitiveMeshData& mesh, PrimitiveGeometry& geometry) {
@@ -31,6 +32,8 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 	// 中立形式からMeshVertexへ詰め替える、描画とレイトレで同じ形式を共用する
 	std::vector<MeshVertex> vertices;
 	vertices.reserve(mesh.vertices.size());
+	Vector2 minimum{mesh.vertices.front().position.x, mesh.vertices.front().position.y};
+	Vector2 maximum = minimum;
 	for (const PrimitiveMeshVertex& source : mesh.vertices) {
 
 		MeshVertex vertex{};
@@ -39,6 +42,10 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 		vertex.tangentSign = source.tangentSign;
 		vertex.uv = source.texcoord;
 		vertex.position = Vector4(source.position.x, source.position.y, source.position.z, 1.0f);
+		minimum.x = std::min(minimum.x, source.position.x);
+		minimum.y = std::min(minimum.y, source.position.y);
+		maximum.x = std::max(maximum.x, source.position.x);
+		maximum.y = std::max(maximum.y, source.position.y);
 		vertices.emplace_back(vertex);
 	}
 
@@ -47,6 +54,8 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 
 	// すべての描画資源が揃ってから公開する
 	PrimitiveGeometry candidate{};
+	candidate.planarUVBounds = {minimum.x, minimum.y, 1.0f / std::max(maximum.x - minimum.x, 0.00001f),
+		1.0f / std::max(maximum.y - minimum.y, 0.00001f)};
 	MeshBoundsUtility::Calculate(vertices, {}, candidate.boundsCenter, candidate.boundsRadius);
 	candidate.vertexBuffer.Create(device, uploadService, *srvDescriptor, std::span<const MeshVertex>(vertices), L"PrimitiveVertices");
 

@@ -15,10 +15,6 @@ cbuffer MaterialParameters : register(b3) {
 	float4 color;
 };
 
-struct PSInstance {
-
-	float4x4 uvMatrix;
-};
 StructuredBuffer<PSInstance> gPSInstances : register(t2);
 
 cbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {

@@ -70,9 +70,10 @@ namespace {
 		uint32_t unassignedMaterialTextureMask = 0;
 		float _viewPad[2]{};
 		Engine::Vector4 geometryBounds{};
+		Engine::Vector4 planarUVBounds{};
 	};
 	static_assert(offsetof(PrimitiveViewConstants, unassignedMaterialTextureMask) == 212);
-	static_assert(sizeof(PrimitiveViewConstants) == 240);
+	static_assert(sizeof(PrimitiveViewConstants) == 256);
 	// MeshShader経路でインデックス数を渡す定数バッファ
 	struct PrimitiveMeshConstants {
 
@@ -221,6 +222,9 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		if (payload->renderer && payload->renderer->receiveDecals && !IsPrimitiveScreen2D(*payload->renderer)) {
 			instance.flags |= 1u << 6;
 		}
+		if (payload->renderer && IsPrimitiveScreen2D(*payload->renderer)) {
+			instance.shine = ResolveShineHighlight(context, *item);
+		}
 		if (payload->renderer) ApplyPrimitiveShapeToInstance(*payload->renderer, instance);
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Plane &&
 			IsPrimitiveScreen2D(*payload->renderer)) {
@@ -289,6 +293,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// viewの定数バッファを確保する
 	PrimitiveViewConstants viewConstants{};
+	viewConstants.planarUVBounds = geometry->planarUVBounds;
 	viewConstants.geometryBounds = {geometry->boundsCenter.x, geometry->boundsCenter.y,
 		geometry->boundsCenter.z, geometry->boundsRadius};
 	// Border色が混ざるSamplerでは白の定数へ置き換えない

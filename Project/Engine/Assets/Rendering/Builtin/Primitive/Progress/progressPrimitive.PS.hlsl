@@ -15,6 +15,7 @@ cbuffer MaterialParameters : register(b3) {
 	float _pad;
 };
 Texture2D<float4> baseColorTexture : register(t0, space2);
+StructuredBuffer<PrimitiveInstance> gInstances : register(t1);
 SamplerState gSampler : register(s0);
 
 //============================================================================
@@ -70,5 +71,6 @@ PSOutput main(VSOutput input) {
 	const HexTilingData hex = BuildHexTiling(input.texcoord, input.hexTiling);
 	PSOutput output;
 	output.color = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, hex, unassignedMaterialTextureMask, 0u) * color;
+	output.color = ApplyShineHighlight(output.color, input.shineUV, gInstances[input.instanceID].shine);
 	return output;
 }

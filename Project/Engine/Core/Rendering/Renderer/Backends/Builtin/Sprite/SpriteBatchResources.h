@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Backends/Common/ShineHighlightData.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableVertexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
@@ -55,6 +56,7 @@ namespace Engine {
 
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
+		ShineHighlightData shine{};
 	};
 
 	//============================================================================
@@ -75,8 +77,7 @@ namespace Engine {
 
 		// データ更新
 		void UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain, const Matrix4x4& previousViewProjection);
-		void UploadInstances(const ResolvedRenderView& view,
-			const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, RenderTransformHistory& history);
+		void UploadInstances(const RenderDrawContext& context, const std::span<const RenderItem* const>& items, RenderTransformHistory& history);
 
 		//--------- accessor -----------------------------------------------------
 

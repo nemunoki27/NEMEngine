@@ -1,6 +1,8 @@
 #ifndef NEM_PRIMITIVE_INSTANCE_COLOR
 #define NEM_PRIMITIVE_INSTANCE_COLOR
 
+#include "../Common/shineHighlight.hlsli"
+
 struct PrimitiveInstance {
 
 	float4x4 worldMatrix;
@@ -16,6 +18,7 @@ struct PrimitiveInstance {
 	uint entityIndex;
 	uint entityGeneration;
 	float4 hexTiling;
+	ShineHighlightData shine;
 };
 
 // 非等方Scaleと負Scaleを含む法線を逆転置行列で変換する

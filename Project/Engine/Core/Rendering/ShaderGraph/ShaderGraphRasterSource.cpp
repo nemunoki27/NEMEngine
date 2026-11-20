@@ -184,12 +184,9 @@ namespace Engine::ShaderGraphStageSource {
 		// TextのAtlasとSpriteのUV入力を宣言する
 		if (text) {
 			source += "#include \"Builtin/Atmosphere/transparentFog.hlsli\"\n"
-					  "Texture2D<float4> gAtlas : register(t1);\n"
-					  "struct PSInstance { float2 atlasSize; float pxRange; float padding0; float4x4 uvMatrix; };\n"
-					  "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
+					  "Texture2D<float4> gAtlas : register(t1);\n";
 		} else if (sprite) {
-			source += "struct PSInstance { float4x4 uvMatrix; };\n"
-					  "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
+			source += "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
 		}
 		source += "#include \"" + std::string(surfaceIncludeFile) + "\"\n\n";
 		source += context.BuildMaterialConstantBuffer();
@@ -233,7 +230,14 @@ namespace Engine::ShaderGraphStageSource {
 		source += "\tclip(alpha - max(graph.alphaClip, 1.0f / 255.0f));\n"
 				  "\tPSOutput output;\n"
 				  "\toutput.color = float4(graph.baseColor.rgb, alpha);\n";
-		if (text) source += "\toutput.color = ApplyTransparentFog(output.color, input.position);\n";
+		if (sprite) {
+			source += "\toutput.color = ApplyShineHighlight(output.color, input.texcoord, instance.shine);\n";
+		} else if (!text) {
+			source += "\toutput.color = ApplyShineHighlight(output.color, input.shineUV, gInstances[input.instanceID].shine);\n";
+		} else {
+			source += "\toutput.color = ApplyShineHighlight(output.color, input.layoutTexcoord, instance.shine);\n"
+					  "\toutput.color = ApplyTransparentFog(output.color, input.position);\n";
+		}
 		source += "\treturn output;\n"
 				  "}\n";
 		return source;
@@ -310,8 +314,7 @@ namespace Engine::ShaderGraphStageSource {
 		source += "#include \"Builtin/ScreenSpaceOutline/Common/screenSpaceOutlineCommon.hlsli\"\n"
 				  "SamplerState gSampler : register(s0);\n";
 		if (sprite) {
-			source += "struct PSInstance { float4x4 uvMatrix; };\n"
-					  "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
+			source += "StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
 		} else {
 			source += "StructuredBuffer<PrimitiveInstance> gInstances : register(t1);\n";
 		}

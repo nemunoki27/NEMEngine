@@ -130,7 +130,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 		AppendGlyphInstancesFromCache(*renderer, *cache, glyphs,
 			GetTextCharTransforms(*item->world, item->entity),
-			worldMatrix, payload->uvMatrix,
+			worldMatrix, payload->uvMatrix, ResolveShineHighlight(context, *item),
 			vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない

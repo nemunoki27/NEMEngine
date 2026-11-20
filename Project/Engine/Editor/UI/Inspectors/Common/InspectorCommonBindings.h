@@ -18,6 +18,7 @@ namespace Engine {
 	struct OrthographicCameraComponent;
 	struct CameraControllerComponent;
 	struct HexTilingComponent;
+	struct ShineHighlightComponent;
 	struct MeshRendererComponent;
 	struct SpriteRendererComponent;
 	struct TextRendererComponent;
@@ -59,6 +60,7 @@ namespace Engine {
 	InspectorCommonFields BindInspectorCommonFields(OrthographicCameraComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(CameraControllerComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(HexTilingComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(ShineHighlightComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(MeshRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SpriteRendererComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(TextRendererComponent& value);

@@ -14,6 +14,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/UVTransformInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/HexTilingInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/ShineHighlightInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/ScriptInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraControllerInspectorDrawer.h>
@@ -145,6 +146,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 			"UVTransform", "UVTransform", "Rendering", "UI/Inspectors/Builtin/UVTransformInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<HexTilingInspectorDrawer>(
 			"HexTiling", "HexTiling", "Rendering", "UI/Inspectors/Builtin/HexTilingInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<ShineHighlightInspectorDrawer>(
+			"Shine Highlight", "ShineHighlight", "Rendering", "UI/Inspectors/Builtin/ShineHighlightInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>(
 			"Billboard", "Billboard", "Rendering", "UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>(

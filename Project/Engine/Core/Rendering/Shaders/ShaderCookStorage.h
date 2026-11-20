@@ -7,7 +7,7 @@
 
 namespace Engine::ShaderCookStorage {
 
-	constexpr uint32_t kShaderCookSchemaVersion = 3;
+	constexpr uint32_t kShaderCookSchemaVersion = 4;
 
 	// Reflectionを保存形式へ変換する
 	nlohmann::json WriteReflection(

@@ -29,6 +29,7 @@ VSOutput main(VSInput input, uint instanceID : SV_InstanceID) {
 	output.position = mul(float4(localPos, 0.0f, 1.0f), wvp);
 	output.texcoord = lerp(instance.uvMin, instance.uvMax, input.texcoord);
 	output.materialTexcoord = lerp(instance.materialUVMin, instance.materialUVMax, input.texcoord);
+	output.layoutTexcoord = lerp(instance.layoutUVMin, instance.layoutUVMax, input.texcoord);
 	output.instanceID = instanceID;
 
 	return output;

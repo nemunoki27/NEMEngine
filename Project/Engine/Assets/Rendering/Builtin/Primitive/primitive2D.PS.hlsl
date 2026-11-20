@@ -11,6 +11,7 @@ cbuffer MaterialParameters : register(b3) {
 	float4 color;
 };
 Texture2D<float4> baseColorTexture : register(t0, space2);
+StructuredBuffer<PrimitiveInstance> gInstances : register(t1);
 SamplerState gSampler : register(s0);
 
 //============================================================================
@@ -39,5 +40,6 @@ PSOutput main(VSOutput input) {
 
 	PSOutput output;
 	output.color = baseColor;
+	output.color = ApplyShineHighlight(output.color, input.shineUV, gInstances[input.instanceID].shine);
 	return output;
 }

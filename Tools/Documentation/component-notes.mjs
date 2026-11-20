@@ -35,6 +35,7 @@ export const components = {
 	ParticleSystem: ['1つのEmitterとPhase列を持つParticleをCPUまたはGPUで実行します。', 'シミュレーション先を選び、Emitter・Phase・ModuleとMaterialを設定して再生します。', '設定はComponent内に保存します。GetSettingsで取得した編集用SnapshotはSetSettingsで反映します。', 'particles'],
 	ParticlePaintReceiver: ['GPU Particleの描き込みを受ける表面とTextureの解像度を設定します。', '描き込み先のEntityに追加し、UVまたは平面投影と解像度を選びます。', 'Particle側のPaintを有効にします。MeshのUV重複は描き込みの重複として見える場合があります。', 'particles'],
 	FlipbookAnimation: ['Textureをタイルとして分割し、コマを切り替えて描画します。', '行数と各列の定義を設定し、表示間隔とループを選びます。', 'MaterialやRendererがUVを使用する必要があります。ParticleのFlipbook Moduleとは別のComponentです。', 'animation'],
+	ShineHighlight: ['Sprite、2D図形、文字の表面を光の帯が横切る演出を作ります。', '描画対象と同じGameObjectへShineHighlightを追加し、「位置」を0.5にして帯の色や角度を調整します。', 'SimpleAnimationで型をFloat、適用先をShineHighlight.position、開始値を0、終了値を1に設定すると帯が1回横切ります。アニメーションクリップで繰り返す場合は0秒で0、0.6秒で1、2秒で1のキーを打つと、次の周回まで帯が消えた状態を保てます。', 'materials'],
 	HexTiling: ['隣り合うタイルの模様をずらして混ぜ、砂や岩肌などの規則的な繰り返しを目立ちにくくします。', 'MeshRenderer、PrimitiveRenderer、DecalProjectorのいずれかに繰り返し可能なテクスチャを設定し、同じGameObjectの「コンポーネントを追加 → 描画 → HexTiling」を選びます。', 'Shader GraphのMesh・Primitiveでは、通常のUVを使い、SamplerのU・Vを両方Wrapに設定してください。画面座標やFlipbookのUVは元の貼り方を保ちます。', 'materials'],
 	UVTransform: ['Rendererへ渡すUVの位置・回転・拡縮を設定します。', 'Textureを持つRendererと組み合わせ、UVを移動・回転します。', 'Transformは物体、UVTransformは画像の貼り方を変えます。', 'materials'],
 	Billboard: ['Rendererの向きをCameraへ合わせます。', 'Sprite、Primitiveなどと同じEntityに付け、回転させる軸を選びます。', '軸を制限すると立ち木や看板のような向き合わせにできます。', 'rendering'],
