@@ -31,6 +31,8 @@ namespace Engine {
 		bool IsCompatible() const { return status == ParticleMaterialCompatibilityStatus::Compatible; }
 	};
 
+	bool IsTrailMaterialPass(const MaterialAsset& material, const MaterialPassBinding& pass);
+
 	// Material用途とシェーダーreflectionからParticle描画との互換性を検証する
 	ParticleMaterialCompatibilityResult CheckParticleMaterialCompatibility(
 		const MaterialAsset& material, const ShaderReflectionInfo* reflection);

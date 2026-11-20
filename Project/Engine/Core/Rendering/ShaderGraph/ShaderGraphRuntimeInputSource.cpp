@@ -8,6 +8,7 @@ std::string Engine::ShaderGraphStageSource::BuildSurfaceInputDeclaration() {
 
 	return "struct ShaderGraphSurfaceInput {\n"
 		"\tfloat2 uv;\n"
+		"\tfloat4 hexTiling;\n"
 		"\tfloat3 worldNormal;\n"
 		"\tfloat3 worldPosition;\n"
 		"\tfloat3 objectPosition;\n"

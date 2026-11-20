@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/Rendering/Decals/DecalSettingsMigration.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabInstanceRebuilder.h>
@@ -154,6 +155,7 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 			sceneObject.sourceAsset = sourceAsset;
 			sceneObject.sceneInstanceID = sceneInstanceID;
 		}
+		MigrateDecalSettings(world, entity, assetDatabase);
 		// ロード直後に、ワールド実体のサブメッシュを正規化する
 		if (assetDatabase && world.HasComponent<MeshRendererComponent>(entity)) {
 

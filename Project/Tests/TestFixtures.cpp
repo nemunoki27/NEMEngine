@@ -9,9 +9,19 @@
 #include "EditorRefactoringTests.h"
 #include "GameplayRefactoringTests.h"
 #include "SceneStorageTests.h"
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+#include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
+#include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Behavior/MonoBehavior.h>
+#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
+#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
@@ -197,4 +207,70 @@ namespace NEMTests {
 		}();
 	}
 
+}
+
+bool NEMTests::RunManagedComponentProbe(const char* name, const char* typeName, const char* passedField, const char* errorField,
+	void (*setup)(Engine::ECSWorld&), bool (*setupAssets)(Engine::AssetDatabase&)) {
+
+	using namespace Engine;
+	try {
+		TestDirectory directory(name);
+		const auto root = directory.GetPath();
+		std::filesystem::create_directories(root / "GameAssets");
+		if (!JsonFile::Save(root / "Probe.nemproject", {{"schemaVersion", 1},
+			{"projectGuid", "2b940d5c54f44dd0b9791784c44278e1"}, {"name", name}, {"sceneStorage", "Monolithic"},
+			{"assetsDirectory", "GameAssets"}, {"packagesDirectory", "Packages"},
+			{"projectSettingsDirectory", "ProjectSettings"}})) return false;
+		const auto previous = std::filesystem::current_path();
+		ScopedCleanup restore([&]() noexcept {
+			std::error_code error;
+			std::filesystem::current_path(previous, error);
+			try { RuntimePaths::Refresh(); } catch (...) { }
+		});
+		const auto previousLogger = spdlog::default_logger();
+		const bool ownsLogger = !Logger::Get(LogType::Engine);
+		if (ownsLogger) Logger::CreateLogFiles(root / "Logs");
+		ScopedCleanup closeLog([&]() noexcept {
+			if (ownsLogger) { Logger::Finalize(); spdlog::set_default_logger(previousLogger); }
+		});
+		std::filesystem::current_path(root);
+		RuntimePaths::Refresh();
+		auto& runtime = ManagedScriptRuntime::GetInstance();
+		if (!runtime.Init()) return false;
+		ScopedCleanup finalize([&]() noexcept { runtime.Finalize(); });
+		const auto assembly = Algorithm::GetExecutablePath().parent_path() / "ManagedFixtures/GameScripts.dll";
+		if (!runtime.LoadGameAssemblyFromPath(assembly, false)) return false;
+		const auto* type = BehaviorTypeRegistry::GetInstance().FindByName(typeName);
+		if (!type) return false;
+		ECSWorld world(ECSWorldKind::Runtime);
+		const auto handle = ManagedWorldRegistry::GetInstance().Register(world);
+		ScopedCleanup unregister([&]() noexcept { ManagedWorldRegistry::GetInstance().Unregister(handle); });
+		const auto owner = SceneAuthoring::CreateGameObject(world, "Probe");
+		setup(world);
+		AssetDatabase database;
+		RenderAssetLibrary library;
+		SystemContext context;
+		if (setupAssets) {
+			if (!database.Init() || !setupAssets(database)) return false;
+			library.Init(&database);
+			context.assetDatabase = &database;
+			context.renderAssetLibrary = &library;
+		}
+		context.world = &world;
+		context.mode = WorldMode::Play;
+		BehaviorSystem behaviors;
+		behaviors.OnWorldEnter(world, context);
+		ScopedCleanup exit([&]() noexcept { try { behaviors.OnWorldExit(world, context); } catch (...) { } });
+		auto* probe = BehaviorSystem::AttachScript(owner, type->scriptTypeID, context);
+		if (!probe) return false;
+		behaviors.Update(world, context);
+		behaviors.Update(world, context);
+		const auto state = probe->GetRuntimeSerializedState();
+		const auto error = state.value(errorField, std::string{});
+		if (!error.empty()) std::cerr << error << '\n';
+		return error.empty() && state.value(passedField, false);
+	} catch (const std::exception& error) {
+		std::cerr << name << " managed API: " << error.what() << '\n';
+		return false;
+	}
 }

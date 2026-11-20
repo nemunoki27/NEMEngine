@@ -61,7 +61,8 @@ void TimelineTool::AddTrack(TimelineTrackKind kind, UUID parent) {
 	const std::string required = TimelineEditorFields::RequiredComponent(kind);
 	if (kind != TimelineTrackKind::Group) {
 		const char* role = kind == TimelineTrackKind::Camera ? "Camera" : kind == TimelineTrackKind::Audio ? "Audio" :
-			kind == TimelineTrackKind::Collision ? "Hitbox" : kind == TimelineTrackKind::Particle ? "Effect" : "Actor";
+			kind == TimelineTrackKind::Collision ? "Hitbox" : kind == TimelineTrackKind::Particle ? "Effect" :
+			kind == TimelineTrackKind::Trail ? "Trail" : kind == TimelineTrackKind::Beam ? "Beam" : "Actor";
 		std::string name = role;
 		for (uint32_t suffix = 2; std::any_of(asset.bindings.begin(), asset.bindings.end(),
 			[&](const auto& value) { return value.name == name; }); ++suffix) name = role + std::to_string(suffix);
@@ -79,7 +80,7 @@ bool TimelineTool::AddClip(TimelineTrack& track) {
 	if (track.locked || track.kind == TimelineTrackKind::Group) return false;
 	TimelineClip clip;
 	clip.id = UUID::New();
-	clip.name = TimelineEditorFields::TrackLabel(track.kind);
+	clip.name = (track.kind == TimelineTrackKind::Trail || track.kind == TimelineTrackKind::Beam) ? "Emission" : TimelineEditorFields::TrackLabel(track.kind);
 	clip.start = session_.time;
 	clip.duration = track.kind == TimelineTrackKind::Event ? 1.0 / session_.GetAsset().frameRate : 1.0;
 	clip.sourceDuration = clip.duration;
@@ -246,7 +247,7 @@ void TimelineTool::DrawAddTrackMenu(const EditorToolContext& context) {
 		ImGui::EndMenu();
 	}
 	if (ImGui::BeginMenu("発生・状態")) {
-		add(TimelineTrackKind::Particle); add(TimelineTrackKind::Prefab);
+		add(TimelineTrackKind::Particle); add(TimelineTrackKind::Trail); add(TimelineTrackKind::Beam); add(TimelineTrackKind::Prefab);
 		add(TimelineTrackKind::Collision); add(TimelineTrackKind::Activation);
 		ImGui::EndMenu();
 	}

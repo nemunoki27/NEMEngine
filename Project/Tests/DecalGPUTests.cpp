@@ -13,6 +13,8 @@
 
 // c++
 #include <array>
+#include <bit>
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -32,6 +34,19 @@ SamplerState testSampler : register(s1);
 [numthreads(8,1,1)]
 void main(uint3 id : SV_DispatchThreadID) {
     uint test = id.x;
+    if (test >= 8) {
+        uint sampleIndex = test - 8;
+        float2 samplePosition = (float2(sampleIndex % 8, sampleIndex / 8) + 0.5f) / 8.0f - 0.5f;
+        float4 samples;
+        [unroll] for (uint mode = 0; mode < 4; ++mode) {
+            DecalGPUData decal = gDecals[2 + mode];
+            DecalSample value;
+            bool inside = EvaluateDecal(decal, float3(samplePosition,0), float3(0,0,-1), 0.0f, testSampler, value);
+            samples[mode] = inside ? value.color.r : -1;
+        }
+        output[24 + sampleIndex] = samples;
+        return;
+    }
     float3 color = 0.4f.xxx, normal = float3(0,0,-1), emissive = 0;
     float metallic = 0.2f, roughness = 0.6f;
     uint geometry = test == 2 ? 1 : (test == 4 ? 2 : (test == 7 ? 99 : 0));
@@ -67,7 +82,7 @@ void main(uint3 id : SV_DispatchThreadID) {
 	parameters[8].InitAsShaderResourceView(10, 4);
 	parameters[9].InitAsShaderResourceView(11, 4);
 	const CD3DX12_STATIC_SAMPLER_DESC sampler(1, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP);
 	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(10, parameters, 1, &sampler);
 	ComPtr<ID3DBlob> bytes, errors;
 	ComPtr<ID3D12RootSignature> root;
@@ -82,7 +97,7 @@ void main(uint3 id : SV_DispatchThreadID) {
 		std::cerr << "Decal GPU Pipeline creation failed: " << std::hex << pipelineResult << std::dec << '\n';
 		return false;
 	}
-	std::array<DecalGPUData, 2> decals;
+	std::array<DecalGPUData, 6> decals;
 	for (auto& decal : decals) {
 		decal.direction = Vector4(0, 0, 1, 0);
 		decal.tangentX = Vector4(1, 0, 0, 0);
@@ -94,10 +109,29 @@ void main(uint3 id : SV_DispatchThreadID) {
 	decals[0].baseColor = Color4(1, 0, 0, 1);
 	decals[0].emissive = Color4(4, 2, 0, 0);
 	decals[0].channels = 1 | 4 | 8;
-	decals[1].baseColor = Color4(0, 1, 0, 1);
+	decals[1].baseColor = Color4::White();
+	decals[1].graphOffset = 2;
+	decals[1].graphCount = 2;
 	decals[1].channels = 1;
+	// 標準とGraphをそれぞれ同じ設定で比較する
+	for (uint32_t index = 2; index < decals.size(); ++index) {
+		auto& decal = decals[index];
+		decal.baseColorTexture = 0;
+		decal.uvTransform = Vector4(2, 0, 0, 2);
+		if ((index & 1u) != 0) decal.hexTiling = Vector4(0.5f, 1.2f, std::bit_cast<float>(17u), 0.0f);
+		if (index >= 4) {
+			decal.graphOffset = 14;
+			decal.graphCount = 3;
+		}
+	}
 	const std::array<DecalReceiverRange, 3> ranges{{{0, 1}, {0, 2}, {0, 0}}};
-	const uint32_t indices[]{0, 1};
+	const uint32_t one = std::bit_cast<uint32_t>(1.0f);
+	const uint32_t indices[]{0, 1,
+		static_cast<uint32_t>(DecalGraphOp::Literal), 0, 0, one, 0, one,
+		static_cast<uint32_t>(DecalGraphOp::Output), 4, 0, 0, 0, 0,
+		static_cast<uint32_t>(DecalGraphOp::Texture), 0, 0, 0, 0, 0,
+		static_cast<uint32_t>(DecalGraphOp::TextureSample), 4 | (2 << 8), 0, 0, 0, 0,
+		static_cast<uint32_t>(DecalGraphOp::Output), 5, 0, 0, 0, 0};
 	ComPtr<ID3D12Resource> input, receiver, candidates, output, readback;
 	const auto upload = [&](auto& resource, const auto& values) {
 		DxUtils::CreateUploadBufferResource(device.Get(), resource, sizeof(values));
@@ -109,7 +143,7 @@ void main(uint3 id : SV_DispatchThreadID) {
 		return true;
 	};
 	if (!upload(input, decals) || !upload(receiver, ranges) || !upload(candidates, indices)) return false;
-	const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(24 * sizeof(Vector4), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	const auto buffer = CD3DX12_RESOURCE_DESC::Buffer((24 + 64) * sizeof(Vector4), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &buffer,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&output)))) return false;
@@ -126,12 +160,27 @@ void main(uint3 id : SV_DispatchThreadID) {
 		FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator.Get(), pipeline.Get(), IID_PPV_ARGS(&command))) ||
 		FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptors))) ||
 		FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)))) return false;
-	D3D12_SHADER_RESOURCE_VIEW_DESC nullTexture{};
-	nullTexture.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	nullTexture.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	nullTexture.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	nullTexture.Texture2D.MipLevels = 1;
-	device->CreateShaderResourceView(nullptr, &nullTexture, descriptors->GetCPUDescriptorHandleForHeapStart());
+	ComPtr<ID3D12Resource> texture, textureUpload;
+	const auto textureDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 8, 8, 1, 1);
+	if (FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &textureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&texture)))) return false;
+	std::array<uint32_t, 64> pixels{};
+	for (uint32_t i = 0; i < pixels.size(); ++i) {
+		const uint32_t value = ((i % 8 + i / 8 * 3) % 8) * 36;
+		pixels[i] = 0xff000000u | value;
+	}
+	DxUtils::CreateUploadBufferResource(device.Get(), textureUpload, GetRequiredIntermediateSize(texture.Get(), 0, 1));
+	const D3D12_SUBRESOURCE_DATA texels{pixels.data(), 8 * sizeof(uint32_t), sizeof(pixels)};
+	if (!UpdateSubresources<1>(command.Get(), texture.Get(), textureUpload.Get(), 0, 0, 1, &texels)) return false;
+	const auto textureBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	command->ResourceBarrier(1, &textureBarrier);
+	D3D12_SHADER_RESOURCE_VIEW_DESC textureView{};
+	textureView.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textureView.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	textureView.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	textureView.Texture2D.MipLevels = 1;
+	device->CreateShaderResourceView(texture.Get(), &textureView, descriptors->GetCPUDescriptorHandleForHeapStart());
 	ID3D12DescriptorHeap* heaps[]{descriptors.Get()};
 	command->SetDescriptorHeaps(1, heaps);
 	command->SetComputeRootSignature(root.Get());
@@ -148,7 +197,7 @@ void main(uint3 id : SV_DispatchThreadID) {
 	// GPU投影数が0でも宣言された候補Bufferを接続する
 	command->SetComputeRootShaderResourceView(8, candidates->GetGPUVirtualAddress());
 	command->SetComputeRootShaderResourceView(9, candidates->GetGPUVirtualAddress());
-	command->Dispatch(1, 1, 1);
+	command->Dispatch(9, 1, 1);
 	const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	command->ResourceBarrier(1, &barrier);
 	command->CopyResource(readback.Get(), output.Get());
@@ -172,6 +221,18 @@ void main(uint3 id : SV_DispatchThreadID) {
 		valid &= std::abs(results[test * 3 + 1].w - (affected ? 0.35f : 0.6f)) < 1e-4f &&
 			std::abs(results[test * 3 + 2].x - (affected ? 2.0f : 0.0f)) < 1e-4f;
 	}
+	// 2周期の模様はOFF時だけ繰り返し、標準とGraphでは同じ位置を参照する
+	uint32_t changed = 0, differentPeriod = 0;
+	for (uint32_t i = 0; i < 64; ++i) {
+		const auto& sample = results[24 + i];
+		const auto& repeat = results[24 + (i ^ 4u)];
+		valid &= sample.x >= 0.0f && sample.y >= 0.0f &&
+			std::abs(sample.x - sample.z) < 1e-4f && std::abs(sample.y - sample.w) < 1e-4f &&
+			std::abs(sample.x - repeat.x) < 1e-4f;
+		if (std::abs(sample.x - sample.y) > 0.02f) ++changed;
+		if (std::abs(sample.y - repeat.y) > 0.02f) ++differentPeriod;
+	}
+	valid &= changed > 16 && differentPeriod > 16;
 	readback->Unmap(0, nullptr);
 	return valid;
 }

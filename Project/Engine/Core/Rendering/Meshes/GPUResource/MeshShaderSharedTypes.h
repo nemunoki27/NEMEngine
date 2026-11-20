@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 
 // c++
@@ -133,8 +134,9 @@ namespace Engine {
 		uint32_t useRasterHitMaterial = 0;
 		uint32_t primitiveShape = 0;
 		uint32_t primitiveShapeOffset = 0;
+		Vector4 hexTiling{};
 	};
-	static_assert(sizeof(MeshSubMeshShaderData) == 320,
+	static_assert(sizeof(MeshSubMeshShaderData) == 336,
 		"MeshSubMeshShaderData must match HLSL SubMeshShaderData layout");
 	static_assert(sizeof(MeshSubMeshShaderData) % 16 == 0);
 } // Engine

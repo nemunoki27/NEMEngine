@@ -22,7 +22,7 @@ Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout
 	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	ParticleCustomParameterLayout layout{};
-	const ShaderStructuredBufferInfo* buffer = FindStructuredBuffer(reflection, "gParticleCustomParameters");
+	const ShaderStructuredBufferInfo* buffer = FindStructuredBuffer(reflection, MaterialParameterCBuffer::kParticle);
 	if (!buffer || buffer->stride == 0) {
 		return layout;
 	}
@@ -44,7 +44,7 @@ Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout
 			if (result.ownership) layout.textureOwnerships.push_back(result.ownership);
 			return result;
 		};
-		parameterLayout.Build(reflection, "gParticleCustomParameters");
+		parameterLayout.Build(reflection, MaterialParameterCBuffer::kParticle);
 		MaterialParameterBufferBuilder::BuildElementInto(
 			layout.defaultData, *defaults, {}, parameterLayout,
 			retainTexture);
@@ -91,7 +91,7 @@ void Engine::WriteParticleCustomParameter(std::span<uint8_t> data,
 const Engine::ParticleEmitterRuntime* Engine::ResolveParticleRenderEmitter(
 	const RenderItem& item, const ParticleRenderPayload& payload) {
 
-	if (!item.world) {
+	if (payload.source != ParticleRenderSource::Emitter || !item.world) {
 		return nullptr;
 	}
 	// 表示の参照時は実行Storageを作成しない

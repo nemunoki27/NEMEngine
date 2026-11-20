@@ -24,6 +24,13 @@ namespace {
 	};
 
 	const std::array kDefaults{
+		Entry{ Kind::TextureSample, 1u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::TilingAndOffset, 0u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::Rotate, 0u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::PolarCoordinates, 0u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::SimpleNoise, 0u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::Voronoi, 0u, { Type::Float2, {}, "graphInput.uv" } },
+		Entry{ Kind::Dither, 1u, { Type::Float4, {}, "graphInput.screenPosition" } },
 		Entry{ Kind::Exponential, 0u,
 			{ Type::Float, Value{ 0.0f }, {} } },
 		Entry{ Kind::Log, 0u,

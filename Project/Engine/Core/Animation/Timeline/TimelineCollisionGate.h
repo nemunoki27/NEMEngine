@@ -7,6 +7,10 @@
 
 namespace Engine {
 
+	struct TimelineAsset;
+	struct TimelineTrack;
+	bool IsTimelineTrackMuted(const TimelineAsset& asset, const TimelineTrack& track);
+
 	struct TimelinePlayerRecord;
 	struct TimelinePlaybackState;
 	struct TimelineCollisionGate {

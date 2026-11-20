@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -162,6 +163,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 					*material, overrides, uvMatrix);
 			}
 			if (overrides) CollectRenderTextureParameters(*overrides, work.assetDatabase, work.scene.renderTextureInputs);
+			if (src.world) subMeshData.hexTiling = ResolveHexTiling(*src.world, src.entity, static_cast<int32_t>(subMeshIndex));
 			subMeshData.localMatrix = localMatrix;
 			const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(localMatrix);
 			subMeshData.localNormalMatrix = localNormal.matrix;

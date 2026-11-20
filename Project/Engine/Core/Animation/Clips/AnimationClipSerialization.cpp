@@ -329,5 +329,8 @@ void Engine::from_json(const nlohmann::json& in, CurveChannel& channel) {
 
 void Engine::ReadCurveChannel(const nlohmann::json& in, CurveChannel& channel, bool sortKeys) {
 
-	channel = ParseCurveChannel(in, sortKeys);
+	// 型付きカーブのチャンネル名と表示色は、保存データに依存させない
+	auto saved = ParseCurveChannel(in, sortKeys);
+	channel.keys = std::move(saved.keys);
+	channel.defaultValue = in.value("defaultValue", channel.defaultValue);
 }

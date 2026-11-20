@@ -17,6 +17,7 @@
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
+#include <Engine/Core/Rendering/Decals/DecalSettingsMigration.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -48,6 +49,9 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 		PrefabInstantiateResult candidate;
 		if (!Instantiate(context, prefabAsset, candidate, desc)) {
 			return false;
+		}
+		if (!desc.deferDecalMigration) {
+			for (Entity entity : candidate.createdEntities) MigrateDecalSettings(context.world, entity, &context.database);
 		}
 		// ネストと参照の構築成功後に結果を公開
 		outResult = std::move(candidate);

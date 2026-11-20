@@ -18,7 +18,7 @@ namespace Engine {
 	enum class TimelineTrackKind : uint8_t {
 
 		Group, SkinnedAnimation, Motion, Particle, Prefab, Collision, Camera, Audio,
-		Property, Activation, TimeScale, Event, Window, SubTimeline, Custom
+		Property, Activation, TimeScale, Event, Window, SubTimeline, Custom, Trail, Beam
 	};
 	enum class TimelineConditionKind : uint8_t { Parameter, Distance, BindingExists };
 	enum class TimelineComparison : uint8_t { Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual };

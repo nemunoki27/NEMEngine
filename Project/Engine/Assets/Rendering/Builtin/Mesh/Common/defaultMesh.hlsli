@@ -7,6 +7,7 @@
 #include "meshShaderSharedTypes.hlsli"
 #include "../../Common/descriptorHeapCompatibility.hlsli"
 #include "../../Common/normalEncoding.hlsli"
+#include "../../Common/hexTiling.hlsli"
 
 //============================================================================
 //	output
@@ -203,35 +204,6 @@ MeshVertex DecodePackedVertex(MeshPackedVertex vertex) {
 }
 
 #if defined(NEM_ENABLE_MESH_DISPLACEMENT)
-// 頂点シェーダーからSamplerを増やさず使用できる繰り返しバイリニアサンプル
-float SampleMeshDisplacement(uint textureIndex, float2 uv) {
-
-	Texture2D<float4> texture = NEM_TEXTURE2D(textureIndex);
-	uint width;
-	uint height;
-	texture.GetDimensions(width, height);
-
-	const int2 dimensions = int2(max(width, 1u), max(height, 1u));
-	const float2 texelPosition = frac(uv) * float2(dimensions) - 0.5f;
-	const int2 baseTexel = int2(floor(texelPosition));
-	const float2 blend = frac(texelPosition);
-
-	const int2 p00 = (baseTexel % dimensions + dimensions) % dimensions;
-	const int2 p10 =
-		((baseTexel + int2(1, 0)) % dimensions + dimensions) % dimensions;
-	const int2 p01 =
-		((baseTexel + int2(0, 1)) % dimensions + dimensions) % dimensions;
-	const int2 p11 =
-		((baseTexel + int2(1, 1)) % dimensions + dimensions) % dimensions;
-	const float top = lerp(
-		texture.Load(int3(p00, 0)).r,
-		texture.Load(int3(p10, 0)).r, blend.x);
-	const float bottom = lerp(
-		texture.Load(int3(p01, 0)).r,
-		texture.Load(int3(p11, 0)).r, blend.x);
-	return lerp(top, bottom, blend.y);
-}
-
 // DisplacementのRチャンネルをローカル法線方向の頂点変位へ変換
 MeshVertex ApplyMeshDisplacement(
 	MeshVertex vertex, uint instanceID, uint localSubMeshIndex) {
@@ -248,8 +220,8 @@ MeshVertex ApplyMeshDisplacement(
 		GetInstanceSubMesh(instanceID, localSubMeshIndex);
 	const float2 uv = mul(float4(vertex.uv, 0.0f, 1.0f),
 		subMesh.uvMatrix).xy;
-	const float height = SampleMeshDisplacement(
-		material.displacementTexture, uv);
+	Texture2D<float4> texture = NEM_TEXTURE2D(material.displacementTexture);
+	const float height = SampleHexDisplacement(texture, BuildHexTiling(uv, subMesh.hexTiling));
 	const float offset = (height - material.displacementMidpoint) *
 		material.displacementScale;
 	vertex.position.xyz += normalize(vertex.normal) * offset;

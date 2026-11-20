@@ -31,20 +31,6 @@ namespace {
 		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
 	}
 
-	// 非表示の親グループに含まれる判定は操作しない
-	bool IsMuted(const TimelineAsset& asset, const TimelineTrack& track) {
-
-		const auto* current = &track;
-		for (size_t i = 0; current && i <= asset.tracks.size(); ++i) {
-			if (current->muted) return true;
-			if (!current->parent) return false;
-			const auto found = std::find_if(asset.tracks.begin(), asset.tracks.end(),
-				[&](const auto& parent) { return parent.id == current->parent; });
-			current = found == asset.tracks.end() ? nullptr : &*found;
-		}
-		return current != nullptr;
-	}
-
 	void SetEnabled(ECSWorld& world, Entity entity, bool enabled) {
 
 		if (!world.IsAlive(entity) || world.IsPendingDestroy(entity)) return;
@@ -61,7 +47,7 @@ namespace {
 		auto& baselines = world.GetStorage().Get<CollisionGateStorage>().baselines;
 		for (const auto& playback : state.clips) {
 			if (!playback.track || !playback.clip || playback.track->kind != TimelineTrackKind::Collision ||
-				!playback.clip->enabled || IsMuted(*state.asset, *playback.track)) continue;
+				!playback.clip->enabled || IsTimelineTrackMuted(*state.asset, *playback.track)) continue;
 			auto entity = playback.target;
 			if (playback.track->binding) {
 				entity = Entity::Null();
@@ -102,6 +88,20 @@ namespace {
 	}
 }
 
+// 非表示の親グループに含まれる判定は操作しない
+bool Engine::IsTimelineTrackMuted(const TimelineAsset& asset, const TimelineTrack& track) {
+
+	const auto* current = &track;
+	for (size_t i = 0; current && i <= asset.tracks.size(); ++i) {
+		if (current->muted) return true;
+		if (!current->parent) return false;
+		const auto found = std::find_if(asset.tracks.begin(), asset.tracks.end(),
+			[&](const auto& parent) { return parent.id == current->parent; });
+		current = found == asset.tracks.end() ? nullptr : &*found;
+	}
+	return current != nullptr;
+}
+
 void Engine::InitializeTimelineCollisionGates(ECSWorld& world, [[maybe_unused]] Entity owner,
 	[[maybe_unused]] TimelinePlayerRecord& player, TimelinePlaybackState& state) {
 
@@ -129,7 +129,7 @@ void Engine::RefreshTimelineCollisionGates(ECSWorld& world, TimelinePlaybackStat
 	std::erase_if(state.collisionGates, [&](const auto& gate) {
 		const bool required = std::any_of(state.clips.begin(), state.clips.end(), [&](const auto& playback) {
 			if (playback.track->kind != TimelineTrackKind::Collision || !playback.clip->enabled ||
-				IsMuted(*state.asset, *playback.track)) return false;
+				IsTimelineTrackMuted(*state.asset, *playback.track)) return false;
 			for (const auto& binding : state.bindings)
 				if (binding.id == playback.track->binding) return binding.entity == gate.target;
 			return playback.target == gate.target;

@@ -29,7 +29,9 @@ uint main(VSOutput input) : SV_Target0 {
 		discard;
 	}
 
-	const float4 textureColor = baseColorTexture.Sample(gSampler, input.texcoord);
+	const float2 uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, input.uvBasis);
+	const HexTilingData hex = BuildHexTiling(uv, input.hexTiling);
+	const float4 textureColor = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, hex, unassignedMaterialTextureMask, 0u);
 	const float4 outputColor = textureColor * color;
 	const float alpha = ResolveScreenSpaceOutlineAlpha(
 		textureColor, outputColor, gMaskConstants.alphaSource);

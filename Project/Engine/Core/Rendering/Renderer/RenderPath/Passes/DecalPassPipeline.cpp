@@ -44,7 +44,7 @@ void Engine::DecalPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.blendOverride = blend;
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	sampler.MaxAnisotropy = 1;
 	sampler.MaxLOD = D3D12_FLOAT32_MAX;

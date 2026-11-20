@@ -230,3 +230,40 @@ bool Engine::CollisionRaycast::RayVsShape(const Ray& ray, const CollisionShapeIn
 		return false;
 	}
 }
+
+bool Engine::CollisionRaycast::RayVsShape2D(const Ray& ray, const CollisionShapeInstance& shape,
+	float maxDistance, float& outDistance, Vector3& outNormal) {
+
+	Ray planarRay = ray;
+	planarRay.origin.z = 0.0f;
+	CollisionShapeInstance planar = shape;
+	planar.center.z = 0.0f;
+	switch (shape.type) {
+	case ColliderShapeType::Circle2D:
+		return RayVsSphere(planarRay, planar.center, planar.radius, maxDistance, outDistance, outNormal);
+	case ColliderShapeType::Capsule2D:
+		planar.segmentStart.z = 0.0f;
+		planar.segmentEnd.z = 0.0f;
+		return RayVsCapsule(planarRay, planar, maxDistance, outDistance, outNormal);
+	case ColliderShapeType::Quad2D: {
+		// 投影した辺の法線を使い、傾いた矩形もXY上の輪郭で判定する
+		const Vector3 edgeX(shape.axes[0].x * shape.halfExtents.x, shape.axes[0].y * shape.halfExtents.x, 0.0f);
+		const Vector3 edgeY(shape.axes[1].x * shape.halfExtents.y, shape.axes[1].y * shape.halfExtents.y, 0.0f);
+		const Vector3& longer = Vector3::Dot(edgeX, edgeX) < Vector3::Dot(edgeY, edgeY) ? edgeY : edgeX;
+		const Vector3 axis = Vector3::NormalizeOr(longer, Vector3(1.0f, 0.0f, 0.0f));
+		const Vector3 perpendicular(-axis.y, axis.x, 0.0f);
+		planar.axes[0] = Vector3::NormalizeOr(Vector3(-edgeY.y, edgeY.x, 0.0f), axis);
+		planar.axes[1] = Vector3::NormalizeOr(Vector3(-edgeX.y, edgeX.x, 0.0f), axis);
+		if (std::fabs(Vector3::Cross(planar.axes[0], planar.axes[1]).z) < 0.000001f) {
+			planar.axes[0] = axis;
+			planar.axes[1] = perpendicular;
+		}
+		planar.axes[2] = Vector3(0.0f, 0.0f, 1.0f);
+		planar.halfExtents.x = std::fabs(Vector3::Dot(edgeX, planar.axes[0])) + std::fabs(Vector3::Dot(edgeY, planar.axes[0]));
+		planar.halfExtents.y = std::fabs(Vector3::Dot(edgeX, planar.axes[1])) + std::fabs(Vector3::Dot(edgeY, planar.axes[1]));
+		return RayVsOBB(planarRay, planar, maxDistance, outDistance, outNormal);
+	}
+	default:
+		return false;
+	}
+}

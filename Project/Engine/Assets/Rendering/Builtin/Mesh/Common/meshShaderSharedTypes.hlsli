@@ -77,6 +77,7 @@ struct SubMeshShaderData {
 	uint useRasterHitMaterial;
 	uint primitiveShape;
 	uint primitiveShapeOffset;
+	float4 hexTiling;
 };
 
 struct MeshInstance {

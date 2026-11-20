@@ -27,6 +27,18 @@ namespace Engine {
 		bool pendingEvent = false;
 		bool configurationChanged = false;
 	};
+	struct TimelineTrailGate {
+
+		Entity target = Entity::Null();
+		TimelineControlOwner control{};
+	};
+	struct TimelineBeamGate {
+
+		Entity target = Entity::Null();
+		TimelineControlOwner control{};
+		const TimelineClip* active = nullptr;
+		bool bound = false;
+	};
 	struct TimelinePlaybackState {
 
 		std::shared_ptr<const TimelineAsset> asset;
@@ -54,6 +66,8 @@ namespace Engine {
 		double samplingParentStart = 0, samplingParentEnd = 0, samplingClipIn = 0, samplingSpeed = 1, samplingCycle = 0;
 		bool root = true;
 		std::vector<TimelineCollisionGate> collisionGates;
+		std::vector<TimelineTrailGate> trailGates;
+		std::vector<TimelineBeamGate> beamGates;
 		std::unordered_map<UUID, bool> groups;
 		std::unordered_map<UUID, UUID> branches;
 		SystemContext lastContext;
@@ -69,6 +83,13 @@ namespace Engine {
 		const TimelinePlayerSettings* settings = nullptr;
 		TimelineEvaluationMode mode = TimelineEvaluationMode::Playback;
 	};
+
+	void EvaluateTimelineTrails(ECSWorld& world, Entity owner, TimelinePlayerRecord& player, TimelinePlaybackState& state,
+		SystemContext& context, double time, TimelineEvaluationMode mode);
+	void ReleaseTimelineTrails(ECSWorld& world, TimelinePlaybackState& state);
+	void EvaluateTimelineBeams(ECSWorld& world, Entity owner, TimelinePlayerRecord& player, TimelinePlaybackState& state,
+		double time, TimelineEvaluationMode mode);
+	void ReleaseTimelineBeams(ECSWorld& world, TimelinePlaybackState& state);
 
 	// 構造変更が完了してから復元処理を実行する
 	void QueueTimelineCleanup(ECSWorld& world, Entity owner, TimelinePlayerRecord&& player);

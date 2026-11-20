@@ -104,6 +104,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tfloat3 T = normalize(input.tangent - N * dot(N, input.tangent));\n"
 			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
+			"\tgraphInput.hexTiling = input.hexTiling;\n"
 			"\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, input.uvBasis);\n"
 			"\tgraphInput.worldNormal = N;\n"
 			"\tgraphInput.worldPosition = input.worldPos;\n" +
@@ -214,7 +215,8 @@ namespace Engine::ShaderGraphStageSource {
 			source += "\tPSInstance instance = gPSInstances[input.instanceID];\n"
 					  "\tgraphInput.uv = mul(float4(input.materialTexcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n";
 		} else {
-			source += "\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, "
+			source += "\tgraphInput.hexTiling = input.hexTiling;\n"
+					  "\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, "
 					  "input.uvBasis);\n";
 		}
 		source += BuildPlanarInputSource(target);
@@ -328,7 +330,8 @@ namespace Engine::ShaderGraphStageSource {
 			source += "\tPSInstance instance = gPSInstances[input.instanceID];\n"
 					  "\tgraphInput.uv = mul(float4(input.texcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n";
 		} else {
-			source += "\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, "
+			source += "\tgraphInput.hexTiling = input.hexTiling;\n"
+					  "\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, "
 					  "input.uvBasis);\n";
 		}
 		source += BuildPlanarInputSource(target);

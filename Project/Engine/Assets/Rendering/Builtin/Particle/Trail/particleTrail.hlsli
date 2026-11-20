@@ -17,7 +17,7 @@ struct ParticleTrailPointData {
 	float ribbonT;
 	float4 color;
 	uint materialIndex;
-	float3 pad0;
+	float3 side;
 };
 
 StructuredBuffer<ParticleTrailPointData> gTrailPoints : register(t0, space3);
@@ -34,6 +34,7 @@ float3 NormalizeTrailVector(float3 value, float3 fallback) {
 
 float3 GetTrailSide(ParticleTrailPointData trailPoint) {
 
+	if (dot(trailPoint.side, trailPoint.side) > 0.0f) return trailPoint.side;
 	const float3 direction = NormalizeTrailVector(trailPoint.tangent, float3(0.0f, 0.0f, 1.0f));
 	const float3 viewDirection = NormalizeTrailVector(
 		orthographic != 0 ? -cameraForward : cameraPosition - trailPoint.position, float3(0.0f, 0.0f, 1.0f));

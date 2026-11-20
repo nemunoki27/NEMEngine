@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 
 namespace {
 
@@ -28,7 +30,12 @@ namespace {
 }
 
 Engine::ValueEditResult Engine::DecalMaterialFields::Draw(MaterialParameterSet& parameters,
-	const MaterialParameterSet& defaults, const AssetDatabase* database) {
+	const MaterialAsset& material, const AssetDatabase* database) {
+
+	const auto& defaults = material.parameters;
+	if (material.decalGraph) {
+		return MaterialParameterEditor::DrawGraphOverrides(parameters, defaults, material.decalGraph->exposed, database);
+	}
 
 	ValueEditResult result;
 	const auto checkbox = [&](const char* name, const char* label, bool fallback) {

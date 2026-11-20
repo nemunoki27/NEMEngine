@@ -15,6 +15,12 @@
 
 namespace Engine::ShaderGraphSourceUtility {
 
+	bool SupportsHexTiling(const ShaderGraphAsset& graph) {
+
+		return graph.domain == ShaderGraphDomain::Surface && (graph.target == ShaderGraphTarget::Mesh ||
+			graph.target == ShaderGraphTarget::Primitive3D || graph.target == ShaderGraphTarget::Primitive2D);
+	}
+
 	// 数値をHLSLリテラルへ変換する
 	static std::string FormatFloat(float value) {
 

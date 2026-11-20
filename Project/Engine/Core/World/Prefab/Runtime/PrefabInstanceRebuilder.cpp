@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/Rendering/Decals/DecalSettingsMigration.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabInstanceUtility.h>
@@ -51,6 +52,7 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(
 		PrefabInstantiateDesc desc{};
 		desc.ownerSceneInstanceID = sceneInstanceID;
 		desc.forcedInstanceID = data.instanceID;
+		desc.deferDecalMigration = true;
 		desc.localFileIDRemap = &data.entityMap;
 		desc.stableUUIDRemap = &data.stableUUIDMap;
 		desc.nestedInstanceRemap = &data.nestedInstances;
@@ -251,6 +253,7 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(
 		// メッシュのサブメッシュをmesh実体へ正規化する、差分適用でmeshが変わった場合に必要
 		for (const Entity& entity : linkScope) {
 
+			MigrateDecalSettings(world, entity, &database);
 			if (world.IsAlive(entity) && world.HasComponent<MeshRendererComponent>(entity)) {
 				MeshSubMeshAuthoring::SyncEntity(&database, world, entity, true);
 			}

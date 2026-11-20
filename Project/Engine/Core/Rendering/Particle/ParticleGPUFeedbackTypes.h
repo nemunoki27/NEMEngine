@@ -85,7 +85,7 @@ namespace Engine {
 		uint32_t alive = 0;
 		Vector3 center{};
 	};
-	static_assert(sizeof(ParticleImpactDecalGPU) == 256);
+	static_assert(sizeof(ParticleImpactDecalGPU) == 272);
 
 	struct ParticleFeedbackStatisticsGPU {
 

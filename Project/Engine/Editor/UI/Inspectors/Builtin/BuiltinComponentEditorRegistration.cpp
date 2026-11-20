@@ -13,10 +13,13 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/SplineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/ParticleFieldInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/UVTransformInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/HexTilingInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/ScriptInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraControllerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/TrailRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/BeamRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/DecalProjectorInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
@@ -124,6 +127,10 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 			"DecalProjector", "DecalProjector", "Rendering", "UI/Inspectors/Builtin/Render/DecalProjectorInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>(
 			"Line Renderer", "LineRenderer", "Rendering", "UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<TrailRendererInspectorDrawer>(
+			"Trail Renderer", "TrailRenderer", "Rendering", "UI/Inspectors/Builtin/Render/TrailRendererInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<BeamRendererInspectorDrawer>(
+			"Beam Renderer", "BeamRenderer", "Rendering", "UI/Inspectors/Builtin/Render/BeamRendererInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>(
 			"Primitive Renderer", "PrimitiveRenderer", "Rendering",
 			"UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.cpp"));
@@ -136,6 +143,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 			"UI/Inspectors/Builtin/Render/FlipbookAnimationInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>(
 			"UVTransform", "UVTransform", "Rendering", "UI/Inspectors/Builtin/UVTransformInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<HexTilingInspectorDrawer>(
+			"HexTiling", "HexTiling", "Rendering", "UI/Inspectors/Builtin/HexTilingInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>(
 			"Billboard", "Billboard", "Rendering", "UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>(

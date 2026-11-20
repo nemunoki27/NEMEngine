@@ -378,6 +378,49 @@ namespace Engine::MaterialParameterEditor {
 		return ValueEditResult{};
 	}
 
+	ValueEditResult DrawGraphOverrides(MaterialParameterSet& instance, const MaterialParameterSet& defaults,
+		std::span<const MaterialParameterID> exposed, const AssetDatabase* database) {
+
+		ValueEditResult result{};
+		const auto records = defaults.GetRecords();
+		for (const auto id : exposed) {
+			const auto record = std::lower_bound(records.begin(), records.end(), id.value,
+				[](const MaterialParameterRecord& entry, uint64_t target) { return entry.id.value < target; });
+			if (record == records.end() || record->id != id) continue;
+
+			const auto& [name, defaultValue] = record->namedValue;
+			const auto* current = instance.Find(id);
+			auto value = current && current->value.index() == defaultValue.value.index() ? *current : defaultValue;
+			const char* label = name.c_str();
+			ImGui::PushID(Engine::ToString(UUID{ id.value }).c_str());
+			const auto labelContextMenu = MakeLabelContextMenu(id, name);
+			const ValueEditResult edit = std::visit([&](auto& item) -> ValueEditResult {
+				using T = std::decay_t<decltype(item)>;
+				if constexpr (std::is_same_v<T, float>) return MyGUI::DragFloat(label, item);
+				else if constexpr (std::is_same_v<T, Vector2>) return MyGUI::DragVector2(label, item);
+				else if constexpr (std::is_same_v<T, Vector3>) return MyGUI::DragVector3(label, item);
+				else if constexpr (std::is_same_v<T, Vector4>) return MyGUI::DragVector4(label, item);
+				else if constexpr (std::is_same_v<T, Color4>) return MyGUI::ColorEdit(label, item);
+				else if constexpr (std::is_same_v<T, AssetID>) {
+					return MyGUI::AssetReferenceField(label, item, database, { AssetType::Texture, AssetType::RenderTexture });
+				} else if constexpr (std::is_same_v<T, bool>) return MyGUI::CheckboxField(label, item);
+				else if constexpr (std::is_same_v<T, int32_t>) return MyGUI::DragInt(label, item);
+				else if constexpr (std::is_same_v<T, uint32_t>) {
+					if (!MyGUI::BeginPropertyRow(label)) return {};
+					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+					const bool changed = ImGui::InputScalar("##Value", ImGuiDataType_U32, &item);
+					ValueEditResult integerEdit{ changed, ImGui::IsItemActive(), ImGui::IsItemDeactivatedAfterEdit() };
+					MyGUI::EndPropertyRow();
+					return integerEdit;
+				}
+				}, value.value);
+			ImGui::PopID();
+			if (edit.valueChanged) instance.Set(id, name, record->semantic, value);
+			result.Merge(edit);
+		}
+		return result;
+	}
+
 	bool DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection,
 		const std::string& cbufferName,
 		MaterialParameterSet& parameters) {

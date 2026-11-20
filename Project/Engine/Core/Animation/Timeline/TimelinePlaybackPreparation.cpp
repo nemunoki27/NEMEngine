@@ -32,7 +32,7 @@ std::unique_ptr<ITimelineClipInstance> Engine::MakeTimelineClipInstance(const Ti
 		if (track.kind == TimelineTrackKind::Custom) return CreateTimelineCustomClip(track, clip, diagnostic);
 		if (track.kind == TimelineTrackKind::SubTimeline) return CreateTimelineSubTimelineClip(clip);
 		if (track.kind == TimelineTrackKind::Group || track.kind == TimelineTrackKind::Event ||
-			track.kind == TimelineTrackKind::Window) return {};
+			track.kind == TimelineTrackKind::Window || track.kind == TimelineTrackKind::Trail || track.kind == TimelineTrackKind::Beam) return {};
 		return CreateBuiltinTimelineClip(track, clip, diagnostic);
 	} catch (const std::exception& error) { diagnostic = error.what(); return {}; }
 }

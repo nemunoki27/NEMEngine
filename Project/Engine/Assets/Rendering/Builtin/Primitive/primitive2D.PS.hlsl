@@ -33,7 +33,8 @@ PSOutput main(VSOutput input) {
 		uv = ResolvePrimitivePixelUV(input.texcoord,
 			input.uvCoordinates, input.ringParams, input.uvBasis);
 	}
-	float4 baseColor = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, uv,
+	const HexTilingData hex = BuildHexTiling(uv, input.hexTiling);
+	float4 baseColor = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, hex,
 		unassignedMaterialTextureMask, 0u) * color;
 
 	PSOutput output;

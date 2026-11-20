@@ -33,6 +33,7 @@ struct PrimitiveInstance {
 	uint flags;
 	uint motionFrameSerial;
 	uint2 _pad;
+	float4 hexTiling;
 };
 static const uint PRIMITIVE_INSTANCE_FLAG_FLIP_SCREEN_V = 1u << 5;
 
@@ -45,6 +46,7 @@ struct VSOutput {
 	nointerpolation float4 ringParams : TEXCOORD3;
 	nointerpolation float4 uvBasis : TEXCOORD4;
 	nointerpolation uint instanceID : TEXCOORD5;
+	nointerpolation float4 hexTiling : TEXCOORD6;
 };
 
 float2 ResolvePrimitive2DTexcoord(
@@ -66,6 +68,7 @@ VSOutput BuildPrimitive2DVertexOutput(
 
 	VSOutput output;
 	output.instanceID = instanceID;
+	output.hexTiling = instance.hexTiling;
 	float4 worldPosition = mul(
 		float4(localPosition, 1.0f),
 		instance.worldMatrix);

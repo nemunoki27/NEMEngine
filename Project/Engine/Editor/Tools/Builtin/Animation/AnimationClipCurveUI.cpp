@@ -5,12 +5,11 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiCurveEditorInternal.h>
 #include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
 // c++
 #include <algorithm>
-#include <array>
 #include <cmath>
 
 using namespace Engine;
@@ -246,43 +245,8 @@ void Engine::AnimationClipEditorUI::DrawKeyInspectorUI(AnimationClipEditSession&
 	}
 
 	const bool quaternionTrack = track.binding.valueType == AnimationValueType::Quaternion;
-	CurveInterpolationMode interpolation = key.interpolation;
-	if (!quaternionTrack && interpolation == CurveInterpolationMode::Squad) {
-		// 回転以外のSquadをSplineとして表示する
-		interpolation = CurveInterpolationMode::Spline;
-	}
-
 	if (!(IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) && MyGUI::BeginPropertyRow("補間方法")) {
-		if (quaternionTrack) {
-
-			if (Engine::ImGuiUtility::EnumCombo<CurveInterpolationMode>("##Value", &interpolation)) {
-				key.interpolation = interpolation;
-				changed = true;
-			}
-		} else {
-
-			constexpr std::array<CurveInterpolationMode, 4> kNonQuaternionInterpolations{
-				CurveInterpolationMode::Constant,
-				CurveInterpolationMode::Linear,
-				CurveInterpolationMode::Bezier,
-				CurveInterpolationMode::Spline,
-			};
-
-			if (ImGui::BeginCombo("##Value", ImGuiUtility::GetDisplayName(EnumAdapter<CurveInterpolationMode>::ToString(interpolation)))) {
-				for (CurveInterpolationMode mode : kNonQuaternionInterpolations) {
-
-					const bool selected = interpolation == mode;
-					if (ImGui::Selectable(ImGuiUtility::GetDisplayName(EnumAdapter<CurveInterpolationMode>::ToString(mode)), selected)) {
-						key.interpolation = mode;
-						changed = true;
-					}
-					if (selected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-				ImGui::EndCombo();
-			}
-		}
+		changed |= CurveEditorUtility::DrawInterpolationCombo("##Value", key.interpolation, quaternionTrack);
 		MyGUI::EndPropertyRow();
 	}
 

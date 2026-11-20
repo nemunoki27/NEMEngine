@@ -259,6 +259,52 @@ namespace NEMTests {
 			   restored3D.capsuleAxis == authored3D.capsuleAxis;
 	}
 
+	bool TestBeamSegmentQueries() {
+
+		using namespace Engine;
+		ECSWorld world(ECSWorldKind::Runtime);
+		auto addShape = [&](float x, float z, ColliderShapeType type, bool trigger) {
+			const Entity entity = world.CreateEntity();
+			world.AddComponent<TransformComponent>(entity).localPos = Vector3(x, 0.0f, z);
+			auto& collision = world.AddComponent<CollisionComponent>(entity);
+			collision.shape.type = type;
+			collision.shape.isTrigger = trigger;
+			return entity;
+		};
+		const Vector3 start(0.0f, 0.0f, 0.0f);
+		const Vector3 end(8.0f, 0.0f, 6.0f);
+		const Entity ignored = addShape(0.0f, 20.0f, ColliderShapeType::Circle2D, false);
+		const Entity trigger = addShape(2.0f, -10.0f, ColliderShapeType::Circle2D, true);
+		const Entity solid = addShape(4.0f, 35.0f, ColliderShapeType::Capsule2D, false);
+		const Entity box = addShape(6.0f, 15.0f, ColliderShapeType::Quad2D, false);
+		auto& quad = world.TryGetComponent<CollisionComponent>(box)->shape;
+		quad.rotatedQuad = true;
+		quad.halfSize2D = Vector2(0.25f, 1.0f);
+		quad.rotationDegrees.z = 90.0f;
+		const Entity sphere = addShape(1.0f, 0.0f, ColliderShapeType::Sphere3D, false);
+		const std::array excluded{ignored};
+		RaycastHit3D hit{};
+		if (!RaycastBeamSegment(world, start, end, true, 1, QueryTriggerInteraction::Collide, {}, hit) ||
+			hit.entity != ignored || hit.distance != 0.0f ||
+			!RaycastBeamSegment(world, start, end, true, 1, QueryTriggerInteraction::Collide, excluded, hit) ||
+			hit.entity != trigger || !hit.trigger || std::abs(hit.point.x - 1.5f) > 0.0001f ||
+			!RaycastBeamSegment(world, start, end, true, 1, QueryTriggerInteraction::Ignore, excluded, hit) ||
+			hit.entity != solid || std::abs(hit.distance - 4.375f) > 0.0001f ||
+			(hit.point - Vector3(3.5f, 0.0f, 2.625f)).Length() > 0.0001f ||
+			(hit.normal - Vector3(-1.0f, 0.0f, 0.0f)).Length() > 0.0001f) {
+			return false;
+		}
+		world.TryGetComponent<CollisionComponent>(solid)->enabled = false;
+		world.TryGetComponent<CollisionComponent>(box)->typeMask = 2;
+		const Vector3 endpoint(5.0f, 0.0f, 0.0f);
+		return !RaycastBeamSegment(world, start, end, true, 1, QueryTriggerInteraction::Ignore, excluded, hit) &&
+			RaycastBeamSegment(world, start, endpoint, true, 2, QueryTriggerInteraction::Ignore, {}, hit) &&
+			hit.entity == box && std::abs(hit.distance - 5.0f) < 0.0001f &&
+			RaycastBeamSegment(world, start, endpoint, false, 1, QueryTriggerInteraction::Ignore, {}, hit) &&
+			hit.entity == sphere && std::abs(hit.distance - 0.5f) < 0.0001f &&
+			!RaycastBeamSegment(world, start, start, false, 1, QueryTriggerInteraction::Ignore, {}, hit);
+	}
+
 	bool TestPhysicsQueryTriggers() {
 
 		using namespace Engine;

@@ -92,7 +92,7 @@ namespace Engine {
 		float ribbonT = 0.0f;
 		Color4 color = Color4::White();
 		uint32_t materialIndex = 0;
-		Vector3 pad0 = Vector3::AnyInit(0.0f);
+		Vector3 side = Vector3::AnyInit(0.0f);
 	};
 	static_assert(sizeof(ParticleTrailPointData) == 64);
 

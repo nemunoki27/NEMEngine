@@ -9,6 +9,9 @@
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -34,6 +37,8 @@ namespace Engine {
 			if (!context || !context->renderAssetLibrary || !context->assetDatabase) return nullptr;
 			auto& library = *context->renderAssetLibrary;
 			library.Init(context->assetDatabase);
+			if (target == ManagedRendererMaterialTarget::Beam) return library.LoadMaterial(id ? id : BuiltinAssets::Materials::DefaultBeam);
+			if (target == ManagedRendererMaterialTarget::Trail) return library.LoadMaterial(id ? id : BuiltinAssets::Materials::DefaultTrail);
 			DefaultMaterialSlot slot = DefaultMaterialSlot::Mesh;
 			if (target == ManagedRendererMaterialTarget::Decal) slot = DefaultMaterialSlot::Decal;
 			else if (target == ManagedRendererMaterialTarget::Sprite) slot = DefaultMaterialSlot::Sprite;
@@ -105,6 +110,12 @@ namespace Engine {
 				if (auto* projector = world.TryGetComponentForBinding<DecalProjectorComponent>(entity)) {
 					visit(projector->materialInstance, projector->material);
 				}
+				break;
+			case Engine::ManagedRendererMaterialTarget::Trail:
+				if (auto* record = TryGetTrailRenderer(world, entity)) visit(record->settings.materialInstance, record->settings.material);
+				break;
+			case Engine::ManagedRendererMaterialTarget::Beam:
+				if (auto* record = TryGetBeamRenderer(world, entity)) visit(record->settings.materialInstance, record->settings.material);
 				break;
 			case Engine::ManagedRendererMaterialTarget::Line:
 				if (Engine::LineRendererComponent* renderer =

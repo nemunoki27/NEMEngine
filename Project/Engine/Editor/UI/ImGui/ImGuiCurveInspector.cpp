@@ -9,9 +9,26 @@
 // c++
 #include <algorithm>
 #include <cmath>
-#include <array>
 
 namespace Engine::CurveEditorUtility {
+
+	bool DrawInterpolationCombo(const char* label, CurveInterpolationMode& interpolation, bool quaternion) {
+
+		if (quaternion) return ImGuiUtility::EnumCombo(label, &interpolation);
+		const auto current = interpolation == CurveInterpolationMode::Squad ? CurveInterpolationMode::Spline : interpolation;
+		if (!ImGui::BeginCombo(label, EnumAdapter<CurveInterpolationMode>::ToString(current))) return false;
+		bool changed = false;
+		for (auto mode : {CurveInterpolationMode::Constant, CurveInterpolationMode::Linear, CurveInterpolationMode::Bezier, CurveInterpolationMode::Spline}) {
+			const bool selected = current == mode;
+			if (ImGui::Selectable(EnumAdapter<CurveInterpolationMode>::ToString(mode), selected) && !selected) {
+				interpolation = mode;
+				changed = true;
+			}
+			if (selected) ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
+		return changed;
+	}
 
 	// 選択キーの時刻と値を編集する
 	void DrawInspector(std::span<Engine::CurveChannel> channels, Engine::CurveEditorState& state,
@@ -31,6 +48,12 @@ namespace Engine::CurveEditorUtility {
 		}
 
 		Engine::CurveKeySelection selection = state.selectedKeys.front();
+		const auto editFloat = [&](const char* label, float* value, float speed, float min, float max, const char* format) {
+			const bool changed = ImGui::DragFloat(label, value, speed, min, max, format);
+			result.anyItemActive |= ImGui::IsItemActive();
+			result.editFinished |= ImGui::IsItemDeactivatedAfterEdit();
+			return changed;
+		};
 
 		if (IsColorCurveSet(channels) && IsRGBSelection(channels, selection)) {
 			Engine::CurveKey& keyR = channels[0].keys[selection.keyIndex];
@@ -39,15 +62,17 @@ namespace Engine::CurveEditorUtility {
 			ImGui::TextUnformatted("RGB");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
 			float time = keyR.time;
-			if (ImGui::DragFloat("時刻", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (editFloat("時刻", &time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				time = ClampKeyTime(state, time);
 				keyR.time = time;
 				keyG.time = time;
 				keyB.time = time;
 				result.valueChanged = true;
 			}
+			MyGUI::ScopedPropertyLabelWidth colorLabel("CurveKeyColor");
 			Color3 color(keyR.value, keyG.value, keyB.value);
 			const auto colorEdit = MyGUI::ColorEdit("色", color, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_PickerHueWheel);
+			result.anyItemActive |= colorEdit.anyItemActive;
 			result.editFinished |= colorEdit.editFinished;
 			if (colorEdit.valueChanged) {
 				keyR.value = color.r;
@@ -56,7 +81,8 @@ namespace Engine::CurveEditorUtility {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &keyR.interpolation)) {
+			if (DrawInterpolationCombo("補間", keyR.interpolation, false)) {
+				result.editFinished = true;
 				keyG.interpolation = keyR.interpolation;
 				keyB.interpolation = keyR.interpolation;
 				result.valueChanged = true;
@@ -75,16 +101,17 @@ namespace Engine::CurveEditorUtility {
 			Engine::CurveKey& key = channel.keys[selection.keyIndex];
 			ImGui::TextUnformatted("アルファ");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (editFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("値", &key.value, 0.01f, 0.0f, 1.0f, "%.3f")) {
+			if (editFloat("値", &key.value, 0.01f, 0.0f, 1.0f, "%.3f")) {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
+			if (DrawInterpolationCombo("補間", key.interpolation, false)) {
+				result.editFinished = true;
 				result.valueChanged = true;
 			}
 			if (result.valueChanged) {
@@ -107,7 +134,7 @@ namespace Engine::CurveEditorUtility {
 			}
 			ImGui::TextUnformatted("軸");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("時刻", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (editFloat("時刻", &axisKey.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				axisKey.time = ClampKeyTime(state, axisKey.time);
 				result.valueChanged = true;
 			}
@@ -118,15 +145,15 @@ namespace Engine::CurveEditorUtility {
 			}
 			if (axisSetting->useCustomAxis) {
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("軸X", &axisSetting->customAxis.x, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (editFloat("軸X", &axisSetting->customAxis.x, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("軸Y", &axisSetting->customAxis.y, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (editFloat("軸Y", &axisSetting->customAxis.y, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 				ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-				if (ImGui::DragFloat("軸Z", &axisSetting->customAxis.z, 0.01f, -1.0f, 1.0f, "%.3f")) {
+				if (editFloat("軸Z", &axisSetting->customAxis.z, 0.01f, -1.0f, 1.0f, "%.3f")) {
 					result.valueChanged = true;
 				}
 			} else {
@@ -173,16 +200,17 @@ namespace Engine::CurveEditorUtility {
 			Engine::CurveKey& key = channel.keys[selection.keyIndex];
 			ImGui::TextUnformatted("角度");
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+			if (editFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 				key.time = ClampKeyTime(state, key.time);
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (ImGui::DragFloat("角度", &key.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
+			if (editFloat("角度", &key.value, 0.1f, -36000.0f, 36000.0f, "%.3f")) {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
+			if (DrawInterpolationCombo("補間", key.interpolation, true)) {
+				result.editFinished = true;
 				result.valueChanged = true;
 			}
 			if (result.valueChanged) {
@@ -205,16 +233,17 @@ namespace Engine::CurveEditorUtility {
 		Engine::CurveKey& key = channel.keys[selection.keyIndex];
 		ImGui::TextUnformatted(ImGuiUtility::GetDisplayName(channel.name.c_str()));
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (ImGui::DragFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
+		if (editFloat("時刻", &key.time, 0.01f, -10000.0f, 10000.0f, "%.3f")) {
 			key.time = ClampKeyTime(state, key.time);
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (ImGui::DragFloat("値", &key.value, 0.01f, state.visibleValueMin, state.visibleValueMax, "%.3f")) {
+		if (editFloat("値", &key.value, 0.01f, state.visibleValueMin, state.visibleValueMax, "%.3f")) {
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
+		if (DrawInterpolationCombo("補間", key.interpolation, IsQuaternionCurveSet(channels))) {
+			result.editFinished = true;
 			result.valueChanged = true;
 		}
 		if (result.valueChanged) {

@@ -4,11 +4,84 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleTrailDataBuilder.h>
 #include <Engine/Core/World/Systems/Effect/ParticleTrailUpdater.h>
 
 using namespace Engine;
 
+namespace {
+
+	bool CheckBeamGeometry() {
+
+		BeamRendererRecord beam;
+		beam.settings.width = 4.0f;
+		beam.settings.widthMultiplier = 2.0f;
+		beam.settings.is2D = true;
+		beam.settings.useWidthCurve = true;
+		const auto uvMatrix = Matrix4x4::MakeTranslateMatrix({0.25f, 0.5f, 0});
+		beam.settings.widthCurve.channel.AddKey(0, 1);
+		beam.settings.widthCurve.channel.AddKey(1, 0);
+		beam.runtime.time = 0.5;
+		beam.runtime.points = {
+			{{0, 0, 0}, 0, 0, 1, true}, {{4, 0, 0}, 1, 4, 1},
+			{{2, 0, 0}, 0.5f, 2, 0.5f, true}, {{2, 1, 0}, 0.75f, 3, 0}
+		};
+		ParticleCustomParameterLayout layout{};
+		layout.stride = 1;
+		layout.defaultData = {8};
+		ParticleTrailRenderData data;
+		ParticleTrailDataBuilder::Build(beam, beam.settings.blendMode, uvMatrix, layout, data);
+		if (data.points.size() != 4 || data.segments != std::vector<uint32_t>{0, 2} ||
+			data.materials.size() != 2 || data.customParameters != std::vector<uint8_t>{8, 8}) return false;
+		if (data.points[0].side.y != -1 || data.points[2].side.x != 1 ||
+			data.points[0].halfWidth != 4 || data.points[2].halfWidth != 1 ||
+			data.points[2].color != Color4::White() || data.points[3].ribbonT != 0.75f || !(data.materials[1].uvMatrix == uvMatrix)) return false;
+		beam.settings.useWidthCurve = false;
+		beam.settings.is2D = false;
+		ParticleTrailDataBuilder::Build(beam, beam.settings.blendMode, uvMatrix, layout, data);
+		return data.points[3].ribbonT == 0.75f && data.points[2].halfWidth == 2 && data.points[0].side.Length() == 0.0f;
+	}
+
+	bool CheckStandaloneTrailGeometry() {
+
+		TrailRendererRecord trail;
+		trail.settings.mode = TrailMode::TwoPoints;
+		trail.settings.lifetime = 4.0f;
+		trail.runtime.time = 3.0;
+		trail.runtime.points = {
+			{{-1, 0, 0}, {1, 0, 0}, {0, 0, 1}, 0.0},
+			{{0, -1, 0}, {0, 1, 0}, {0, 0, 1}, 1.0},
+			{{9, 0, 0}, {11, 0, 0}, {0, 0, 1}, 2.0, true},
+			{{9, 2, 0}, {11, 2, 0}, {0, 0, 1}, 3.0}
+		};
+		ParticleCustomParameterLayout layout{};
+		layout.stride = 4;
+		layout.defaultData = {1, 2, 3, 4};
+		ParticleTrailRenderData data;
+		ParticleTrailDataBuilder::Build(trail, trail.settings.blendMode, layout, data);
+		if (data.points.size() != 4 || data.segments != std::vector<uint32_t>{0, 2} ||
+			data.materials.size() != 2 || data.customParameters.size() != 8) return false;
+		if (data.points[0].side.x != 1.0f || data.points[1].side.y != 1.0f ||
+			data.points[1].halfWidth != 1.0f || data.points[1].ribbonT != 1.0f ||
+			data.points[2].ribbonT != 0.0f || data.points[3].color.a <= data.points[0].color.a) return false;
+		trail.settings.textureMode = TrailTextureMode::Tile;
+		trail.settings.mode = TrailMode::SinglePoint;
+		trail.settings.width = 6.0f;
+		trail.settings.alignment = TrailAlignment::TransformZ;
+		ParticleTrailDataBuilder::Build(trail, trail.settings.blendMode, layout, data);
+		if (data.points[3].ribbonT != 2.0f || data.points[3].side.x != 1.0f ||
+			data.points[3].halfWidth != 3.0f) return false;
+		trail.settings.alignment = TrailAlignment::View;
+		ParticleTrailDataBuilder::Build(trail, trail.settings.blendMode, layout, data);
+		return data.points[3].side.Length() == 0.0f;
+	}
+}
+
 bool NEMTests::TestParticleSystemTrails() {
+
+	if (!CheckStandaloneTrailGeometry() || !CheckBeamGeometry()) return false;
 
 	ParticleTrailSettings settings;
 	settings.enabled = true;

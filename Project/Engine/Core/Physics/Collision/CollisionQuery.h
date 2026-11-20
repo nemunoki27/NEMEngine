@@ -6,6 +6,7 @@
 #include <Engine/Core/Physics/Collision/CollisionRaycast.h>
 
 // c++
+#include <span>
 #include <vector>
 
 namespace Engine {
@@ -35,6 +36,10 @@ namespace Engine {
 		Collide,
 	};
 
+	// 除外対象を除き、線分上で最初に当たる2Dまたは3Dの衝突形状を返す
+	bool RaycastBeamSegment(ECSWorld& world, const Vector3& start, const Vector3& end, bool is2D,
+		uint32_t layerMask, QueryTriggerInteraction triggerInteraction, std::span<const Entity> excluded, RaycastHit3D& outHit);
+
 	//============================================================================
 	//	CollisionQuery class
 	//	ワールド内の衝突形状に対するレイクエリ
@@ -56,15 +61,5 @@ namespace Engine {
 		static void RaycastAll(ECSWorld& world, const Ray& ray, float maxDistance,
 			uint32_t layerMask, RaycastTargets targets,
 			QueryTriggerInteraction triggerInteraction, std::vector<RaycastHit3D>& outHits);
-	private:
-		//========================================================================
-		//	private Methods
-		//========================================================================
-
-		//--------- functions ----------------------------------------------------
-
-		// CollisionComponentの3D形状のヒットを集める
-		static void RaycastColliders(ECSWorld& world, const Ray& ray, float maxDistance,
-			uint32_t layerMask, bool includeTriggers, std::vector<RaycastHit3D>& outHits);
 	};
 } // Engine

@@ -261,6 +261,14 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 			playRequested_ = true;
 		} else if (playRequested_ && !std::filesystem::exists(playGate_)) {
 			PostQuitMessage(0);
+		} else if (application_->worldManager_.IsPlaying()) {
+
+			// Play中の両Viewを、連番の要求ファイルが置かれたフレームで読み戻す
+			const auto request = playGate_.wstring() + L".capture" + std::to_wstring(phase_);
+			if (std::filesystem::exists(request)) {
+				CaptureViews(graphicsCore, "play-");
+				++phase_;
+			}
 		}
 		return;
 	}

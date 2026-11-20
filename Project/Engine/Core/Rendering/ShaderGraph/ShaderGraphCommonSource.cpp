@@ -117,6 +117,26 @@ namespace Engine::ShaderGraphStageSource {
 				"\treturn NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv);\n"
 				"}\n\n";
 		}
+		if (SupportsHexTiling(graph)) {
+			source += R"hlsl(
+#define NEM_SHADER_GRAPH_HEX_TILING 1
+#include "Builtin/Common/hexTiling.hlsli"
+float4 SampleGraphHexTexture(uint index, HexTilingData hex, SamplerState sampler, float4 fallback, bool normalMap) {
+	if (index == 0xffffffffu) return fallback;
+	Texture2D<float4> texture = NEM_TEXTURE2D(index);
+#ifdef NEM_SHADER_GRAPH_EXPLICIT_LOD
+	return SampleHexLevel(texture, sampler, hex, 0.0f, normalMap);
+#else
+	return SampleHexGrad(texture, sampler, hex, ddx(hex.uv), ddy(hex.uv), normalMap);
+#endif
+}
+float4 SampleGraphHexTextureLOD(uint index, HexTilingData hex, SamplerState sampler, float lod, float4 fallback, bool normalMap) {
+	if (index == 0xffffffffu) return fallback;
+	Texture2D<float4> texture = NEM_TEXTURE2D(index);
+	return SampleHexLevel(texture, sampler, hex, lod, normalMap);
+}
+)hlsl";
+		}
 		source += "float ShaderGraphHash(float2 value) {\n\n"
 				  "\treturn frac(sin(dot(value, float2(127.1f, 311.7f))) * 43758.5453f);\n"
 				  "}\n\n"

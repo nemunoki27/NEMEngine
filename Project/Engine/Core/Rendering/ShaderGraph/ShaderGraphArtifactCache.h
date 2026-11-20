@@ -88,5 +88,6 @@ namespace Engine {
 		static AssetID MakeDerivedID(AssetID graphID, uint64_t discriminator);
 		// GPU粒子用のPixel Shaderを同じ派生規則で参照する
 		static AssetID MakeParticleGPUShaderID(AssetID graphID);
+		static AssetID MakeTransparentPipelineID(AssetID graphID, ShaderGraphTarget target);
 	};
 }

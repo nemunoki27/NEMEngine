@@ -156,6 +156,8 @@ void TimelineTool::DrawClipData(const EditorToolContext& context, TimelineTrack&
 		break;
 	}
 	case TimelineTrackKind::Custom: DrawCustomClipData(context, clip); break;
+	case TimelineTrackKind::Beam:
+	case TimelineTrackKind::Trail:
 	case TimelineTrackKind::Group: break;
 	}
 }

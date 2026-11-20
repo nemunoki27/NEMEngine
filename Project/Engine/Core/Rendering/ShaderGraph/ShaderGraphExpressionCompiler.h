@@ -90,6 +90,7 @@ namespace Engine {
 		std::unordered_map<uint64_t, std::vector<ShaderGraphExpression>> customFunctionOutputs_;
 		std::unordered_set<uint64_t> visiting_;
 		std::string evaluationStatements_;
+		std::unordered_map<std::string, std::string> hexGrids_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -101,6 +102,10 @@ namespace Engine {
 		ShaderGraphExpression EmitMathNode(const ShaderGraphNode& node);
 		// 座標変換と成分操作の式を作る
 		ShaderGraphExpression EmitCoordinatesNode(const ShaderGraphNode& node, uint32_t outputSlot);
+		bool UsesMaterialUV(const ShaderGraphNode& node, uint32_t slot, std::string_view uv) const;
+		bool UsesRepeatSampler(const ShaderGraphNode& node, uint32_t slot) const;
+		std::string EmitSurfaceTextureSample(const ShaderGraphNode& node, const std::string& texture, const std::string& uv,
+			const std::string& sampler, const std::string& fallback, const std::string& lod = {});
 		// Textureの参照とサンプル式を作る
 		ShaderGraphExpression EmitTextureNode(const ShaderGraphNode& node, uint32_t outputSlot);
 		// 描画結果とRayの参照式を作る

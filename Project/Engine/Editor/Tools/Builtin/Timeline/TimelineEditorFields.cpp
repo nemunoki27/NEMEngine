@@ -19,6 +19,8 @@ std::string_view Engine::TimelineEditorFields::BindingLabel(std::string_view nam
 	if (name == "Camera") return "カメラ";
 	if (name == "Audio") return "音声";
 	if (name == "Hitbox") return "衝突判定";
+	if (name == "Trail") return "トレイル";
+	if (name == "Beam") return "ビーム";
 	if (name == "Effect") return "エフェクト";
 	return name;
 }
@@ -27,14 +29,14 @@ namespace {
 
 	constexpr const char* kTrackNames[]{
 		"グループ", "骨アニメーション", "移動・回転", "パーティクル", "Prefabの発生", "衝突判定",
-		"カメラ", "音声", "プロパティ", "有効状態", "時間倍率", "イベント", "受付区間", "子Timeline", "C#独自クリップ"
+		"カメラ", "音声", "プロパティ", "有効状態", "時間倍率", "イベント", "受付区間", "子Timeline", "C#独自クリップ", "トレイル", "ビーム"
 	};
 	constexpr ImU32 kTrackColors[]{
 		IM_COL32(35, 37, 42, 255), IM_COL32(47, 25, 91, 255), IM_COL32(18, 60, 34, 255),
 		IM_COL32(15, 53, 83, 255), IM_COL32(12, 65, 71, 255), IM_COL32(80, 20, 23, 255),
 		IM_COL32(20, 43, 82, 255), IM_COL32(76, 53, 17, 255), IM_COL32(43, 30, 80, 255),
 		IM_COL32(28, 62, 43, 255), IM_COL32(73, 35, 18, 255), IM_COL32(73, 39, 17, 255),
-		IM_COL32(60, 34, 73, 255), IM_COL32(25, 50, 64, 255), IM_COL32(40, 49, 65, 255)
+		IM_COL32(60, 34, 73, 255), IM_COL32(25, 50, 64, 255), IM_COL32(40, 49, 65, 255), IM_COL32(20, 65, 75, 255), IM_COL32(57, 33, 89, 255)
 	};
 }
 

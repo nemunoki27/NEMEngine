@@ -15,6 +15,7 @@ struct PrimitiveInstance {
 	uint motionFrameSerial;
 	uint entityIndex;
 	uint entityGeneration;
+	float4 hexTiling;
 };
 
 // 非等方Scaleと負Scaleを含む法線を逆転置行列で変換する

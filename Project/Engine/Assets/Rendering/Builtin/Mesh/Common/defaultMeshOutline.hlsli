@@ -46,6 +46,7 @@ struct OutlineVertexOutput {
 	nointerpolation uint opacityTextureIndex : TEXCOORD3;
 	nointerpolation uint flags : TEXCOORD4;
 	nointerpolation float alphaThreshold : TEXCOORD5;
+	nointerpolation float4 hexTiling : TEXCOORD6;
 };
 
 //============================================================================
@@ -181,6 +182,7 @@ OutlineVertexOutput BuildOutlineVertex(uint instanceID, uint localSubMeshIndex,
 	const MeshMaterialParameters material =
 		GetInstanceMeshMaterialParameters(instanceID, localSubMeshIndex);
 	output.uv = mul(float4(vertex.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	output.hexTiling = subMesh.hexTiling;
 	output.baseAlpha = subMesh.importedBaseColor.a * subMesh.color.a *
 		instance.color.a * material.color.a;
 	output.baseColorTextureIndex = material.baseColorTexture;

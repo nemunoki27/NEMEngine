@@ -25,7 +25,7 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 		return name;
 	}
 	if (type.find("ShaderGraph") != std::string_view::npos) { return name; }
-	if (type.ends_with("EasingType") || type.ends_with("RendererFillMode") ||
+	if (type.ends_with("EasingType") || type.ends_with("CurveInterpolationMode") || type.ends_with("RendererFillMode") ||
 		type.ends_with("RendererCullMode") || type.ends_with("RendererDepthComparison") ||
 		type.ends_with("RendererStencilOperation") || type.ends_with("BlendMode") ||
 		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") || type.ends_with("MaterialParameterSemantic") ||

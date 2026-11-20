@@ -11,11 +11,15 @@ void Engine::from_json(const nlohmann::json& in, DecalProjectorComponent& compon
 	component.enabled = in.value("enabled", component.enabled);
 	component.size = Vector3::FromJson(in.value("size", component.size.ToJson()));
 	component.pivot = Vector3::FromJson(in.value("pivot", component.pivot.ToJson()));
-	component.color = Color4::FromJson(in.value("color", component.color.ToJson()));
-	component.fadeFactor = in.value("fadeFactor", component.fadeFactor);
-	component.uvScale = Vector2::FromJson(in.value("uvScale", component.uvScale.ToJson()));
-	component.uvBias = Vector2::FromJson(in.value("uvBias", component.uvBias.ToJson()));
-	component.uvRotation = in.value("uvRotation", component.uvRotation);
+	component.color = Color4::FromJson(in.value("color", Color4::White().ToJson()));
+	component.fadeFactor = in.value("fadeFactor", 1.0f);
+	component.uvScale = Vector2::FromJson(in.value("uvScale", Vector2::AnyInit(1.0f).ToJson()));
+	component.uvBias = Vector2::FromJson(in.value("uvBias", Vector2{}.ToJson()));
+	component.uvRotation = in.value("uvRotation", 0.0f);
+	component.hasLegacyUV = in.contains("uvScale") || in.contains("uvBias") || in.contains("uvRotation");
+	component.uvCorrectionU = Vector3::FromJson(in.value("uvCorrectionU", Vector3{}.ToJson()));
+	component.uvCorrectionV = Vector3::FromJson(in.value("uvCorrectionV", Vector3{}.ToJson()));
+	component.uvCorrectionScaleOffset = Vector2::FromJson(in.value("uvCorrectionScaleOffset", Vector2{}.ToJson()));
 	component.sortOrder = in.value("sortOrder", component.sortOrder);
 	component.drawDistance = in.value("drawDistance", component.drawDistance);
 	component.fadeScale = in.value("fadeScale", component.fadeScale);
@@ -35,11 +39,16 @@ void Engine::to_json(nlohmann::json& out, const DecalProjectorComponent& compone
 	out["enabled"] = component.enabled;
 	out["size"] = component.size.ToJson();
 	out["pivot"] = component.pivot.ToJson();
-	out["color"] = component.color.ToJson();
-	out["fadeFactor"] = component.fadeFactor;
-	out["uvScale"] = component.uvScale.ToJson();
-	out["uvBias"] = component.uvBias.ToJson();
-	out["uvRotation"] = component.uvRotation;
+	if (component.color != Color4::White()) out["color"] = component.color.ToJson();
+	if (component.fadeFactor != 1.0f) out["fadeFactor"] = component.fadeFactor;
+	if (component.hasLegacyUV) {
+		out["uvScale"] = component.uvScale.ToJson();
+		out["uvBias"] = component.uvBias.ToJson();
+		out["uvRotation"] = component.uvRotation;
+	}
+	if (component.uvCorrectionU != Vector3{}) out["uvCorrectionU"] = component.uvCorrectionU.ToJson();
+	if (component.uvCorrectionV != Vector3{}) out["uvCorrectionV"] = component.uvCorrectionV.ToJson();
+	if (component.uvCorrectionScaleOffset != Vector2{}) out["uvCorrectionScaleOffset"] = component.uvCorrectionScaleOffset.ToJson();
 	out["sortOrder"] = component.sortOrder;
 	out["drawDistance"] = component.drawDistance;
 	out["fadeScale"] = component.fadeScale;

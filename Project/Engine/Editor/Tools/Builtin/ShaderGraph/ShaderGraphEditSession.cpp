@@ -80,11 +80,12 @@ bool Engine::ShaderGraphEditSession::ChangeTarget(ShaderGraphTarget target) {
 	const bool is3D = IsShaderGraph3DTarget(target);
 	for (ShaderGraphNode& node : graph_.nodes) {
 		if (node.id == graph_.outputNode) {
-			node.kind = is3D ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput;
+			node.kind = target == ShaderGraphTarget::Decal ? ShaderGraphNodeKind::DecalOutput : is3D ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput;
 			break;
 		}
 	}
-	const uint32_t inputCount = is3D ? 8u : 3u;
+	const uint32_t inputCount = GetShaderGraphInputCount(target == ShaderGraphTarget::Decal ? ShaderGraphNodeKind::DecalOutput :
+		is3D ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput);
 	std::erase_if(graph_.links,
 		[&](const ShaderGraphLink& link) { return link.inputNode == graph_.outputNode && inputCount <= link.inputSlot; });
 	// 非対応の頂点出力と接続を取り除く

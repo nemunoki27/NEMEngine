@@ -294,15 +294,15 @@ void ResolveHitPrimitiveSurface(SubMeshShaderData subMesh, MeshVertex v0, MeshVe
 	}
 }
 
-float4 SampleHitTexture(uint textureIndex, float2 uv,
-	float mipLevel, float4 fallbackValue) {
+float4 SampleHitTexture(uint textureIndex, HexTilingData hex,
+	float mipLevel, float4 fallbackValue, bool normalMap = false) {
 
 	if (textureIndex == kNoTexture) {
 		return fallbackValue;
 	}
 	Texture2D<float4> texture =
 		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
-	return texture.SampleLevel(gSampler, uv, mipLevel);
+	return SampleHexLevel(texture, gSampler, hex, mipLevel, normalMap);
 }
 
 void ResolveRaytracingHitGeometry(
@@ -404,36 +404,37 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh,
 		uv, paintUV, vertexColor, worldPosition, tangentToWorld);
 	// レイ距離に応じたMipを使い遠距離ヒットの高周波ノイズを抑える
+	HexTilingData hex = BuildHexTiling(uv, subMesh.hexTiling);
 	float textureMip = max(log2(1.0f + RayTCurrent() * 0.02f), 0.0f);
 
 	float4 baseColor = subMesh.importedBaseColor * subMesh.color * vertexColor;
 	baseColor *= SampleHitTexture(
-		subMesh.baseColorTextureIndex, uv, textureMip, 1.0f.xxxx);
+		subMesh.baseColorTextureIndex, hex, textureMip, 1.0f.xxxx);
 	baseColor.a *= SampleHitTexture(
-		subMesh.opacityTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+		subMesh.opacityTextureIndex, hex, textureMip, 1.0f.xxxx).r;
 	ApplyParticlePaint(uint2(instanceData.entityIndex, instanceData.entityGeneration), paintUV,
 		worldPosition, gEnvironmentSampler, baseColor);
 
 	// glTFのmetallic-roughness規約に合わせてBとGを参照する
 	float4 metallicRoughness = SampleHitTexture(
-		subMesh.metallicRoughnessTextureIndex, uv, textureMip, 1.0f.xxxx);
+		subMesh.metallicRoughnessTextureIndex, hex, textureMip, 1.0f.xxxx);
 	float metallicSample = SampleHitTexture(
-		subMesh.metallicTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+		subMesh.metallicTextureIndex, hex, textureMip, 1.0f.xxxx).r;
 	float roughnessSample = SampleHitTexture(
-		subMesh.roughnessTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+		subMesh.roughnessTextureIndex, hex, textureMip, 1.0f.xxxx).r;
 	float metallic = saturate(
 		subMesh.metallic * metallicRoughness.b * metallicSample);
 	float roughness = max(
 		saturate(subMesh.roughness * metallicRoughness.g * roughnessSample),
 		0.04f);
 	float ao = SampleHitTexture(
-		subMesh.occlusionTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+		subMesh.occlusionTextureIndex, hex, textureMip, 1.0f.xxxx).r;
 
 	float3 normal = tangentToWorld[2];
 	if (subMesh.normalTextureIndex != kNoTexture) {
 
 		float3 tangentNormal = SampleHitTexture(
-			subMesh.normalTextureIndex, uv, textureMip, 1.0f.xxxx).xyz * 2.0f - 1.0f;
+			subMesh.normalTextureIndex, hex, textureMip, 1.0f.xxxx, true).xyz * 2.0f - 1.0f;
 		normal = SafeNormalize(
 			mul(tangentNormal, tangentToWorld), normal);
 	}
@@ -441,7 +442,7 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	float3 emissive = subMesh.emissiveColor.rgb *
 		subMesh.emissiveColor.a;
 	emissive *= SampleHitTexture(
-		subMesh.emissiveTextureIndex, uv, textureMip, 1.0f.xxxx).rgb;
+		subMesh.emissiveTextureIndex, hex, textureMip, 1.0f.xxxx).rgb;
 
 	ResolvedPBRMaterial material;
 	material.baseColor = baseColor;
@@ -822,9 +823,10 @@ void ReflectionAnyHit(inout ReflectionPayload payload, in BuiltInTriangleInterse
 	float3x3 tangentToWorld;
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh, uv, paintUV, vertexColor, position, tangentToWorld);
 	if ((subMesh._materialPad >> 16u) != 2u) return;
+	HexTilingData hex = BuildHexTiling(uv, subMesh.hexTiling);
 	float alpha = subMesh.importedBaseColor.a * subMesh.color.a * vertexColor.a;
-	alpha *= SampleHitTexture(subMesh.baseColorTextureIndex, uv, 0.0f, 1.0f.xxxx).a;
-	alpha *= SampleHitTexture(subMesh.opacityTextureIndex, uv, 0.0f, 1.0f.xxxx).r;
+	alpha *= SampleHitTexture(subMesh.baseColorTextureIndex, hex, 0.0f, 1.0f.xxxx).a;
+	alpha *= SampleHitTexture(subMesh.opacityTextureIndex, hex, 0.0f, 1.0f.xxxx).r;
 	if (alpha < float(subMesh._materialPad & 65535u) / 65535.0f) IgnoreHit();
 }
 
@@ -845,7 +847,7 @@ void ReflectionClosestHit(
 	// GBufferに合成済みのDecalを重ねない
 	if (subMesh.useRasterHitMaterial == 0u || !LoadRasterHitMaterial(worldPosition, footprint, material)) {
 		ApplyRaytracingDecals(instanceData.geometryDataOffset + GeometryIndex(), worldPosition, footprint,
-			instanceData.renderFlags >> 8u, gEnvironmentSampler, material.baseColor.rgb, material.N,
+			instanceData.renderFlags >> 8u, gSampler, material.baseColor.rgb, material.N,
 			material.metallic, material.roughness, material.emissive);
 	}
 

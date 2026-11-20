@@ -13,7 +13,12 @@
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/MotionAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Systems/Rendering/BeamRendererSystem.h>
+#include <Engine/Core/World/Systems/Rendering/TrailRendererSystem.h>
 #include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -427,6 +432,153 @@ namespace {
 	}
 
 	// 子Timelineの複数境界を親Mixerの中で処理しても古いサンプルを混ぜない
+	void CheckTrailEmission() {
+
+		ECSWorld world;
+		const Entity actor = world.CreateEntity();
+		world.AddComponent<TransformComponent>(actor);
+		world.AddComponent<TrailRendererComponent>(actor);
+		auto* trail = TryGetTrailRenderer(world, actor);
+		trail->settings.lifetime = 1.0f;
+		trail->settings.minVertexDistance = 0.001f;
+		auto asset = CreateDefaultTimelineAsset("Trail");
+		asset.duration = 2.0;
+		TimelineTrack motion;
+		motion.id = Engine::UUID::New();
+		motion.kind = TimelineTrackKind::Property;
+		motion.binding = asset.bindings.front().id;
+		TimelineClip move;
+		move.id = Engine::UUID::New();
+		move.duration = 2.0;
+		move.data = CreateDefaultTimelineClipData(motion.kind);
+		move.data["to"] = Vector3(4, 0, 0).ToJson();
+		motion.clips.push_back(move);
+		asset.tracks.push_back(motion);
+		TimelineTrack emission;
+		emission.id = Engine::UUID::New();
+		emission.kind = TimelineTrackKind::Trail;
+		emission.binding = motion.binding;
+		for (const double start : {0.2, 0.4, 1.2}) {
+			TimelineClip clip;
+			clip.id = Engine::UUID::New();
+			clip.start = start;
+			clip.duration = 0.4;
+			emission.clips.push_back(clip);
+		}
+		asset.tracks.push_back(emission);
+		TimelinePlayerRecord player;
+		SystemContext systems;
+		const auto scrub = [&](double time) {
+			Require(EvaluateTimelineAt(world, actor, player, asset, time, systems, TimelineEvaluationMode::Preview, false, true),
+				"トレイルの時刻を評価する");
+		};
+		scrub(0.0);
+		Require(!trail->settings.emitting && trail->runtime.points.empty(), "発生前に軌跡を作らない");
+		scrub(1.4);
+		size_t segments = trail->runtime.points.empty() ? 0 : 1;
+		for (size_t i = 1; i < trail->runtime.points.size(); ++i) if (trail->runtime.points[i].breakBefore) ++segments;
+		Require(trail->settings.emitting && segments == 2 && Near(trail->runtime.points.back().root.x, 2.8f),
+			"重なる区間を連結し、発生を止めた区間の前後は分離する");
+		scrub(0.3);
+		Require(trail->settings.emitting && !trail->runtime.points.empty() && Near(trail->runtime.points.back().root.x, 0.6f),
+			"逆シークで過去の位置から軌跡を再構築する");
+		const size_t held = trail->runtime.points.size();
+		systems.unscaledDeltaTime = 2.0f;
+		TrailRendererSystem update;
+		update.LateUpdate(world, systems);
+		update.LateUpdate(world, systems);
+		Require(trail->runtime.points.size() == held && std::abs(trail->runtime.time - 0.3) < 0.0001,
+			"一時停止中に次の描画フレームへ進んでも履歴と時刻を維持する");
+		world.AddComponent<SceneObjectComponent>(actor);
+		world.GetComponent<SceneObjectComponent>(actor).activeInHierarchy = false;
+		scrub(0.5);
+		Require(trail->runtime.points.empty(), "無効な対象の軌跡はシークでも表示しない");
+		ReleaseTimelinePlayer(world, actor, player, systems);
+		Require(trail->settings.emitting && trail->runtime.points.empty(), "終了時にプレビュー前の発生設定と履歴を復元する");
+		world.GetComponent<SceneObjectComponent>(actor).activeInHierarchy = true;
+		systems.mode = WorldMode::Play;
+		systems.deltaTime = systems.unscaledDeltaTime = 1.0f / 60.0f;
+		Require(EvaluateTimelineAt(world, actor, player, asset, 0.7, systems, TimelineEvaluationMode::Playback) && trail->settings.emitting && !trail->runtime.timelineHoldsHistory,
+			"再生中は重なった片方の区間が終了しても発生を継続する");
+		Require(EvaluateTimelineAt(world, actor, player, asset, 1.0, systems, TimelineEvaluationMode::Playback) && !trail->settings.emitting,
+			"最後の区間を抜けると発生を止める");
+		ReleaseTimelinePlayer(world, actor, player, systems);
+		Require(trail->settings.emitting, "再生終了時に元の発生設定を復元する");
+	}
+
+	// 逆シークと重複区間で稲妻の形状と再生時刻を再現する
+	void CheckBeamEmission() {
+
+		ECSWorld world;
+		const Entity actor = world.CreateEntity();
+		world.AddComponent<TransformComponent>(actor);
+		world.AddComponent<BeamRendererComponent>(actor);
+		auto& beam = *TryGetBeamRenderer(world, actor);
+		beam.settings.mode = BeamMode::Lightning;
+		beam.settings.playbackMode = BeamPlaybackMode::OneShot;
+		beam.settings.duration = 0.05f;
+		PlayBeam(world, actor);
+		beam.runtime.time = 0.125;
+		auto asset = CreateDefaultTimelineAsset("Beam");
+		TimelineTrack motion;
+		motion.id = Engine::UUID::New();
+		motion.kind = TimelineTrackKind::Property;
+		motion.binding = asset.bindings.front().id;
+		TimelineClip move;
+		move.id = Engine::UUID::New();
+		move.duration = 2.0;
+		move.data = CreateDefaultTimelineClipData(motion.kind);
+		move.data["to"] = Vector3(2, 0, 0).ToJson();
+		motion.clips.push_back(move);
+		asset.tracks.push_back(motion);
+		TimelineTrack emission;
+		emission.id = Engine::UUID::New();
+		emission.kind = TimelineTrackKind::Beam;
+		emission.binding = motion.binding;
+		TimelineClip clip;
+		clip.id = Engine::UUID::New();
+		clip.start = 0.25;
+		clip.duration = 0.75;
+		clip.clipIn = 0.1;
+		clip.speed = 2.0;
+		emission.clips.push_back(clip);
+		clip.id = Engine::UUID::New();
+		clip.start = 0.5;
+		emission.clips.push_back(clip);
+		asset.tracks.push_back(emission);
+		TimelinePlayerRecord player;
+		SystemContext systems;
+		const auto scrub = [&](double time) {
+			Require(EvaluateTimelineAt(world, actor, player, asset, time, systems, TimelineEvaluationMode::Preview, false, true),
+				"ビームを指定時刻で評価する");
+		};
+		scrub(0);
+		Require(!beam.runtime.playing && beam.runtime.points.empty(), "区間外のビームを消す");
+		scrub(0.75);
+		Require(beam.runtime.playing && beam.runtime.timelineControlled && std::abs(beam.runtime.time - 0.6) < 1e-8,
+			"重複したビーム区間は後発側の開始位置と速度で評価する");
+		const auto expected = beam.runtime.points;
+		Require(2 < expected.size() && Near(expected.front().position.x, 0.75f), "同じ時刻の移動と稲妻を反映する");
+		scrub(1.25);
+		Require(!beam.runtime.playing && beam.runtime.points.empty(), "ビームの終端で表示を止める");
+		scrub(0.75);
+		systems.deltaTime = systems.unscaledDeltaTime = 1.0f;
+		BeamRendererSystem update;
+		update.LateUpdate(world, systems);
+		Require(beam.runtime.points.size() == expected.size() && std::abs(beam.runtime.time - 0.6) < 1e-8,
+			"シーク後の描画更新で単発ビームの時刻を進めない");
+		for (size_t i = 0; i < expected.size(); ++i)
+			Require(beam.runtime.points[i].position == expected[i].position, "同じ時刻への逆シークで稲妻の分岐も一致する");
+		ReleaseTimelinePlayer(world, actor, player, systems);
+		Require(!beam.runtime.timelineControlled && beam.runtime.playing && beam.runtime.time == 0.125,
+			"プレビュー前のビーム再生状態を復元する");
+		systems.mode = WorldMode::Play;
+		Require(EvaluateTimelineAt(world, actor, player, asset, 0.75, systems, TimelineEvaluationMode::Playback), "ビームをゲーム中に再生する");
+		update.LateUpdate(world, systems);
+		Require(beam.runtime.playing && !beam.runtime.points.empty(), "再生中は単発ビームも区間に従う");
+		ReleaseTimelinePlayer(world, actor, player, systems);
+	}
+
 	void CheckNestedPlaybackMixing() {
 
 		ECSWorld world;
@@ -480,6 +632,8 @@ bool NEMTests::TestTimelineBuiltins() {
 		RegisterBuiltinAnimationProperties();
 		CheckPropertyMixing();
 		CheckCollisionWindows();
+		CheckTrailEmission();
+		CheckBeamEmission();
 		CheckHitStop();
 		CheckDestroyedHitStopOwner();
 		CheckMotionAndCamera();

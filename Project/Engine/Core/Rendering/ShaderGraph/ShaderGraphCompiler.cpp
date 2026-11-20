@@ -1,4 +1,5 @@
 ﻿#include "ShaderGraphCompiler.h"
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 
 //============================================================================
 //	include
@@ -62,6 +63,12 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 	output.ir = ShaderGraphIRBuilder::Build(expandedGraph);
 	output.diagnostics = output.ir.diagnostics;
 	if (!output.ir.Succeeded()) {
+		return output;
+	}
+	if (expandedGraph.domain == ShaderGraphDomain::Surface && expandedGraph.target == ShaderGraphTarget::Decal) {
+		output.decalGraph = std::make_shared<DecalGraphProgram>();
+		CompileDecalGraph(expandedGraph, output.ir, *output.decalGraph, output.diagnostics);
+		BuildParameterBindings(expandedGraph, output);
 		return output;
 	}
 	// 共通のSampler配置から各描画経路を生成する

@@ -12,6 +12,8 @@ TimelinePlayerのあるGameObjectを選択すると、そのTimelineを表示し
 
 トラックの参照欄へ、Hierarchyから対象のGameObjectをドロップします。骨アニメーショントラックにはSkinnedAnimation、パーティクルトラックにはParticleSystemなど、そのトラックに必要なコンポーネントが必要です。
 
+剣の軌跡にはTrailトラックを作ってTrailRendererを、レーザーや稲妻にはBeamトラックを作ってBeamRendererを割り当てます。色や幅は各Rendererで設定してから、効果を出す区間にクリップを配置します。
+
 新しいトラックは独立した割り当てを使用します。既存データで割り当てを共有している場合は、このトラックだけを変更するか、共有するトラックすべてへ適用するかを選びます。割り当てはTimelineアセットではなく、シーンのTimelinePlayerへ保存されます。割り当てを変更した後は、シーンも保存してください。
 
 ## クリップを編集する

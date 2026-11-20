@@ -1,0 +1,13 @@
+{
+    "domain": "Surface",
+    "usage": "Particle",
+    "name": "Trail",
+    "parameters": {},
+    "passes": [
+        {
+            "passKind": "Transparent",
+            "pipeline": "4e454d4153534554eff0000000000012",
+            "preferredVariant": "GraphicsVertex"
+        }
+    ]
+}

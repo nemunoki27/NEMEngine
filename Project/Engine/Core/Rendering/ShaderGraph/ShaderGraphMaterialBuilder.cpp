@@ -30,6 +30,10 @@ namespace Engine::ShaderGraphMaterialBuilder {
 				.pipeline = BuiltinAssets::Pipelines::PostProcessMaskComposite,
 				.preferredVariant = PipelineVariantKind::Compute,
 			});
+		} else if (graph.target == ShaderGraphTarget::Decal) {
+			material.name = graph.name;
+			material.domain = MaterialDomain::Decal;
+			material.usage = MaterialUsage::Decal;
 		} else if (graph.target == ShaderGraphTarget::Mesh) {
 			material = CreateDefaultMeshMaterialAsset(graph.name);
 		} else {
@@ -93,7 +97,7 @@ namespace Engine::ShaderGraphMaterialBuilder {
 
 		// Graphの描画設定をMaterialへ引き継ぐ
 		material.shaderGraph = graphID;
-		if (graph.domain == ShaderGraphDomain::Surface) {
+		if (graph.domain == ShaderGraphDomain::Surface && graph.target != ShaderGraphTarget::Decal) {
 			if (IsShaderGraph3DTarget(graph.target) && !FindPass(material, MaterialPassKind::RayTracing)) {
 
 				material.passes.emplace_back(MaterialPassBinding{
@@ -123,6 +127,7 @@ namespace Engine::ShaderGraphMaterialBuilder {
 
 	void ApplyToMaterial(const ShaderGraphArtifact& artifact, MaterialAsset& material) {
 
+		material.decalGraph = artifact.compileOutput.decalGraph;
 		ShaderGraphParameterDefaults::ApplyToMaterial(artifact.compileOutput.defaultParameters,
 			artifact.compileOutput.parameters, material.parameters);
 

@@ -15,6 +15,7 @@
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
@@ -204,6 +205,9 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		instance.entityIndex = item->entity.index;
 		instance.entityGeneration = item->entity.generation;
 		instance.uvMatrix = payload->uvMatrix;
+		if (item->world) {
+			instance.hexTiling = ResolveHexTiling(*item->world, item->entity);
+		}
 		if (payload->renderer) {
 			MeshRenderFlags renderFlags =
 				payload->renderer->renderFlags;

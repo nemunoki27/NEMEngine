@@ -1016,6 +1016,46 @@
       "name": "setTimelineStringParameter",
       "nativeType": "SetTimelineStringParameterCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, byte*, int>"
+    },
+    {
+      "name": "trailCommand",
+      "nativeType": "TrailCommandCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, NativeVector3, NativeVector3, int>"
+    },
+    {
+      "name": "getTrailEndpoint",
+      "nativeType": "GetTrailEndpointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, NativeEntity>"
+    },
+    {
+      "name": "setTrailEndpoint",
+      "nativeType": "SetTrailEndpointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, NativeEntity, int>"
+    },
+    {
+      "name": "beamCommand",
+      "nativeType": "BeamCommandCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
+    },
+    {
+      "name": "readBeamEndpoint",
+      "nativeType": "ReadBeamEndpointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int*, NativeVector3*, NativeEntity*, int>"
+    },
+    {
+      "name": "writeBeamEndpoint",
+      "nativeType": "WriteBeamEndpointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeVector3, NativeEntity, int>"
+    },
+    {
+      "name": "editBeamWaypoints",
+      "nativeType": "EditBeamWaypointsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int>"
+    },
+    {
+      "name": "getBeamHit",
+      "nativeType": "GetBeamHitCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeRaycastHit*, int*, int>"
     }
   ],
   "layouts": [

@@ -44,33 +44,6 @@ Texture2D<float4> displacementTexture : register(t7, space2);
 
 #include "primitiveInstanceColor.hlsli"
 
-// VSとMSで共通使用する繰り返しバイリニアサンプル
-#ifndef NEM_PRIMITIVE_SHADER_GRAPH
-float SamplePrimitiveDisplacement(float2 uv) {
-
-	uint width;
-	uint height;
-	displacementTexture.GetDimensions(width, height);
-
-	const int2 dimensions = int2(max(width, 1u), max(height, 1u));
-	const float2 texelPosition = frac(uv) * float2(dimensions) - 0.5f;
-	const int2 baseTexel = int2(floor(texelPosition));
-	const float2 blend = frac(texelPosition);
-	const int2 p00 = (baseTexel % dimensions + dimensions) % dimensions;
-	const int2 p10 = ((baseTexel + int2(1, 0)) % dimensions + dimensions) % dimensions;
-	const int2 p01 = ((baseTexel + int2(0, 1)) % dimensions + dimensions) % dimensions;
-	const int2 p11 = ((baseTexel + int2(1, 1)) % dimensions + dimensions) % dimensions;
-
-	const float top = lerp(
-		displacementTexture.Load(int3(p00, 0)).r,
-		displacementTexture.Load(int3(p10, 0)).r, blend.x);
-	const float bottom = lerp(
-		displacementTexture.Load(int3(p01, 0)).r,
-		displacementTexture.Load(int3(p11, 0)).r, blend.x);
-	return lerp(top, bottom, blend.y);
-}
-#endif
-
 struct VSOutput {
 
 	float4 position : SV_POSITION;
@@ -89,6 +62,7 @@ struct VSOutput {
 	nointerpolation float4 ringParams : TEXCOORD11;
 	nointerpolation float4 uvBasis : TEXCOORD12;
 	nointerpolation uint instanceID : TEXCOORD13;
+	nointerpolation float4 hexTiling : TEXCOORD14;
 };
 
 VSOutput BuildPrimitiveVertexOutput(
@@ -102,6 +76,7 @@ VSOutput BuildPrimitiveVertexOutput(
 
 	VSOutput output;
 	output.instanceID = instanceID;
+	output.hexTiling = instance.hexTiling;
 	output.uvCoordinates = float4(localPosition.xy, uv);
 	output.ringParams = instance.shapeParams1.z > 0.5f ? instance.shapeParams0 : 0.0f.xxxx;
 	output.uvBasis = float4(instance.uvMatrix[0].xy, instance.uvMatrix[1].xy);
@@ -111,7 +86,8 @@ VSOutput BuildPrimitiveVertexOutput(
 #ifndef NEM_PRIMITIVE_SHADER_GRAPH
 	if (abs(displacementScale) > 0.000001f) {
 
-		const float height = SamplePrimitiveDisplacement(transformedUV);
+		const float height = SampleHexDisplacement(displacementTexture,
+			BuildHexTiling(transformedUV, instance.hexTiling));
 		localPosition += normalize(localNormal) *
 			((height - displacementMidpoint) * displacementScale);
 	}

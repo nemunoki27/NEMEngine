@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "lightingCommon.hlsli"
+#include "../../Common/hexTiling.hlsli"
 #include "../../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
@@ -14,7 +15,7 @@
 //============================================================================
 //	ワールド法線の計算
 //============================================================================
-float3 ComputeWorldNormal(VSOutput input, uint normalTextureIndex, float2 uv) {
+float3 ComputeWorldNormal(VSOutput input, uint normalTextureIndex, HexTilingData hex, float2 dx, float2 dy) {
 
 	float3 N = normalize(input.normal);
 	if (normalTextureIndex == kNoTexture) {
@@ -24,7 +25,7 @@ float3 ComputeWorldNormal(VSOutput input, uint normalTextureIndex, float2 uv) {
 	// TBN構築
 	float3x3 TBN = BuildMeshTBN(input);
 	Texture2D<float4> normalTex = NEM_TEXTURE2D(normalTextureIndex);
-	float3 tangentNormal = normalTex.Sample(gSampler, uv).xyz * 2.0f - 1.0f;
+	float3 tangentNormal = SampleHexGrad(normalTex, gSampler, hex, dx, dy, true).xyz * 2.0f - 1.0f;
 
 	return normalize(mul(tangentNormal, TBN));
 }

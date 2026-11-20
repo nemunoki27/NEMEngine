@@ -9,10 +9,13 @@
 #include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
+#include <memory>
 #include <string_view>
 #include <variant>
 
 namespace Engine {
+
+	struct DecalGraphProgram;
 
 	//============================================================================
 	//	MaterialAsset structures
@@ -106,6 +109,7 @@ namespace Engine {
 		std::vector<MaterialPassBinding> passes;
 		// ID順に保持するマテリアル既定値
 		MaterialParameterSet parameters;
+		std::shared_ptr<const DecalGraphProgram> decalGraph;
 	};
 
 	// json変換

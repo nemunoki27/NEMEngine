@@ -9,6 +9,9 @@
 #include "ManagedTimelineSettings.h"
 #include "ManagedRendererSettings.h"
 #include "ManagedLightSettings.h"
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
@@ -44,6 +47,8 @@ namespace {
 		case 71: if (auto* component = world.TryGetComponentForBinding<TimerComponent>(entity)) return &component->timeSource; break;
 		case 75: if (auto* component = world.TryGetComponentForBinding<DayNightCycleComponent>(entity)) return &component->timeSource; break;
 		case 72: if (auto* record = TryGetMotionAnimation(world, entity)) return &record->settings.timeSource; break;
+		case 77: if (auto* record = TryGetTrailRenderer(world, entity)) return &record->settings.timeSource; break;
+		case 78: if (auto* record = TryGetBeamRenderer(world, entity)) return &record->settings.timeSource; break;
 		case 76: if (auto* record = TryGetTimelinePlayer(world, entity)) return &record->settings.timeSource; break;
 		}
 		return nullptr;
@@ -90,6 +95,22 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			const auto* component = world->TryGetComponentForBinding<MeshRendererComponent>(target);
 			if (!component) return -1;
 			SerializeMeshRenderer(*component, GetMeshSubMeshes(*world, target), data);
+		} else if (type == 79) {
+			const auto* component = world->TryGetComponentForBinding<HexTilingComponent>(target);
+			if (!component) return -1;
+			auto& enabled = data["subMeshEnabled"] = nlohmann::json::array();
+			const auto subMeshes = GetMeshSubMeshes(*world, target);
+			for (uint32_t index = 0; index < subMeshes.size(); ++index) {
+				enabled.push_back(IsHexTilingSubMeshEnabled(*component, subMeshes[index], index));
+			}
+		} else if (type == 77) {
+			const auto* record = TryGetTrailRenderer(*world, target);
+			if (!record) return -1;
+			data = record->settings;
+		} else if (type == 78) {
+			const auto* record = TryGetBeamRenderer(*world, target);
+			if (!record) return -1;
+			data = record->settings;
 		} else if (const auto* settings = ResolveRendererSettings(*world, target, type)) {
 			data = {{"renderSettings", *settings}};
 		} else if (type == 16 || type == 17) {
@@ -146,6 +167,18 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return 0;
 		const auto data = nlohmann::json::parse(buffer, buffer + size);
+		if (type == 79) {
+			auto* component = world->TryGetComponentForBinding<HexTilingComponent>(target);
+			if (!component) return 0;
+			const auto index = data.at("subMeshIndex").get<uint32_t>();
+			const auto subMeshes = GetMeshSubMeshes(*world, target);
+			if (subMeshes.size() <= index) return 0;
+			const bool enabled = data.at("subMeshEnabled").get<bool>();
+			if (IsHexTilingSubMeshEnabled(*component, subMeshes[index], index) == enabled) return 1;
+			SetHexTilingSubMeshEnabled(*component, subMeshes[index], index, enabled);
+			world->MarkComponentModified(target, type);
+			return 1;
+		}
 		if (auto* settings = ResolveLightInfluenceSettings(*world, target, type)) {
 			const auto operation = data.value("lightShadowExclusionPatch", std::string{});
 			if (operation == "Clear") {
@@ -223,6 +256,27 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			*source = candidate;
 			ClearLegacyUnscaledTime(*world, target, type);
 			world->MarkComponentModified(target, type);
+			return 1;
+		}
+		if (type == 77) {
+			const auto* record = TryGetTrailRenderer(*world, target);
+			if (!record) return 0;
+			nlohmann::json settings = record->settings;
+			settings.merge_patch(data);
+			SetTrailRendererSettings(*world, target, settings.get<TrailRendererSettings>());
+			return 1;
+		}
+		if (type == 78) {
+			const auto* record = TryGetBeamRenderer(*world, target);
+			if (!record) return 0;
+			nlohmann::json settings = record->settings;
+			settings.merge_patch(data);
+			auto candidate = settings.get<BeamRendererSettings>();
+			candidate.start.runtimeObject = record->settings.start.runtimeObject;
+			candidate.end.runtimeObject = record->settings.end.runtimeObject;
+			for (size_t i = 0; i < candidate.waypoints.size() && i < record->settings.waypoints.size(); ++i)
+				candidate.waypoints[i].runtimeObject = record->settings.waypoints[i].runtimeObject;
+			SetBeamRendererSettings(*world, target, candidate);
 			return 1;
 		}
 		if (type == 76) {

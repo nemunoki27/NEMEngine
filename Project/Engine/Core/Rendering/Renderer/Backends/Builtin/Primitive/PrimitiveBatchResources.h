@@ -38,8 +38,9 @@ namespace Engine {
 		uint32_t motionFrameSerial = 0;
 		uint32_t entityIndex = UINT32_MAX;
 		uint32_t entityGeneration = UINT32_MAX;
+		Vector4 hexTiling{};
 	};
-	static_assert(sizeof(PrimitiveInstanceData) == 288);
+	static_assert(sizeof(PrimitiveInstanceData) == 304);
 	// 頂点色と形状設定を通常描画とGIへ共通適用
 	void ApplyPrimitiveShapeToInstance(const PrimitiveRendererComponent& renderer, PrimitiveInstanceData& instance);
 

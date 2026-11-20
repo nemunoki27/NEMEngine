@@ -19,11 +19,6 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 	// 寸法とPivotは親Transformのローカル空間で指定する
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("大きさと奥行き", draft.size, {.minValue = 0.001f}); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("中心のオフセット", draft.pivot); });
-	DrawField(anyItemActive, [&]() { return MyGUI::ColorEdit("乗算色", draft.color); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("不透明度", draft.fadeFactor, {.minValue = 0.0f, .maxValue = 1.0f}); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("UVスケール", draft.uvScale); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragVector2("UVオフセット", draft.uvBias); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("UV回転", draft.uvRotation); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("重なり順", draft.sortOrder); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("描画距離", draft.drawDistance, {.minValue = 0.0f}); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("距離フェード開始", draft.fadeScale, {.minValue = 0.0f, .maxValue = 1.0f}); });
@@ -36,7 +31,7 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 		const auto* material = context.renderPipeline ?
 			context.renderPipeline->GetRenderAssetLibrary().LoadMaterial(materialID) : nullptr;
 		if (material && material->domain == MaterialDomain::Decal) {
-			DrawField(anyItemActive, [&]() { return DecalMaterialFields::Draw(draft.materialInstance, material->parameters,
+			DrawField(anyItemActive, [&]() { return DecalMaterialFields::Draw(draft.materialInstance, *material,
 				context.editorContext->assetDatabase); });
 		} else {
 			Engine::MyGUI::Text("デカール用マテリアルを設定してください");

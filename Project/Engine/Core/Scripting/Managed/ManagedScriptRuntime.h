@@ -486,6 +486,14 @@ namespace Engine {
 		// Timelineの即時状態を固定長で読み書きする
 		static int32_t __cdecl TimelineCommandCallback(ManagedNativeEntity entity, int32_t command, double time);
 		static int32_t __cdecl GetTimelineStateCallback(ManagedNativeEntity entity, ManagedTimelineState* output);
+		static int32_t __cdecl TrailCommandCallback(ManagedNativeEntity, int32_t, ManagedVector3, ManagedVector3);
+		static ManagedNativeEntity __cdecl GetTrailEndpointCallback(ManagedNativeEntity, int32_t);
+		static int32_t __cdecl SetTrailEndpointCallback(ManagedNativeEntity, int32_t, ManagedNativeEntity);
+		static int32_t __cdecl BeamCommandCallback(ManagedNativeEntity, int32_t);
+		static int32_t __cdecl ReadBeamEndpointCallback(ManagedNativeEntity, int32_t, int32_t*, ManagedVector3*, ManagedNativeEntity*);
+		static int32_t __cdecl WriteBeamEndpointCallback(ManagedNativeEntity, int32_t, int32_t, ManagedVector3, ManagedNativeEntity);
+		static int32_t __cdecl EditBeamWaypointsCallback(ManagedNativeEntity, int32_t, int32_t, int32_t);
+		static int32_t __cdecl GetBeamHitCallback(ManagedNativeEntity, ManagedRaycastHit*, int32_t*);
 		static ManagedNativeEntity __cdecl GetTimelineBindingCallback(ManagedNativeEntity entity, const char* name);
 		static int32_t __cdecl SetTimelineBindingCallback(ManagedNativeEntity entity, const char* name, ManagedNativeEntity target);
 		static int32_t __cdecl GetTimelineParameterCallback(ManagedNativeEntity entity, const char* name, ManagedTimelineValue* output);

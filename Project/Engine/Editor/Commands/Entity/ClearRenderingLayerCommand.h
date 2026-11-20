@@ -34,6 +34,8 @@ namespace Engine {
 		Primitive,
 		Text,
 		Line,
+		Trail,
+		Beam,
 		};
 
 		struct Entry {

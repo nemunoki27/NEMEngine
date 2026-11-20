@@ -3,8 +3,38 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+
 #include <algorithm>
 #include <cmath>
+
+Engine::Matrix4x4 Engine::DecalProjectionUtility::LegacyUVMatrix(const DecalProjectorComponent& component) {
+
+	const Vector3 center{0.5f, 0.5f, 0.0f};
+	return Matrix4x4::MakeTranslateMatrix(center * -1.0f) *
+		Matrix4x4::MakeRotateMatrix({0, 0, -component.uvRotation}) * Matrix4x4::MakeTranslateMatrix(center) *
+		Matrix4x4::MakeScaleMatrix({component.uvScale.x, component.uvScale.y, 1.0f}) *
+		Matrix4x4::MakeTranslateMatrix({component.uvBias.x, component.uvBias.y, 0});
+}
+
+Engine::Matrix4x4 Engine::DecalProjectionUtility::ResolveUVMatrix(const DecalProjectorComponent& component,
+	const UVTransformComponent* uv) {
+
+	if (component.hasLegacyUV) return LegacyUVMatrix(component);
+	Matrix4x4 shared = uv ? uv->uvMatrix : Matrix4x4::Identity();
+	if (uv && component.uvCorrectionScaleOffset != Vector2{}) {
+		UVTransformComponent adjusted = *uv;
+		adjusted.scale += component.uvCorrectionScaleOffset;
+		shared = MakeUVMatrix(adjusted);
+	}
+	if (component.uvCorrectionU == Vector3{} && component.uvCorrectionV == Vector3{}) return shared;
+	const auto& u = component.uvCorrectionU;
+	const auto& v = component.uvCorrectionV;
+	Matrix4x4 correction = Matrix4x4::Identity();
+	correction.m[0][0] += u.x; correction.m[1][0] = u.y; correction.m[3][0] = u.z;
+	correction.m[0][1] = v.x; correction.m[1][1] += v.y; correction.m[3][1] = v.z;
+	return correction * shared;
+}
 
 bool Engine::DecalProjectionUtility::Build(
 	const DecalProjectorComponent& component, const Matrix4x4& world, DecalProjection& output) {

@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderBackend.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
@@ -220,7 +221,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				BuiltinAssets::Pipelines::ParticleRingMS,
 				BuiltinAssets::Pipelines::ParticleCylinderMS }) {
 
-				if (!runtimeFeatures.useMeshShader) { break; }
+				if (!runtimeFeatures.useMeshShader || IsTrailMaterialPass(material, pass)) { break; }
 				++pipelineRequests;
 				if (context.pipelines.GetORCreateComposed(graphicsCore.GetDXObject(), context.assetLibrary,
 					pass.pipeline, geometryPipeline, pass.shaderOverride, PipelineVariantKind::GraphicsMesh,

@@ -17,6 +17,7 @@ namespace Engine {
 
 	// front
 	struct SceneObjectComponent;
+	struct RaycastHit3D;
 
 	//============================================================================
 	//	ManagedScriptUtility functions
@@ -41,6 +42,7 @@ namespace Engine {
 
 	ManagedVector2 ToManagedVector2(const Vector2& value);
 	ManagedVector3 ToManagedVector3(const Vector3& value);
+	ManagedRaycastHit ToManagedRaycastHit(ECSWorld& world, const RaycastHit3D& hit);
 	Vector3 ToVector3(const ManagedVector3& value);
 	ManagedQuaternion ToManagedQuaternion(const Quaternion& value);
 	Quaternion ToQuaternion(const ManagedQuaternion& value);

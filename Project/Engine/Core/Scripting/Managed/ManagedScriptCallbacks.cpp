@@ -223,6 +223,14 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.copyParticleModuleDefaults = &ManagedScriptRuntime::CopyParticleModuleDefaultsCallback;
 	callbacks.timelineCommand = &ManagedScriptRuntime::TimelineCommandCallback;
 	callbacks.getTimelineState = &ManagedScriptRuntime::GetTimelineStateCallback;
+	callbacks.trailCommand = &ManagedScriptRuntime::TrailCommandCallback;
+	callbacks.getTrailEndpoint = &ManagedScriptRuntime::GetTrailEndpointCallback;
+	callbacks.setTrailEndpoint = &ManagedScriptRuntime::SetTrailEndpointCallback;
+	callbacks.beamCommand = &ManagedScriptRuntime::BeamCommandCallback;
+	callbacks.readBeamEndpoint = &ManagedScriptRuntime::ReadBeamEndpointCallback;
+	callbacks.writeBeamEndpoint = &ManagedScriptRuntime::WriteBeamEndpointCallback;
+	callbacks.editBeamWaypoints = &ManagedScriptRuntime::EditBeamWaypointsCallback;
+	callbacks.getBeamHit = &ManagedScriptRuntime::GetBeamHitCallback;
 	callbacks.getTimelineBinding = &ManagedScriptRuntime::GetTimelineBindingCallback;
 	callbacks.setTimelineBinding = &ManagedScriptRuntime::SetTimelineBindingCallback;
 	callbacks.getTimelineParameter = &ManagedScriptRuntime::GetTimelineParameterCallback;

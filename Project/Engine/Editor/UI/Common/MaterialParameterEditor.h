@@ -8,6 +8,7 @@
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -85,4 +86,7 @@ namespace Engine::MaterialParameterEditor {
 	// 未登録値を補完して指定定数Bufferの編集結果を返す
 	bool DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection, const std::string& cbufferName,
 		MaterialParameterSet& parameters);
+
+	ValueEditResult DrawGraphOverrides(MaterialParameterSet& instance, const MaterialParameterSet& defaults,
+		std::span<const MaterialParameterID> exposed, const AssetDatabase* database);
 } // namespace Engine::MaterialParameterEditor

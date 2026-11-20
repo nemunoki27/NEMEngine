@@ -10,6 +10,7 @@
 // c++
 #include <cstdint>
 #include <array>
+#include <vector>
 
 namespace Engine {
 
@@ -26,8 +27,8 @@ namespace Engine {
 		Color4 baseColor = Color4::White();
 		Color4 emissive{};
 		Vector4 surface{};
-		Vector4 uvTransform{1.0f, 1.0f, 0.0f, 0.0f};
-		// 角度開始と終了のcos、UV回転、未使用
+		Vector4 uvTransform{1.0f, 0.0f, 0.0f, 1.0f};
+		// 角度開始と終了のcos、UV平行移動
 		Vector4 fade{};
 		uint32_t baseColorTexture = UINT32_MAX;
 		uint32_t normalTexture = UINT32_MAX;
@@ -35,9 +36,11 @@ namespace Engine {
 		uint32_t emissiveTexture = UINT32_MAX;
 		uint32_t channels = 1u;
 		uint32_t receiverMask = 0x00ffffffu;
-		uint32_t _pad[2]{};
+		uint32_t graphOffset = 0;
+		uint32_t graphCount = 0;
+		Vector4 hexTiling{};
 	};
-	static_assert(sizeof(DecalGPUData) == 224);
+	static_assert(sizeof(DecalGPUData) == 240);
 
 	struct DecalProjection {
 
@@ -53,6 +56,8 @@ namespace Engine {
 		DecalProjection projection{};
 		DecalGPUData gpu{};
 		std::array<TextureOwnership, 4> textures{};
+		std::vector<TextureOwnership> graphTextures;
+		std::vector<uint32_t> graphWords;
 	};
 
 	struct DecalReceiverRange {

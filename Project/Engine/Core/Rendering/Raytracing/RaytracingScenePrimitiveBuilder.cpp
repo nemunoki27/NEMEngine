@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -105,6 +106,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		const MaterialParameterValue* alphaClip = src.materialInstance ? src.materialInstance->Find(MaterialParameterIDs::AlphaClip) : nullptr;
 		if (!alphaClip) alphaClip = material->parameters.Find(MaterialParameterIDs::AlphaClip);
 		const float threshold = alphaClip && std::holds_alternative<float>(alphaClip->value) ? std::get<float>(alphaClip->value) : 0.5f;
+		if (src.world) subMeshData.hexTiling = ResolveHexTiling(*src.world, src.entity);
 		subMeshData._materialPad = (static_cast<uint32_t>(src.surfaceMode) << 16u) |
 			static_cast<uint32_t>(std::clamp(threshold, 0.0f, 1.0f) * 65535.0f);
 		subMeshData.renderGroupIndex = static_cast<uint32_t>(material->renderState.overridesRenderer ?

@@ -4,6 +4,8 @@
 //	ParticleMaterialCompatibility internal
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 // c++
 #include <string_view>
@@ -26,6 +28,12 @@ namespace {
 //============================================================================
 //	ParticleMaterialCompatibility functions
 //============================================================================
+bool Engine::IsTrailMaterialPass(const MaterialAsset& material, const MaterialPassBinding& pass) {
+
+	return pass.pipeline == BuiltinAssets::Pipelines::ParticleTrail || pass.pipeline == BuiltinAssets::Pipelines::ParticleTrail2D ||
+		(material.shaderGraph && pass.pipeline == ShaderGraphArtifactCache::MakeTransparentPipelineID(material.shaderGraph, ShaderGraphTarget::Trail));
+}
+
 Engine::ParticleMaterialCompatibilityResult Engine::CheckParticleMaterialCompatibility(
 	const MaterialAsset& material, const ShaderReflectionInfo* reflection) {
 

@@ -150,7 +150,8 @@ namespace {
 		});
 		ShaderGraphNode node{.id = Engine::UUID::New(), .kind = ShaderGraphNodeKind::SubGraph};
 		if (!ShaderGraphAssetReferences::RefreshSubGraphPorts(node, child) || node.inputPorts.size() != 2 ||
-			node.outputPorts.size() != 10 || node.outputPorts[0].type != ShaderGraphValueType::Float2 ||
+			node.outputPorts.size() != GetShaderGraphInputCount(ShaderGraphNodeKind::SurfaceOutput) ||
+			node.outputPorts[0].type != ShaderGraphValueType::Float2 ||
 			node.outputPorts[2].type != ShaderGraphValueType::Integer) return false;
 		const auto firstPort = node.inputPorts[0].id, secondPort = node.inputPorts[1].id, outputPort = node.outputPorts[0].id;
 		if (ShaderGraphAssetReferences::RefreshSubGraphPorts(node, child)) return false;
@@ -302,7 +303,8 @@ bool NEMTests::TestShaderGraphNodePreviewCatalog(ShaderGraphNodePreviewGPUFixtur
 	for (const auto& descriptor : ShaderGraphNodeRegistry::GetDescriptors()) {
 		if (!visited.insert(static_cast<uint32_t>(descriptor.kind)).second) return false;
 		auto testCase = CreateShaderGraphNodePreviewCase(descriptor.kind);
-		if (ShaderGraphNodeKind::Exponential <= descriptor.kind) {
+		const auto generic = GetGenericShaderGraphNodeDescriptors();
+		if (std::ranges::find(generic, descriptor.kind, &ShaderGraphNodeDescriptor::kind) != generic.end()) {
 			for (uint32_t slot = 0; slot < descriptor.inputs.size(); ++slot) {
 				if (GetShaderGraphInputDefault(testCase.graph.nodes.front(), slot).type == ShaderGraphValueType::Invalid) {
 					std::cerr << "Node input default missing: " << descriptor.name << " input=" << slot << '\n';

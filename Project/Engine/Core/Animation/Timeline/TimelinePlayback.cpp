@@ -215,6 +215,11 @@ bool EvaluateTimelineSample(ECSWorld& world, Entity owner, TimelinePlayerRecord&
 				continue;
 			}
 			if (playback.track->kind == TimelineTrackKind::Group) continue;
+			if (playback.track->kind == TimelineTrackKind::Trail || playback.track->kind == TimelineTrackKind::Beam) {
+				if (active && !HasTimelineBindingComponent(world, target, playback.requiredComponent))
+					player.runtime.diagnostic = playback.track->name + ": 対象に" + playback.requiredComponent + "がありません";
+				continue;
+			}
 			const bool crossed = enabled && !first && previous < clip.start && current >= end;
 			const bool persistent = playback.track->kind == TimelineTrackKind::Motion ||
 				(playback.track->kind == TimelineTrackKind::Property && !clip.data.value("restoreOnEnd", true));
@@ -295,6 +300,8 @@ bool EvaluateTimelineSample(ECSWorld& world, Entity owner, TimelinePlayerRecord&
 			(std::min)(player.runtime.preparationProgress, playback.instance->GetPreparationProgress());
 	}
 	player.runtime.preparing = player.runtime.preparationProgress < 1.0f;
+	EvaluateTimelineTrails(world, owner, player, *state, context, current, evaluationMode);
+	EvaluateTimelineBeams(world, owner, player, *state, current, evaluationMode);
 	if (player.runtime.preparing) {
 		ApplyTimelineCollisionGates(world, *state);
 		player.runtime.windows.clear();

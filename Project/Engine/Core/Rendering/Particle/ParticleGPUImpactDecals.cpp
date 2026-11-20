@@ -28,6 +28,8 @@ uint32_t ParticleGPUFeedbackWorld::PrepareDecalStyle(GraphicsCore& graphics, [[m
 	component.receiverRenderingLayerMask = settings.receiverRenderingLayerMask;
 	DecalDrawItem item;
 	if (!DecalCollector::ResolveMaterial(graphics, assets, context, component, 1.0f, item)) return UINT32_MAX;
+	// GPU衝突Decalは固定Styleのみを保持する
+	if (item.gpu.graphCount) return UINT32_MAX;
 	item.gpu.tangentX.w = settings.size.x;
 	item.gpu.tangentY.w = settings.size.y;
 	item.gpu.direction.w = settings.size.z;

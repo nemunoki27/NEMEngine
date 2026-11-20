@@ -33,6 +33,8 @@ namespace Engine {
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 	};
 
+	Matrix4x4 MakeUVMatrix(const UVTransformComponent& component);
+
 	// json変換
 	void from_json(const nlohmann::json& in, UVTransformComponent& component);
 	void to_json(nlohmann::json& out, const UVTransformComponent& component);

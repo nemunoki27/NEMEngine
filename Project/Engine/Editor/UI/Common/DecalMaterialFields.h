@@ -9,10 +9,11 @@
 namespace Engine {
 
 	class AssetDatabase;
+	struct MaterialAsset;
 
 	namespace DecalMaterialFields {
 
 		// 標準値とInstanceの上書きを同じUIで編集する
-		ValueEditResult Draw(MaterialParameterSet& parameters, const MaterialParameterSet& defaults, const AssetDatabase* database);
+		ValueEditResult Draw(MaterialParameterSet& parameters, const MaterialAsset& material, const AssetDatabase* database);
 	}
 }

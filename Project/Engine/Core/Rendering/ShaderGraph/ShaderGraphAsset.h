@@ -77,6 +77,7 @@ namespace Engine {
 		Primitive2D,
 		Particle,
 		Trail,
+		Decal,
 	};
 
 	enum class ShaderGraphValueType : uint8_t {
@@ -277,6 +278,7 @@ namespace Engine {
 		ParallaxMapping,
 		ParallaxOcclusionMapping,
 		Twirl,
+		DecalOutput,
 	};
 
 	struct ShaderGraphPort {
@@ -430,6 +432,6 @@ namespace magic_enum::customize {
 	struct enum_range<Engine::ShaderGraphNodeKind> {
 
 		static constexpr int min = 0;
-		static constexpr int max = static_cast<int>(Engine::ShaderGraphNodeKind::Twirl);
+		static constexpr int max = static_cast<int>(Engine::ShaderGraphNodeKind::DecalOutput);
 	};
 }

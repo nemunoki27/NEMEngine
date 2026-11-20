@@ -67,7 +67,8 @@ PSOutput main(VSOutput input) {
 		discard;
 	}
 
+	const HexTilingData hex = BuildHexTiling(input.texcoord, input.hexTiling);
 	PSOutput output;
-	output.color = baseColorTexture.Sample(gSampler, input.texcoord) * color;
+	output.color = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, hex, unassignedMaterialTextureMask, 0u) * color;
 	return output;
 }

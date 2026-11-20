@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -295,6 +296,9 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 
 			// サブメッシュの形状データを構築
 			MeshSubMeshShaderData data{};
+			if (item->world) {
+				data.hexTiling = ResolveHexTiling(*item->world, item->entity, static_cast<int32_t>(subMeshIndex));
+			}
 			data.importedBaseColor = gpuMesh.subMeshes[subMeshIndex].baseColor;
 			if (subMeshIndex < subMeshes.size()) {
 

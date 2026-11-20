@@ -4,12 +4,16 @@
 //	include
 //============================================================================
 #include "DecalProjection.h"
+#include "DecalGraphProgram.h"
+#include <bit>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
@@ -65,6 +69,58 @@ namespace {
 		}
 		return ready;
 	}
+
+	bool ResolveGraph(Engine::GraphicsCore& graphicsCore, const Engine::SceneExecutionContext& context,
+		const Engine::MaterialAsset& material, const Engine::MaterialParameterSet& instance, Engine::DecalDrawItem& item) {
+
+		using namespace Engine;
+		// 入力レジスタに使わない上位ビットで法線の回転補正を指定する
+		constexpr uint32_t kNormalSample = 0x80u;
+		const auto& program = *material.decalGraph;
+		item.gpu.channels = program.channels;
+		item.gpu.graphCount = static_cast<uint32_t>(program.instructions.size());
+		item.graphWords.reserve(program.instructions.size() * 6);
+		for (const auto& command : program.instructions) {
+			const auto* parameter = instance.Find(command.parameter);
+			if (!parameter) parameter = material.parameters.Find(command.parameter);
+			Vector4 value = parameter ? DecalGraphValue(*parameter) : command.value;
+			item.graphWords.push_back(static_cast<uint32_t>(command.op));
+			uint32_t inputs = command.inputs;
+			if (command.op == DecalGraphOp::NormalUnpack) {
+				const uint32_t input = inputs & 63u;
+				if (input >= 4u && input - 4u < item.graphWords.size() / 6u) {
+					const size_t source = (input - 4u) * 6u;
+					if (item.graphWords[source] == static_cast<uint32_t>(DecalGraphOp::TextureSample)) {
+						item.graphWords[source + 1] |= kNormalSample;
+					}
+				}
+			}
+			if (command.op == DecalGraphOp::TextureSample) {
+				const uint32_t input = inputs & 63u;
+				if (input >= 4u && input - 4u < program.instructions.size() &&
+					program.instructions[input - 4u].semantic == MaterialParameterSemantic::NormalTexture) inputs |= kNormalSample;
+			}
+			item.graphWords.push_back(inputs);
+			uint32_t x = std::bit_cast<uint32_t>(value.x);
+			if (command.op == DecalGraphOp::Texture) {
+				const auto* overrideID = parameter ? std::get_if<AssetID>(&parameter->value) : nullptr;
+				const auto texture = overrideID ? *overrideID : command.texture;
+				x = UINT32_MAX;
+				if (texture) {
+					const auto semantic = command.semantic;
+					const bool color = semantic == MaterialParameterSemantic::BaseColorTexture || semantic == MaterialParameterSemantic::EmissiveTexture;
+					const auto resolved = RuntimeTextureResolver::ResolveBindless(graphicsCore, context.assetDatabase, texture,
+						color ? TextureColorSpace::SRGB : TextureColorSpace::Linear, semantic == MaterialParameterSemantic::NormalTexture);
+					if (resolved.retry || resolved.srvIndex == UINT32_MAX) return false;
+					x = resolved.srvIndex;
+					item.graphTextures.push_back(resolved.ownership);
+				}
+			}
+			item.graphWords.insert(item.graphWords.end(), {x, std::bit_cast<uint32_t>(value.y),
+				std::bit_cast<uint32_t>(value.z), std::bit_cast<uint32_t>(value.w)});
+		}
+		return true;
+	}
 }
 
 bool Engine::DecalCollector::ResolveMaterial(GraphicsCore& graphicsCore, RenderAssetLibrary& assets,
@@ -76,9 +132,9 @@ bool Engine::DecalCollector::ResolveMaterial(GraphicsCore& graphicsCore, RenderA
 		MaterialResolver{}.ResolveORDefault(*context.assetDatabase, component.material, DefaultMaterialSlot::Decal) : component.material;
 	const MaterialAsset* material = assets.LoadMaterial(materialID);
 	if (!material) return false;
-	if (material->domain != MaterialDomain::Decal || material->shaderGraph) {
+	if (material->domain != MaterialDomain::Decal || (material->shaderGraph && !material->decalGraph)) {
 		if (unsupportedMaterials.insert(materialID).second) {
-			Logger::Output(LogType::Engine, spdlog::level::warn, "[Decal] デカール用の標準Materialを設定してください");
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[Decal] 有効なデカール用Materialを設定してください");
 		}
 		return false;
 	}
@@ -101,16 +157,16 @@ bool Engine::DecalCollector::ResolveMaterial(GraphicsCore& graphicsCore, RenderA
 		std::clamp(Read(defaults, instance, "roughness", 0.5f), 0.0f, 1.0f),
 		std::max(0.0f, Read(defaults, instance, "normalStrength", 1.0f)),
 		std::clamp(Read(defaults, instance, "opacity", 1.0f) * opacity, 0.0f, 1.0f));
-	data.uvTransform = Vector4(component.uvScale.x, component.uvScale.y, component.uvBias.x, component.uvBias.y);
 	const float start = std::clamp(component.startAngleFade, 0.0f, 89.9f);
 	const float end = std::clamp(component.endAngleFade, start + 0.01f, 90.0f);
 	data.fade = Vector4(std::cos(start * std::numbers::pi_v<float> / 180.0f),
-		std::cos(end * std::numbers::pi_v<float> / 180.0f), component.uvRotation * std::numbers::pi_v<float> / 180.0f, 0.0f);
+		std::cos(end * std::numbers::pi_v<float> / 180.0f), 0.0f, 0.0f);
 	data.receiverMask = component.receiverRenderingLayerMask & kRenderingLayerMaskBits;
 	data.channels = (Read(defaults, instance, "affectColor", true) ? 1u : 0u) |
 		(Read(defaults, instance, "affectNormal", false) ? 2u : 0u) |
 		(Read(defaults, instance, "affectSurface", false) ? 4u : 0u) |
 		(Read(defaults, instance, "affectEmission", false) ? 8u : 0u);
+	if (material->decalGraph) return data.receiverMask && ResolveGraph(graphicsCore, context, *material, instance, item);
 	return data.channels && data.receiverMask && ResolveTextures(graphicsCore, context, defaults, instance, item);
 }
 
@@ -145,7 +201,14 @@ void Engine::DecalCollector::Collect(GraphicsCore& graphicsCore, RenderAssetLibr
 			if (opacity <= 0.0f) return;
 			item.entity = entity;
 			item.sortOrder = component.sortOrder;
-			if (ResolveMaterial(graphicsCore, assets, context, component, opacity, item)) output.push_back(std::move(item));
+			if (!ResolveMaterial(graphicsCore, assets, context, component, opacity, item)) return;
+			const auto* transformUV = context.world->TryGetComponent<UVTransformComponent>(entity);
+			const auto matrix = DecalProjectionUtility::ResolveUVMatrix(component, transformUV);
+			item.gpu.hexTiling = ResolveHexTiling(*context.world, entity);
+			item.gpu.uvTransform = {matrix.m[0][0], matrix.m[0][1], matrix.m[1][0], matrix.m[1][1]};
+			item.gpu.fade.z = matrix.m[3][0];
+			item.gpu.fade.w = matrix.m[3][1];
+			output.push_back(std::move(item));
 		});
 	// 同じ順序の投影もEntityの世代まで比較して安定させる
 	std::sort(output.begin(), output.end(), [](const auto& lhs, const auto& rhs) {

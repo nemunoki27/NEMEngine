@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
@@ -49,8 +51,7 @@ void Engine::ParticleRenderItemExtractor::Extract(
 				component.renderingLayerMask & kRenderingLayerMaskBits;
 			item.worldMatrix = RenderItemExtract::GetWorldMatrix(world, entity);
 			item.backendID = RenderBackendID::Particle;
-			item.batchKey = static_cast<uint64_t>(entity.index + 1) *
-				0x9E3779B97F4A7C15ull ^ storage.handle.generation;
+			item.batchKey = static_cast<uint64_t>(entity.index) << 2;
 			item.cameraDomain = RenderCameraDomain::Perspective;
 			if (group.renderSettings.space == PrimitiveRenderSpace::Screen2D) {
 				item.cameraDomain = RenderCameraDomain::Orthographic;
@@ -58,4 +59,32 @@ void Engine::ParticleRenderItemExtractor::Extract(
 			item.payload = batch.PushPayload(payload);
 			batch.Add(std::move(item));
 		});
+
+	const auto addRibbon = [&](Entity entity, const auto* ribbon, ParticleRenderSource source) {
+
+		if (!ribbon || !RenderItemExtract::IsVisible(world, entity, ribbon->settings.visible)) return;
+
+		RenderItem item{};
+		RenderItemExtract::FillCommonFields(item, world, entity, ribbon->settings,
+			RenderItemExtract::GetWorldMatrix(world, entity));
+		// リボンのPSは最終色のみを出力するため、ワールドではライティング後に合成する
+		item.surfaceMode = MaterialSurfaceMode::Transparent;
+		item.surfaceModeOverridden = true;
+		item.renderPhase = ResolveMaterialRenderPhase(item.surfaceMode, item.renderPhase);
+		item.backendID = RenderBackendID::Particle;
+		item.cameraDomain = ribbon->settings.is2D ? RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective;
+		item.material = ribbon->settings.material;
+		item.batchKey = (static_cast<uint64_t>(entity.index) << 2) | static_cast<uint64_t>(source);
+		ParticleRenderPayload payload{};
+		payload.source = source;
+		item.payload = batch.PushPayload(payload);
+		batch.Add(std::move(item));
+	};
+	const ECSWorld& source = world;
+	world.ForEach<TrailRendererComponent>([&](const Entity& entity, const TrailRendererComponent&) {
+		addRibbon(entity, TryGetTrailRenderer(source, entity), ParticleRenderSource::Trail);
+	});
+	world.ForEach<BeamRendererComponent>([&](const Entity& entity, const BeamRendererComponent&) {
+		addRibbon(entity, TryGetBeamRenderer(source, entity), ParticleRenderSource::Beam);
+	});
 }

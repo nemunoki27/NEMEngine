@@ -6,6 +6,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Decals/DecalCollector.h>
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/Decals/DecalSettingsMigration.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Decals/DecalProjection.h>
 #include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
@@ -28,6 +32,27 @@ namespace {
 	using namespace Engine;
 
 	bool Near(float a, float b) { return std::abs(a - b) < 1e-4f; }
+
+	bool CheckGraphMaterial() {
+
+		auto graph = CreateDefaultSurfaceShaderGraph("Decal", ShaderGraphTarget::Decal);
+		const auto graphID = AssetID::New();
+		ShaderGraphArtifact artifact;
+		if (!ShaderGraphArtifactCache::Compile(graph, graphID, artifact) || !artifact.compileOutput.decalGraph ||
+			artifact.opaquePipelineID || artifact.rayTracingPipelineID) return false;
+		auto material = ShaderGraphArtifactCache::CreateMaterial(graph, graphID);
+		ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+		MaterialAsset restored;
+		if (!FromJson(ToJson(material), restored) || restored.domain != MaterialDomain::Decal ||
+			!restored.decalGraph || restored.decalGraph->channels != 1 ||
+			restored.decalGraph->instructions.size() != 2) return false;
+		auto encoded = WriteDecalGraph(*restored.decalGraph);
+		if (encoded != WriteDecalGraph(*artifact.compileOutput.decalGraph)) return false;
+		encoded["instructions"][1]["inputs"] = UINT32_MAX;
+		DecalGraphProgram invalid;
+		return !ReadDecalGraph(encoded, invalid) && !ReadDecalGraph(nlohmann::json{{"version", 1}}, invalid) &&
+			!FromJson(nlohmann::json{{"domain", "Decal"}, {"decalGraph", 1}}, restored);
+	}
 
 	// 親の負ScaleとNear面を跨いでも投影を欠かさない
 	bool CheckProjection() {
@@ -133,6 +158,55 @@ namespace {
 		return items.empty();
 	}
 
+	// 旧DecalのUVと乗算色を引き継ぎ、共有UVを持つ別Rendererの設定を維持する
+	bool CheckDecalMigration() {
+
+		ECSWorld world;
+		AssetDatabase database;
+		database.Init();
+		const auto materialPath = RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Decal/defaultDecal.material.json";
+		const auto material = database.ImportOrGet(RuntimePaths::ToAssetPath(materialPath), AssetType::Material);
+		enum class SharedUV { None, Existing, Renderer };
+		for (const auto shared : {SharedUV::None, SharedUV::Existing, SharedUV::Renderer}) {
+			const auto entity = SceneAuthoring::CreateGameObject(world, "Legacy");
+			auto& old = world.AddComponent<DecalProjectorComponent>(entity);
+			old.hasLegacyUV = true;
+			old.uvScale = {2, -3};
+			old.uvBias = {0.2f, -0.1f};
+			old.uvRotation = 37;
+			old.color = {0.5f, 1, 1, 0.5f};
+			old.fadeFactor = 0.25f;
+			old.material = material;
+			old.materialInstance.Set("opacity", MaterialParameterValue{.value = 0.8f});
+			old.materialInstance.Set("color", MaterialParameterValue{.value = Color4{0.8f, 1, 1, 1}});
+			const auto expected = DecalProjectionUtility::LegacyUVMatrix(old);
+			if (shared == SharedUV::Renderer) world.AddComponent<PrimitiveRendererComponent>(entity);
+			if (shared == SharedUV::Existing) {
+				auto& original = world.AddComponent<UVTransformComponent>(entity);
+				original.scale = {0, 2};
+				original.rotation = 17;
+				original.uvMatrix = MakeUVMatrix(original);
+			}
+			MigrateDecalSettings(world, entity, &database);
+			const auto& migrated = world.GetComponent<DecalProjectorComponent>(entity);
+			const auto& uv = world.GetComponent<UVTransformComponent>(entity);
+			if (shared == SharedUV::Renderer && uv.uvMatrix != Matrix4x4::Identity()) return false;
+			if (shared == SharedUV::Existing && (uv.scale != Vector2(0, 2) || uv.rotation != 17)) return false;
+			const auto result = DecalProjectionUtility::ResolveUVMatrix(migrated, &uv);
+			for (int row : {0, 1, 3}) {
+				if (!Near(result.m[row][0], expected.m[row][0]) || !Near(result.m[row][1], expected.m[row][1])) return false;
+			}
+			const auto* opacity = migrated.materialInstance.Find(MaterialParameterID::FromName("opacity"));
+			const auto* color = migrated.materialInstance.Find(MaterialParameterID::FromName("color"));
+			if (!opacity || !color || !Near(std::get<float>(opacity->value), 0.2f) || !Near(std::get<Color4>(color->value).r, 0.4f)) return false;
+			const nlohmann::json saved = migrated;
+			if (saved.contains("color") || saved.contains("uvScale") || saved.contains("fadeFactor")) return false;
+			MigrateDecalSettings(world, entity, &database);
+			if (nlohmann::json(world.GetComponent<DecalProjectorComponent>(entity)) != saved) return false;
+		}
+		return true;
+	}
+
 	// Scene複製とPrefab保存で投影と個別Materialを維持する
 	bool CheckStorage() {
 
@@ -141,7 +215,7 @@ namespace {
 		world.AddComponent<DecalProjectorComponent>(entity);
 		auto& component = world.GetComponent<DecalProjectorComponent>(entity);
 		component.size = Vector3(3, 2, 0.2f);
-		component.uvRotation = 37;
+		component.uvCorrectionU = {0.2f, -0.1f, 0.3f};
 		component.materialInstance.Set("roughness", MaterialParameterValue{.value = 0.25f});
 		nlohmann::json saved;
 		if (!world.SerializeComponentToJson(entity, "DecalProjector", saved)) return false;
@@ -195,6 +269,6 @@ namespace {
 
 bool NEMTests::TestDecals() {
 
-	return RunTest("DecalProjection", CheckProjection) && RunTest("DecalBounds", CheckBounds) &&
-		RunTest("DecalCollection", CheckCollection) && RunTest("DecalStorage", CheckStorage);
+	return RunTest("DecalGraphMaterial", CheckGraphMaterial) && RunTest("DecalProjection", CheckProjection) && RunTest("DecalBounds", CheckBounds) &&
+		RunTest("DecalCollection", CheckCollection) && RunTest("DecalStorage", CheckStorage) && RunTest("DecalMigration", CheckDecalMigration);
 }

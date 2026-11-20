@@ -20,6 +20,7 @@ namespace Engine {
 
 	namespace ShaderGraphSourceUtility {
 
+		bool SupportsHexTiling(const ShaderGraphAsset& graph);
 		// 数値型の成分数を取得する
 		uint32_t ComponentCount(ShaderGraphValueType type);
 		// 数値型か判定する

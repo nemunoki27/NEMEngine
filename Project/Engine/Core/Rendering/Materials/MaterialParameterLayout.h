@@ -21,6 +21,8 @@ namespace Engine {
 		inline constexpr const char* kMesh = "gMeshMaterialParameters";
 		// Sprite/Text等のサーフェスマテリアルパラメータcbuffer名
 		inline constexpr const char* kSurface = "MaterialParameters";
+		// Particle・リボン用のセグメント別パラメータ
+		inline constexpr const char* kParticle = "gParticleCustomParameters";
 	}
 
 	// テクスチャ未設定を表すbindless indexのセンチネル、CPUのpackとシェーダー判定で共有する

@@ -32,19 +32,6 @@ namespace Engine {
 			ray.direction = Vector3(direction.x, direction.y, direction.z);
 			return ray;
 		}
-
-		// RaycastHit3DをC#へ渡すヒット情報へ変換する
-		ManagedRaycastHit ToManagedRaycastHit(ECSWorld& world, const RaycastHit3D& hit) {
-
-			ManagedRaycastHit managed{};
-			managed.entity = MakeNativeEntity(world, hit.entity);
-			managed.point = ToManagedVector3(hit.point);
-			managed.normal = ToManagedVector3(hit.normal);
-			managed.distance = hit.distance;
-			managed.shapeIndex = hit.shapeIndex;
-			managed.trigger = hit.trigger ? 1 : 0;
-			return managed;
-		}
 	}
 
 	int32_t ManagedScriptRuntime::PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction,

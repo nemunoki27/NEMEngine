@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "../Common/descriptorHeapCompatibility.hlsli"
+#include "../Common/hexTiling.hlsli"
 
 struct DecalGPUData {
 
@@ -23,7 +24,9 @@ struct DecalGPUData {
 	uint emissiveTexture;
 	uint channels;
 	uint receiverMask;
-	uint2 _pad;
+	uint graphOffset;
+	uint graphCount;
+	float4 hexTiling;
 };
 
 StructuredBuffer<DecalGPUData> gDecals : register(t0, space5);
@@ -68,7 +71,7 @@ struct DecalSample {
 };
 
 // 投影の密度から通常描画と反射で同じMipを選ぶ
-float4 SampleDecalTexture(uint index, SamplerState samplerState, float2 uv, float2 uvFootprint, float4 fallbackValue) {
+float4 SampleDecalTexture(uint index, SamplerState samplerState, HexTilingData hex, float2 uvFootprint, float4 fallbackValue, bool normalMap = false) {
 
 	if (index == 0xffffffffu) return fallbackValue;
 	Texture2D<float4> image = NEM_TEXTURE2D(index);
@@ -76,7 +79,7 @@ float4 SampleDecalTexture(uint index, SamplerState samplerState, float2 uv, floa
 	image.GetDimensions(0, width, height, mipCount);
 	const float mip = clamp(log2(max(1.0f, max(uvFootprint.x * width, uvFootprint.y * height))),
 		0.0f, max(0.0f, float(mipCount) - 1.0f));
-	return image.SampleLevel(samplerState, uv, mip);
+	return SampleHexLevel(image, samplerState, hex, mip, normalMap);
 }
 
 // 面から外れる軸は安定した接線へ置き換える
@@ -89,6 +92,23 @@ float3 DecalTangent(float3 axis, float3 normal) {
 	return normalize(tangent);
 }
 
+// UV行列の逆変換からテクスチャのU・V方向を投影面へ戻す
+float3 DecalNormalToWorld(DecalGPUData decal, float3 originalNormal, float3 sampled) {
+
+	const float4 m = decal.uvTransform;
+	const float determinant = m.x * m.w - m.y * m.z;
+	if (abs(determinant) < 1e-8f) return originalNormal;
+	const float orientation = sign(determinant);
+	const float3 xAxis = (decal.tangentX.xyz * m.w + decal.tangentY.xyz * m.y) * orientation;
+	const float3 yAxis = (-decal.tangentX.xyz * m.z - decal.tangentY.xyz * m.x) * orientation;
+	const float3 tangent = DecalTangent(xAxis, originalNormal);
+	float3 bitangent = normalize(cross(originalNormal, tangent));
+	bitangent *= dot(bitangent, yAxis) < 0.0f ? -1.0f : 1.0f;
+	return normalize(tangent * sampled.x + bitangent * sampled.y + originalNormal * sampled.z);
+}
+
+#include "decalGraph.hlsli"
+
 // 未変更の受け取り法線を基準に投影を評価する
 bool EvaluateDecal(DecalGPUData decal, float3 worldPosition, float3 originalNormal, float worldFootprint,
 	SamplerState samplerState, out DecalSample result) {
@@ -99,36 +119,31 @@ bool EvaluateDecal(DecalGPUData decal, float3 worldPosition, float3 originalNorm
 	const float facing = dot(originalNormal, -normalize(decal.direction.xyz));
 	const float angle = smoothstep(decal.fade.y, max(decal.fade.x, decal.fade.y + 1e-5f), facing);
 	if (angle <= 0.0f) return false;
-	float sine, cosine;
-	sincos(decal.fade.z, sine, cosine);
-	float2 uv = float2(local.x * cosine - local.y * sine, -(local.x * sine + local.y * cosine)) + 0.5f;
-	uv = uv * decal.uvTransform.xy + decal.uvTransform.zw;
-	float2 footprint = worldFootprint * float2(length(float3(decal.worldToDecal[0][0],
-		decal.worldToDecal[1][0], decal.worldToDecal[2][0])), length(float3(decal.worldToDecal[0][1],
-		decal.worldToDecal[1][1], decal.worldToDecal[2][1]))) * abs(decal.uvTransform.xy);
-	const float4 color = SampleDecalTexture(decal.baseColorTexture, samplerState, uv, footprint, 1.0f.xxxx);
+	const float2 projected = float2(local.x, -local.y) + 0.5f;
+	const float4 m = decal.uvTransform;
+	const float2 uv = projected.x * m.xy + projected.y * m.zw + decal.fade.zw;
+	const float3 dx = float3(decal.worldToDecal[0][0], decal.worldToDecal[1][0], decal.worldToDecal[2][0]);
+	const float3 dy = -float3(decal.worldToDecal[0][1], decal.worldToDecal[1][1], decal.worldToDecal[2][1]);
+	const float2 footprint = worldFootprint * float2(length(dx * m.x + dy * m.z), length(dx * m.y + dy * m.w));
+	HexTilingData hex = BuildHexTiling(uv, decal.hexTiling);
+	[branch] if (decal.graphCount != 0u)
+		return EvaluateDecalGraph(decal, hex, footprint, worldPosition, originalNormal, angle, samplerState, result);
+	const float4 color = SampleDecalTexture(decal.baseColorTexture, samplerState, hex, footprint, 1.0f.xxxx);
 	result.alpha = saturate(color.a * decal.baseColor.a * decal.surface.w * angle);
 	if (result.alpha <= 0.0f) return false;
 	result.color = max(0.0f.xxx, color.rgb * decal.baseColor.rgb);
 	result.normal = originalNormal;
 	if ((decal.channels & 2u) && decal.normalTexture != 0xffffffffu) {
-		float3 sampled = SampleDecalTexture(decal.normalTexture, samplerState, uv, footprint,
-			float4(0.5f, 0.5f, 1.0f, 1.0f)).xyz * 2.0f - 1.0f;
+		float3 sampled = SampleDecalTexture(decal.normalTexture, samplerState, hex, footprint,
+			float4(0.5f, 0.5f, 1.0f, 1.0f), true).xyz * 2.0f - 1.0f;
 		sampled.xy *= decal.surface.z;
 		sampled = normalize(float3(sampled.xy, max(1e-4f, sampled.z)));
-		// UVの回転と反転をNormalにも反映する
-		float3 xAxis = decal.tangentX.xyz * cosine - decal.tangentY.xyz * sine;
-		float3 yAxis = -(decal.tangentX.xyz * sine + decal.tangentY.xyz * cosine);
-		float3 tangent = DecalTangent(xAxis, originalNormal) * (decal.uvTransform.x < 0 ? -1.0f : 1.0f);
-		float3 bitangent = normalize(cross(originalNormal, tangent));
-		bitangent *= dot(bitangent, yAxis) < 0.0f ? -1.0f : 1.0f;
-		bitangent *= decal.uvTransform.y < 0 ? -1.0f : 1.0f;
-		result.normal = normalize(tangent * sampled.x + bitangent * sampled.y + originalNormal * sampled.z);
+		result.normal = DecalNormalToWorld(decal, originalNormal, sampled);
 	}
-	const float4 surface = SampleDecalTexture(decal.metallicRoughnessTexture, samplerState, uv, footprint, 1.0f.xxxx);
+	const float4 surface = SampleDecalTexture(decal.metallicRoughnessTexture, samplerState, hex, footprint, 1.0f.xxxx);
 	result.surface = saturate(decal.surface.xy * surface.bg);
 	result.emissive = max(0.0f.xxx, decal.emissive.rgb *
-		SampleDecalTexture(decal.emissiveTexture, samplerState, uv, footprint, 1.0f.xxxx).rgb);
+		SampleDecalTexture(decal.emissiveTexture, samplerState, hex, footprint, 1.0f.xxxx).rgb);
 	return true;
 }
 

@@ -24,11 +24,16 @@ namespace Engine {
 		// TransformのScaleを掛けるローカル寸法
 		Vector3 size{1.0f, 1.0f, 0.1f};
 		Vector3 pivot{};
+		// 旧データの復元時に使う。移行完了後は個別MaterialとUVTransformを参照する
 		Color4 color = Color4::White();
 		float fadeFactor = 1.0f;
 		Vector2 uvScale{1.0f, 1.0f};
 		Vector2 uvBias{};
 		float uvRotation = 0.0f;
+		bool hasLegacyUV = false;
+		// 共有UVと旧投影UVの差分。通常のDecalではゼロ
+		Vector3 uvCorrectionU{}, uvCorrectionV{};
+		Vector2 uvCorrectionScaleOffset{};
 		int32_t sortOrder = 0;
 		float drawDistance = 1000.0f;
 		float fadeScale = 0.9f;

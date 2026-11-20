@@ -1,4 +1,5 @@
 #include "MaterialAsset.h"
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 
 //============================================================================
 //	include
@@ -27,6 +28,11 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 		loaded.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic"))
 			.value_or(MaterialUsage::Generic);
 		loaded.shaderGraph = ParseAssetID(data, "shaderGraph");
+		if (const auto it = data.find("decalGraph"); it != data.end()) {
+			auto program = std::make_shared<DecalGraphProgram>();
+			if (!ReadDecalGraph(*it, *program)) return false;
+			loaded.decalGraph = std::move(program);
+		}
 		// Rendererを上書きする描画設定を読み込む
 		if (data.contains("renderState") && data["renderState"].is_object()) {
 			const nlohmann::json& renderState = data["renderState"];
@@ -89,6 +95,7 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	nlohmann::json data = nlohmann::json::object();
 
 	data["name"] = asset.name;
+	if (asset.decalGraph) data["decalGraph"] = WriteDecalGraph(*asset.decalGraph);
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);
 	if (asset.shaderGraph) {

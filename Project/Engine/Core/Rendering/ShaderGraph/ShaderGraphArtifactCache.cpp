@@ -126,6 +126,10 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 			ToString(outArtifact.computeShaderID));
 		return true;
 	}
+	if (artifact.compileOutput.decalGraph) {
+		outArtifact = std::move(artifact);
+		return true;
+	}
 	// RayTracingの構成を作る
 	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
 		if (artifact.compileOutput.rayTracingHLSL.empty()) {
@@ -317,6 +321,7 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	ShaderGraphArtifact artifact;
 	const auto derived = [&](uint64_t discriminator) { return MakeDerivedID(graphID, discriminator); };
 	const auto target = static_cast<uint64_t>(graph.target);
+	if (graph.domain == ShaderGraphDomain::Surface && graph.target == ShaderGraphTarget::Decal) return artifact;
 	// PostProcessの構成を作る
 	if (graph.domain == ShaderGraphDomain::PostProcess) {
 		artifact.computePipelineID = derived(0x504f535450495045ull);
@@ -334,7 +339,7 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	}
 	artifact.opaquePipelineID = derived(0x4f50415155455f4cull ^ target);
 	artifact.opaqueShaderID = derived(0x4f50415155455f50ull ^ target);
-	artifact.transparentPipelineID = derived(0x5452414e535f504cull ^ target);
+	artifact.transparentPipelineID = MakeTransparentPipelineID(graphID, graph.target);
 	artifact.transparentShaderID = derived(0x5452414e535f5053ull ^ target);
 	if (graph.target == ShaderGraphTarget::Sprite || graph.target == ShaderGraphTarget::Primitive2D) {
 
@@ -353,6 +358,11 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 		artifact.rayTracingShaderID = derived(0x5241595452414345ull ^ target);
 	}
 	return artifact;
+}
+
+Engine::AssetID Engine::ShaderGraphArtifactCache::MakeTransparentPipelineID(AssetID graphID, ShaderGraphTarget target) {
+
+	return MakeDerivedID(graphID, 0x5452414e535f504cull ^ static_cast<uint64_t>(target));
 }
 
 Engine::AssetID Engine::ShaderGraphArtifactCache::MakeParticleGPUShaderID(AssetID graphID) {

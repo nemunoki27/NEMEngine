@@ -41,6 +41,8 @@ bool Engine::ShaderGraphSettingsEditor::Draw() {
 		targetChanged = editSession_.ChangeTarget(target);
 	}
 
+	if (target == ShaderGraphTarget::Decal) return targetChanged;
+
 	// 描画条件の変更を編集sessionへ通知する
 	editSession_.MarkDirty(MyGUI::EnumCombo("サーフェス", editSession_.GetDraft().surfaceMode).valueChanged);
 	editSession_.MarkDirty(MyGUI::EnumCombo(GetInspectorLabel(InspectorFieldID::BlendMode), editSession_.GetDraft().renderState.blendMode).valueChanged);

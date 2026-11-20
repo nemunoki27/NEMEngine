@@ -14,6 +14,9 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitGenericUVNode(const Sha
 	const auto input = [&](uint32_t slot, Type type) {
 		return EmitInputCode(node, slot, type);
 	};
+	const auto repeatSettings = [&](int32_t uvSlot, std::string_view uv) -> std::string {
+		return UsesRepeatSampler(node, 1) && (uvSlot < 0 || UsesMaterialUV(node, static_cast<uint32_t>(uvSlot), uv)) ? "graphInput.hexTiling" : "0.0f.xxxx";
+	};
 	switch (node.kind) {
 	case Kind::TextureSize: {
 		const auto texture = input(0, Type::Texture2D);
@@ -28,8 +31,8 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitGenericUVNode(const Sha
 			const auto sampler = input(2, Type::SamplerState);
 			const auto lod = input(3, Type::Float);
 			const auto variable = MakeNodeVariable("sampleLOD", node.id);
-			evaluationStatements_ += "\tfloat4 " + variable + " = SampleGraphTextureLOD(" + texture + ", " + uv +
-				", " + sampler + ", " + lod + ", float4(1, 1, 1, 1));\n";
+			const auto sample = EmitSurfaceTextureSample(node, texture, uv, sampler, "float4(1, 1, 1, 1)", lod);
+			evaluationStatements_ += "\tfloat4 " + variable + " = " + sample + ";\n";
 			found = textureSampleVariables_.emplace(node.id.value, variable).first;
 		}
 		const auto& sample = found->second;
@@ -64,7 +67,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitGenericUVNode(const Sha
 		const auto tile = input(4, Type::Float);
 		const auto blend = input(5, Type::Float);
 		return { Type::Float4, "ShaderGraphTriplanar(" + texture + ", " + sampler + ", " + position + ", " + normal +
-			", " + tile + ", " + blend + ", " + (node.settings.normalMap ? "true" : "false") + ", graphInput.tangentToWorld)" };
+			", " + tile + ", " + blend + ", " + (node.settings.normalMap ? "true" : "false") + ", graphInput.tangentToWorld, " + repeatSettings(-1, {}) + ")" };
 	}
 	case Kind::ParallaxMapping: {
 		const auto texture = input(0, Type::Texture2D);
@@ -72,7 +75,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitGenericUVNode(const Sha
 		const auto amplitude = input(2, Type::Float);
 		const auto uv = input(3, Type::Float2);
 		return { Type::Float2, "ShaderGraphParallaxMapping(" + texture + ", " + sampler + ", " + amplitude + ", " + uv +
-			", mul(graphInput.viewDirection, transpose(graphInput.tangentToWorld)))" };
+			", mul(graphInput.viewDirection, transpose(graphInput.tangentToWorld)), " + repeatSettings(3, uv) + ")" };
 	}
 	case Kind::ParallaxOcclusionMapping: {
 		const auto texture = input(0, Type::Texture2D);
@@ -87,7 +90,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitGenericUVNode(const Sha
 		const auto threshold = input(9, Type::Float);
 		const auto expression = "ShaderGraphParallaxOcclusion(" + texture + ", " + sampler + ", " + amplitude + ", " +
 			steps + ", " + uv + ", " + tiling + ", " + offset + ", " + primitive + ", " + lod + ", " + threshold +
-			", mul(graphInput.viewDirection, transpose(graphInput.tangentToWorld)))";
+			", mul(graphInput.viewDirection, transpose(graphInput.tangentToWorld)), " + repeatSettings(4, uv) + ")";
 		return outputSlot == 0 ? ShaderGraphExpression{ Type::Float, "(" + expression + ").z" } :
 			ShaderGraphExpression{ Type::Float2, "(" + expression + ").xy" };
 	}

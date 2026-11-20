@@ -15,9 +15,9 @@ using namespace Engine;
 
 namespace {
 
-	constexpr std::array<std::string_view, 15> kTrackNames = {
+	constexpr std::array<std::string_view, 17> kTrackNames = {
 		"Group", "SkinnedAnimation", "Motion", "Particle", "Prefab", "Collision", "Camera", "Audio",
-		"Property", "Activation", "TimeScale", "Event", "Window", "SubTimeline", "Custom"
+		"Property", "Activation", "TimeScale", "Event", "Window", "SubTimeline", "Custom", "Trail", "Beam"
 	};
 
 	// 未設定の参照だけを無効値として扱う

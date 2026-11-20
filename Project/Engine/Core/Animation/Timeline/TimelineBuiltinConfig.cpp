@@ -30,6 +30,8 @@ std::string_view Engine::GetTimelineTrackRequiredComponent(TimelineTrackKind kin
 	switch (kind) {
 	case TimelineTrackKind::SkinnedAnimation: return "SkinnedAnimation";
 	case TimelineTrackKind::Motion: return "Transform";
+	case TimelineTrackKind::Trail: return "TrailRenderer";
+	case TimelineTrackKind::Beam: return "BeamRenderer";
 	case TimelineTrackKind::Particle: return "ParticleSystem";
 	case TimelineTrackKind::Collision: return "Collision";
 	case TimelineTrackKind::Camera: return "Camera";

@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include "MaterialReflectionCache.h"
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
@@ -76,6 +77,23 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	ImGui::SeparatorText("シェーダーパラメータ");
 
 	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, materialID, defaultMaterialID);
+	if (const auto* exposed = materialReflection_.GetParticleGraphParameters()) {
+		drawField([&]() {
+			return MaterialParameterEditor::DrawGraphOverrides(parameters, materialReflection_.GetMaterial().parameters,
+				*exposed, context.editorContext->assetDatabase);
+		});
+		return;
+	}
+	if (!reflection && (materialID ? materialID : defaultMaterialID) == BuiltinAssets::Materials::DefaultBeam) {
+		// 停止中も既定マテリアルの編集項目を表示する
+		const auto& defaults = materialReflection_.GetMaterial().parameters;
+		std::vector<MaterialParameterID> exposed;
+		for (const auto& record : defaults.GetRecords()) exposed.push_back(record.id);
+		drawField([&]() {
+			return MaterialParameterEditor::DrawGraphOverrides(parameters, defaults, exposed, context.editorContext->assetDatabase);
+		});
+		return;
+	}
 	if (!reflection) {
 		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return;
@@ -84,7 +102,8 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	// 数値とTextureを分けて表示順を揃える
 	bool hasParameter = false;
 	MaterialParameterLayout layout{};
-	layout.Build(*reflection, MaterialParameterCBuffer::kSurface);
+	layout.Build(*reflection, materialReflection_.GetMaterial().usage == MaterialUsage::Particle ?
+		MaterialParameterCBuffer::kParticle : MaterialParameterCBuffer::kSurface);
 	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
 	std::vector<const ShaderConstantBufferVariable*> textureVariables;
 	if (layout.IsValid()) {

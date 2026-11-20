@@ -1,5 +1,8 @@
 #include "TestSelection.h"
 #include "TimelineTests.h"
+#include "TrailRendererTests.h"
+#include "BeamRendererTests.h"
+#include "HexTilingTests.h"
 #include "TimelineEditorTests.h"
 #include "TimelineEditorIntegrationTests.h"
 #include "TimelineRuntimeEditingTests.h"
@@ -75,6 +78,19 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			RunTest("TestEditorWindows", TestEditorWindows) ? 0 : 92;
 	}
 
+	if (1 < argc && std::string_view(argv[1]) == "--hex-tiling") {
+		return RunTest("TestHexTiling", TestHexTiling) && RunTest("TestHexTilingManaged", TestHexTilingManaged) ? 0 : 1;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--beam-managed") {
+		return RunTest("TestBeamRendererManaged", TestBeamRendererManaged) ? 0 : 1;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--beam") {
+		return RunTest("TestBeamRenderer", TestBeamRenderer) ? 0 : 1;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--trail") {
+		return RunTest("TestTrailRenderer", TestTrailRenderer) ? 0 : 1;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--timeline") {
 		return RunTest("TestTimeline", TestTimeline) && RunTest("TestTimelineBuiltins", TestTimelineBuiltins) &&
 			RunTest("TestTimelineCollisionGates", TestTimelineCollisionGates) &&
@@ -354,7 +370,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
-		if (!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) ||
+		if (!RunTest("TestBeamSegmentQueries", TestBeamSegmentQueries) ||
+			!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) ||
 			!RunTest("TestRigidbodyBoxSeams", TestRigidbodyBoxSeams) ||
 			!RunTest("TestBoxSeamNeighborState", TestBoxSeamNeighborState) ||
 			!RunTest("TestBoxSeamLanding", TestBoxSeamLanding) ||

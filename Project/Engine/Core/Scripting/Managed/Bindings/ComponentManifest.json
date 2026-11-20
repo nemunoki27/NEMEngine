@@ -5184,41 +5184,6 @@
           "access": "ReadWrite"
         },
         {
-          "id": 4,
-          "managedName": "color",
-          "nativeMember": "color",
-          "kind": "Color4",
-          "access": "ReadWrite"
-        },
-        {
-          "id": 5,
-          "managedName": "fadeFactor",
-          "nativeMember": "fadeFactor",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "id": 6,
-          "managedName": "uvScale",
-          "nativeMember": "uvScale",
-          "kind": "Vector2",
-          "access": "ReadWrite"
-        },
-        {
-          "id": 7,
-          "managedName": "uvBias",
-          "nativeMember": "uvBias",
-          "kind": "Vector2",
-          "access": "ReadWrite"
-        },
-        {
-          "id": 8,
-          "managedName": "uvRotation",
-          "nativeMember": "uvRotation",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
           "id": 9,
           "managedName": "sortOrder",
           "nativeMember": "sortOrder",
@@ -6221,6 +6186,76 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": []
+    },
+    {
+      "id": 77,
+      "registryName": "TrailRenderer",
+      "nativeType": "TrailRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TrailRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.TrailRenderer",
+      "reason": "軌跡の描画設定とサンプリングを公開する",
+      "managedType": "TrailRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
+    },
+    {
+      "id": 78,
+      "registryName": "BeamRenderer",
+      "nativeType": "BeamRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/BeamRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.BeamRenderer",
+      "reason": "ビームと稲妻の再生、経路、命中情報を公開する",
+      "managedType": "BeamRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
+    },
+    {
+      "id": 79,
+      "registryName": "HexTiling",
+      "nativeType": "HexTilingComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/HexTilingComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.HexTiling",
+      "reason": "六角形タイリングの設定とサブメッシュの適用対象を公開する",
+      "managedType": "HexTiling",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "Seed",
+          "nativeMember": "seed",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "TileSizeValue",
+          "nativeMember": "tileSize",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal",
+          "id": 2
+        },
+        {
+          "managedName": "RandomRotationValue",
+          "nativeMember": "randomRotation",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal",
+          "id": 3
+        }
+      ]
     }
   ]
 }

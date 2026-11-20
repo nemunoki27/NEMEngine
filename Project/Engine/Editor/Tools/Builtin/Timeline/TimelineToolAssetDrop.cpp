@@ -87,7 +87,7 @@ void TimelineTool::DrawAssetDrop(const EditorToolContext& context, ImVec2 origin
 		ECSWorld* world = context.GetWorld();
 		const Entity entity = world ? world->FindByUUID(droppedEntity_) : Entity::Null();
 		if (world && world->IsAlive(entity)) {
-			for (const auto kind : {TimelineTrackKind::SkinnedAnimation, TimelineTrackKind::Motion, TimelineTrackKind::Particle,
+			for (const auto kind : {TimelineTrackKind::SkinnedAnimation, TimelineTrackKind::Motion, TimelineTrackKind::Particle, TimelineTrackKind::Trail, TimelineTrackKind::Beam,
 				TimelineTrackKind::Collision, TimelineTrackKind::Camera, TimelineTrackKind::Audio, TimelineTrackKind::Property,
 				TimelineTrackKind::Activation, TimelineTrackKind::TimeScale}) {
 				if (!HasTimelineBindingComponent(*world, entity, TimelineEditorFields::RequiredComponent(kind))) continue;

@@ -1,0 +1,16 @@
+{
+  "name": "beamShader",
+  "stages": [
+    {
+      "stage": "PS",
+      "entry": "main",
+      "file": "4e454d41535345546265616d00000003",
+      "profile": "ps_6_0"
+    }
+  ],
+  "colorParameters": [
+    "startColor",
+    "targetColor",
+    "emissiveColor"
+  ]
+}

@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
@@ -49,6 +51,18 @@ bool Engine::ClearRenderingLayerCommand::Execute(EditorCommandContext& context) 
 		world->ForEach<LineRendererComponent>([&](Entity entity, LineRendererComponent& component) {
 			if ((component.renderingLayerMask & (1u << layerIndex_)) != 0u) {
 				entries_.push_back({ world->GetUUID(entity), TargetKind::Line, component.renderingLayerMask });
+			}
+		});
+		world->ForEach<TrailRendererComponent>([&](Entity entity, TrailRendererComponent&) {
+			const auto* record = TryGetTrailRenderer(*world, entity);
+			if (record && (record->settings.renderingLayerMask & (1u << layerIndex_)) != 0u) {
+				entries_.push_back({ world->GetUUID(entity), TargetKind::Trail, record->settings.renderingLayerMask });
+			}
+		});
+		world->ForEach<BeamRendererComponent>([&](Entity entity, BeamRendererComponent&) {
+			const auto* record = TryGetBeamRenderer(*world, entity);
+			if (record && (record->settings.renderingLayerMask & (1u << layerIndex_)) != 0u) {
+				entries_.push_back({ world->GetUUID(entity), TargetKind::Beam, record->settings.renderingLayerMask });
 			}
 		});
 		captured_ = true;
@@ -110,6 +124,18 @@ bool Engine::ClearRenderingLayerCommand::Apply(
 			if (auto* value = world->TryGetComponent<TextRendererComponent>(entity)) {
 				value->renderingLayerMask = mask;
 				world->MarkComponentModified<TextRendererComponent>(entity);
+			}
+			break;
+		case TargetKind::Trail:
+			if (auto* record = TryGetTrailRenderer(*world, entity)) {
+				record->settings.renderingLayerMask = mask;
+				world->MarkComponentModified<TrailRendererComponent>(entity);
+			}
+			break;
+		case TargetKind::Beam:
+			if (auto* record = TryGetBeamRenderer(*world, entity)) {
+				record->settings.renderingLayerMask = mask;
+				world->MarkComponentModified<BeamRendererComponent>(entity);
 			}
 			break;
 		case TargetKind::Line:

@@ -8,6 +8,8 @@
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
@@ -30,6 +32,14 @@ Engine::RendererRenderSettings* Engine::ResolveRendererSettings(ECSWorld& world,
 	case 20: return GetSettings<PrimitiveRendererComponent>(world, entity);
 	case 29: return GetSettings<SpriteRendererComponent>(world, entity);
 	case 30: return GetSettings<TextRendererComponent>(world, entity);
+	case 77: {
+		auto* record = TryGetTrailRenderer(world, entity);
+		return record ? &record->settings.renderSettings : nullptr;
+	}
+	case 78: {
+		auto* record = TryGetBeamRenderer(world, entity);
+		return record ? &record->settings.renderSettings : nullptr;
+	}
 	default: return nullptr;
 	}
 }

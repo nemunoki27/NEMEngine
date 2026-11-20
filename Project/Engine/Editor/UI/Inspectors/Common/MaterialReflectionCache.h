@@ -35,6 +35,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const MaterialAsset& GetMaterial() const { return cachedMaterial_; }
+		const std::vector<MaterialParameterID>* GetParticleGraphParameters() const { return hasGraphParameters_ ? &graphParameters_ : nullptr; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -48,6 +49,9 @@ namespace Engine {
 		uint64_t cachedMaterialRevision_ = 0;
 		AssetID cachedMaterialID_{};
 		MaterialAsset cachedMaterial_{};
+		std::vector<MaterialParameterID> graphParameters_;
+		uint64_t graphRevision_ = 0;
+		bool hasGraphParameters_ = false;
 		bool cachedMaterialValid_ = false;
 	};
 }

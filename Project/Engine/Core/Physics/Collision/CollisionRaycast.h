@@ -63,5 +63,8 @@ namespace Engine {
 		// ワールド化済み形状との交差、2D形状は対象外でfalse
 		static bool RayVsShape(const Ray& ray, const CollisionShapeInstance& shape,
 			float maxDistance, float& outDistance, Vector3& outNormal);
+		// XY平面で正規化したレイを2D形状と判定する
+		static bool RayVsShape2D(const Ray& ray, const CollisionShapeInstance& shape,
+			float maxDistance, float& outDistance, Vector3& outNormal);
 	};
 } // Engine

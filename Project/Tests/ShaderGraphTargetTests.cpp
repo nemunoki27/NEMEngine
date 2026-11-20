@@ -268,11 +268,17 @@ namespace NEMTests {
 			if (!samplerOutput.Succeeded() || samplerOutput.samplers.size() != 1 ||
 				samplerOutput.samplers.front().node != samplerNode || samplerOutput.samplers.front().shaderRegister != 2 ||
 				samplerOutput.samplers.front().settings.filter != D3D12_FILTER_ANISOTROPIC ||
+				samplerOutput.surfaceHLSL.find("HexTilingData hexGrid_") != std::string::npos ||
 				samplerOutput.surfaceHLSL.find("register(s2)") == std::string::npos ||
 				samplerOutput.surfaceHLSL.find(samplerOutput.samplers.front().shaderName) == std::string::npos) {
 
 				return false;
 			}
+			auto repeatGraph = samplerGraph;
+			std::erase_if(repeatGraph.links, [&](const Engine::ShaderGraphLink& link) { return link.outputNode == samplerNode; });
+			const auto repeated = Engine::ShaderGraphCompiler::Compile(repeatGraph, "repeat.surface.hlsli");
+			if (!repeated.Succeeded() || repeated.surfaceHLSL.find("HexTilingData hexGrid_") == std::string::npos ||
+				!fixture.WriteGeneratedGraph(repeatGraph, "HexTiling") || !fixture.CompileRasterShaders("HexTiling")) return false;
 			if (!fixture.WriteGeneratedGraph(samplerGraph, "Sampler")) {
 
 				return false;

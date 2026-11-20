@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+namespace Engine { class AssetDatabase; }
+
 namespace NEMTests {
 
 	//============================================================================
@@ -95,4 +97,6 @@ namespace NEMTests {
 	void to_json(nlohmann::json& out, const TestBufferElement& element);
 	void from_json(const nlohmann::json& in, TestBufferElement& element);
 	void RegisterTestComponents();
+	bool RunManagedComponentProbe(const char* name, const char* typeName, const char* passedField, const char* errorField,
+		void (*setup)(Engine::ECSWorld&), bool (*setupAssets)(Engine::AssetDatabase&) = nullptr);
 }

@@ -37,6 +37,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tSubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);\n"
 				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
+				  "\tgraphInput.hexTiling = subMesh.hexTiling;\n"
 				  "\tgraphInput.uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = normalize(input.normal);\n"
 				  "\tgraphInput.worldPosition = input.worldPos;\n" +
@@ -118,6 +119,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tSubMeshShaderData subMesh = GetInstanceSubMesh(input.instanceID, input.subMeshIndex);\n"
 			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
+			"\tgraphInput.hexTiling = subMesh.hexTiling;\n"
 			"\tgraphInput.uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
 			"\tgraphInput.worldNormal = normalize(input.normal);\n"
 			"\tgraphInput.worldPosition = input.worldPos;\n" +
@@ -198,6 +200,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tfloat3 originalWorldTangent = TransformMeshTangentToWorld(vertex.tangent, worldMatrix);\n"
 			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
+			"\tgraphInput.hexTiling = GetInstanceSubMesh(instanceID, localSubMeshIndex).hexTiling;\n"
 			"\tgraphInput.uv = vertex.uv;\n"
 			"\tgraphInput.worldNormal = originalWorldNormal;\n"
 			"\tgraphInput.worldPosition = originalWorldPosition;\n"

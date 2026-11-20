@@ -54,7 +54,7 @@ Engine::ShaderGraphAsset Engine::CreateDefaultSurfaceShaderGraph(std::string_vie
 
 	ShaderGraphNode output{
 		.id = Engine::UUID::New(),
-		.kind = IsShaderGraph3DTarget(target) ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput,
+		.kind = target == ShaderGraphTarget::Decal ? ShaderGraphNodeKind::DecalOutput : IsShaderGraph3DTarget(target) ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput,
 		.position = Vector2(520.0f, 120.0f),
 	};
 	graph.outputNode = output.id;
@@ -79,6 +79,7 @@ Engine::ShaderGraphAsset Engine::CreateDefaultSurfaceShaderGraph(std::string_vie
 	const UUID baseColor = addConstant(ShaderGraphValueType::Color, ColorValue(Color4::White()), Vector2(40.0f, 20.0f));
 	addLink(baseColor, 0, output.id, 0);
 
+	if (target == ShaderGraphTarget::Decal) return graph;
 	if (IsShaderGraph3DTarget(target)) {
 		// 法線は未接続にし、VS/MSが出力した幾何法線を使用する
 		const UUID metallic = addConstant(ShaderGraphValueType::Float, FloatValue(0.0f), Vector2(40.0f, 140.0f));

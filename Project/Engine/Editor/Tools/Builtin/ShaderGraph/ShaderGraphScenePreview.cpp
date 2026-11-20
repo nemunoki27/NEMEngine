@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -55,6 +56,8 @@ namespace {
 		switch (target) {
 		case Engine::ShaderGraphTarget::Mesh:
 			return ReadRendererMaterial<Engine::MeshRendererComponent>(world, entity, target, material);
+		case Engine::ShaderGraphTarget::Decal:
+			return ReadRendererMaterial<Engine::DecalProjectorComponent>(world, entity, target, material);
 		case Engine::ShaderGraphTarget::Primitive3D:
 		case Engine::ShaderGraphTarget::Primitive2D:
 			return ReadRendererMaterial<Engine::PrimitiveRendererComponent>(world, entity, target, material);
@@ -73,6 +76,8 @@ namespace {
 		switch (target) {
 		case Engine::ShaderGraphTarget::Mesh:
 			return WriteRendererMaterial<Engine::MeshRendererComponent>(world, entity, target, material, requireTarget);
+		case Engine::ShaderGraphTarget::Decal:
+			return WriteRendererMaterial<Engine::DecalProjectorComponent>(world, entity, target, material, requireTarget);
 		case Engine::ShaderGraphTarget::Primitive3D:
 		case Engine::ShaderGraphTarget::Primitive2D:
 			return WriteRendererMaterial<Engine::PrimitiveRendererComponent>(world, entity, target, material, requireTarget);

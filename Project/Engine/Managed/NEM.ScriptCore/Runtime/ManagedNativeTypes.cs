@@ -6,7 +6,7 @@ namespace NEMEngine;
 internal static class ManagedABI {
 
     // NativeとManagedを同じ版で接続する
-    internal const uint Version = 72;
+    internal const uint Version = 73;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -33,6 +33,8 @@ internal enum RendererMaterialTarget {
     Primitive,
     Line,
     Decal,
+    Trail,
+    Beam,
 }
 
 // Nativeと共通のMaterial値種別

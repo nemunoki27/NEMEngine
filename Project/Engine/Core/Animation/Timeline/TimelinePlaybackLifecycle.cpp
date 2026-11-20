@@ -54,6 +54,7 @@ void Engine::ReleaseTimelinePlayer(ECSWorld& world, Entity owner, TimelinePlayer
 	}
 	DeferBuiltinTimelineExit(world, [&, state]() {
 		ReleaseTimelineCollisionGates(world, *state, state->mode == TimelineEvaluationMode::Preview);
+		ReleaseTimelineTrails(world, *state);
 	});
 	if (state->mode == TimelineEvaluationMode::Preview && state->root && reason != TimelineExitReason::Completed) {
 		DeferBuiltinTimelineExit(world, [&, state]() {
@@ -67,6 +68,7 @@ void Engine::ReleaseTimelinePlayer(ECSWorld& world, Entity owner, TimelinePlayer
 			}
 		});
 	}
+	DeferBuiltinTimelineExit(world, [&, state]() { ReleaseTimelineBeams(world, *state); });
 	player.runtime.windows.clear();
 	player.runtime.pendingNotifications.clear();
 	player.runtime.playback.reset();

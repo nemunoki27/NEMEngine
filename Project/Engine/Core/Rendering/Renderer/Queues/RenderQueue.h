@@ -97,12 +97,15 @@ namespace Engine {
 		// エンティティ固有のマテリアル値
 		const MaterialParameterSet* materialInstance = nullptr;
 	};
+	enum class ParticleRenderSource : uint8_t { Emitter, Trail, Beam };
+
 	// パーティクル描画データ
 	struct ParticleRenderPayload {
 
 		// 外部Runtime Storage内のグループを描画時に安全に引き直す
 		uint32_t runtimeIndex = 0;
 		uint32_t runtimeGeneration = 0;
+		ParticleRenderSource source = ParticleRenderSource::Emitter;
 	};
 	// 描画アイテム
 	struct RenderItem {

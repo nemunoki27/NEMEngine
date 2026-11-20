@@ -69,6 +69,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
 				  "\tfloat4 vertexColor;\n\tResolveHitPrimitiveSurface(subMesh, v0, v1, v2, bary, uv, graphInput.uv, vertexColor);\n"
+				  "\tgraphInput.hexTiling = subMesh.hexTiling;\n"
 				  "\tgraphInput.worldNormal = worldNormal;\n"
 				  "\tgraphInput.worldPosition = WorldRayOrigin() +\n"
 				  "\t\tWorldRayDirection() * RayTCurrent();\n"

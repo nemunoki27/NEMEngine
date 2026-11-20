@@ -112,6 +112,7 @@ for (const file of markdown) {
 // 埋め込んだ例と本文内の短い例をコンパイルする
 if (!process.argv.includes('--no-samples')) {
 	const snippetDirectory = path.join(output, 'Samples');
+	fs.mkdirSync(snippetDirectory, { recursive: true });
 	// 完全なScriptは型の中へ埋め込まず独立して検証する
 	for (const file of fs.readdirSync(snippetDirectory)) {
 		if (/^ManualSnippet\.\d+\.cs$/.test(file)) fs.unlinkSync(path.join(snippetDirectory, file));

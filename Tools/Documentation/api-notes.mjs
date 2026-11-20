@@ -18,7 +18,7 @@ export function guideFor(type) {
 	if (/Animation|Animator|Skinned|Timeline|TimeScale|TimeSource|TimeChannel|Timer|DayNight/.test(name)) return 'animation';
 	if (/Collision|Physics|Rigidbody|Joint|Ray|ForceMode/.test(name)) return 'physics';
 	if (/Canvas|^UI|IUIButton/.test(name)) return 'ui';
-	if (/Material/.test(name)) return 'materials';
+	if (/Material|HexTiling/.test(name)) return 'materials';
 	if (/TextRenderer|Font|TextCharacter/.test(name)) return 'text';
 	if (/Texture|Asset|Mesh|Prefab|ShaderGraph/.test(name)) return 'assets';
 	if (/Csv|Json|TextAsset/.test(name)) return 'data';

@@ -56,6 +56,13 @@ void Engine::DecalPass::Prepare(GraphicsCore& graphicsCore, SceneExecutionContex
 			}
 		}
 	}
+	// Geometryの候補列の後に投影式を置き、RasterとDXRで同じSRVから読む
+	for (size_t i = 0; i < state.items.size(); ++i) {
+		const auto& words = state.items[i].graphWords;
+		if (words.empty()) continue;
+		state.gpuData[i].graphOffset = static_cast<uint32_t>(state.indices.size());
+		state.indices.insert(state.indices.end(), words.begin(), words.end());
+	}
 	uint64_t hash = 14695981039346656037ull;
 	HashValues(hash, state.gpuData);
 	HashValues(hash, state.ranges);

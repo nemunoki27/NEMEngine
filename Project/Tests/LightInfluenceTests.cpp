@@ -17,14 +17,8 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/LightGPUConversion.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
-#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
-#include <Engine/Core/World/Behavior/MonoBehavior.h>
-#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
@@ -139,57 +133,7 @@ bool NEMTests::TestLightInfluenceShaders() {
 
 bool NEMTests::TestLightInfluenceManaged() {
 
-	using namespace Engine;
-	try {
-		TestDirectory directory("LightInfluence");
-		const auto root = directory.GetPath();
-		std::filesystem::create_directories(root / "GameAssets");
-		if (!JsonFile::Save(root / "Light.nemproject", {{"schemaVersion", 1},
-			{"projectGuid", "2b940d5c54f44dd0b9791784c44278e1"}, {"name", "Light"}, {"sceneStorage", "Monolithic"},
-			{"assetsDirectory", "GameAssets"}, {"packagesDirectory", "Packages"},
-			{"projectSettingsDirectory", "ProjectSettings"}})) return false;
-		const auto previous = std::filesystem::current_path();
-		ScopedCleanup restore([&]() noexcept {
-			std::error_code error;
-			std::filesystem::current_path(previous, error);
-			try { RuntimePaths::Refresh(); } catch (...) { }
-		});
-		const auto previousLogger = spdlog::default_logger();
-		const bool ownsLogger = !Logger::Get(LogType::Engine);
-		if (ownsLogger) Logger::CreateLogFiles(root / "Logs");
-		ScopedCleanup closeLog([&]() noexcept {
-			if (ownsLogger) { Logger::Finalize(); spdlog::set_default_logger(previousLogger); }
-		});
-		std::filesystem::current_path(root);
-		RuntimePaths::Refresh();
-		auto& runtime = ManagedScriptRuntime::GetInstance();
-		if (!runtime.Init()) return false;
-		ScopedCleanup finalize([&]() noexcept { runtime.Finalize(); });
-		const auto assembly = Algorithm::GetExecutablePath().parent_path() / "ManagedFixtures/GameScripts.dll";
-		if (!runtime.LoadGameAssemblyFromPath(assembly, false)) return false;
-		const auto* type = BehaviorTypeRegistry::GetInstance().FindByName("NEMTests.Scripts.LightInfluenceAPIProbe");
-		if (!type) return false;
-		ECSWorld world(ECSWorldKind::Runtime);
-		const auto handle = ManagedWorldRegistry::GetInstance().Register(world);
-		ScopedCleanup unregister([&]() noexcept { ManagedWorldRegistry::GetInstance().Unregister(handle); });
-		const auto owner = SceneAuthoring::CreateGameObject(world, "Lamp");
-		SceneAuthoring::CreateGameObject(world, "Emitter");
-		SystemContext context;
-		context.world = &world;
-		context.mode = WorldMode::Play;
-		BehaviorSystem behaviors;
-		behaviors.OnWorldEnter(world, context);
-		ScopedCleanup exit([&]() noexcept { try { behaviors.OnWorldExit(world, context); } catch (...) { } });
-		auto* probe = BehaviorSystem::AttachScript(owner, type->scriptTypeID, context);
-		if (!probe) return false;
-		behaviors.Update(world, context);
-		behaviors.Update(world, context);
-		const auto state = probe->GetRuntimeSerializedState();
-		const auto error = state.value("82c446a6-392c-449a-a8a3-c69e0bf587b4", std::string{});
-		if (!error.empty()) std::cerr << error << '\n';
-		return error.empty() && state.value("64c04024-a95f-46a5-b3ec-880a669f1a80", false);
-	} catch (const std::exception& error) {
-		std::cerr << "Light managed API: " << error.what() << '\n';
-		return false;
-	}
+	return RunManagedComponentProbe("LightInfluence", "NEMTests.Scripts.LightInfluenceAPIProbe",
+		"64c04024-a95f-46a5-b3ec-880a669f1a80", "82c446a6-392c-449a-a8a3-c69e0bf587b4",
+		[](Engine::ECSWorld& world) { Engine::SceneAuthoring::CreateGameObject(world, "Emitter"); });
 }

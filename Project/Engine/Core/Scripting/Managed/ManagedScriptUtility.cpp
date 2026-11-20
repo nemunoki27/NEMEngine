@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Physics/Collision/CollisionRaycast.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -123,6 +124,19 @@ namespace Engine {
 		}
 		// 自身と子孫のワールド行列を再計算対象にする
 		MarkTransformSubtreeDirty(world, entity);
+	}
+
+
+	ManagedRaycastHit ToManagedRaycastHit(ECSWorld& world, const RaycastHit3D& hit) {
+
+		ManagedRaycastHit managed{};
+		managed.entity = MakeNativeEntity(world, hit.entity);
+		managed.point = ToManagedVector3(hit.point);
+		managed.normal = ToManagedVector3(hit.normal);
+		managed.distance = hit.distance;
+		managed.shapeIndex = hit.shapeIndex;
+		managed.trigger = hit.trigger ? 1 : 0;
+		return managed;
 	}
 
 } // Engine

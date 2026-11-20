@@ -15,7 +15,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 72;
+	inline constexpr uint32_t kManagedABIVersion = 73;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {
@@ -279,6 +279,8 @@ namespace Engine {
 		Primitive,
 		Line,
 		Decal,
+		Trail,
+		Beam,
 	};
 
 	// Native内部のvariant番号と独立したMaterial値種別
@@ -487,6 +489,14 @@ namespace Engine {
 		using CopyComponentSettingsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, char*, int32_t);
 		using TimelineCommandCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, double);
 		using GetTimelineStateCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedTimelineState*);
+		using TrailCommandCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, ManagedVector3, ManagedVector3);
+		using GetTrailEndpointCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity, int32_t);
+		using SetTrailEndpointCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, ManagedNativeEntity);
+		using BeamCommandCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
+		using ReadBeamEndpointCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t*, ManagedVector3*, ManagedNativeEntity*);
+		using WriteBeamEndpointCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, ManagedVector3, ManagedNativeEntity);
+		using EditBeamWaypointsCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, int32_t);
+		using GetBeamHitCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedRaycastHit*, int32_t*);
 		using GetTimelineBindingCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity, const char*);
 		using SetTimelineBindingCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedNativeEntity);
 		using GetTimelineParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedTimelineValue*);

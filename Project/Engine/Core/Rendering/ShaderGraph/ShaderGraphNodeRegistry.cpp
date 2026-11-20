@@ -28,6 +28,11 @@ namespace {
 	constexpr std::array kBinaryInputs{
 		Port{ "A", Type::Invalid }, Port{ "B", Type::Invalid },
 	};
+	constexpr std::array kDecalInputs{
+		Port{ "Base Color", Type::Float4 }, Port{ "Normal", Type::Float3 },
+		Port{ "Metallic", Type::Float }, Port{ "Roughness", Type::Float },
+		Port{ "Emission", Type::Float3 }, Port{ "Opacity", Type::Float },
+	};
 	constexpr std::array kSurfaceInputs{
 		Port{ "Base Color", Type::Float4 },
 		Port{ "Normal", Type::Float3 },
@@ -173,6 +178,7 @@ namespace {
 	}
 
 	const std::array kDescriptors{
+		Node{ Kind::DecalOutput, "Decal Surface", "Output", Stage::Fragment, Ports(kDecalInputs), EmptyPorts(), false, false },
 		Node{ Kind::SurfaceOutput, "PBR Surface", "Output", Stage::Fragment, Ports(kSurfaceInputs), EmptyPorts(), false, false },
 		Node{ Kind::UnlitOutput, "Unlit Surface", "Output", Stage::Fragment, Ports(kUnlitInputs), EmptyPorts(), false, false },
 		Node{ Kind::PostProcessOutput, "Post Process", "Output", Stage::Compute, Ports(kPostProcessInputs), EmptyPorts(), false, false },

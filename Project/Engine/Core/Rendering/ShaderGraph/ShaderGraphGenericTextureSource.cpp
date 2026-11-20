@@ -70,15 +70,31 @@ float2 ShaderGraphTwirl(float2 uv, float2 center, float strength, float2 offset)
 	return center + float2(cosine * delta.x - sine * delta.y, sine * delta.x + cosine * delta.y) + offset;
 }
 
+float4 SampleGraphProjected(uint textureIndex, float2 uv, SamplerState sampler, float4 fallback, float4 settings, bool normalMap) {
+#ifdef NEM_SHADER_GRAPH_HEX_TILING
+	return SampleGraphHexTexture(textureIndex, BuildHexTiling(uv, settings), sampler, fallback, normalMap);
+#else
+	return SampleGraphTexture(textureIndex, uv, sampler, fallback);
+#endif
+}
+
+float SampleGraphHeightLOD(uint textureIndex, float2 uv, SamplerState sampler, float lod, float4 settings) {
+#ifdef NEM_SHADER_GRAPH_HEX_TILING
+	return SampleGraphHexTextureLOD(textureIndex, BuildHexTiling(uv, settings), sampler, lod, 0.5.xxxx, false).r;
+#else
+	return SampleGraphTextureLOD(textureIndex, uv, sampler, lod, 0.5.xxxx).r;
+#endif
+}
+
 float4 ShaderGraphTriplanar(uint textureIndex, SamplerState sampler, float3 position, float3 normal,
-	float tile, float blend, bool normalMap, float3x3 tangentToWorld) {
+	float tile, float blend, bool normalMap, float3x3 tangentToWorld, float4 settings) {
 	float3 uv = position * tile;
 	float3 weights = pow(abs(normal), max(blend, 0.0));
 	weights /= max(dot(weights, 1.0.xxx), 1e-6);
 	float4 fallback = normalMap ? float4(0.5, 0.5, 1, 1) : float4(1, 1, 1, 1);
-	float4 x = SampleGraphTexture(textureIndex, uv.zy, sampler, fallback);
-	float4 y = SampleGraphTexture(textureIndex, uv.xz, sampler, fallback);
-	float4 z = SampleGraphTexture(textureIndex, uv.xy, sampler, fallback);
+	float4 x = SampleGraphProjected(textureIndex, uv.zy, sampler, fallback, settings, normalMap);
+	float4 y = SampleGraphProjected(textureIndex, uv.xz, sampler, fallback, settings, normalMap);
+	float4 z = SampleGraphProjected(textureIndex, uv.xy, sampler, fallback, settings, normalMap);
 	if (!normalMap) { return x * weights.x + y * weights.y + z * weights.z; }
 	float3 nx = x.xyz * 2.0 - 1.0;
 	float3 ny = y.xyz * 2.0 - 1.0;
@@ -90,14 +106,14 @@ float4 ShaderGraphTriplanar(uint textureIndex, SamplerState sampler, float3 posi
 	return float4(mul(worldNormal, transpose(tangentToWorld)), 1);
 }
 
-float2 ShaderGraphParallaxMapping(uint textureIndex, SamplerState sampler, float amplitude, float2 uv, float3 view) {
-	float height = SampleGraphTexture(textureIndex, uv, sampler, float4(0.5, 0.5, 0.5, 1)).r;
+float2 ShaderGraphParallaxMapping(uint textureIndex, SamplerState sampler, float amplitude, float2 uv, float3 view, float4 settings) {
+	float height = SampleGraphProjected(textureIndex, uv, sampler, float4(0.5, 0.5, 0.5, 1), settings, false).r;
 	view = normalize(view);
 	return uv + (height - 0.5) * amplitude * 0.01 * view.xy / max(view.z + 0.42, 1e-4);
 }
 
 float3 ShaderGraphParallaxOcclusion(uint textureIndex, SamplerState sampler, float amplitude, float steps,
-	float2 uv, float2 tiling, float2 offset, float2 primitiveSize, float lod, float threshold, float3 view) {
+	float2 uv, float2 tiling, float2 offset, float2 primitiveSize, float lod, float threshold, float3 view, float4 settings) {
 	float maxHeight = amplitude * 0.01 * 2.0 / max(abs(tiling.x) + abs(tiling.y), 1e-5);
 	view = normalize(view);
 	float2 direction = view.xy * maxHeight * tiling / max(abs(primitiveSize), 1e-5) / max(view.z, 1e-4);
@@ -106,13 +122,13 @@ float3 ShaderGraphParallaxOcclusion(uint textureIndex, SamplerState sampler, flo
 	float2 currentUV = uv * tiling + offset;
 	float2 startUV = currentUV;
 	float currentDepth = 0.0;
-	float sampledDepth = 1.0 - SampleGraphTextureLOD(textureIndex, currentUV, sampler, max(lod, 0), 0.5.xxxx).r;
+	float sampledDepth = 1.0 - SampleGraphHeightLOD(textureIndex, currentUV, sampler, max(lod, 0), settings);
 	float previousDelta = -sampledDepth;
 	[loop] for (uint i = 0; i < count && currentDepth < sampledDepth; ++i) {
 		previousDelta = currentDepth - sampledDepth;
 		currentUV -= direction * layer;
 		currentDepth += layer;
-		sampledDepth = 1.0 - SampleGraphTextureLOD(textureIndex, currentUV, sampler, max(lod, 0), 0.5.xxxx).r;
+		sampledDepth = 1.0 - SampleGraphHeightLOD(textureIndex, currentUV, sampler, max(lod, 0), settings);
 	}
 	float currentDelta = currentDepth - sampledDepth;
 	float intersection = saturate(currentDelta / max(currentDelta - previousDelta, 1e-5));

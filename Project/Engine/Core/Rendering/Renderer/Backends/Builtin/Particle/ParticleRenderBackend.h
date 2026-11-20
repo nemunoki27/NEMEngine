@@ -19,6 +19,8 @@
 namespace Engine {
 
 	// front
+	struct TrailRendererRecord;
+	struct BeamRendererRecord;
 	struct ParticleRenderSettings;
 	struct ParticleEmitterRuntime;
 	class IParticleParametricShape;
@@ -136,6 +138,7 @@ namespace Engine {
 		// トレイルを描画する
 		void DrawTrails(const RenderDrawContext& context, const RenderItem* item,
 			std::span<const RenderItem* const> items,
-			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources);
+			const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources,
+			const TrailRendererRecord* trail = nullptr, const BeamRendererRecord* beam = nullptr);
 	};
 } // Engine

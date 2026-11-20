@@ -22,13 +22,7 @@ void Engine::UVTransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] Sys
 			uvTransform.rotation != uvTransform.preRotation ||
 			uvTransform.scale != uvTransform.preScale) {
 
-			// SRTを3次元ベクトルに変換
-			Vector3 scale = Vector3(uvTransform.scale.x, uvTransform.scale.y, 1.0f);
-			Vector3 rotation = Vector3(0.0f, 0.0f, uvTransform.rotation);
-			Vector3 pos = Vector3(uvTransform.pos.x, uvTransform.pos.y, 0.0f);
-
-			// 行列を計算
-			uvTransform.uvMatrix = Matrix4x4::MakeAffineMatrix(scale, rotation, pos);
+			uvTransform.uvMatrix = MakeUVMatrix(uvTransform);
 			world.MarkComponentModified<UVTransformComponent>(entity);
 		}
 

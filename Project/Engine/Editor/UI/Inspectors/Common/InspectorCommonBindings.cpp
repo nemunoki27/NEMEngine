@@ -26,6 +26,7 @@
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticlePaintReceiverComponent.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
@@ -60,6 +61,11 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(OrthographicCame
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(CameraControllerComponent& value) {
+
+	return { .enabled = &value.enabled };
+}
+
+Engine::InspectorCommonFields Engine::BindInspectorCommonFields(HexTilingComponent& value) {
 
 	return { .enabled = &value.enabled };
 }

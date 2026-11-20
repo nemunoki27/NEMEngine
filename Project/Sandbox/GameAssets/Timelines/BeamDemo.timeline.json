@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "name": "Beam Demo",
+  "frameRate": 60,
+  "duration": 3,
+  "bindings": [
+    {
+      "id": "3b2922f25351838e",
+      "name": "Tracking Target",
+      "component": "Transform"
+    },
+    {
+      "id": "ee9b2fb09acd0b39",
+      "name": "Tracking Laser",
+      "component": "BeamRenderer"
+    },
+    {
+      "id": "657997da001e23a9",
+      "name": "Chain Lightning",
+      "component": "BeamRenderer"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "ea6284ac392bef2e",
+      "name": "Target Motion",
+      "kind": "Property",
+      "binding": "3b2922f25351838e",
+      "clips": [
+        {
+          "id": "88cb79fac89ecdac",
+          "name": "Lower",
+          "start": 0,
+          "duration": 1.5,
+          "sourceDuration": 1.5,
+          "data": {
+            "binding": {
+              "component": "Transform",
+              "property": "localPos",
+              "type": "Vector3"
+            },
+            "from": {
+              "x": 2.4,
+              "y": 0.6,
+              "z": 0
+            },
+            "to": {
+              "x": 2.4,
+              "y": -1.15,
+              "z": 0
+            },
+            "restoreOnEnd": false
+          },
+          "easing": "EaseInOutSine"
+        },
+        {
+          "id": "09877d1e11c96722",
+          "name": "Raise",
+          "start": 1.5,
+          "duration": 1.5,
+          "sourceDuration": 1.5,
+          "data": {
+            "binding": {
+              "component": "Transform",
+              "property": "localPos",
+              "type": "Vector3"
+            },
+            "from": {
+              "x": 2.4,
+              "y": -1.15,
+              "z": 0
+            },
+            "to": {
+              "x": 2.4,
+              "y": 0.6,
+              "z": 0
+            },
+            "restoreOnEnd": false
+          },
+          "easing": "EaseInOutSine"
+        }
+      ]
+    },
+    {
+      "id": "b8f6e392fbe7de5e",
+      "name": "Laser",
+      "kind": "Beam",
+      "binding": "ee9b2fb09acd0b39",
+      "clips": [
+        {
+          "id": "4b252e0b6b4e5b46",
+          "name": "Emission",
+          "start": 0,
+          "duration": 3,
+          "sourceDuration": 3,
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": "ccca2cf6e916f7ac",
+      "name": "Lightning",
+      "kind": "Beam",
+      "binding": "657997da001e23a9",
+      "clips": [
+        {
+          "id": "895326cd777e26a2",
+          "name": "First Strike",
+          "start": 0.18,
+          "duration": 0.62,
+          "sourceDuration": 0.62,
+          "data": {}
+        },
+        {
+          "id": "cdc41523cd969adc",
+          "name": "Second Strike",
+          "start": 1.65,
+          "duration": 0.84,
+          "sourceDuration": 0.84,
+          "data": {}
+        }
+      ]
+    }
+  ]
+}

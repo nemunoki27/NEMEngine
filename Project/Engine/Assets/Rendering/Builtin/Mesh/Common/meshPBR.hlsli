@@ -15,13 +15,13 @@
 //============================================================================
 //	テクスチャサンプル
 //============================================================================
-float4 SamplePBRTexture(uint textureIndex, float2 uv, float4 fallbackValue) {
+float4 SamplePBRTexture(uint textureIndex, HexTilingData hex, float2 dx, float2 dy, float4 fallbackValue) {
 
 	if (textureIndex == kNoTexture) {
 		return fallbackValue;
 	}
 	Texture2D<float4> texture = NEM_TEXTURE2D(textureIndex);
-	return texture.Sample(gSampler, uv);
+	return SampleHexGrad(texture, gSampler, hex, dx, dy, false);
 }
 
 //============================================================================
@@ -34,32 +34,34 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 
 	// UV変換
 	float2 uv = mul(float4(input.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	const HexTilingData hex = BuildHexTiling(uv, subMesh.hexTiling);
+	const float2 dx = ddx(uv), dy = ddy(uv);
 
 	// ベースカラー = マテリアル色 × ベースカラーテクスチャ
-	float4 baseColor = SamplePBRTexture(params.baseColorTexture, uv, 1.0f.xxxx);
-	baseColor.a *= SamplePBRTexture(params.opacityTexture, uv, 1.0f.xxxx).r;
+	float4 baseColor = SamplePBRTexture(params.baseColorTexture, hex, dx, dy, 1.0f.xxxx);
+	baseColor.a *= SamplePBRTexture(params.opacityTexture, hex, dx, dy, 1.0f.xxxx).r;
 	baseColor *= params.color;
 	MeshInstance paintInstance = gMeshInstances[input.instanceID];
 	ApplyParticlePaint(uint2(paintInstance.entityIndex, paintInstance.entityGeneration), input.uv,
 		input.worldPos, gSampler, baseColor);
 
 	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness
-	float4 mrSample = SamplePBRTexture(params.metallicRoughnessTexture, uv, 1.0f.xxxx);
-	float metallicSample = SamplePBRTexture(params.metallicTexture, uv, 1.0f.xxxx).r;
-	float roughnessSample = SamplePBRTexture(params.roughnessTexture, uv, 1.0f.xxxx).r;
+	float4 mrSample = SamplePBRTexture(params.metallicRoughnessTexture, hex, dx, dy, 1.0f.xxxx);
+	float metallicSample = SamplePBRTexture(params.metallicTexture, hex, dx, dy, 1.0f.xxxx).r;
+	float roughnessSample = SamplePBRTexture(params.roughnessTexture, hex, dx, dy, 1.0f.xxxx).r;
 	float metallic = saturate(params.metallic * mrSample.b * metallicSample);
 	float roughness = saturate(params.roughness * mrSample.g * roughnessSample);
 	roughness = max(roughness, 0.04f);
 
 	// AOはocclusionテクスチャから取る、未指定なら白で1になる
-	float ao = SamplePBRTexture(params.occlusionTexture, uv, 1.0f.xxxx).r;
+	float ao = SamplePBRTexture(params.occlusionTexture, hex, dx, dy, 1.0f.xxxx).r;
 
 	// ワールド法線
-	float3 N = ComputeWorldNormal(input, params.normalTexture, uv);
+	float3 N = ComputeWorldNormal(input, params.normalTexture, hex, dx, dy);
 
 	// 発光、色×強度にテクスチャを掛ける、強度0で発光オフ
 	float3 emissive = params.emissiveColor.rgb * params.emissiveIntensity;
-	emissive *= SamplePBRTexture(params.emissiveTexture, uv, 1.0f.xxxx).rgb;
+	emissive *= SamplePBRTexture(params.emissiveTexture, hex, dx, dy, 1.0f.xxxx).rgb;
 
 	ResolvedPBRMaterial m;
 	m.baseColor = baseColor;

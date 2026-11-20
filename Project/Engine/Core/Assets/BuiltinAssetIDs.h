@@ -55,6 +55,8 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000006ull };
 		// 2Dパーティクルの既定マテリアル
 		inline constexpr AssetID DefaultParticle2D{ 0x4e454d4153534554ull, 0xeff0000000000008ull };
+		inline constexpr AssetID DefaultBeam{ 0x4e454d4153534554ull, 0x6265616d00000001ull };
+		inline constexpr AssetID DefaultTrail{ 0x4e454d4153534554ull, 0x747261696c000001ull };
 	}
 
 	namespace Textures {
@@ -183,7 +185,7 @@ namespace Engine::BuiltinAssets {
 			Materials::PostProcessMaskComposite, Materials::ScreenSpaceOutlineMask,
 			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
 			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
-			Materials::DefaultParticle, Materials::DefaultParticle2D,
+			Materials::DefaultParticle, Materials::DefaultParticle2D, Materials::DefaultTrail, Materials::DefaultBeam,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::DefaultMeshZPrepass,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,

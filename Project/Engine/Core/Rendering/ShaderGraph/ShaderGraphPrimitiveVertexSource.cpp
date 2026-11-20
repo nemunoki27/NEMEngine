@@ -55,6 +55,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tfloat4 vertexColor = ResolvePrimitiveVertexColor(vertex.position.xyz, instance);\n"
 				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
+				  "\tgraphInput.hexTiling = instance.hexTiling;\n"
 				  "\tgraphInput.uv = mul(float4(vertex.uv, 0.0f, 1.0f), instance.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = originalWorldNormal;\n"
 				  "\tgraphInput.worldPosition = originalWorldPosition.xyz;\n"
@@ -191,6 +192,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
 				  "\tfloat2 localTexcoord = ResolvePrimitive2DTexcoord(vertex.uv, instance);\n"
+				  "\tgraphInput.hexTiling = instance.hexTiling;\n"
 				  "\tgraphInput.uv = mul(float4(localTexcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n"
 				  "\tgraphInput.worldNormal = originalWorldNormal;\n"
 				  "\tgraphInput.worldPosition = originalWorldPosition.xyz;\n"

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiCurveEditorInternal.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Animation/Clips/AnimationChannelUtility.h>
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
 
@@ -31,6 +32,23 @@ namespace {
 			BuildGridRange(1.0f, 0.0f, 0.1f).count == 0 && BuildGridRange(0.0f, 1.0f, 0.0f).count == 0 &&
 			BuildGridRange(0.0f, std::numeric_limits<float>::infinity(), 0.1f).count == 0 &&
 			BuildGridRange(0.0f, 1.0f, std::numeric_limits<float>::quiet_NaN()).count == 0;
+	}
+
+	// 旧グラデーションの汎用名を読み込んでもRGBとAlphaを編集できる
+	bool TestCurveGradientPresentation() {
+
+		CurveColor4 gradient;
+		auto channels = GetCurveChannels(gradient);
+		for (auto& channel : channels) {
+			const nlohmann::json saved = {{"name", "Value"}, {"defaultValue", 2.5f},
+				{"keys", {{{"time", 0.5f}, {"value", 1.5f}}}}};
+			ReadCurveChannel(saved, channel, true);
+			if (channel.defaultValue != 2.5f || channel.Evaluate(0.5f) != 1.5f) return false;
+		}
+		for (const char* name : EnumAdapter<CurveInterpolationMode>::GetEnumArray()) {
+			if (std::string_view(ImGuiUtility::GetEnumDisplayName("CurveInterpolationMode", name)) != name) return false;
+		}
+		return IsColorChannelSet(channels) && IsRGBSelection(channels, {0, 0}) && IsAlphaSelection(channels, {3, 0});
 	}
 
 	// 不揃いのチャンネルと無効な軸値を処理する
@@ -217,6 +235,6 @@ namespace {
 
 bool NEMTests::TestCurveEditorContracts() {
 
-	return TestCurveGridRange() && TestCurveSharedCountsAndAxes() && TestCurveChannelBounds() && TestCurveViewCoordinates() &&
+	return TestCurveGridRange() && TestCurveGradientPresentation() && TestCurveSharedCountsAndAxes() && TestCurveChannelBounds() && TestCurveViewCoordinates() &&
 		TestCurveViewNumericLimits() && TestCurveColorSelection() && TestCurveQuaternionKeyOwnership();
 }

@@ -57,6 +57,8 @@ namespace Engine {
 		uint32_t nestedDepth = 0;
 		// Prefab編集時にネストPrefabの保存IDを維持するか
 		bool preserveNestedLocalFileIDs = false;
+		// 差分付きインスタンスは旧プロパティへ差分を適用してから移行する
+		bool deferDecalMigration = false;
 	};
 	// プレファブ生成の結果
 	struct PrefabInstantiateResult {

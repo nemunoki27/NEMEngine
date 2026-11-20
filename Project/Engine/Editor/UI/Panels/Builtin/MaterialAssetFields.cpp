@@ -105,7 +105,7 @@ bool Engine::MaterialAssetFields::Draw(const EditorPanelContext& context, Materi
 	bool saveRequested = false;
 	if (draft.domain == MaterialDomain::Decal) {
 		const auto name = MyGUI::InputText("名前", draft.name);
-		const auto result = DecalMaterialFields::Draw(draft.parameters, draft.parameters, context.editorContext->assetDatabase);
+		const auto result = DecalMaterialFields::Draw(draft.parameters, draft, context.editorContext->assetDatabase);
 		if (result.valueChanged && context.renderPipeline) {
 			// Drag中は保存せず描画用cacheだけを差し替える
 			context.renderPipeline->GetRenderAssetLibrary().RegisterDerivedMaterial(draft);

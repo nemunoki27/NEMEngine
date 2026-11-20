@@ -6,10 +6,15 @@
 #include "DecalTypes.h"
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
 
+namespace Engine { struct UVTransformComponent; }
+
 namespace Engine::DecalProjectionUtility {
 
 	// 寸法と親変換から投影行列を作る
 	bool Build(const DecalProjectorComponent& component, const Matrix4x4& world, DecalProjection& output);
+	// 旧形式の投影UVを通常のテクスチャUVに対応する行列へ変換する
+	Matrix4x4 LegacyUVMatrix(const DecalProjectorComponent& component);
+	Matrix4x4 ResolveUVMatrix(const DecalProjectorComponent& component, const UVTransformComponent* uv);
 	// 球Boundsと投影範囲の交差を保守的に判定する
 	bool Intersects(const Matrix4x4& worldToDecal, const Vector3& center, float radius);
 	// 近面を跨ぐ範囲を欠かさず画面矩形へ変換する

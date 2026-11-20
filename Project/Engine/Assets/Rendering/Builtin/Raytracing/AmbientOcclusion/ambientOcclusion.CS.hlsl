@@ -3,6 +3,7 @@
 //============================================================================
 #include "../../Mesh/Common/deferredGBuffer.hlsli"
 #include "../raytracingSceneData.hlsli"
+#include "../../Common/hexTiling.hlsli"
 
 cbuffer PostProcessFrameConstants : register(b0) {
 
@@ -67,14 +68,15 @@ bool AcceptAOHit(inout RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query) {
 		vertices[instance.vertexOffset + indices[triangleOffset + 1u]].uv * bary.x +
 		vertices[instance.vertexOffset + indices[triangleOffset + 2u]].uv * bary.y;
 	uv = mul(float4(uv, 0.0f, 1.0f), material.uvMatrix).xy;
+	HexTilingData hex = BuildHexTiling(uv, material.hexTiling);
 	float alpha = material.importedBaseColor.a * material.color.a;
 	if (material.baseColorTextureIndex != 0xffffffffu) {
 		Texture2D<float4> color = ResourceDescriptorHeap[NonUniformResourceIndex(material.baseColorTextureIndex)];
-		alpha *= color.SampleLevel(gSampler, uv, 0.0f).a;
+		alpha *= SampleHexLevel(color, gSampler, hex, 0.0f, false).a;
 	}
 	if (material.opacityTextureIndex != 0xffffffffu) {
 		Texture2D<float4> opacity = ResourceDescriptorHeap[NonUniformResourceIndex(material.opacityTextureIndex)];
-		alpha *= opacity.SampleLevel(gSampler, uv, 0.0f).r;
+		alpha *= SampleHexLevel(opacity, gSampler, hex, 0.0f, false).r;
 	}
 	// 切り抜き部分を遮蔽物として扱わない
 	return alpha >= float(material._materialPad & 65535u) / 65535.0f;

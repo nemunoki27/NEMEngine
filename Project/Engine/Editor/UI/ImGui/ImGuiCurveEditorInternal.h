@@ -9,6 +9,8 @@
 
 namespace Engine::CurveEditorUtility {
 
+	bool DrawInterpolationCombo(const char* label, CurveInterpolationMode& interpolation, bool quaternion);
+
 	// 目盛りを加算誤差なく列挙するための範囲
 	struct CurveGridRange {
 

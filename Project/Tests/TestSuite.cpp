@@ -1,4 +1,6 @@
 #include "TestSuite.h"
+#include "BeamRendererTests.h"
+#include "HexTilingTests.h"
 #include "TimelineTests.h"
 #include "TimelineEditorTests.h"
 #include "TimelineEditorIntegrationTests.h"
@@ -197,7 +199,10 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Edit collision state failed\n";
 		return 31;
 	}
-	if (!RunTest("TestCapsuleCollisions", TestCapsuleCollisions) ||
+	if (!RunTest("TestHexTiling", TestHexTiling) ||
+		!RunTest("TestBeamRenderer", TestBeamRenderer) ||
+		!RunTest("TestBeamSegmentQueries", TestBeamSegmentQueries) ||
+		!RunTest("TestCapsuleCollisions", TestCapsuleCollisions) ||
 		!RunTest("TestPhysicsQueryTriggers", TestPhysicsQueryTriggers)) {
 		std::cerr << "Capsule collision failed\n";
 		return 28;

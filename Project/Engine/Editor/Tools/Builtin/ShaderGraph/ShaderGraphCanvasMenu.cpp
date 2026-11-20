@@ -11,6 +11,7 @@
 #include "ShaderGraphNodePreviewUtility.h"
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 
 #include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
@@ -177,10 +178,13 @@ void Engine::ShaderGraphCanvasMenu::DrawNodeCreationMenu(ImTextureID searchIcon)
 	}
 
 	const auto isCreatable = [this](const ShaderGraphNodeDescriptor& descriptor) {
+		const auto& graph = editSession_.GetDraft();
+		if (graph.domain == ShaderGraphDomain::Surface && graph.target == ShaderGraphTarget::Decal &&
+			!SupportsDecalGraphNode(descriptor.kind)) return false;
 		if (descriptor.kind == ShaderGraphNodeKind::RayTrace) {
 			return editSession_.GetDraft().domain == ShaderGraphDomain::RayTracingEffect;
 		}
-		return descriptor.kind != ShaderGraphNodeKind::SurfaceOutput && descriptor.kind != ShaderGraphNodeKind::UnlitOutput &&
+		return descriptor.kind != ShaderGraphNodeKind::DecalOutput && descriptor.kind != ShaderGraphNodeKind::SurfaceOutput && descriptor.kind != ShaderGraphNodeKind::UnlitOutput &&
 			   descriptor.kind != ShaderGraphNodeKind::PostProcessOutput &&
 			   descriptor.kind != ShaderGraphNodeKind::RayTracingOutput &&
 			   descriptor.kind != ShaderGraphNodeKind::VertexOutput && descriptor.kind != ShaderGraphNodeKind::Parameter &&

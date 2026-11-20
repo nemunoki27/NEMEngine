@@ -18,6 +18,9 @@
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
 #include <Engine/Core/Foundation/Math/Math.h>
@@ -95,7 +98,8 @@ void Engine::ParticleRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 
 void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context, const RenderItem* item,
 	std::span<const RenderItem* const> items,
-	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources) {
+	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass, ParticleBatchResources& resources,
+	const TrailRendererRecord* trail, const BeamRendererRecord* beam) {
 
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
@@ -106,9 +110,14 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	const PipelineVariantDesc* variant = nullptr;
 	const auto* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
 	const auto* emitter = payload ? ResolveParticleRenderEmitter(*item, *payload) : nullptr;
-	const bool is2D = emitter && emitter->renderSettings.space == PrimitiveRenderSpace::Screen2D;
+	const bool is2D = item->cameraDomain == RenderCameraDomain::Orthographic;
+	const AssetID geometry = is2D ? BuiltinAssets::Pipelines::ParticleTrail2D : BuiltinAssets::Pipelines::ParticleTrail;
+	MaterialPassBinding pass = *resolvedPass.pass;
+	const MaterialParameterSet* instance = trail ? &trail->settings.materialInstance.Get() :
+		(beam ? &beam->settings.materialInstance.Get() : nullptr);
+	if (instance && pass.pipeline == BuiltinAssets::Pipelines::ParticleTrail) pass.pipeline = geometry;
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveComposedGraphicsPipeline(
-		context, *resolvedPass.pass, is2D ? BuiltinAssets::Pipelines::ParticleTrail2D : BuiltinAssets::Pipelines::ParticleTrail, desiredKind, &variant);
+		context, pass, geometry, desiredKind, &variant);
 	if (!pipelineState) {
 		return;
 	}
@@ -117,11 +126,20 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 		return BackendDrawCommon::ResolveMaterialTextureIndex(
 			context, semantic, textureAssetID);
 	};
-	const ParticleCustomParameterLayout customLayout =
-		BuildParticleCustomParameterLayout(
-			pipelineState->GetGraphicsReflection(),
-			&resolvedPass.material->parameters, resolveTexture);
-	ParticleTrailDataBuilder::Build(context, items, customLayout, trailDataScratch_);
+	const MaterialParameterSet* parameters = &resolvedPass.material->parameters;
+	MaterialParameterSet mergedParameters{};
+	if (instance && !instance->empty()) {
+		mergedParameters = *parameters;
+		mergedParameters.MergeFrom(*instance);
+		parameters = &mergedParameters;
+	}
+	const ParticleCustomParameterLayout customLayout = BuildParticleCustomParameterLayout(
+		pipelineState->GetGraphicsReflection(), parameters, resolveTexture);
+	if (trail) ParticleTrailDataBuilder::Build(*trail, item->blendMode, customLayout, trailDataScratch_);
+	else if (beam) {
+		const auto* uv = item->world->TryGetComponent<UVTransformComponent>(item->entity);
+		ParticleTrailDataBuilder::Build(*beam, item->blendMode, uv ? uv->uvMatrix : Matrix4x4::Identity(), customLayout, trailDataScratch_);
+	} else ParticleTrailDataBuilder::Build(context, items, customLayout, trailDataScratch_);
 	resources.UploadTrailGeometry(trailDataScratch_);
 	if (resources.GetTrailSegmentCount() == 0) {
 		return;
@@ -183,7 +201,7 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 				trailInstance);
 		}
 		BindMaterial(context, *pipelineState, *resolvedPass.material,
-			trailInstance.empty() ? nullptr : &trailInstance,
+			instance ? instance : (trailInstance.empty() ? nullptr : &trailInstance),
 			commandList);
 	}
 
@@ -209,6 +227,30 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	const RenderItem* item = items.front();
 	const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
+	if (payload && payload->source != ParticleRenderSource::Emitter) {
+
+		const ECSWorld& world = *item->world;
+		const auto* trail = payload->source == ParticleRenderSource::Trail ? TryGetTrailRenderer(world, item->entity) : nullptr;
+		const auto* beam = payload->source == ParticleRenderSource::Beam ? TryGetBeamRenderer(world, item->entity) : nullptr;
+		if ((!trail || trail->runtime.points.size() < 2) && (!beam || beam->runtime.points.size() < 2)) return;
+		const auto resolvePass = [&](AssetID id, BackendDrawCommon::ResolvedMaterialPass& resolved) {
+
+			const MaterialAsset* material = context.assetLibrary->LoadMaterial(id);
+			if (!material) return false;
+			const auto* pass = BackendDrawCommon::FindFirstPass(*material,
+				{ context.passKind, MaterialPassKind::Transparent, MaterialPassKind::Draw });
+			if (!pass || !IsTrailMaterialPass(*material, *pass)) return false;
+			resolved = { id, material, pass };
+			return true;
+		};
+		BackendDrawCommon::ResolvedMaterialPass pass{};
+		if ((!item->material || !resolvePass(item->material, pass)) &&
+			!resolvePass(beam ? BuiltinAssets::Materials::DefaultBeam : BuiltinAssets::Materials::DefaultTrail, pass)) return;
+		auto& resources = resourcePool_.Acquire(graphicsCore,
+			[](ParticleBatchResources& resource, GraphicsCore& core) { resource.Init(core); });
+		DrawTrails(context, item, items, pass, resources, trail, beam);
+		return;
+	}
 	const ParticleEmitterRuntime* group = payload ?
 		ResolveParticleRenderEmitter(*item, *payload) : nullptr;
 	if (group && group->gpu) {

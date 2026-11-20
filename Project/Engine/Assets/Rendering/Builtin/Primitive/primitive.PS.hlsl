@@ -29,25 +29,26 @@ ResolvedPBRMaterial ResolvePrimitiveMaterial(VSOutput input) {
 	}
 
 	// ベースカラー = マテリアル色 × テクスチャ
-	float4 baseColor = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, uv,
+	const HexTilingData hex = BuildHexTiling(uv, input.hexTiling);
+	float4 baseColor = SamplePrimitiveMaterialTexture(baseColorTexture, gSampler, hex,
 		unassignedMaterialTextureMask, 0u) * color * input.vertexColor;
 	ApplyParticlePaint(uint2(input.entityIndex, input.entityGeneration), input.texcoord, input.worldPos, gSampler, baseColor);
 
 	// メタリックとラフネスはglTF流でB=metallic G=roughness
-	float4 mrSample = SamplePrimitiveMaterialTexture(metallicRoughnessTexture, gSampler, uv, unassignedMaterialTextureMask, 1u);
-	float metallicSample = SamplePrimitiveMaterialTexture(metallicTexture, gSampler, uv, unassignedMaterialTextureMask, 5u).r;
-	float roughnessSample = SamplePrimitiveMaterialTexture(roughnessTexture, gSampler, uv, unassignedMaterialTextureMask, 6u).r;
+	float4 mrSample = SamplePrimitiveMaterialTexture(metallicRoughnessTexture, gSampler, hex, unassignedMaterialTextureMask, 1u);
+	float metallicSample = SamplePrimitiveMaterialTexture(metallicTexture, gSampler, hex, unassignedMaterialTextureMask, 5u).r;
+	float roughnessSample = SamplePrimitiveMaterialTexture(roughnessTexture, gSampler, hex, unassignedMaterialTextureMask, 6u).r;
 	float resolvedMetallic = saturate(metallic * mrSample.b * metallicSample);
 	float resolvedRoughness = max(
 		saturate(roughness * mrSample.g * roughnessSample), 0.04f);
 
-	float ao = SamplePrimitiveMaterialTexture(occlusionTexture, gSampler, uv, unassignedMaterialTextureMask, 2u).r;
+	float ao = SamplePrimitiveMaterialTexture(occlusionTexture, gSampler, hex, unassignedMaterialTextureMask, 2u).r;
 	float3 emissive = emissiveColor.rgb * emissiveIntensity *
-		SamplePrimitiveMaterialTexture(emissiveTexture, gSampler, uv, unassignedMaterialTextureMask, 3u).rgb;
+		SamplePrimitiveMaterialTexture(emissiveTexture, gSampler, hex, unassignedMaterialTextureMask, 3u).rgb;
 
 	// 法線マップ、未設定は白テクスチャが入るのでフラット法線とみなして幾何法線を使う
 	float3 N = normalize(input.normal);
-	float3 normalSample = SamplePrimitiveMaterialTexture(normalTexture, gSampler, uv, unassignedMaterialTextureMask, 4u).rgb;
+	float3 normalSample = SamplePrimitiveMaterialTexture(normalTexture, gSampler, hex, unassignedMaterialTextureMask, 4u).rgb;
 	if (min(min(normalSample.r, normalSample.g), normalSample.b) < 0.99f) {
 
 		float3 T = normalize(input.tangent - N * dot(N, input.tangent));
