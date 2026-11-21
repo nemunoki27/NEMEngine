@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test worker.test.mjs content.test.mjs",
+    "test": "node --test worker.test.mjs content.test.mjs engine-release.test.mjs",
     "deploy": "wrangler deploy",
     "publish-engine": "node publish.mjs",
     "publish-content": "node content.mjs"

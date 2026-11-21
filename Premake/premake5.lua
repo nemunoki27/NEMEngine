@@ -20,7 +20,7 @@ include "premakeNemengine.lua"
 include "sandbox.lua"
 
 group "Launcher"
-for _, name in ipairs({ "NEM.Distribution", "NEM.ProjectTool", "NEM.Launcher", "NEM.Distribution.Tests" }) do
+for _, name in ipairs({ "NEM.Distribution", "NEM.ProjectTool", "NEM.Launcher", "NEM.DeveloperLauncher", "NEM.Distribution.Tests" }) do
     externalproject (name)
         location (path.join(NEM_PROJECT_ROOT, "Tools", name))
         filename (name)

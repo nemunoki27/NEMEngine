@@ -95,7 +95,8 @@ namespace {
 	}
 }
 
-Engine::EditorTemplateResult Engine::EditorTemplateStorage::OpenWorkspace(const EditorTemplateEntry& entry) {
+Engine::EditorTemplateResult Engine::EditorTemplateStorage::OpenWorkspace(const EditorTemplateEntry& entry,
+	std::optional<bool> recreateWorkspace) {
 
 	try {
 		if (!EditorSourceNavigation::IsEngineSourceProject()) return {false, "エンジン開発環境でのみ読み込めます"};
@@ -112,11 +113,8 @@ Engine::EditorTemplateResult Engine::EditorTemplateStorage::OpenWorkspace(const 
 			nlohmann::json marker;
 			if (!JsonFile::TryLoad(workspace / "Library/TemplateAuthoring.json", marker) ||
 				marker.value("sourceRevision", std::string{}) != SourceRevision(source)) {
-				const int choice = ::MessageBoxW(nullptr,
-					L"保存元のテンプレートが更新されています。保存元から読み込み直しますか？\n\nはい: 作業用プロジェクトを保存元から作り直す\nいいえ: 前回の作業を再開する",
-					L"テンプレートの読み込み", MB_YESNOCANCEL | MB_ICONQUESTION | MB_DEFBUTTON2);
-				if (choice == IDCANCEL) return {false, "テンプレートの読み込みをキャンセルしました"};
-				recreate = choice == IDYES;
+				if (!recreateWorkspace) return {false, "保存元が更新されています。保存元から作り直すか、前回の作業を再開してください", {}, true};
+				recreate = *recreateWorkspace;
 			}
 		}
 		if (recreate) {

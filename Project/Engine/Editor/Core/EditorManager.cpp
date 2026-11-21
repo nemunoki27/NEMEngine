@@ -171,6 +171,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	}
 
 	gameBuildSession_->Update();
+	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
+	developerLauncher_->Update(panelContext);
 
 	// 現在のレンダリングコンテキストを保存
 	currentRenderContext_ = &context;
@@ -235,7 +237,6 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// 固定バーの領域を確保してからドッキングスペースを描く
 	editorCommandPanelKind_ = EditorCommandPanelKind::None;
-	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
 	panelContext.viewportRenderService = nullptr;
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreDockSpace);
 	DrawDockSpace();

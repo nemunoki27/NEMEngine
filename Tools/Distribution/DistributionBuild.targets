@@ -1,0 +1,19 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- 実行中のEditorとSandboxが使うEXE・DLLを配布用ビルドから分離する -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NEMEditor' or '$(MSBuildProjectName)' == 'NEMPlayer' or '$(MSBuildProjectName)' == 'NEMBuildTool' or '$(MSBuildProjectName)' == 'NEMRuntime'">
+    <OutDir>$(NEMDistributionBuildRoot)\Output\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <IntDir>$(NEMDistributionBuildRoot)\Intermediate\$(MSBuildProjectName)\$(Configuration)\</IntDir>
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'NEMRuntime'">
+    <Link>
+      <ImportLibrary>$(OutDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(MSBuildProjectName)' == 'NEMEditor'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(NEMDistributionBuildRoot)\BuildInfo\$(Configuration);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

@@ -31,6 +31,7 @@ namespace Engine {
 		bool success = false;
 		std::string message;
 		std::filesystem::path path;
+		bool chooseWorkspace = false;
 	};
 
 	// 配布元の作成に必要な設定を固定する

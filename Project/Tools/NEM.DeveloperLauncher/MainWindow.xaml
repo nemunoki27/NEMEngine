@@ -1,0 +1,107 @@
+<Window x:Class="NEMEngine.DeveloperLauncher.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="NEMEngine 開発者ランチャー" Width="1020" Height="720"
+        MinWidth="720" MinHeight="520" WindowStartupLocation="CenterScreen" Style="{StaticResource LauncherWindowStyle}">
+  <Grid Margin="22,16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <TextBlock FontSize="24" FontWeight="SemiBold" Text="NEMEngine 開発者ランチャー"/>
+    <TextBlock Grid.Row="1" x:Name="EditorLabel" Text="Editor未接続" Foreground="#A5ACB6" Margin="0,5,0,16" TextWrapping="Wrap"/>
+    <TabControl Grid.Row="2" x:Name="Tabs" Background="#232427" BorderBrush="#44474D">
+      <TabItem Header="エンジン">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="20"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+          <ListBox x:Name="Engines" Background="#191B1F" Foreground="#EEEEEE" BorderBrush="#44474D" SelectionChanged="SelectionChanged" Padding="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="8,7"/><Setter Property="Foreground" Value="#EEEEEE"/></Style></ListBox.ItemContainerStyle>
+          </ListBox>
+          <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock Text="選択中のエンジン" Foreground="#A5ACB6" FontSize="13"/>
+              <TextBlock x:Name="EnginesTitle" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,10" TextWrapping="Wrap"/>
+              <TextBlock x:Name="EnginesDetail" TextWrapping="Wrap" Margin="0,0,0,16"/>
+              <WrapPanel>
+                <Button Content="新しいバージョンを配布" x:Name="PublishEngineButton" Tag="NewRelease" Click="CommandClick"/>
+                <Button Content="更新内容を編集" x:Name="NotesButton" Tag="EditNotes" Click="CommandClick"/>
+                <Button Content="削除" x:Name="DeleteVersionButton" Tag="DeleteRelease" Click="CommandClick"/>
+                <Button Content="本体ZIPの削除を再試行" x:Name="CleanupButton" Tag="CleanupRelease" Click="CommandClick"/>
+                <Button Content="配布一覧を更新" Tag="RefreshCatalog" Click="CommandClick"/>
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+      <TabItem Header="テンプレート">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="20"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+          <ListBox x:Name="Templates" Background="#191B1F" Foreground="#EEEEEE" BorderBrush="#44474D" SelectionChanged="SelectionChanged" Padding="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="8,7"/><Setter Property="Foreground" Value="#EEEEEE"/></Style></ListBox.ItemContainerStyle>
+          </ListBox>
+          <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock Text="配布テンプレート" Foreground="#A5ACB6" FontSize="13"/>
+              <TextBlock x:Name="TemplatesTitle" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,10" TextWrapping="Wrap"/>
+              <TextBlock x:Name="TemplatesDetail" TextWrapping="Wrap" Margin="0,0,0,16"/>
+              <WrapPanel>
+                <Button Content="現在のシーンを保存" Tag="SaveTemplate" Click="CommandClick"/>
+                <Button Content="編集用Editorで開く" Tag="OpenSource" Click="CommandClick"/>
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+      <TabItem Header="サンプルプロジェクト">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="20"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+          <ListBox x:Name="Samples" Background="#191B1F" Foreground="#EEEEEE" BorderBrush="#44474D" SelectionChanged="SelectionChanged" Padding="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="8,7"/><Setter Property="Foreground" Value="#EEEEEE"/></Style></ListBox.ItemContainerStyle>
+          </ListBox>
+          <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock Text="サンプルプロジェクト" Foreground="#A5ACB6" FontSize="13"/>
+              <TextBlock x:Name="SamplesTitle" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,10" TextWrapping="Wrap"/>
+              <TextBlock x:Name="SamplesDetail" TextWrapping="Wrap" Margin="0,0,0,16"/>
+              <WrapPanel>
+                <Button Content="現在のシーンをサンプルとして保存" Tag="SaveSampleScene" Click="CommandClick"/>
+                <Button Content="設定を編集" Tag="EditSample" Click="CommandClick"/>
+                <Button Content="編集用Editorで開く" Tag="OpenSource" Click="CommandClick"/>
+                <Button Content="公開" Tag="PublishSample" Click="CommandClick"/>
+                <Button Content="公開を停止" Tag="WithdrawSample" Click="CommandClick"/>
+                <Button Content="削除" Tag="DeleteSample" Click="CommandClick"/>
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+      <TabItem Header="アセット">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="20"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+          <ListBox x:Name="Assets" Background="#191B1F" Foreground="#EEEEEE" BorderBrush="#44474D" SelectionChanged="SelectionChanged" Padding="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="8,7"/><Setter Property="Foreground" Value="#EEEEEE"/></Style></ListBox.ItemContainerStyle>
+          </ListBox>
+          <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock Text="配布アセット" Foreground="#A5ACB6" FontSize="13"/>
+              <TextBlock x:Name="AssetsTitle" FontSize="22" FontWeight="SemiBold" Margin="0,8,0,10" TextWrapping="Wrap"/>
+              <TextBlock x:Name="AssetsDetail" TextWrapping="Wrap" Margin="0,0,0,16"/>
+              <WrapPanel>
+                <Button Content="アセットを追加" Tag="NewAsset" Click="CommandClick"/>
+                <Button Content="設定を編集" Tag="EditAsset" Click="CommandClick"/>
+                <Button Content="公開" Tag="PublishAsset" Click="CommandClick"/>
+                <Button Content="公開を停止" Tag="WithdrawAsset" Click="CommandClick"/>
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+    </TabControl>
+    <DockPanel Grid.Row="3" Margin="0,10,0,5">
+      <Button DockPanel.Dock="Right" x:Name="CancelContent" Content="キャンセル" Visibility="Collapsed" Click="CancelContentClick"/>
+      <ProgressBar x:Name="Activity" Width="76" Height="5" Margin="0,0,12,0" Visibility="Collapsed" IsIndeterminate="True"/>
+      <TextBlock x:Name="Status" TextWrapping="Wrap"/>
+    </DockPanel>
+    <Expander Grid.Row="4" Header="操作ログ" Foreground="#EEEEEE">
+      <TextBox x:Name="Log" Height="110" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+    </Expander>
+  </Grid>
+</Window>

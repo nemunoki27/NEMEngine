@@ -13,6 +13,7 @@ namespace Engine {
 	// 前方宣言
 	class IEditorPanel;
 	class TextureUploadService;
+	class EditorDeveloperLauncher;
 
 	//============================================================================
 	//	EditorPanelCreateContext structure
@@ -25,7 +26,7 @@ namespace Engine {
 	};
 
 	// ビルトインエディターパネルを表示順どおりに生成して返す
-	std::vector<std::unique_ptr<IEditorPanel>> CreateBuiltinEditorPanels(const EditorPanelCreateContext& context);
+	std::vector<std::unique_ptr<IEditorPanel>> CreateBuiltinEditorPanels(const EditorPanelCreateContext& context, EditorDeveloperLauncher& launcher);
 	// 複製可能なビルトインパネルを生成して返す
 	std::unique_ptr<IEditorPanel> CreateBuiltinEditorPanelInstance(const EditorPanelCreateContext& context,
 		const std::string& typeID, const std::string& instanceID, const std::string& displayName = {});

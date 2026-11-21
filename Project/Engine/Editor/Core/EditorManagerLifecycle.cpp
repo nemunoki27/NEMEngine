@@ -60,10 +60,11 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	LoadViewportPanelState();
 
 	gameBuildSession_ = std::make_unique<EditorGameBuildSession>();
+	developerLauncher_ = std::make_unique<EditorDeveloperLauncher>();
 
 	// 各パネルの生成と登録
 	EditorPanelCreateContext panelCreateContext{graphicsCore.GetTextureUploadService()};
-	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext)) {
+	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext, *developerLauncher_)) {
 		panels_.emplace_back(std::move(panel));
 	}
 
@@ -118,6 +119,7 @@ void Engine::EditorManager::Finalize() {
 
 	panels_.clear();
 	gameBuildSession_.reset();
+	developerLauncher_.reset();
 	tagSettings_ = {};
 	renderingLayerSettings_ = {};
 

@@ -75,6 +75,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 		editorContext_.assetDatabase = &assetDatabase_;
 		editorContext_.systemContext = &systemContext_;
 		editorContext_.sceneStorage = sceneSystem_.GetStorage();
+		editorContext_.sceneSaveController = sceneSaveController_.get();
 		editorContext_.scriptBuildService = &scriptBuildService_;
 
 		prefabSession_->ApplyEditorContext(editorContext_);

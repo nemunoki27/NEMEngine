@@ -10,7 +10,7 @@ if (args.Contains("--content-window")) {
     return;
 }
 GitNativeChecks.LauncherOverride = args.FirstOrDefault(value => value.StartsWith("--launcher="))?[11..];
-string owner = Path.Combine(repository, "LocalWork/Tests/Distribution", "LT");
+string owner = Path.Combine(repository, "LocalWork", "Tests", "Distribution", "LT");
 string root = Path.Combine(owner, Guid.NewGuid().ToString("N")[..8]);
 Directory.CreateDirectory(root);
 if (args.Contains("--cleanup-ide")) {

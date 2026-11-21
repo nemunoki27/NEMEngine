@@ -349,7 +349,7 @@ namespace {
 	};
 }
 
-Engine::EditorTemplateResult Engine::SaveEditorTemplate(const EditorTemplateSaveRequest& request, const AssetDatabase& database) {
+Engine::EditorTemplateResult Engine::StageEditorTemplate(const EditorTemplateSaveRequest& request, const AssetDatabase& database) {
 
 	std::filesystem::path staged;
 	try {
@@ -361,6 +361,17 @@ Engine::EditorTemplateResult Engine::SaveEditorTemplate(const EditorTemplateSave
 		SnapshotCollector collector(request, database);
 		collector.Collect();
 		collector.Write(staged);
+		return {true, {}, staged};
+	} catch (const std::exception& error) {
+		if (!staged.empty()) { std::error_code cleanup; std::filesystem::remove_all(staged, cleanup); }
+		return {false, error.what()};
+	}
+}
+
+Engine::EditorTemplateResult Engine::CommitEditorTemplate(const EditorTemplateSaveRequest& request, const std::filesystem::path& staged) {
+
+	try {
+		const auto target = EditorTemplateStorage::ResolveRoot(request.entry.id);
 		EditorTemplateStorage::ReplaceDirectory(staged, target);
 		nlohmann::json workspace;
 		const auto marker = request.project / "Library/TemplateAuthoring.json";
@@ -376,4 +387,10 @@ Engine::EditorTemplateResult Engine::SaveEditorTemplate(const EditorTemplateSave
 		if (!staged.empty()) { std::error_code cleanup; std::filesystem::remove_all(staged, cleanup); }
 		return {false, error.what()};
 	}
+}
+
+Engine::EditorTemplateResult Engine::SaveEditorTemplate(const EditorTemplateSaveRequest& request, const AssetDatabase& database) {
+
+	const auto staged = StageEditorTemplate(request, database);
+	return staged.success ? CommitEditorTemplate(request, staged.path) : staged;
 }

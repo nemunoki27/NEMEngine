@@ -7,6 +7,7 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include "EditorRequestSession.h"
 #include <Engine/Editor/Build/EditorGameBuildSession.h>
+#include <Engine/Editor/Templates/EditorDeveloperLauncher.h>
 #include "EditorSceneDirtyState.h"
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
@@ -188,6 +189,7 @@ namespace Engine {
 
 		// 製品ビルドの入力と子プロセス
 		std::unique_ptr<EditorGameBuildSession> gameBuildSession_;
+		std::unique_ptr<EditorDeveloperLauncher> developerLauncher_;
 		ProjectTagSettings tagSettings_;
 		ProjectRenderingLayerSettings renderingLayerSettings_;
 

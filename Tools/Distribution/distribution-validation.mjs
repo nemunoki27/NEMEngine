@@ -24,7 +24,7 @@ export function requireZIPName(value) {
       /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(value)) throw new Error('配布ファイル名を確認してください');
 }
 
-function validatePackage(value) {
+export function validatePackage(value) {
   if (!value || typeof value !== 'object') throw new Error('配布物の検証情報が不正です');
   requireID(value.id);
   const url = new URL(value.url);
@@ -36,6 +36,24 @@ function validatePackage(value) {
 // ランチャーが読み込める内容だけを配布一覧へ保存する
 export function validateContentCatalog(catalog) {
   if (!catalog || catalog.schemaVersion !== 1 || !Array.isArray(catalog.engines)) throw new Error('配布一覧の形式が不正です');
+  const active = new Set(catalog.engines.map(entry => entry.version));
+  if (active.size !== catalog.engines.length) throw new Error('エンジン版が重複しています');
+  for (const version of active) requireVersion(version);
+  if ((catalog.retiredEngineVersions !== undefined && !Array.isArray(catalog.retiredEngineVersions)) ||
+      (catalog.pendingEngineDeletes !== undefined && !Array.isArray(catalog.pendingEngineDeletes)))
+    throw new Error('削除済みエンジンの一覧が不正です');
+  const retired = new Set();
+  for (const version of catalog.retiredEngineVersions || []) {
+    requireVersion(version);
+    if (active.has(version) || retired.has(version)) throw new Error('削除済みのエンジン版が重複しています');
+    retired.add(version);
+  }
+  const pending = new Set();
+  for (const entry of catalog.pendingEngineDeletes || []) {
+    if (!retired.has(entry.version) || pending.has(entry.version) || !/^[a-f0-9]{64}$/.test(entry.sha256))
+      throw new Error('エンジンZIPの削除情報が不正です');
+    pending.add(entry.version);
+  }
   for (const kind of ['samples', 'assets']) {
     if (catalog[kind] !== undefined && !Array.isArray(catalog[kind])) throw new Error('配布一覧の形式が不正です');
     const versions = new Set();

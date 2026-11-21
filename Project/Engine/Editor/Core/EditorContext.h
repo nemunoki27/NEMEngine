@@ -17,6 +17,7 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 	class SceneAssetStorage;
+	class SceneSaveController;
 	class SceneInstanceManager;
 	class ManagedScriptBuildService;
 	struct SystemContext;
@@ -70,6 +71,7 @@ namespace Engine {
 		SystemContext* systemContext = nullptr;
 		// 編集セッションが所有するScene保存状態
 		std::shared_ptr<SceneAssetStorage> sceneStorage;
+		SceneSaveController* sceneSaveController = nullptr;
 		// managed scriptingのEditor向けサービス境界でread-only snapshot + request interface
 		// panelはEngineApplicationのprivate memberやLoggerを直接見ず、これ経由で観測・操作する
 		ManagedScriptBuildService* scriptBuildService = nullptr;

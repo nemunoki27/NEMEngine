@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include "EditorLayoutMenuSession.h"
-#include <Engine/Editor/Templates/EditorTemplateMenuSession.h>
+#include <Engine/Editor/Templates/EditorDeveloperLauncher.h>
 
 namespace Engine {
 
@@ -19,8 +19,8 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		MenuBarPanel() = default;
-		~MenuBarPanel() = default;
+		explicit MenuBarPanel(EditorDeveloperLauncher& launcher) : developerLauncher_(launcher) {}
+		~MenuBarPanel() override = default;
 
 		// 操作と設定のメニューを表示する
 		void Draw(const EditorPanelContext& context) override;
@@ -38,6 +38,6 @@ namespace Engine {
 
 		// レイアウト名の入力と保存要求
 		EditorLayoutMenuSession layoutSession_;
-		EditorTemplateMenuSession templateSession_;
+		EditorDeveloperLauncher& developerLauncher_;
 	};
 } // Engine

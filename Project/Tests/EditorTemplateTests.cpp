@@ -107,6 +107,19 @@ bool NEMTests::TestEditorTemplates() {
 		return false;
 	}
 	const auto before = ContentHash::FileSHA256(target / "template.json");
+	{
+		// 編集元が切り替わって保存を中止しても公開元は書き換えない
+		auto draft = request;
+		draft.entry.name = "保存を中止するサンプル";
+		const auto staged = StageEditorTemplate(draft, database);
+		if (!staged.success) return false;
+		ScopedCleanup discard([&]() noexcept { std::error_code error; std::filesystem::remove_all(staged.path, error); });
+		if (staged.path == target || !std::filesystem::is_regular_file(staged.path / "template.json") ||
+			ContentHash::FileSHA256(target / "template.json") != before) {
+			std::cerr << "Staging replaced the published template before commit\n";
+			return false;
+		}
+	}
 	request.entry.additionalPaths.push_back("../outside.txt");
 	if (SaveEditorTemplate(request, database).success || ContentHash::FileSHA256(target / "template.json") != before) {
 		std::cerr << "Invalid additional path changed snapshot\n";

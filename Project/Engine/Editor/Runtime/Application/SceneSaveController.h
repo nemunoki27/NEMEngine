@@ -49,6 +49,7 @@ namespace Engine {
 		void UpdateSceneSave();
 		// 保存と再要求が完了するまで待機する
 		bool WaitForSceneSave();
+		bool IsSaving() const { return sceneSaveJob_.has_value() || !queuedInstances_.empty(); }
 
 	private:
 		//========================================================================

@@ -46,6 +46,10 @@ async function readAuthentication() {
 }
 
 export async function createPublicationClient(options = {}) {
+  if (process.env.NEM_DISTRIBUTION_TEST_ROOT !== undefined) {
+    const {createLocalPublicationClient} = await import('./publication-local.mjs');
+    return createLocalPublicationClient(process.env.NEM_DISTRIBUTION_TEST_ROOT);
+  }
   const signal = options.signal;
   const config = JSON.parse(await readFile(new URL('wrangler.jsonc', import.meta.url), 'utf8'));
   const account = process.env.CLOUDFLARE_ACCOUNT_ID || config.account_id;

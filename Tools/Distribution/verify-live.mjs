@@ -35,7 +35,7 @@ for (const item of mode === '--catalog-only' ? [] : packages) {
 }
 const hidden = await fetch(new URL('/', catalogURL));
 if (hidden.status !== 404) throw new Error('配信元のrootが公開されています');
-const denied = await fetch(packages[0].url, {method:'POST'});
+const denied = await fetch(packages[0]?.url ?? catalogURL, {method:'POST'});
 if (denied.status !== 405) throw new Error('配信先が書き込み要求を拒否していません');
 if (mode !== '--binaries-only') {
   const response = await fetch(catalogURL, {redirect:'error'});

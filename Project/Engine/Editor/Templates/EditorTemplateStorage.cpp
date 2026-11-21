@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Utility/EditorSourceNavigation.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
@@ -58,20 +57,6 @@ bool Engine::EditorTemplateStorage::Read(const std::filesystem::path& root, Edit
 	return false;
 }
 
-std::vector<Engine::EditorTemplateEntry> Engine::EditorTemplateStorage::ListSamples() {
-
-	std::vector<EditorTemplateEntry> result;
-	std::error_code error;
-	const auto root = Repository() / "Templates/Samples";
-	for (std::filesystem::directory_iterator it(root, error), end; !error && it != end; it.increment(error)) {
-		if (!it->is_directory(error) || it->is_symlink(error)) continue;
-		EditorTemplateEntry entry;
-		if (Read(it->path(), entry) && entry.kind == "Sample") result.push_back(std::move(entry));
-	}
-	std::sort(result.begin(), result.end(), [](const auto& a, const auto& b) { return a.name < b.name; });
-	return result;
-}
-
 Engine::EditorTemplateEntry Engine::EditorTemplateStorage::MakeEntry(const std::string& kind) {
 
 	EditorTemplateEntry entry;
@@ -120,17 +105,4 @@ void Engine::EditorTemplateStorage::ReplaceDirectory(const std::filesystem::path
 	try { std::filesystem::rename(staged, target); }
 	catch (...) { if (exists) std::filesystem::rename(previous, target); throw; }
 	if (exists) std::filesystem::remove_all(previous);
-}
-
-Engine::EditorTemplateResult Engine::EditorTemplateStorage::RemoveSample(const std::string& id) {
-
-	try {
-		if (!EditorSourceNavigation::IsEngineSourceProject() || !IsSampleID(id))
-			return {false, "エンジン開発環境でのみ削除できます"};
-		const auto root = ResolveRoot(id);
-		if (std::filesystem::is_symlink(root) || !StorageFileUtility::IsInside(root, Repository() / "Templates/Samples"))
-			return {false, "リンクされた保存元は削除できません"};
-		std::filesystem::remove_all(root);
-		return {true, "サンプルプロジェクトを削除しました", root};
-	} catch (const std::exception& error) { return {false, error.what()}; }
 }

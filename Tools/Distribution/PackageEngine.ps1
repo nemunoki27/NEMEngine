@@ -3,12 +3,18 @@
     [string]$ToolchainRoot = '',
     [string]$OutputDirectory = '',
     [string]$BaseUrl = '',
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$IsolatedBuild
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $engineRepository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+$buildRoot = Join-Path $engineRepository 'Generated'
+if ($IsolatedBuild) {
+    if ($SkipBuild) { throw '配布用の独立ビルドではビルドを省略できません' }
+    $buildRoot = Join-Path $buildRoot 'Distribution/Build'
+}
 . (Join-Path $engineRepository 'Tools/ProductBuild/BuildFileOperations.ps1')
 . (Join-Path $engineRepository 'Tools/FileSystem/DirectorySafety.ps1')
 if ($Version -notmatch '^\d+\.\d+\.\d+$' -or ([version]$Version).ToString(3) -ne $Version) { throw '版番号は0.1.0の形式で指定してください' }
@@ -70,17 +76,40 @@ function New-PackageInfo([string]$directory, [string]$id, [string]$key, [bool]$c
     return [ordered]@{ id = $id; url = $BaseUrl.TrimEnd('/') + '/' + $key; sha256 = $hash; bytes = (Get-Item -LiteralPath $zip).Length; unpackedBytes = [long]$bytes }
 }
 
+$buildLock = $null
 try {
+    if ($IsolatedBuild) {
+        [IO.Directory]::CreateDirectory($buildRoot) | Out-Null
+        try {
+            $buildLock = [IO.File]::Open((Join-Path $buildRoot 'package.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
+        } catch [IO.IOException] {
+            throw '別の配布ビルドが進行中です。終了してから再試行してください'
+        }
+    }
     if (!$SkipBuild) {
         # ソースを増減していない配布作業では再生成しない
         $msbuild = Get-MSBuildPath
+        if ($IsolatedBuild) {
+            & (Join-Path $engineRepository 'Tools/GenerateEditorBuildInfo.ps1') -Configuration Develop -OutputPath (Join-Path $buildRoot 'BuildInfo/Develop/EditorBuildInfo.generated.h')
+        }
         foreach ($entry in @(@('Develop', 'NEMEditor'), @('Release', 'NEMPlayer'), @('Release', 'NEMBuildTool'))) {
             $buildArguments = @(Get-NativeBuildArguments $entry[0] $entry[1])
+            if ($IsolatedBuild) {
+                $buildArguments += "/p:NEMDistributionBuildRoot=$buildRoot", "/p:ForceImportBeforeCppTargets=$PSScriptRoot/DistributionBuild.targets"
+            }
             & $msbuild (Join-Path $engineRepository 'Project/NEMEngine.slnx') @buildArguments
             if ($LASTEXITCODE -ne 0) { throw "ネイティブビルドに失敗しました: $entry" }
         }
         foreach ($name in @('NEM.ScriptCore', 'NEM.ScriptCodeGen', 'NEM.ScriptAnalyzers', 'NEM.ScriptMetaSync')) {
-            & $dotnet build (Join-Path $engineRepository "Project/Engine/Managed/$name/$name.csproj") -c Release -m:1 -nodeReuse:false
+            $project = Join-Path $engineRepository "Project/Engine/Managed/$name/$name.csproj"
+            if ($IsolatedBuild -and $name -eq 'NEM.ScriptCore') {
+                foreach ($configuration in 'Develop','Release') {
+                    & $dotnet build $project -c $configuration -o (Join-Path $buildRoot "Managed/$name/$configuration") -m:1 -nodeReuse:false
+                    if ($LASTEXITCODE -ne 0) { throw "C#ランタイムのビルドに失敗しました: $configuration" }
+                }
+                continue
+            }
+            & $dotnet build $project -c Release -m:1 -nodeReuse:false
             if ($LASTEXITCODE -ne 0) { throw "C#ツールのビルドに失敗しました: $name" }
         }
     }
@@ -102,17 +131,20 @@ try {
     Copy-RequiredFile (Join-Path $engineRepository 'Tools/BuildGame.ps1') (Join-Path $packageRoot 'Tools/BuildGame.ps1')
     Copy-RequiredFile (Join-Path $PSScriptRoot 'NEM.GameScripts.targets') (Join-Path $packageRoot 'Managed/Build/NEM.GameScripts.targets')
     foreach ($entry in @(@('Develop', 'NEMEditor', 'Editor/Develop'), @('Release', 'NEMPlayer', 'Runtime/Release'), @('Release', 'NEMBuildTool', 'Tools/NEMBuildTool'))) {
-        $source = Join-Path $engineRepository "Generated/Output/$($entry[0])/$($entry[1])"
+        $source = Join-Path $buildRoot "Output/$($entry[0])/$($entry[1])"
         $target = Join-Path $packageRoot $entry[2]
         Copy-RequiredFile (Join-Path $source "$($entry[1]).exe") (Join-Path $target "$($entry[1]).exe")
         $runtimeArguments = @{ TargetDirectory = $target; Configuration = $entry[0] }
-        if ($entry[1] -eq 'NEMPlayer') { $runtimeArguments.RuntimeDllPath = Join-Path $engineRepository 'Generated/Bin/Release/NEMRuntime/NEMRuntime.dll' }
+        if ($entry[1] -eq 'NEMPlayer') {
+            $runtimeFolder = if ($IsolatedBuild) { 'Output' } else { 'Bin' }
+            $runtimeArguments.RuntimeDllPath = Join-Path $buildRoot "$runtimeFolder/Release/NEMRuntime/NEMRuntime.dll"
+        }
         & (Join-Path $engineRepository 'Tools/DeployRuntimeDependencies.ps1') @runtimeArguments
         if ($entry[1] -ne 'NEMBuildTool') {
-            Copy-PackageDirectory (Join-Path $engineRepository "Generated/Managed/NEM.ScriptCore/$($entry[0])") (Join-Path $target 'Managed')
+            Copy-PackageDirectory (Join-Path $buildRoot "Managed/NEM.ScriptCore/$($entry[0])") (Join-Path $target 'Managed')
         }
     }
-    $managedSource = Join-Path $engineRepository 'Generated/Managed/NEM.ScriptCore/Develop'
+    $managedSource = Join-Path $buildRoot 'Managed/NEM.ScriptCore/Develop'
     foreach ($name in @('NEM.ScriptCore.dll', 'NEM.ScriptCore.pdb')) { Copy-RequiredFile (Join-Path $managedSource $name) (Join-Path $packageRoot "Managed/Ref/$name") }
     foreach ($name in @('NEM.ScriptCodeGen', 'NEM.ScriptAnalyzers')) {
         Copy-RequiredFile (Join-Path $engineRepository "Project/Engine/Managed/$name/bin/Release/netstandard2.0/$name.dll") (Join-Path $packageRoot "Managed/Analyzers/$name.dll")
@@ -175,6 +207,7 @@ try {
     Move-Item -LiteralPath $archiveRoot -Destination $releaseDirectory
     Write-Host "配布物を作成しました: $releaseDirectory"
 } finally {
+    if ($null -ne $buildLock) { $buildLock.Dispose() }
     $checked = [IO.Path]::GetFullPath($stage)
     if ([IO.Path]::GetDirectoryName($checked) -ne $OutputDirectory -or ![IO.Path]::GetFileName($checked).StartsWith('.package-')) { throw '作業先の削除範囲が不正です' }
     if (Test-Path -LiteralPath $checked) { Remove-Item -LiteralPath $checked -Recurse -Force }

@@ -18,13 +18,13 @@
 //	BuiltinEditorPanelRegistration methods
 //============================================================================
 std::vector<std::unique_ptr<Engine::IEditorPanel>> Engine::CreateBuiltinEditorPanels(
-	const EditorPanelCreateContext& context) {
+	const EditorPanelCreateContext& context, EditorDeveloperLauncher& launcher) {
 
 	TextureUploadService& textureUploadService = context.textureUploadService;
 
 	// 表示順は既存のInitと同一に保つ、順番を変えるとレイアウト復元に影響する
 	std::vector<std::unique_ptr<IEditorPanel>> panels;
-	panels.emplace_back(std::make_unique<MenuBarPanel>());
+	panels.emplace_back(std::make_unique<MenuBarPanel>(launcher));
 	panels.emplace_back(std::make_unique<ToolbarPanel>(textureUploadService));
 	panels.emplace_back(std::make_unique<HierarchyPanel>(textureUploadService));
 	panels.emplace_back(std::make_unique<InspectorPanel>());

@@ -52,6 +52,7 @@ export function updateContentCatalog(catalog, request, packageInfo) {
 }
 
 export async function resolveBaseURL(value) {
+  if (process.env.NEM_DISTRIBUTION_TEST_ROOT !== undefined) return (await import('./publication-local.mjs')).testBaseURL;
   if (value) return requireBaseURL(value);
   for (const file of [path.join(repository, 'Generated/Distribution/channel.json'),
     path.join(process.env.LOCALAPPDATA || '', 'NEMEngine/Launcher/state.json')]) {
@@ -73,11 +74,13 @@ export async function publishContent(request, suppliedClient, signal) {
     const next = updateContentCatalog(current.catalog, request);
     signal?.throwIfAborted();
     await writeCatalog(client, next, current.etag);
-    if (!suppliedClient) await cacheCatalog(next);
+    if (!suppliedClient && process.env.NEM_DISTRIBUTION_TEST_ROOT === undefined) await cacheCatalog(next);
     console.log('配布一覧から取り下げました: ' + request.id);
     return next;
   }
-  const root = path.join(repository, suppliedClient ? 'LocalWork/Tests/DistributionContent' : 'Generated/DistributionContent');
+  const root = process.env.NEM_DISTRIBUTION_TEST_ROOT
+    ? path.join(repository, 'LocalWork/Verification/DeveloperLauncher/Content')
+    : path.join(repository, suppliedClient ? 'LocalWork/Tests/DistributionContent' : 'Generated/DistributionContent');
   await mkdir(root, {recursive:true});
   const stage = await mkdtemp(path.join(root, 'publish-'));
   try {
@@ -107,7 +110,7 @@ export async function publishContent(request, suppliedClient, signal) {
     await uploadArchive(client, archive, key, packageInfo, {verifiedHash:sha256, signal});
     signal?.throwIfAborted();
     await writeCatalog(client, next, current.etag);
-    if (!suppliedClient) await cacheCatalog(next);
+    if (!suppliedClient && process.env.NEM_DISTRIBUTION_TEST_ROOT === undefined) await cacheCatalog(next);
     await writeFile(path.join(stage, 'published.json'), JSON.stringify(packageInfo));
     console.log('公開しました: ' + request.name);
     return next;
