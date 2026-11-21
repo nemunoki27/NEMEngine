@@ -80,7 +80,7 @@
                             "name": "A"
                         }
                     ],
-                    "emitting": false,
+                    "emitting": true,
                     "is2D": false,
                     "layer": 0,
                     "lifetime": 0.41999998688697815,
@@ -152,10 +152,10 @@
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 0.8320998549461365,
+                        "w": 0.8822165727615356,
                         "x": 0.0,
                         "y": 0.0,
-                        "z": 0.5546258687973022
+                        "z": 0.4708437919616699
                     },
                     "localScale": {
                         "x": 1.0,
@@ -563,6 +563,144 @@
                 }
             },
             "LocalFileID": "29c28526de573ef6"
+        },
+        {
+            "Components": {
+                "DecalProjector": {
+                    "drawDistance": 1000.0,
+                    "enabled": true,
+                    "endAngleFade": 85.0,
+                    "fadeScale": 0.8999999761581421,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "21e3e33ff9022f7b",
+                            "name": "affectNormal",
+                            "semantic": "None",
+                            "value": true
+                        },
+                        {
+                            "id": "43c33856c97e4ca6",
+                            "name": "opacity",
+                            "semantic": "Opacity",
+                            "value": 0.9700000286102295
+                        },
+                        {
+                            "id": "4f50ecfc0176b5d3",
+                            "name": "affectSurface",
+                            "semantic": "None",
+                            "value": false
+                        },
+                        {
+                            "id": "6cce61cdfda392e5",
+                            "name": "normalTexture",
+                            "semantic": "NormalTexture",
+                            "value": "541af2789f047f3363f6117a07cb42a2"
+                        },
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            }
+                        },
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "ebcf0deab8d2c6d4d0aefed3cf716721"
+                        },
+                        {
+                            "id": "a62da48e7896ccf3",
+                            "name": "normalStrength",
+                            "semantic": "None",
+                            "value": 0.23999999463558197
+                        },
+                        {
+                            "id": "c65b493a4e9d7f55",
+                            "name": "roughness",
+                            "semantic": "Roughness",
+                            "value": 0.44999998807907104
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 0.0
+                        }
+                    ],
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 2.0
+                    },
+                    "receiverRenderingLayerMask": 16777215,
+                    "renderingLayerMask": 1,
+                    "size": {
+                        "x": 4.0,
+                        "y": 4.0,
+                        "z": 2.0
+                    },
+                    "sortOrder": 0,
+                    "startAngleFade": 60.0
+                },
+                "HexTiling": {
+                    "enabled": false,
+                    "excludedSubMeshIDs": [],
+                    "excludedSubMeshIndices": [],
+                    "randomRotation": 108.0,
+                    "seed": 0,
+                    "tileSize": 0.2409999966621399
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "Name": {
+                    "name": "Decal_1"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "490db767fe960238",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -17.27385711669922,
+                        "y": 2.8540403842926025,
+                        "z": 4.380209445953369
+                    },
+                    "localRotation": {
+                        "w": 0.7071067690849304,
+                        "x": 0.7071067690849304,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.7394829988479614,
+                        "y": 1.7394829988479614,
+                        "z": 1.7394829988479614
+                    }
+                },
+                "UVTransform": {
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "rotation": 0.0,
+                    "scale": {
+                        "x": 1.0,
+                        "y": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "490db767fe960238"
         },
         {
             "Components": {
@@ -2143,9 +2281,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -7.950550556182861,
+                        "x": -7.401594161987305,
                         "y": 0.47430017590522766,
-                        "z": 7.4943718910217285
+                        "z": 7.95282506942749
                     },
                     "localRotation": {
                         "w": 0.3409254252910614,
@@ -2210,7 +2348,7 @@
                             "id": "93c33e46dc8a4e8e",
                             "name": "baseColorTexture",
                             "semantic": "BaseColorTexture",
-                            "value": "2e9fa646a1ea1c743cd02fdbc7bfcb7d"
+                            "value": "760c702064fc5170af0056689cc6e414"
                         },
                         {
                             "id": "a62da48e7896ccf3",
@@ -2247,7 +2385,7 @@
                     "startAngleFade": 60.0
                 },
                 "HexTiling": {
-                    "enabled": true,
+                    "enabled": false,
                     "excludedSubMeshIDs": [],
                     "excludedSubMeshIndices": [],
                     "randomRotation": 108.0,
@@ -2271,7 +2409,7 @@
                     "dimension": 1,
                     "localPos": {
                         "x": -14.641926765441895,
-                        "y": 3.8244595527648926,
+                        "y": 2.562666893005371,
                         "z": 6.291738033294678
                     },
                     "localRotation": {
@@ -2281,20 +2419,20 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.7396692037582397,
-                        "y": 1.7396692037582397,
-                        "z": 1.7396692037582397
+                        "x": 1.7396289110183716,
+                        "y": 1.7396289110183716,
+                        "z": 1.7396289110183716
                     }
                 },
                 "UVTransform": {
                     "pos": {
-                        "x": 0.44999998807907104,
+                        "x": 0.0,
                         "y": 0.0
                     },
                     "rotation": 12.260000228881836,
                     "scale": {
-                        "x": 6.519999027252197,
-                        "y": 6.519999027252197
+                        "x": 1.0,
+                        "y": 1.0
                     }
                 }
             },
@@ -3332,8 +3470,8 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -2.022918939590454,
-                        "y": 0.19520531594753265,
+                        "x": -1.1274899244308472,
+                        "y": -0.2592630088329315,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -5387,6 +5525,22 @@
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
+                "ScreenSpaceOutline": {
+                    "alphaSource": "OutputColor",
+                    "alphaThreshold": 0.10000000149011612,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 0.11914896965026855,
+                        "r": 0.0
+                    },
+                    "enabled": true,
+                    "priority": 100,
+                    "regionMode": "AllVisibleSilhouettes",
+                    "uiOcclusionMode": "RespectRenderOrder",
+                    "visibilityMode": "VisibleOnly",
+                    "widthPixels": 3.0
+                },
                 "SkinnedAnimation": {
                     "clip": "Default",
                     "enabled": true,
@@ -6158,7 +6312,7 @@
                     "dimension": 1,
                     "localPos": {
                         "x": 2.4000000953674316,
-                        "y": 0.4757208824157715,
+                        "y": -0.819138765335083,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -7049,7 +7203,7 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.33032500743865967,
+                        "x": -0.696505069732666,
                         "y": 0.31527411937713623,
                         "z": 6.854861259460449
                     },
