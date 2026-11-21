@@ -23,7 +23,7 @@
 bool NEMTests::TestPostProcessPublication() {
 
 	using namespace Engine;
-	TestDirectory directory("PostProcessPublication", RuntimePaths::GetGameAssetsRoot() / "Shaders");
+	TestDirectory directory("PostProcessPublication", RuntimePaths::GetGameAssetsRoot());
 	std::array<PostProcessAssetSource, 2> sources;
 	for (size_t index = 0; index < sources.size(); ++index) {
 		auto& source = sources[index];

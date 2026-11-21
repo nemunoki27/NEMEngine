@@ -110,11 +110,21 @@ bool NEMTests::TestEditorTemplates() {
 	{
 		// 編集元が切り替わって保存を中止しても公開元は書き換えない
 		auto draft = request;
+		draft.entry.kind = "3D";
+		draft.entry.id = "3D";
+		const auto standard = EditorTemplateStorage::ResolveRoot(draft.entry.id);
+		const auto standardBefore = ContentHash::FileSHA256(standard / "template.json");
 		draft.entry.name = "保存を中止するサンプル";
 		const auto staged = StageEditorTemplate(draft, database);
 		if (!staged.success) return false;
 		ScopedCleanup discard([&]() noexcept { std::error_code error; std::filesystem::remove_all(staged.path, error); });
-		if (staged.path == target || !std::filesystem::is_regular_file(staged.path / "template.json") ||
+		for (const char* name : {"CollisionSettings.json", "TagSettings.json", "RenderingLayers.json"}) {
+			const auto path = std::filesystem::path("ProjectSettings") / name;
+			if (std::filesystem::exists(staged.path / path) ||
+				std::filesystem::exists(request.project / path) != std::filesystem::exists(target / path)) return false;
+		}
+		if (staged.path == standard || ContentHash::FileSHA256(standard / "template.json") != standardBefore ||
+			!std::filesystem::is_regular_file(staged.path / "template.json") ||
 			ContentHash::FileSHA256(target / "template.json") != before) {
 			std::cerr << "Staging replaced the published template before commit\n";
 			return false;

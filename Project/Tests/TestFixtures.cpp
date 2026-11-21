@@ -47,6 +47,7 @@ namespace NEMTests {
 
 	TestDirectory::TestDirectory(std::string_view name, const std::filesystem::path& parent) {
 
+		hadActorDirectory_ = std::filesystem::is_directory(Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors");
 		// 他の検証やゲームAssetと作業先を分ける
 		const auto root =
 			parent.empty() ? Engine::RuntimePaths::GetEngineProjectRoot().parent_path() / "LocalWork/Tests/TestFixtures" : parent;
@@ -79,6 +80,11 @@ namespace NEMTests {
 			std::filesystem::remove_all(path_);
 			for (const auto& root : actorRoots_) {
 				std::filesystem::remove_all(root);
+			}
+			if (!hadActorDirectory_ && !actorRoots_.empty()) {
+				std::error_code ec;
+				const auto parent = actorRoots_.front().parent_path();
+				if (std::filesystem::is_directory(parent, ec)) std::filesystem::remove(parent, ec);
 			}
 			for (const auto& recovery : recoveries) {
 				std::filesystem::remove_all(recovery);

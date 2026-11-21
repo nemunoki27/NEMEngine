@@ -73,7 +73,7 @@ bool Engine::SceneAssetStorage::CreateCopies(const std::vector<SceneAssetCopySna
 			changes.push_back({metaPath, std::move(metadata)});
 			std::unordered_set<std::string> used;
 			AppendSaveChanges(snapshot, changes, used);
-			if (snapshot.useExternalActors) {
+			if (!used.empty()) {
 				actorRoots.push_back({actorRoot});
 			}
 		}

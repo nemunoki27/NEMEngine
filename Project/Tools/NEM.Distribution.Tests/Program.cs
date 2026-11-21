@@ -107,6 +107,15 @@ try {
     var manifest = new EngineManifest { Version = "0.1.0", BuildID = "test", ToolchainVersion = "10.0.401" };
     DistributionStorage.Write(Path.Combine(engine, "engine.json"), manifest);
     DistributionStorage.CopyTree(Path.Combine(repository, "Templates/ManagedProject"), Path.Combine(engine, "ProjectTemplates"));
+    string[] localSettings = ["CollisionSettings.json", "TagSettings.json", "RenderingLayers.json"];
+    foreach (string kind in new[] { "Common", "2D", "3D" }) {
+        string rootTemplate = Path.Combine(engine, "ProjectTemplates", kind);
+        Directory.CreateDirectory(Path.Combine(rootTemplate, "ProjectSettings"));
+        foreach (string file in localSettings) File.WriteAllText(Path.Combine(rootTemplate, "ProjectSettings", file), "{}");
+        Directory.CreateDirectory(Path.Combine(rootTemplate, "GameAssets/Shaders"));
+        Directory.CreateDirectory(Path.Combine(rootTemplate, "GameAssets/ExternalActors"));
+    }
+    File.WriteAllText(Path.Combine(engine, "ProjectTemplates/2D/GameAssets/Shaders/test.hlsli"), "// Shader");
     string templateScene = Path.Combine(engine, "ProjectTemplates/3D/GameAssets/Scenes/Main.scene.json");
     File.SetAttributes(templateScene, File.GetAttributes(templateScene) | FileAttributes.ReadOnly);
     var store = new LauncherStore(Path.Combine(root, "state"));
@@ -114,6 +123,14 @@ try {
     var projects = new ProjectService(store);
     var project = projects.Create("日本語 空白", Path.Combine(root, "projects"), "0.1.0", "3D");
     string projectRoot = Path.GetDirectoryName(project.Descriptor)!;
+    var isolated2D = projects.Create("初期値2D", Path.Combine(root, "projects"), "0.1.0", "2D");
+    string root2D = Path.GetDirectoryName(isolated2D.Descriptor)!;
+    foreach (string created in new[] { projectRoot, root2D }) {
+        Check(localSettings.All(file => !File.Exists(Path.Combine(created, "ProjectSettings", file))), "標準プロジェクトが配布元の設定を引き継ぎました");
+        Check(!Directory.Exists(Path.Combine(created, "GameAssets/ExternalActors")), "空のExternalActorsを作成しました");
+    }
+    Check(!Directory.Exists(Path.Combine(projectRoot, "GameAssets/Shaders")) &&
+        File.Exists(Path.Combine(root2D, "GameAssets/Shaders/test.hlsli")), "Shadersの作成条件が正しくありません");
     Check(ProjectService.Read(project.Descriptor).EngineVersion == "0.1.0", "使用版を保存していません");
     Check(File.Exists(Path.Combine(projectRoot, "Scripts/GameScripts.csproj")), "C#プロジェクトがありません");
     Check(File.ReadAllText(Path.Combine(projectRoot, "GameAssets/Fonts/Charset/default_charset.txt")).Contains("0x7e"), "MSDFの文字集合がGameAssetsへコピーされません");

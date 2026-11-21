@@ -9,6 +9,7 @@
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Texture/SeamlessTextureTool.h>
 #include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDebugDraw.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
@@ -57,6 +58,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<TimelineTool>();
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
+	RegisterBuiltinEditorTool<SeamlessTextureTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
 	RegisterBuiltinEditorTool<LogicPlacementTool>();

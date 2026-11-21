@@ -80,16 +80,29 @@ bool Engine::EditorTemplateStorage::WriteEntry(const EditorTemplateEntry& entry,
 	return JsonFile::Save(root / "template.json", data);
 }
 
-void Engine::EditorTemplateStorage::CopyTree(const std::filesystem::path& source, const std::filesystem::path& target) {
+bool Engine::EditorTemplateStorage::UsesProjectDefaults(const std::filesystem::path& path) {
+
+	const auto relative = Algorithm::ToLower(Algorithm::ConvertString(path.lexically_normal().generic_wstring()));
+	return relative == "projectsettings/collisionsettings.json" || relative == "projectsettings/tagsettings.json" ||
+		relative == "projectsettings/renderinglayers.json";
+}
+
+void Engine::EditorTemplateStorage::CopyTree(const std::filesystem::path& source, const std::filesystem::path& target,
+	bool projectDefaults) {
 
 	if (!std::filesystem::exists(source)) return;
 	if (std::filesystem::is_symlink(source)) throw std::runtime_error("リンクされたフォルダーは保存できません");
 	std::filesystem::create_directories(target);
 	for (const auto& item : std::filesystem::recursive_directory_iterator(source)) {
 		if (item.is_symlink()) throw std::runtime_error("リンクされたファイルは保存できません");
-		const auto destination = target / item.path().lexically_relative(source);
-		if (item.is_directory()) std::filesystem::create_directories(destination);
-		else if (item.is_regular_file()) {
+		const auto relative = item.path().lexically_relative(source);
+		if (projectDefaults && UsesProjectDefaults(relative)) continue;
+		const auto destination = target / relative;
+		if (item.is_directory()) {
+			const auto folder = Algorithm::ToLower(Algorithm::ConvertString(relative.generic_wstring())) + "/";
+			if (!folder.starts_with("gameassets/shaders/") && !folder.starts_with("gameassets/externalactors/"))
+				std::filesystem::create_directories(destination);
+		} else if (item.is_regular_file()) {
 			std::filesystem::create_directories(destination.parent_path());
 			std::filesystem::copy_file(item.path(), destination, std::filesystem::copy_options::overwrite_existing);
 			std::filesystem::permissions(destination, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);

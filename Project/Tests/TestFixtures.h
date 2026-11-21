@@ -47,6 +47,7 @@ namespace NEMTests {
 		// この検証だけが所有する作業先
 		std::filesystem::path path_;
 		std::vector<std::filesystem::path> actorRoots_;
+		bool hadActorDirectory_ = false;
 	};
 
 	// 読込は許可し、置換と書込を失敗させる

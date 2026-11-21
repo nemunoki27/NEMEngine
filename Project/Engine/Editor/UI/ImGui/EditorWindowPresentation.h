@@ -23,6 +23,8 @@ namespace Engine::EditorWindowPresentation {
 	void ConfigureFont(ImGuiIO& io);
 	// 共通のタイトル表示でウィンドウを開始する
 	bool Begin(const char* name, bool* open = nullptr, ImGuiWindowFlags flags = 0);
+	// ドックタブまたは独立ウィンドウのタイトルからメニューを開く
+	bool BeginTitlePopup(const char* id);
 	// 保存済みレイアウトでもタブを表示する
 	void PrepareDockNodes();
 

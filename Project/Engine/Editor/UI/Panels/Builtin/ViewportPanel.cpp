@@ -94,6 +94,15 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(2.0f, 2.0f));
 	const bool drawContents = Engine::EditorWindowPresentation::Begin(MakeWindowName(windowName_).c_str(), visible);
 	ImGui::PopStyleVar();
+	if (EditorWindowPresentation::BeginTitlePopup("##ViewportTitleMenu")) {
+		const auto kind = kind_ == ViewportPanelKind::Game ? RenderViewKind::Game : RenderViewKind::Scene;
+		const bool ready = context.screenshotRequest && context.viewportRenderService &&
+			context.viewportRenderService->GetDisplayTexture(kind);
+		if (ImGui::MenuItem("スクリーンショットを撮る", nullptr, false, ready)) {
+			*context.screenshotRequest = kind;
+		}
+		ImGui::EndPopup();
+	}
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}

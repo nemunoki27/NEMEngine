@@ -46,8 +46,8 @@ public sealed partial class ProjectService {
         string stage = DistributionStorage.Child(parent, ".project-" + Guid.NewGuid().ToString("N"));
         bool published = false;
         try {
-            CopyTemplate(Path.Combine(installed.Root, "ProjectTemplates", "Common"), stage, token);
-            CopyTemplate(source, stage, token);
+            CopyTemplate(Path.Combine(installed.Root, "ProjectTemplates", "Common"), stage, sampleID == null, token);
+            CopyTemplate(source, stage, sampleID == null, token);
             if (template != null) {
                 ValidateStartupScene(stage, template.StartupScene);
                 DistributionStorage.Write(Path.Combine(stage, "ProjectSettings/Runtime/StartupScene.json"), new { activeScene = template.StartupScene });
@@ -73,26 +73,31 @@ public sealed partial class ProjectService {
     }
 
     // 説明情報と生成物をプロジェクトへ混ぜない
-    private static void CopyTemplate(string source, string destination, CancellationToken token) {
+    private static void CopyTemplate(string source, string destination, bool projectDefaults, CancellationToken token) {
         foreach (string entry in Directory.EnumerateFileSystemEntries(source)) {
             token.ThrowIfCancellationRequested();
             string name = Path.GetFileName(entry);
             if (name == "template.json") continue;
             if (name is not ("GameAssets" or "Scripts" or "ProjectSettings" or "Packages" or ".gitignore" or ".gitattributes"))
                 throw new InvalidDataException("テンプレートに配布対象外の項目があります: " + name);
-            CopyTemplateEntry(entry, DistributionStorage.Child(destination, name), token);
+            CopyTemplateEntry(entry, destination, name, projectDefaults, token);
         }
     }
 
     // スナップショットの設定を共通雛形へ重ねる
-    private static void CopyTemplateEntry(string source, string destination, CancellationToken token) {
+    private static void CopyTemplateEntry(string source, string root, string relative, bool projectDefaults, CancellationToken token) {
         token.ThrowIfCancellationRequested();
         if ((File.GetAttributes(source) & FileAttributes.ReparsePoint) != 0) throw new IOException("リンクを含むテンプレートは使用できません");
+        string destination = DistributionStorage.Child(root, relative);
         if (Directory.Exists(source)) {
-            Directory.CreateDirectory(destination);
+            string folder = relative.ToLowerInvariant() + "/";
+            if (!folder.StartsWith("gameassets/shaders/", StringComparison.Ordinal) &&
+                !folder.StartsWith("gameassets/externalactors/", StringComparison.Ordinal)) Directory.CreateDirectory(destination);
             foreach (string entry in Directory.EnumerateFileSystemEntries(source))
-                CopyTemplateEntry(entry, DistributionStorage.Child(destination, Path.GetFileName(entry)), token);
+                CopyTemplateEntry(entry, root, relative + "/" + Path.GetFileName(entry), projectDefaults, token);
         } else {
+            if (projectDefaults && relative.ToLowerInvariant() is
+                ("projectsettings/collisionsettings.json" or "projectsettings/tagsettings.json" or "projectsettings/renderinglayers.json")) return;
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(source, destination, true);
             File.SetAttributes(destination, File.GetAttributes(destination) & ~FileAttributes.ReadOnly);

@@ -19,6 +19,9 @@ internal static class ContentDistributionChecks {
             ["GameAssets/Scripts/Actor.cs"] = "// 日本語のスクリプト\nclass Actor {}",
             ["GameAssets/Scripts/Actor.cs.meta"] = "{\"guid\":\"22222222222222222222222222222222\"}",
             ["ProjectSettings/Runtime/FrameRate.json"] = "{\"limit\":120}",
+            ["ProjectSettings/CollisionSettings.json"] = "{\"types\":[{\"name\":\"Sample\"}]}",
+            ["ProjectSettings/TagSettings.json"] = "{\"tags\":[\"Sample\"]}",
+            ["ProjectSettings/RenderingLayers.json"] = "{\"layers\":[\"Sample\"]}",
             ["Scripts/GameScripts.csproj"] = "<Project />"
         };
         byte[] zip = MakeZIP(files);
@@ -30,6 +33,10 @@ internal static class ContentDistributionChecks {
         var service = new ProjectService(store);
         var project = await service.CreateSampleAsync("Sample1", projects, "1.2.3", sample, client, null, default);
         string game = Path.GetDirectoryName(project.Descriptor)!;
+        foreach (string file in new[] { "CollisionSettings.json", "TagSettings.json", "RenderingLayers.json" }) {
+            string setting = "ProjectSettings/" + file;
+            check(File.ReadAllText(Path.Combine(game, setting)) == files[setting], "サンプルの設定を引き継いでいません: " + file);
+        }
         check(File.ReadAllText(Path.Combine(game, "GameAssets/Scripts/Actor.cs")).Contains("日本語"), "サンプルのスクリプトがありません");
         check(File.ReadAllText(Path.Combine(game, "GameAssets/Scenes/Sample.scene.json.meta")).Contains("11111111111111111111111111111111"), "アセットのGUIDが変わりました");
         check(!File.Exists(Path.Combine(game, "template.json")), "配布元の情報をゲームへコピーしました");

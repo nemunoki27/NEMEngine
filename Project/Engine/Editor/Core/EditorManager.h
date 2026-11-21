@@ -61,6 +61,7 @@ namespace Engine {
 			RenderPipelineRunner* renderPipeline);
 		// 外部エディターウィンドウを描画してPresentする
 		void RenderPlatformWindows();
+		std::optional<RenderViewKind> ConsumeScreenshotRequest();
 
 		// 終了処理
 		void Finalize();
@@ -207,6 +208,7 @@ namespace Engine {
 		bool initializationComplete_ = false;
 		// 再生と未保存確認の要求
 		EditorRequestSession requests_;
+		std::optional<RenderViewKind> screenshotRequest_;
 		// シーン保存の変更世代
 		EditorSceneDirtyState dirtyState_;
 		// パネル複製要求

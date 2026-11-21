@@ -275,6 +275,7 @@ namespace NEMTests {
 			actorRoots.push_back(Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(meta.guid));
 			actorRoots.push_back(
 				Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(copiedMeta.guid));
+			passed &= !std::filesystem::exists(actorRoots.back());
 		}
 		// 後続metaの準備失敗で先行Sceneも公開しない
 		Engine::SceneAssetStorage storage;

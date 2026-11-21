@@ -1,6 +1,8 @@
 #include "EngineApplication.h"
 #include <Engine/Core/Audio/AudioSystem.h>
 #include "EditorRenderBenchmark.h"
+#include <Engine/Editor/Utility/ViewportImageFile.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
 //	include
@@ -283,6 +285,20 @@ void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsC
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 		editorManager_.RenderPlatformWindows();
+		if (const auto kind = editorManager_.ConsumeScreenshotRequest()) {
+			try {
+				const auto* texture = GetRenderedViewTexture(*kind);
+				if (!texture || !texture->IsValid()) throw std::runtime_error("Viewの描画結果がありません");
+				const auto path = ViewportImageFile::SaveScreenshot(graphicsCore, *kind, *texture);
+				const auto assetPath = RuntimePaths::ToAssetPath(path);
+				Logger::Output(LogType::Engine, "スクリーンショットを保存しました {}", assetPath);
+				if (!assetDatabase_.ImportOrGet(assetPath, AssetType::Texture)) {
+					Logger::Output(LogType::Engine, spdlog::level::warn, "画像のアセット登録に失敗しました {}", assetPath);
+				}
+			} catch (const std::exception& error) {
+				Logger::Output(LogType::Engine, spdlog::level::err, "スクリーンショットの保存に失敗しました {}", error.what());
+			}
+		}
 	}
 }
 

@@ -152,10 +152,10 @@
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 0.8561774492263794,
+                        "w": 0.9320533275604248,
                         "x": 0.0,
                         "y": 0.0,
-                        "z": -0.5166818499565125
+                        "z": 0.3623211979866028
                     },
                     "localScale": {
                         "x": 1.0,
@@ -2491,7 +2491,7 @@
                     "name": "Particle3D"
                 },
                 "ParticleSystem": {
-                    "drawEmitterShape": false,
+                    "drawEmitterShape": true,
                     "enabled": true,
                     "layer": 0,
                     "order": 0,
@@ -2738,7 +2738,7 @@
                                     "ignoreParentRotation": false,
                                     "ignoreParentScale": true,
                                     "keepWorldOnDetach": true,
-                                    "useEmitter": false
+                                    "useEmitter": true
                                 }
                             }
                         ],
@@ -2870,9 +2870,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 4.418874740600586,
-                        "y": 7.597776889801025,
-                        "z": 3.6521239280700684
+                        "x": -18.661699295043945,
+                        "y": 8.446715354919434,
+                        "z": 4.132609844207764
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -3194,8 +3194,8 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -2.4119434356689453,
-                        "y": -0.31052643060684204,
+                        "x": -1.8104454278945923,
+                        "y": 0.47142091393470764,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -6036,7 +6036,7 @@
                     "dimension": 1,
                     "localPos": {
                         "x": 2.4000000953674316,
-                        "y": 0.14635854959487915,
+                        "y": 0.18441224098205566,
                         "z": 0.0
                     },
                     "localRotation": {

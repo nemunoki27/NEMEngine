@@ -100,7 +100,10 @@ void Engine::ParticleEmitterDebugDraw::DrawSphere(const ParticleEmitterSettings&
 	if (!renderer) {
 		return;
 	}
-	DrawWireSphere(*renderer, center, emitterMatrix, settings.sphere.radius, false);
+	const float radius = settings.sphere.radius;
+	renderer->DrawSphere(center, Vector3::Transform({ radius, 0, 0 }, emitterMatrix),
+		Vector3::Transform({ 0, radius, 0 }, emitterMatrix), Vector3::Transform({ 0, 0, radius }, emitterMatrix),
+		Color4::Red());
 }
 
 void Engine::ParticleEmitterDebugDraw::DrawHemisphere(const ParticleEmitterSettings& settings,

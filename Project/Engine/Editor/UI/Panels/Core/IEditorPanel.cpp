@@ -33,13 +33,8 @@ void Engine::IEditorPanel::DrawTitleBarContextMenu(const EditorPanelContext& con
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
 	currentDockID_ = window->DockId;
-	const ImRect titleBar = window->DockIsActive ? window->DC.DockTabItemRect : window->TitleBarRect();
 	const std::string popupID = "##PanelTitleContext:" + instanceID_;
-	if (titleBar.Contains(ImGui::GetMousePos()) && ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
-		ImGui::OpenPopup(popupID.c_str());
-	}
-
-	if (!ImGui::BeginPopup(popupID.c_str())) {
+	if (!EditorWindowPresentation::BeginTitlePopup(popupID.c_str())) {
 		return;
 	}
 

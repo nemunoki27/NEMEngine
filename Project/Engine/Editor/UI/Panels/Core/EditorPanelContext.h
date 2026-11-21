@@ -43,6 +43,7 @@ namespace Engine {
 		RenderPipelineRunner* renderPipeline = nullptr;
 		// ビューポート描画に必要なリソースを管理するサービス
 		const ViewportRenderService* viewportRenderService = nullptr;
+		std::optional<RenderViewKind>* screenshotRequest = nullptr;
 		const ResolvedRenderView* sceneRenderView = nullptr;
 		// SceneViewのカメラ状態、プレファブ編集プレビューの描画に流用する
 		ManualRenderCameraState sceneViewCamera{};

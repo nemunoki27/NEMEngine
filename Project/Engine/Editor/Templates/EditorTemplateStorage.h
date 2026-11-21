@@ -22,8 +22,10 @@ namespace Engine::EditorTemplateStorage {
 	EditorTemplateResult OpenWorkspace(const EditorTemplateEntry& entry, std::optional<bool> recreate = {});
 	// 編集用プロジェクトが由来とする配布元を取得する
 	bool ReadWorkspaceEntry(EditorTemplateEntry& entry);
+	// 標準プロジェクトの初期値を使う設定か確認する
+	bool UsesProjectDefaults(const std::filesystem::path& path);
 	// リンクや範囲外のファイルを含めずにコピーする
-	void CopyTree(const std::filesystem::path& source, const std::filesystem::path& target);
+	void CopyTree(const std::filesystem::path& source, const std::filesystem::path& target, bool projectDefaults = false);
 	// 同じ保存先を退避して完成済みの内容へ置き換える
 	void ReplaceDirectory(const std::filesystem::path& staged, const std::filesystem::path& target);
 	// 保存元のメタデータを書き出す

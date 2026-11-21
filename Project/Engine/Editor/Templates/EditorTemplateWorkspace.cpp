@@ -120,8 +120,8 @@ Engine::EditorTemplateResult Engine::EditorTemplateStorage::OpenWorkspace(const 
 		if (recreate) {
 			const auto staged = workspace.parent_path() / (".opening-" + ToString(AssetID::New()));
 			try {
-				CopyTree(Repository() / "Templates/ManagedProject/Common", staged);
-				CopyTree(source, staged);
+				CopyTree(Repository() / "Templates/ManagedProject/Common", staged, entry.kind != "Sample");
+				CopyTree(source, staged, entry.kind != "Sample");
 				std::filesystem::create_directories(staged / "Library");
 				if (!JsonFile::Save(staged / "Template.nemproject", nlohmann::json{
 					{"schemaVersion", 1}, {"projectGuid", ToString(AssetID::New())}, {"name", entry.name},

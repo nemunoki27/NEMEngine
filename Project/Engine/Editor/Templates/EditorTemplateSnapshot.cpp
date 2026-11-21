@@ -90,7 +90,7 @@ namespace {
 
 			if (!std::filesystem::is_regular_file(request_.repository / "Templates/ManagedProject/Common/Scripts/GameScripts.csproj"))
 				throw std::runtime_error("配布用の共通C#テンプレートが見つかりません");
-			EditorTemplateStorage::CopyTree(request_.repository / "Templates/ManagedProject/Common", root);
+			EditorTemplateStorage::CopyTree(request_.repository / "Templates/ManagedProject/Common", root, request_.entry.kind != "Sample");
 			for (const auto& [logical, source] : files_) {
 				if (ContentHash::FileSHA256(source) != revisions_.at(logical))
 					throw std::runtime_error("収集中に変更されたファイルがあります 保存し直してください: " + logical);
@@ -183,9 +183,11 @@ namespace {
 		}
 
 		// 本体と付随するmetaを同じ保存先へ収集する
-		void AddFile(const std::filesystem::path& source, const std::string& logical) {
+		bool AddFile(const std::filesystem::path& source, const std::string& logical) {
 
-			RequireRelative(Algorithm::PathFromUTF8(logical));
+			const auto path = Algorithm::PathFromUTF8(logical);
+			RequireRelative(path);
+			if (request_.entry.kind != "Sample" && EditorTemplateStorage::UsesProjectDefaults(path)) return false;
 			if (std::filesystem::is_symlink(source) || !std::filesystem::is_regular_file(source))
 				throw std::runtime_error("保存するファイルを読めません: " + Algorithm::PathToUTF8(source));
 			ToDestination(source);
@@ -202,6 +204,7 @@ namespace {
 					revisions_[logical + ".meta"] = ContentHash::FileSHA256(metaPath);
 				}
 			}
+			return true;
 		}
 
 		// 生成物を除外してフォルダー内の共有データを収集する
@@ -219,7 +222,7 @@ namespace {
 					name.ends_with(".targets") || name.ends_with(".tmp") || name.ends_with(".bak")) continue;
 				if (scripts && name.ends_with(".assemblyinfo.cs")) continue;
 				const auto destination = logical + "/" + LogicalPath(it->path().lexically_relative(source));
-				AddFile(it->path(), destination);
+				if (!AddFile(it->path(), destination)) continue;
 				if (it->path().extension() == ".json" && destination != "ProjectSettings/Runtime/StartupScene.json" &&
 					!name.ends_with(".meta")) Scan(Load(it->path()));
 			}

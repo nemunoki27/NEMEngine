@@ -337,6 +337,7 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	// 各パネルの描画
 	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
 	panelContext.viewportRenderService = viewportRenderService;
+	panelContext.screenshotRequest = &screenshotRequest_;
 	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
 	panelContext.sceneViewCamera = GetSceneViewCameraState();
@@ -371,6 +372,11 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	imguiManager_.Draw(dxCommand->GetCommandList());
 
 	currentRenderContext_ = nullptr;
+}
+
+std::optional<Engine::RenderViewKind> Engine::EditorManager::ConsumeScreenshotRequest() {
+
+	return std::exchange(screenshotRequest_, std::nullopt);
 }
 
 void Engine::EditorManager::RenderPlatformWindows() {

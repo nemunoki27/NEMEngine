@@ -143,6 +143,19 @@ bool Engine::EditorWindowPresentation::Begin(const char* name, bool* open, ImGui
 	return ImGui::Begin(name, open, flags);
 }
 
+bool Engine::EditorWindowPresentation::BeginTitlePopup(const char* id) {
+
+	const ImGuiWindow* window = ImGui::GetCurrentWindow();
+	const ImGuiWindow* hovered = ImGui::GetCurrentContext()->HoveredWindow;
+	const ImRect title = window->DockIsActive ? window->DC.DockTabItemRect : window->TitleBarRect();
+	const ImGuiWindow* host = window->DockNode ? window->DockNode->HostWindow : nullptr;
+	if ((hovered == window || (host && hovered == host)) && title.Contains(ImGui::GetMousePos()) &&
+		ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+		ImGui::OpenPopup(id);
+	}
+	return ImGui::BeginPopup(id);
+}
+
 void Engine::EditorWindowPresentation::PrepareDockNodes() {
 
 	ImGuiContext& context = *ImGui::GetCurrentContext();

@@ -25,65 +25,6 @@
 //============================================================================
 //	ProjectPanel classMethods
 //============================================================================
-namespace {
-
-	// 仮想パスを'/'または'\'で分割して、ディレクトリ名のリストを返す
-	std::vector<std::string> SplitVirtualPath(const std::string& path) {
-
-		std::vector<std::string> result;
-		std::string current;
-
-		for (char c : path) {
-			if (c == '/' || c == '\\') {
-				if (!current.empty()) {
-					result.emplace_back(std::move(current));
-					current.clear();
-				}
-			} else {
-				current.push_back(c);
-			}
-		}
-		if (!current.empty()) {
-			result.emplace_back(std::move(current));
-		}
-		return result;
-	}
-	// 仮想パスを分割して、インデックスから対応するディレクトリノードのリストを構築する
-	std::vector<const Engine::ProjectDirectoryNode*> BuildBreadcrumbTrail(
-		const Engine::ProjectAssetIndex& index, const std::string& selectedDirectory) {
-
-		std::vector<const Engine::ProjectDirectoryNode*> trail;
-
-		const Engine::ProjectDirectoryNode& root = index.GetRoot();
-		trail.push_back(&root);
-
-		if (selectedDirectory == root.virtualPath) {
-			return trail;
-		}
-
-		std::string currentPath = root.virtualPath;
-		const std::string prefix = root.virtualPath + "/";
-		if (selectedDirectory.rfind(prefix, 0) != 0) {
-			return trail;
-		}
-
-		const std::vector<std::string> parts = SplitVirtualPath(selectedDirectory.substr(prefix.size()));
-		for (const std::string& part : parts) {
-
-			currentPath += "/" + part;
-
-			if (const auto* node = index.FindDirectory(currentPath)) {
-				trail.push_back(node);
-			} else {
-				break;
-			}
-		}
-
-		return trail;
-	}
-
-}
-
 Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService, const std::string& instanceID,
 	bool primaryInstance, const std::string& displayName)
 	: displayName_(displayName) {
@@ -277,45 +218,6 @@ void Engine::ProjectPanel::DrawSearchBar(const EditorPanelContext& context) {
 	// 入力枠の左端に虫眼鏡アイコンを重ねて、その右に入力文字が並ぶようにする
 	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
 	fileSearchFilter_.DrawInput("##ProjectFileSearch", searchIcon, "ファイル検索...");
-}
-
-void Engine::ProjectPanel::DrawBreadcrumb([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
-
-	// パンくずからの移動でも検索状態は解除する
-	auto navigate = [&](const std::string& virtualPath) {
-		selectedDirectory_ = virtualPath;
-		selectedAsset_ = {};
-		fileSearchFilter_.Clear();
-	};
-
-	// ルートへ戻る
-	if (ImGui::Button(GetSourceRootPath())) {
-		navigate(assetIndex_.GetRoot().virtualPath);
-	}
-	DrawProjectItemMoveDropTarget(database, assetIndex_.GetRoot().virtualPath);
-
-	const auto trail = BuildBreadcrumbTrail(assetIndex_, selectedDirectory_);
-
-	// 中間階層はボタン
-	for (size_t i = 1; i + 1 < trail.size(); ++i) {
-
-		ImGui::SameLine();
-		ImGui::TextWrapped("%s", ">");
-		ImGui::SameLine();
-
-		if (ImGui::Button(trail[i]->name.c_str())) {
-			navigate(trail[i]->virtualPath);
-		}
-		DrawProjectItemMoveDropTarget(database, trail[i]->virtualPath);
-	}
-
-	// 現在階層はテキスト
-	ImGui::SameLine();
-	ImGui::TextWrapped("%s", ">");
-	ImGui::SameLine();
-
-	const char* currentName = trail.empty() ? GetSourceRootPath() : trail.back()->name.c_str();
-	ImGui::TextUnformatted(currentName);
 }
 
 void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {

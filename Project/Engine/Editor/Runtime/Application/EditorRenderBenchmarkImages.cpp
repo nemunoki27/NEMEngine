@@ -10,6 +10,8 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Editor/Utility/ViewportImageFile.h>
 #include <cmath>
 #include <cstring>
 #include <stdexcept>
@@ -44,12 +46,7 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore, con
 				continue;
 			}
 			DirectX::ScratchImage captured;
-			const auto state = texture->GetCurrentState();
-			if (FAILED(DirectX::CaptureTexture(graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(),
-				texture->GetResource(), false, captured, state, state))) {
-				throw std::runtime_error("Viewの画像取得に失敗しました");
-			}
-			DirectX::ScratchImage converted;
+			ViewportImageFile::Capture(graphicsCore, *texture, captured);
 			const DirectX::Image* image = captured.GetImage(0, 0, 0);
 			if (attachment == aoRaw || attachment == aoFiltered || std::string_view(attachment) == RenderTargetNames::kAmbientOcclusion) {
 
@@ -81,19 +78,10 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore, con
 			// 表示用の色だけをPNGの色空間へ合わせる
 			const bool displayColor = !*attachment || std::string_view(attachment) == RenderTargetNames::kSceneColorFinal ||
 				std::string_view(attachment) == ViewportRenderService::GetPrimaryColorName(kind);
-			const auto format = displayColor ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
-			if (image->format != format) {
-				if (FAILED(DirectX::Convert(*image, format,
-					DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted))) {
-					throw std::runtime_error("Viewの画像変換に失敗しました");
-				}
-				image = converted.GetImage(0, 0, 0);
-			}
 			const std::string suffix = *attachment ? std::string("-") + attachment : "";
 			const auto filename = prefix + std::to_string(phase_) + (kind == RenderViewKind::Game ? "-Game" : "-Scene") + suffix + ".png";
 			const auto path = output_.parent_path() / filename;
-			if (FAILED(DirectX::SaveToWICFile(*image, DirectX::WIC_FLAGS_NONE,
-				DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG), path.c_str()))) {
+			if (!StorageFileUtility::WriteBytes(path, ViewportImageFile::EncodePNG(*image, displayColor))) {
 				throw std::runtime_error("Viewの画像保存に失敗しました");
 			}
 			if (captureMode_ == CaptureMode::HDR) {
