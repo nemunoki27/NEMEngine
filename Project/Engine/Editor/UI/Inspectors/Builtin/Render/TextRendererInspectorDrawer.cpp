@@ -88,8 +88,12 @@ void Engine::TextRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	//============================================================================
 	//	文字ごとのトランスフォーム
 	//============================================================================
-	{
-		ImGui::SeparatorText("文字ごとのトランスフォーム");
+	ImGui::Indent();
+	if (MyGUI::CollapsingHeader("文字ごとのトランスフォーム", false)) {
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragVector2("文字のピボット", draft.charPivot,
+				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
+			});
 
 		// 表示中のグリフ数に合わせて行を用意する、値を編集したときだけコミットされる
 		// 非表示などでレイアウト未生成のときはサイズ0で潰さず保存済みデータを温存する
@@ -126,6 +130,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			}
 		}
 	}
+	ImGui::Unindent();
 }
 
 void Engine::TextRendererInspectorDrawer::OnSyncDraftFromWorld(

@@ -254,32 +254,38 @@ Engine::ValueEditResult Engine::MyGUI::EntityReferenceField(const char* label, U
 }
 
 namespace Engine {
-	ValueEditResult MyGUI::ObjectOrPrefabReferenceField(const char* label, UUID& object, AssetID& prefab,
-		ECSWorld* world, const AssetDatabase* database, const EntityEditSetting& setting) {
+	ValueEditResult MyGUI::ObjectOrAssetReferenceField(const char* label, UUID& object, AssetID& asset,
+		ECSWorld* world, const AssetDatabase* database, const std::initializer_list<AssetType>& acceptedTypes,
+		const EntityEditSetting& setting, const std::function<const char*(AssetID)>& validateAsset) {
 
 		ValueEditResult result;
 		if (!BeginPropertyRow(label, setting.propertyRow)) return result;
 		ImGui::PushID(label);
-		const std::string display = object ? BuildEntityReferenceLabel(object, world) : prefab ?
-			BuildAssetReferenceLabel(prefab, database, {AssetType::Prefab}) : "オブジェクトまたはPrefabをドロップ";
-		if (ImGui::Button((display + "###Source").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
-			ImGui::OpenPopup("Candidates");
+		const bool hasValue = object || asset || setting.hasStoredReference;
+		std::string display;
+		if (object) display = BuildEntityReferenceLabel(object, world);
+		else if (asset) display = BuildAssetReferenceLabel(asset, database, acceptedTypes);
+		else if (setting.hasStoredReference) display = std::format("参照先が見つかりません : {}", setting.missingReferenceID);
+		else display = std::format("未設定（オブジェクト {}）", BuildAcceptedExtensionsHint(acceptedTypes));
+		if (!hasValue) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+		const ImVec2 size = setting.buttonSize.value_or(ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
+		if (ImGui::Button((display + "###Source").c_str(), size)) ImGui::OpenPopup("Candidates");
+		if (!hasValue) ImGui::PopStyleColor();
 		result.anyItemActive = ImGui::IsItemActive();
-		const auto select = [&](UUID candidate, AssetID asset) {
-			if (object != candidate || prefab != asset) {
-				object = candidate;
-				prefab = asset;
-				result.valueChanged = result.editFinished = true;
-			}
+		const auto select = [&](UUID candidate, AssetID selectedAsset) {
+			if (object == candidate && asset == selectedAsset && !(setting.hasStoredReference && !object)) return;
+			object = candidate;
+			asset = selectedAsset;
+			result.valueChanged = result.editFinished = true;
 		};
-		if ((object || prefab) && ImGui::BeginPopupContextItem("SourceMenu")) {
+		if (hasValue && ImGui::BeginPopupContextItem("SourceMenu")) {
 			if (ImGui::MenuItem("削除")) select({}, {});
 			ImGui::EndPopup();
 		}
 		if (ImGui::BeginDragDropTarget()) {
 			const auto* payload = ImGui::GetDragDropPayload();
 			UUID candidate;
-			EditorAssetDragDropPayload asset;
+			EditorAssetDragDropPayload dropped;
 			if (payload && payload->IsDataType(IEditorPanel::kHierarchyDragDropPayloadType) && world &&
 				TryReadEntityPayload(payload, candidate) && world->IsAlive(world->FindByUUID(candidate))) {
 				if (!setting.acceptEntity || setting.acceptEntity(*world, world->FindByUUID(candidate))) {
@@ -287,29 +293,39 @@ namespace Engine {
 						delivered && delivered->IsDelivery()) select(candidate, {});
 				} else if (setting.rejectReason) ImGui::SetTooltip("%s", setting.rejectReason);
 			} else if (payload && payload->IsDataType(IEditorPanel::kProjectAssetDragDropPayloadType) &&
-				TryReadAssetPayload(payload, asset) && !asset.isDirectory && asset.assetID &&
-				ResolveDroppedAssetType(asset, database) == AssetType::Prefab) {
-				if (const auto* delivered = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType);
-					delivered && delivered->IsDelivery()) select({}, asset.assetID);
+				TryReadAssetPayload(payload, dropped) && !dropped.isDirectory && dropped.assetID) {
+				const bool accepts = IsAcceptedAssetType(ResolveDroppedAssetType(dropped, database), acceptedTypes);
+				const char* reason = !accepts ? "対応する種類のアセットを指定してください" :
+					validateAsset ? validateAsset(dropped.assetID) : nullptr;
+				if (reason) ImGui::SetTooltip("%s", reason);
+				else if (const auto* delivered = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType);
+					delivered && delivered->IsDelivery()) select({}, dropped.assetID);
 			}
 			ImGui::EndDragDropTarget();
+		}
+		if (hasValue && !ImGui::GetDragDropPayload() && ImGui::BeginItemTooltip()) {
+			const auto tooltip = object ? BuildEntityReferenceTooltip(object, world) :
+				asset ? BuildAssetReferenceTooltip(asset, database, acceptedTypes) : display;
+			ImGui::TextUnformatted(tooltip.c_str());
+			ImGui::EndTooltip();
 		}
 		if (ImGui::BeginPopup("Candidates")) {
 			if (ImGui::BeginMenu("オブジェクト")) {
 				if (world) world->ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent&) {
 					if (setting.acceptEntity && !setting.acceptEntity(*world, entity)) return;
 					ImGui::PushID(static_cast<int>(entity.index));
-					if (ImGui::Selectable(GetEntityDisplayName(*world, entity).c_str(), object == world->GetUUID(entity)))
-						select(world->GetUUID(entity), {});
+					const auto id = world->GetUUID(entity);
+					if (ImGui::Selectable(BuildEntityReferenceLabel(id, world).c_str(), object == id)) select(id, {});
 					ImGui::PopID();
 				});
 				ImGui::EndMenu();
 			}
-			if (ImGui::BeginMenu("Prefab")) {
+			for (AssetType type : acceptedTypes) {
+				if (!ImGui::BeginMenu(EnumAdapter<AssetType>::ToString(type))) continue;
 				if (database) for (const auto& [id, meta] : database->GetAssets()) {
-					if (meta.type != AssetType::Prefab) continue;
+					if (meta.type != type || (validateAsset && validateAsset(id))) continue;
 					ImGui::PushID(ToString(id).c_str());
-					if (ImGui::Selectable(meta.assetPath.c_str(), prefab == id)) select({}, id);
+					if (ImGui::Selectable(meta.assetPath.c_str(), asset == id)) select({}, id);
 					ImGui::PopID();
 				}
 				ImGui::EndMenu();
@@ -320,5 +336,4 @@ namespace Engine {
 		EndPropertyRow();
 		return result;
 	}
-
 }

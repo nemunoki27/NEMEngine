@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Components/Animation/TextCharAnimationComponent.h>
 
 // c++
 #include <vector>
@@ -29,6 +30,7 @@ namespace {
 		if (in.contains("pivot")) {
 			component.pivot = Engine::Vector2::FromJson(in["pivot"]);
 		}
+		component.charPivot = in.contains("charPivot") ? Engine::Vector2::FromJson(in["charPivot"]) : Engine::Vector2::AnyInit(0.5f);
 		component.uvPerCharacter =
 			in.value("uvPerCharacter", component.uvPerCharacter);
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
@@ -53,6 +55,7 @@ namespace {
 		out["fontSize"] = component.fontSize;
 		out["charSpacing"] = component.charSpacing;
 		out["pivot"] = component.pivot.ToJson();
+		out["charPivot"] = component.charPivot.ToJson();
 		out["uvPerCharacter"] = component.uvPerCharacter;
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
@@ -211,11 +214,20 @@ uint64_t Engine::HashTextLayoutString(std::string_view text) {
 	return hash;
 }
 
+std::span<const Engine::TextCharAnimationPose> Engine::GetTextCharAnimationPoses(const ECSWorld& world,
+	const Entity& entity, const TextLayoutRuntimeComponent& layout, size_t glyphCount) {
+
+	const auto* animation = world.TryGetComponent<TextCharAnimationComponent>(entity);
+	if (!animation || !animation->enabled || !animation->runtimeApplied ||
+		animation->runtimeLayoutRevision != layout.layoutRevision || animation->runtimePoses.size() != glyphCount) return {};
+	return animation->runtimePoses;
+}
+
 Engine::TextGlyphGeometry Engine::ResolveTextGlyphGeometry(
 	const TextRendererComponent& renderer,
 	const TextLayoutRuntimeComponent& layout,
 	const TextLayoutGlyph& glyph,
-	const TextCharTransform* charTransform,
+	const TextCharTransform* charTransform, const TextCharAnimationPose* animation,
 	const Matrix4x4& worldMatrix) {
 
 	const Vector2 pivotOffset(
@@ -225,21 +237,24 @@ Engine::TextGlyphGeometry Engine::ResolveTextGlyphGeometry(
 	geometry.rectMin = glyph.rectMin + pivotOffset;
 	geometry.rectMax = glyph.rectMax + pivotOffset;
 	geometry.worldMatrix = worldMatrix;
-	if (!charTransform) {
-		return geometry;
+	if (!charTransform && !animation) return geometry;
+
+	TextCharTransform combined = charTransform ? *charTransform : TextCharTransform{};
+	if (animation) {
+		combined.translation += animation->transform.translation;
+		combined.rotation += animation->transform.rotation;
+		combined.scale *= animation->transform.scale;
 	}
 
-	const Vector2 pivot(
-		(geometry.rectMin.x + geometry.rectMax.x) * 0.5f,
-		(geometry.rectMin.y + geometry.rectMax.y) * 0.5f);
+	const Vector2 pivot = geometry.rectMin + (geometry.rectMax - geometry.rectMin) * renderer.charPivot;
 	const Matrix4x4 toOrigin = Matrix4x4::MakeAffineMatrix(
 		Vector3(1.0f, 1.0f, 1.0f), Vector3(0.0f, 0.0f, 0.0f),
 		Vector3(-pivot.x, -pivot.y, 0.0f));
 	const Matrix4x4 srt = Matrix4x4::MakeAffineMatrix(
-		Vector3(charTransform->scale.x, charTransform->scale.y, 1.0f),
-		Vector3(0.0f, 0.0f, charTransform->rotation),
-		Vector3(pivot.x + charTransform->translation.x,
-			pivot.y + charTransform->translation.y, 0.0f));
+		Vector3(combined.scale.x, combined.scale.y, 1.0f),
+		Vector3(0.0f, 0.0f, combined.rotation),
+		Vector3(pivot.x + combined.translation.x,
+			pivot.y + combined.translation.y, 0.0f));
 	geometry.worldMatrix = (toOrigin * srt) * worldMatrix;
 	return geometry;
 }

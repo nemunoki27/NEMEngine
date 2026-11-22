@@ -354,9 +354,10 @@ namespace Engine {
 		// HierarchyのEntity UUID編集フィールドを描画する
 		static ValueEditResult EntityReferenceField(const char* label, UUID& value, ECSWorld* world,
 			const EntityEditSetting& setting = EntityEditSetting{});
-		// オブジェクトとPrefabを同じ配置元フィールドで受け付ける
-		static ValueEditResult ObjectOrPrefabReferenceField(const char* label, UUID& object, AssetID& prefab,
-			ECSWorld* world, const AssetDatabase* database, const EntityEditSetting& setting = EntityEditSetting{});
+		// オブジェクトと指定した種類のアセットを同じ欄で受け付ける
+		static ValueEditResult ObjectOrAssetReferenceField(const char* label, UUID& object, AssetID& asset,
+			ECSWorld* world, const AssetDatabase* database, const std::initializer_list<AssetType>& acceptedTypes,
+			const EntityEditSetting& setting = {}, const std::function<const char*(AssetID)>& validateAsset = {});
 	};
 
 	//============================================================================

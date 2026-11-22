@@ -69,6 +69,10 @@ namespace Engine::AssetDependencyScanner {
 
 			{ "renderPasses", Engine::AssetType::RenderPasses },
 			{ "animationClip", Engine::AssetType::AnimationClip },
+			{ "translationAsset", Engine::AssetType::Unknown },
+			{ "rotationAsset", Engine::AssetType::Unknown },
+			{ "scaleAsset", Engine::AssetType::Unknown },
+			{ "colorAsset", Engine::AssetType::Unknown },
 			{ "timeline", Engine::AssetType::Timeline },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },
@@ -96,7 +100,9 @@ namespace Engine::AssetDependencyScanner {
 		if (!value.is_string()) {
 			return;
 		}
-		const std::string reference = value.get<std::string>();
+		const auto& reference = value.get_ref<const std::string&>();
+		static const std::string emptyGUID = ToString(AssetID{});
+		if (reference.empty() || reference == emptyGUID) return;
 		const std::optional<Engine::AssetID> parsed =
 			Engine::TryParseAssetGUID32Hex(reference);
 		if (parsed) {
@@ -104,8 +110,7 @@ namespace Engine::AssetDependencyScanner {
 			AddReference(outIDs, *parsed, expectedType);
 			return;
 		}
-		if (expectedType != Engine::AssetType::Unknown &&
-			!reference.empty()) {
+		if (expectedType != Engine::AssetType::Unknown) {
 
 			AddReference(outPaths, reference, expectedType);
 		}
@@ -126,6 +131,12 @@ namespace Engine::AssetDependencyScanner {
 					if (data != clip.end() && data->is_object() && data->contains("asset"))
 						TryCollectReference((*data)["asset"], type, outIDs, outPaths);
 				}
+			}
+
+			// 省略可能な再生設定に依存せず、コンポーネント名からクリップ参照を拾う
+			const auto textAnimation = node.find("TextCharAnimation");
+			if (textAnimation != node.end() && textAnimation->is_object() && textAnimation->contains("clip")) {
+				TryCollectReference(textAnimation->at("clip"), AssetType::AnimationClip, outIDs, outPaths);
 			}
 
 			// clip名を使うSkinnedAnimationとAsset参照を区別する

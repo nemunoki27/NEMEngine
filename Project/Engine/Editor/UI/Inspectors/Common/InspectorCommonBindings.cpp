@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 #include <Engine/Core/World/Components/Time/TimerComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
+#include <Engine/Core/World/Components/Animation/TextCharAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SimpleAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioListenerComponent.h>
@@ -181,6 +182,11 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(SkinnedAnimation
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(AnimationClipPlayerComponent& value) {
+
+	return { .enabled = &value.enabled };
+}
+
+Engine::InspectorCommonFields Engine::BindInspectorCommonFields(TextCharAnimationComponent& value) {
 
 	return { .enabled = &value.enabled };
 }

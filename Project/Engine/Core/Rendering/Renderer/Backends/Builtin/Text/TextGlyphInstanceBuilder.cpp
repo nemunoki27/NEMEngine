@@ -1,10 +1,11 @@
 #include "TextGlyphInstanceBuilder.h"
+#include <Engine/Core/World/ECS/Entity/Entity.h>
 
 namespace Engine::TextGlyphInstanceBuilder {
 
-	void AppendGlyphInstancesFromCache(const Engine::TextRendererComponent& renderer,
+	void AppendGlyphInstancesFromCache(Entity entity, const Engine::TextRendererComponent& renderer,
 		const Engine::TextLayoutRuntimeComponent& cache, std::span<const Engine::TextLayoutGlyph> glyphs,
-		std::span<const Engine::TextCharTransform> charTransforms,
+		std::span<const Engine::TextCharTransform> charTransforms, std::span<const Engine::TextCharAnimationPose> animationPoses,
 		const Engine::Matrix4x4& worldMatrix, const Engine::Matrix4x4& uvMatrix, const Engine::ShineHighlightData& shine,
 		std::vector<Engine::TextVSInstanceData>& outVS, std::vector<Engine::TextPSInstanceData>& outPS) {
 
@@ -24,8 +25,9 @@ namespace Engine::TextGlyphInstanceBuilder {
 			const Engine::TextLayoutGlyph& glyph = glyphs[glyphIndex];
 			const Engine::TextCharTransform* charTransform =
 				glyphIndex < charTransforms.size() ? &charTransforms[glyphIndex] : nullptr;
+			const auto* animation = animationPoses.empty() ? nullptr : &animationPoses[glyphIndex];
 			const Engine::TextGlyphGeometry geometry = Engine::ResolveTextGlyphGeometry(
-				renderer, cache, glyph, charTransform, worldMatrix);
+				renderer, cache, glyph, charTransform, animation, worldMatrix);
 
 			Engine::TextVSInstanceData vs{};
 			vs.rectMin = geometry.rectMin;
@@ -46,6 +48,9 @@ namespace Engine::TextGlyphInstanceBuilder {
 			ps.pxRange = cache.pxRange;
 			ps.uvMatrix = uvMatrix;
 			ps.shine = shine;
+			ps.entityIndex = entity.index;
+			ps.entityGeneration = entity.generation;
+			if (animation) ps.charColor = animation->color;
 			outPS.emplace_back(ps);
 		}
 	}

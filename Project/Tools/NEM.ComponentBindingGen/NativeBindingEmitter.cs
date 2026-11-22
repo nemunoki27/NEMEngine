@@ -195,7 +195,9 @@ internal static class NativeBindingEmitter {
                 break;
             case "SceneEntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");
-                sb.Append($"\t\t\t\tconst Entity target = c->{m}.Resolve(world, entity);\n");
+                string resolved = $"c->{m}.Resolve(world, entity)";
+                if (prop.RuntimeEntityID is string runtimeID) resolved = $"c->{runtimeID} ? world.FindByUUID(c->{runtimeID}) : {resolved}";
+                sb.Append($"\t\t\t\tconst Entity target = {resolved};\n");
                 sb.Append("\t\t\t\t*reinterpret_cast<ManagedNativeEntity*>(out) = world.IsAlive(target) ? MakeNativeEntity(world, target) : MakeNullNativeEntity();\n");
                 break;
             case "EntityRef":
@@ -249,6 +251,8 @@ internal static class NativeBindingEmitter {
                     sb.Append($"\t\t\t\tif (targetNative.IsValid() && !world.TryGetComponentForBinding<{prop.RequiredComponent}>(target)) return ManagedStatus::InvalidArgument;\n");
                 }
                 sb.Append($"\t\t\t\tc->{m} = targetNative.IsValid() ? SceneEntityReference::FromEntity(world, target) : SceneEntityReference{{}};\n");
+                if (prop.RuntimeEntityID is string runtimeID)
+                    sb.Append($"\t\t\t\tc->{runtimeID} = targetNative.IsValid() ? world.GetUUID(target) : UUID{{}};\n");
                 break;
             case "EntityRef":
                 sb.Append("\t\t\t\tif (size < static_cast<int32_t>(sizeof(ManagedNativeEntity))) { return ManagedStatus::InvalidArgument; }\n");

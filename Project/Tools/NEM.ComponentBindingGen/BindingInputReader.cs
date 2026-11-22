@@ -83,6 +83,7 @@ internal sealed class BindingInputReader {
                             ManagedName = Str(p, "managedName"),
                             NativeMember = Str(p, "nativeMember"),
                             Kind = Str(p, "kind"),
+                            RuntimeEntityID = p.TryGetProperty("runtimeEntityID", out JsonElement runtimeID) ? runtimeID.GetString() : null,
                             RequiredComponent = p.TryGetProperty("requiredComponent", out JsonElement required) ? required.GetString() : null,
                             AssetType = p.TryGetProperty("assetType", out JsonElement at) ? at.GetString() : null,
                             EnumType = p.TryGetProperty("enumType", out JsonElement et) ? et.GetString() : null,

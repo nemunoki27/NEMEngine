@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "TextLayoutBuilder.h"
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include "TextGlyphInstanceBuilder.h"
 #include <Engine/Core/Rendering/Assets/FontRenderService.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -61,8 +62,10 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// マテリアルパスを解決する
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
-	if (!BackendDrawCommon::ResolveMaterialPass(context, items.front()->material,
-		DefaultMaterialSlot::Text, { MaterialPassKind::Draw }, resolvedPass)) {
+	const bool picking = context.passKind == MaterialPassKind::EditorPicking;
+	if (!BackendDrawCommon::ResolveMaterialPass(context,
+		picking ? BuiltinAssets::Materials::DefaultText : items.front()->material,
+		DefaultMaterialSlot::Text, { picking ? MaterialPassKind::EditorPicking : MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
 	// 3Dテキストはメッシュと同じく前後遮蔽させたいので深度テスト+書き込みを有効にしたPSOを使う
@@ -128,8 +131,9 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			const float s = renderer->worldScale;
 			worldMatrix = Matrix4x4::MakeScaleMatrix(Vector3(s, -s, s)) * worldMatrix;
 		}
-		AppendGlyphInstancesFromCache(*renderer, *cache, glyphs,
+		AppendGlyphInstancesFromCache(item->entity, *renderer, *cache, glyphs,
 			GetTextCharTransforms(*item->world, item->entity),
+			GetTextCharAnimationPoses(*item->world, item->entity, *cache, glyphs.size()),
 			worldMatrix, payload->uvMatrix, ResolveShineHighlight(context, *item),
 			vsGlyphScratch_, psGlyphScratch_);
 	}

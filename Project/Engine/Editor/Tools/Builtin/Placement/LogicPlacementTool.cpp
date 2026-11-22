@@ -66,8 +66,8 @@ void LogicPlacementTool::DrawEditorTool(const EditorToolContext& context) {
 				return transform && ((transform->dimension == Dimension::Type2D) == request_.settings.is2D);
 			};
 			reference.rejectReason = "選択した次元に合うオブジェクトを設定してください";
-			MyGUI::ObjectOrPrefabReferenceField("配置オブジェクト", request_.source.object, request_.source.prefab,
-				world, context.toolContext.assetDatabase, reference);
+			MyGUI::ObjectOrAssetReferenceField("配置オブジェクト", request_.source.object, request_.source.prefab,
+				world, context.toolContext.assetDatabase, {AssetType::Prefab}, reference);
 			ImGui::SeparatorText("親オブジェクトの初期トランスフォーム");
 			if (request_.settings.is2D) {
 				Vector2 position(request_.parentTransform.localPos.x, request_.parentTransform.localPos.y);

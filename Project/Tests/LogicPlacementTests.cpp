@@ -313,7 +313,7 @@ namespace {
 			MyGUI::ScopedPropertyLabelWidth labels("LogicPlacementPresentation");
 			LogicPlacementFields::DrawShape(request.settings);
 			LogicPlacementFields::DrawOrientation(request);
-			MyGUI::ObjectOrPrefabReferenceField("配置オブジェクト", request.source.object, request.source.prefab, &world, nullptr);
+			MyGUI::ObjectOrAssetReferenceField("配置オブジェクト", request.source.object, request.source.prefab, &world, nullptr, {AssetType::Prefab});
 			const auto layout = std::make_shared<LogicPlacementResult>(BuildLogicPlacement(request.settings));
 			SubmitLogicPlacementPreview(context, layout, Matrix4x4::MakeAffineMatrix(
 				{0.2f, 0.2f, 0.2f}, Quaternion::Identity(), {0, 0, 0.5f}), false);

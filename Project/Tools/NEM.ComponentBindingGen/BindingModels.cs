@@ -23,6 +23,7 @@ internal sealed class PropertyModel {
     public string ManagedName = ""; // 公開プロパティ名
     public string NativeMember = ""; // 対応するNativeメンバー
     public string Kind = ""; // 値の種別
+    public string? RuntimeEntityID; // 動的に生成したEntityの参照先
     public string? RequiredComponent; // Entity参照に必要なNative型
     public string? AssetType; // Asset参照の型
     public string? EnumType; // 列挙型名

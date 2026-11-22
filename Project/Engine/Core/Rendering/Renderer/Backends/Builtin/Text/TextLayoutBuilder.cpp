@@ -45,6 +45,7 @@ namespace Engine::TextLayoutBuilder {
 
 		// キャッシュをクリアして必要な情報を保存する
 		cache->valid = false;
+		++cache->layoutRevision;
 		cache->font = renderer.font;
 		cache->fontContentRevision = font.contentRevision;
 		cache->textHash = Engine::HashTextLayoutString(renderer.text);
@@ -85,12 +86,14 @@ namespace Engine::TextLayoutBuilder {
 		float penX = 0.0f;
 		float penY = 0.0f;
 		char32_t prev = 0;
+		uint32_t lineIndex = 0;
 		for (char32_t cp : codepoints) {
 
 			if (cp == U'\r') {
 				continue;
 			}
 			if (cp == U'\n') {
+				++lineIndex;
 				penX = 0.0f;
 				penY += lineHeight * scale;
 				prev = 0;
@@ -137,6 +140,7 @@ namespace Engine::TextLayoutBuilder {
 				.rectMax = Engine::Vector2(x1, y1),
 				.uvMin = Engine::Vector2(u0, v0),
 				.uvMax = Engine::Vector2(u1, v1),
+				.lineIndex = lineIndex,
 				});
 
 			boundsMin.x = (std::min)(boundsMin.x, x0);

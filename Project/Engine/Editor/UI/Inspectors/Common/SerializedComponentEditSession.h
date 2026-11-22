@@ -15,6 +15,7 @@ namespace Engine {
 	class SerializedComponentEditHooks {
 	public:
 		virtual ~SerializedComponentEditHooks() = default;
+		virtual void CopyEditFields(const T& source, T& draft) const { draft = source; }
 		virtual void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity, const T& component) = 0;
 		virtual void OnBeforeCommit(const T& beforeComponent, T& afterComponent) = 0;
 		virtual void SerializeDraft(ECSWorld& world, const Entity& entity, const T& component, nlohmann::json& out) const = 0;
@@ -137,7 +138,7 @@ namespace Engine {
 		}
 
 		// ワールドからドラフトを更新
-		draftComponent_ = world.GetComponent<T>(entity);
+		hooks.CopyEditFields(world.GetComponent<T>(entity), draftComponent_);
 		editingEntityStableUUID_ = world.GetUUID(entity);
 		editingWorld_ = world.GetLifetime();
 		editingWorldPointer_ = &world;
@@ -165,7 +166,8 @@ namespace Engine {
 			return;
 		}
 
-		const T beforeComponent = previewActive_ ? previewBeginComponent_ : world.GetComponent<T>(entity);
+		T beforeComponent{};
+		hooks.CopyEditFields(previewActive_ ? previewBeginComponent_ : world.GetComponent<T>(entity), beforeComponent);
 
 		T afterComponent = draftComponent_;
 		hooks.OnBeforeCommit(beforeComponent, afterComponent);
@@ -216,7 +218,7 @@ namespace Engine {
 
 		if (!previewActive_) {
 			AnimationPropertyEditCapture::Begin(world, entity, componentTypeName_);
-			previewBeginComponent_ = world.GetComponent<T>(entity);
+			hooks.CopyEditFields(world.GetComponent<T>(entity), previewBeginComponent_);
 			if (!world.SerializeComponentToJson(entity, componentTypeName_, previewBeginData_)) {
 				return;
 			}
@@ -233,7 +235,7 @@ namespace Engine {
 		// プレビュー適用後のワールド状態へドラフトを再同期
 		if (world.IsAlive(entity) && world.HasComponent<T>(entity)) {
 
-			draftComponent_ = world.GetComponent<T>(entity);
+			hooks.CopyEditFields(world.GetComponent<T>(entity), draftComponent_);
 			hooks.OnSyncDraftFromWorld(world, entity, draftComponent_);
 		}
 	}

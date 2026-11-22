@@ -20,79 +20,37 @@
 //============================================================================
 //	Easing functions
 //============================================================================
-bool Easing::DrawSelector(const char* label, EasingType& easingType, float itemWidth) {
+bool Easing::DrawSelector(const char* label, EasingType& easingType, float itemWidth,
+	std::span<const Engine::ImGuiUtility::EnumOptionState> options) {
 
 	const auto before = easingType;
-
-	const char* easeInOptions[] = {"EaseInSine", "EaseInQuad", "EaseInCubic", "EaseInQuart", "EaseInQuint", "EaseInExpo",
-		"EaseInCirc", "EaseInBack", "EaseInBounce"};
-	const char* easeOutOptions[] = {"EaseOutSine", "EaseOutQuad", "EaseOutCubic", "EaseOutQuart", "EaseOutQuint", "EaseOutExpo",
-		"EaseOutCirc", "EaseOutBack", "EaseOutBounce"};
-	const char* easeInOutOptions[] = {"EaseInOutSine", "EaseInOutQuad", "EaseInOutCubic", "EaseInOutQuart", "EaseInOutQuint",
-		"EaseInOutExpo", "EaseInOutCirc", "EaseInOutBounce"};
-
-	const int baseIn = static_cast<int>(EasingType::EaseInSine);
-	const int baseOut = static_cast<int>(EasingType::EaseOutSine);
-	const int baseInOut = static_cast<int>(EasingType::EaseInOutSine);
-	const int easingIndex = static_cast<int>(easingType);
-
-	const char* previewLabel = "Linear";
-	if (easingIndex >= baseIn && easingIndex < baseOut) {
-		previewLabel = easeInOptions[easingIndex - baseIn];
-	} else if (easingIndex >= baseOut && easingIndex < baseInOut) {
-		previewLabel = easeOutOptions[easingIndex - baseOut];
-	} else if (easingIndex >= baseInOut && easingIndex < baseInOut + IM_ARRAYSIZE(easeInOutOptions)) {
-		previewLabel = easeInOutOptions[easingIndex - baseInOut];
-	}
+	const auto enabled = [&](EasingType value) {
+		const auto index = Engine::EnumAdapter<EasingType>::GetIndex(value);
+		return options.size() <= index || options[index].enabled;
+	};
 
 	ImGui::SetNextItemWidth(itemWidth);
-	if (!ImGui::BeginCombo(label, previewLabel)) {
-		return false;
-	}
+	if (!ImGui::BeginCombo(label, Engine::EnumAdapter<EasingType>::ToString(easingType))) return false;
 
-	if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
+	if (enabled(EasingType::Linear) && ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
 		easingType = EasingType::Linear;
 	}
 
 	ImGui::PushItemWidth(itemWidth);
-	if (ImGui::BeginCombo("EaseIn", "")) {
-		for (int i = 0; i < IM_ARRAYSIZE(easeInOptions); ++i) {
-			const bool selected = static_cast<int>(easingType) == baseIn + i;
-			if (ImGui::Selectable(easeInOptions[i], selected)) {
-				easingType = static_cast<EasingType>(baseIn + i);
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
+	const auto group = [&](const char* name, EasingType first, EasingType last) {
+		if (!ImGui::BeginCombo(name, "")) return;
+		for (int i = static_cast<int>(first); i <= static_cast<int>(last); ++i) {
+			const auto value = static_cast<EasingType>(i);
+			if (!enabled(value)) continue;
+			const bool selected = easingType == value;
+			if (ImGui::Selectable(Engine::EnumAdapter<EasingType>::ToString(value), selected)) easingType = value;
+			if (selected) ImGui::SetItemDefaultFocus();
 		}
 		ImGui::EndCombo();
-	}
-
-	if (ImGui::BeginCombo("EaseOut", "")) {
-		for (int i = 0; i < IM_ARRAYSIZE(easeOutOptions); ++i) {
-			const bool selected = static_cast<int>(easingType) == baseOut + i;
-			if (ImGui::Selectable(easeOutOptions[i], selected)) {
-				easingType = static_cast<EasingType>(baseOut + i);
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
-
-	if (ImGui::BeginCombo("EaseInOut", "")) {
-		for (int i = 0; i < IM_ARRAYSIZE(easeInOutOptions); ++i) {
-			const bool selected = static_cast<int>(easingType) == baseInOut + i;
-			if (ImGui::Selectable(easeInOutOptions[i], selected)) {
-				easingType = static_cast<EasingType>(baseInOut + i);
-			}
-			if (selected) {
-				ImGui::SetItemDefaultFocus();
-			}
-		}
-		ImGui::EndCombo();
-	}
+	};
+	group("EaseIn", EasingType::EaseInSine, EasingType::EaseInBounce);
+	group("EaseOut", EasingType::EaseOutSine, EasingType::EaseOutBounce);
+	group("EaseInOut", EasingType::EaseInOutSine, EasingType::EaseInOutBounce);
 	ImGui::PopItemWidth();
 	ImGui::EndCombo();
 	return before != easingType;

@@ -44,6 +44,7 @@ namespace Engine {
 	struct SimpleAnimationComponent;
 	struct SkinnedAnimationComponent;
 	struct AnimationClipPlayerComponent;
+	struct TextCharAnimationComponent;
 	struct DirectionalLightComponent;
 	struct PointLightComponent;
 	struct RectLightComponent;
@@ -86,6 +87,7 @@ namespace Engine {
 	InspectorCommonFields BindInspectorCommonFields(SimpleAnimationComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(SkinnedAnimationComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(AnimationClipPlayerComponent& value);
+	InspectorCommonFields BindInspectorCommonFields(TextCharAnimationComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(DirectionalLightComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(PointLightComponent& value);
 	InspectorCommonFields BindInspectorCommonFields(RectLightComponent& value);

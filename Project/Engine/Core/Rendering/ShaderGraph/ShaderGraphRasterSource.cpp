@@ -225,7 +225,8 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tfloat signedDistance = Median(msdf.r, msdf.g, msdf.b) - 0.5f;\n"
 					  "\tfloat coverage = saturate(ComputeScreenPxRange(input.texcoord, instance.pxRange, instance.atlasSize) "
 					  "* signedDistance + 0.5f);\n"
-					  "\talpha *= coverage;\n";
+					  "\tgraph.baseColor.rgb *= instance.charColor.rgb;\n"
+					  "\talpha *= coverage * instance.charColor.a;\n";
 		}
 		source += "\tclip(alpha - max(graph.alphaClip, 1.0f / 255.0f));\n"
 				  "\tPSOutput output;\n"

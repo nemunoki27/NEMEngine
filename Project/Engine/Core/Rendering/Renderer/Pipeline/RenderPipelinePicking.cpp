@@ -93,7 +93,7 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	for (const RenderItem& item : scenePreparation_.renderBatch_.GetItems()) {
 
 		if ((item.backendID != RenderBackendID::Mesh &&
-			item.backendID != RenderBackendID::Primitive) ||
+			item.backendID != RenderBackendID::Primitive && item.backendID != RenderBackendID::Text) ||
 			item.sceneInstanceID != pickingState_.lastActiveScene_->instanceID ||
 			item.cameraDomain != RenderCameraDomain::Perspective ||
 			(item.visibilityLayerMask & camera->cullingMask) == 0) {

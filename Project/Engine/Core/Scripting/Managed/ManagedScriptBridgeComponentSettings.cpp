@@ -9,6 +9,10 @@
 #include "ManagedTimelineSettings.h"
 #include "ManagedRendererSettings.h"
 #include "ManagedLightSettings.h"
+#include <Engine/Core/Animation/Text/TextCharAnimationSampler.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/Systems/Animation/TextCharAnimationSystem.h>
 #include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
@@ -23,6 +27,7 @@
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Core/World/Components/Animation/TextCharAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 
@@ -37,12 +42,80 @@ using namespace Engine::ManagedCameraSettings;
 
 namespace {
 
+	nlohmann::json WriteNativeReference(const ManagedNativeEntity& reference) {
+
+		return {{"world", {{"index", reference.world.index}, {"generation", reference.world.generation}}},
+			{"index", reference.index}, {"generation", reference.generation}};
+	}
+
+	ManagedNativeEntity ReadNativeReference(const nlohmann::json& value) {
+
+		ManagedNativeEntity reference{};
+		reference.world.index = value.at("world").at("index").get<uint32_t>();
+		reference.world.generation = value.at("world").at("generation").get<uint32_t>();
+		reference.index = value.at("index").get<uint32_t>();
+		reference.generation = value.at("generation").get<uint32_t>();
+		return reference;
+	}
+
+	bool ResolveTextSources(ECSWorld& world, const SystemContext* context, TextCharAnimationComponent& component) {
+
+		return !component.legacyClip || (context && context->assetDatabase && context->animationClipManager &&
+			ResolveLegacyTextCharClip(world, *context->assetDatabase, *context->animationClipManager, component));
+	}
+
+	nlohmann::json ReadTextSources(ECSWorld& world, Entity owner, const SystemContext* context,
+		TextCharAnimationComponent& component) {
+
+		ResolveTextSources(world, context, component);
+		auto sources = nlohmann::json::array();
+		for (size_t slot = 0; slot < component.sourceAssets.size(); ++slot) {
+			nlohmann::json source;
+			if (const auto asset = component.sourceAssets[slot]) {
+				const auto* meta = context && context->assetDatabase ? context->assetDatabase->Find(asset) : nullptr;
+				if (meta) source = {{"asset", ToString(asset)}, {"type", EnumAdapter<AssetType>::ToString(meta->type)}};
+			} else {
+				const auto id = component.RuntimeSource(slot);
+				const auto target = id ? world.FindByUUID(id) : component.SceneSource(slot).Resolve(world, owner);
+				if (world.IsAlive(target)) source = {{"entity", WriteNativeReference(MakeNativeEntity(world, target))}};
+			}
+			sources.push_back(std::move(source));
+		}
+		return sources;
+	}
+
+	bool SetTextSource(ECSWorld& world, Entity owner, const SystemContext* context, const nlohmann::json& patch) {
+
+		auto* component = world.TryGetComponentForBinding<TextCharAnimationComponent>(owner);
+		const auto slot = patch.at("sourceSlot").get<size_t>();
+		if (!component || slot >= component->sourceAssets.size()) return false;
+		AssetID asset{};
+		Entity target = Entity::Null();
+		if (patch.contains("entity")) {
+			const auto reference = ReadNativeReference(patch.at("entity"));
+			target = ResolveEntity(reference);
+			if (ResolveWorld(reference) != &world || !world.IsAlive(target)) return false;
+			const auto* animation = world.TryGetComponentForBinding<SimpleAnimationComponent>(target);
+			if (!animation || TextCharAnimationSampler::ValidateSimple(slot, animation->settings)) return false;
+		} else if (patch.contains("asset")) {
+			asset = ParseAssetID(patch, "asset");
+			if (!asset || !context || !context->assetDatabase || !context->animationClipManager ||
+				TextCharAnimationSampler::ValidateAsset(slot, world, *context->assetDatabase, *context->animationClipManager, asset)) return false;
+		}
+		if (!ResolveTextSources(world, context, *component)) return false;
+		component->sourceAssets[slot] = asset;
+		component->SceneSource(slot) = world.IsAlive(target) ? SceneEntityReference::FromEntity(world, target) : SceneEntityReference{};
+		component->RuntimeSource(slot) = world.IsAlive(target) ? world.GetUUID(target) : Engine::UUID{};
+		return true;
+	}
+
 	TimeSourceSettings* ResolveComponentTimeSource(ECSWorld& world, Entity entity, int32_t type) {
 		switch (type) {
 		case 0: if (auto* component = world.TryGetComponentForBinding<AnimationClipPlayerComponent>(entity)) return &component->timeSource; break;
 		case 8: return TryGetParticleSystemTimeSource(world, entity);
 		case 9: if (auto* component = world.TryGetComponentForBinding<FlipbookAnimationComponent>(entity)) return &component->timeSource; break;
 		case 26: if (auto* component = world.TryGetComponentForBinding<SkinnedAnimationComponent>(entity)) return &component->timeSource; break;
+		case 81: if (auto* component = world.TryGetComponentForBinding<TextCharAnimationComponent>(entity)) return &component->timeSource; break;
 		case 70: if (auto* component = world.TryGetComponentForBinding<SimpleAnimationComponent>(entity)) return &component->timeSource; break;
 		case 71: if (auto* component = world.TryGetComponentForBinding<TimerComponent>(entity)) return &component->timeSource; break;
 		case 75: if (auto* component = world.TryGetComponentForBinding<DayNightCycleComponent>(entity)) return &component->timeSource; break;
@@ -84,8 +157,7 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			data["shadowExclusionTargets"] = nlohmann::json::array();
 			for (const auto& exclusion : lightSettings->shadowExclusions) {
 				const auto reference = MakeNativeEntity(*world, ResolveLightShadowExclusion(*world, target, exclusion));
-				data["shadowExclusionTargets"].push_back({{"world", {{"index", reference.world.index},
-					{"generation", reference.world.generation}}}, {"index", reference.index}, {"generation", reference.generation}});
+				data["shadowExclusionTargets"].push_back(WriteNativeReference(reference));
 			}
 		} else if (type == 0) {
 			const auto* component = world->TryGetComponentForBinding<AnimationClipPlayerComponent>(target);
@@ -144,6 +216,10 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			data = *component;
 		} else if (type == 72) {
 			if (!ReadMotionAnimationSettings(*world, target, data)) return -1;
+		} else if (type == 81) {
+			auto* component = world->TryGetComponentForBinding<TextCharAnimationComponent>(target);
+			if (!component) return -1;
+			data["sources"] = ReadTextSources(*world, target, GetCurrentContext(), *component);
 		} else if (type == 8 || type == 9 || type == 26) {
 			if (!ResolveComponentTimeSource(*world, target, type)) return -1;
 			data = nlohmann::json::object();
@@ -151,8 +227,7 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 		if (const auto* source = ResolveComponentTimeSource(*world, target, type)) {
 			data["timeSource"] = *source;
 			const auto reference = MakeNativeEntity(*world, ResolveTimeSourceEntity(*world, target, *source));
-			data["timeSourceNative"] = {{"world", {{"index", reference.world.index}, {"generation", reference.world.generation}}},
-				{"index", reference.index}, {"generation", reference.generation}};
+			data["timeSourceNative"] = WriteNativeReference(reference);
 		}
 		return CopyStringToBuffer(data.dump(), buffer, capacity);
 	} catch (...) { return -1; }
@@ -167,6 +242,11 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		const auto target = ResolveEntity(entity);
 		if (!world || !world->IsAlive(target)) return 0;
 		const auto data = nlohmann::json::parse(buffer, buffer + size);
+		if (type == 81 && data.contains("sourceSlot")) {
+			if (!SetTextSource(*world, target, GetCurrentContext(), data)) return 0;
+			world->MarkComponentModified(target, type);
+			return 1;
+		}
 		if (type == 79) {
 			auto* component = world->TryGetComponentForBinding<HexTilingComponent>(target);
 			if (!component) return 0;
@@ -188,11 +268,7 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			else {
 				if (operation != "Set" && operation != "Remove") return 0;
 				const auto& value = data.at("targetNative");
-				ManagedNativeEntity reference{};
-				reference.world.index = value.at("world").at("index").get<uint32_t>();
-				reference.world.generation = value.at("world").at("generation").get<uint32_t>();
-				reference.index = value.at("index").get<uint32_t>();
-				reference.generation = value.at("generation").get<uint32_t>();
+				const auto reference = ReadNativeReference(value);
 				const Entity excluded = ResolveEntity(reference);
 				if (ResolveWorld(reference) != world || !world->IsAlive(excluded)) return 0;
 				auto& values = settings->shadowExclusions;
@@ -217,11 +293,7 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 			auto* source = ResolveComponentTimeSource(*world, target, type);
 			if (!source || !data.contains("timeSourceNative") || source->mode != TimeSourceMode::Explicit) return;
 			const auto& value = data.at("timeSourceNative");
-			ManagedNativeEntity reference{};
-			reference.world.index = value.at("world").at("index").get<uint32_t>();
-			reference.world.generation = value.at("world").at("generation").get<uint32_t>();
-			reference.index = value.at("index").get<uint32_t>();
-			reference.generation = value.at("generation").get<uint32_t>();
+			const auto reference = ReadNativeReference(value);
 			if (!reference.IsValid() || ResolveWorld(reference) != world || !world->IsAlive(ResolveEntity(reference))) return;
 			const auto persisted = SceneEntityReference::FromEntity(*world, ResolveEntity(reference));
 			if (persisted.sourceAsset == source->source.sourceAsset && persisted.localFileID == source->source.localFileID)

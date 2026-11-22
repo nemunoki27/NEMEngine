@@ -15,7 +15,7 @@ namespace Engine {
 	//	Managed ABI定数
 	//============================================================================
 	// NativeとManagedを同じ版で接続する
-	inline constexpr uint32_t kManagedABIVersion = 73;
+	inline constexpr uint32_t kManagedABIVersion = 74;
 
 	// Nativeが提供する機能bit
 	enum class ManagedCapability : uint64_t {

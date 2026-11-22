@@ -798,6 +798,82 @@
           "value": 1
         }
       ]
+    },
+    {
+      "managedType": "TextCharAnimationOrder",
+      "nativeType": "TextCharAnimationOrder",
+      "members": [
+        {
+          "name": "Simultaneous",
+          "value": 0
+        },
+        {
+          "name": "LeftToRight",
+          "value": 1
+        },
+        {
+          "name": "RightToLeft",
+          "value": 2
+        },
+        {
+          "name": "EndsToCenter",
+          "value": 3
+        },
+        {
+          "name": "CenterToEnds",
+          "value": 4
+        },
+        {
+          "name": "Random",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "managedType": "TextCharAnimationTiming",
+      "nativeType": "TextCharAnimationTiming",
+      "members": [
+        {
+          "name": "Interval",
+          "value": 0
+        },
+        {
+          "name": "TotalDuration",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "TextCharAnimationLines",
+      "nativeType": "TextCharAnimationLines",
+      "members": [
+        {
+          "name": "WholeText",
+          "value": 0
+        },
+        {
+          "name": "PerLine",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "TextCharAnimationRepeat",
+      "nativeType": "TextCharAnimationRepeat",
+      "members": [
+        {
+          "name": "Once",
+          "value": 0
+        },
+        {
+          "name": "LoopText",
+          "value": 1
+        },
+        {
+          "name": "LoopCharacters",
+          "value": 2
+        }
+      ]
     }
   ],
   "components": [
@@ -6325,6 +6401,156 @@
           "assetType": "Texture",
           "access": "ReadWrite",
           "id": 7
+        }
+      ]
+    },
+    {
+      "id": 81,
+      "registryName": "TextCharAnimation",
+      "nativeType": "TextCharAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/TextCharAnimationComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.TextCharAnimation",
+      "reason": "文字ごとの動きと再生順を公開する",
+      "managedType": "TextCharAnimation",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 0
+        },
+        {
+          "managedName": "PlayOnStart",
+          "nativeMember": "playOnStart",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 1
+        },
+        {
+          "managedName": "PlayInEditMode",
+          "nativeMember": "playInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 2
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 4,
+          "enumType": "TextCharAnimationOrder"
+        },
+        {
+          "managedName": "Timing",
+          "nativeMember": "timing",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 5,
+          "enumType": "TextCharAnimationTiming"
+        },
+        {
+          "managedName": "Lines",
+          "nativeMember": "lines",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 6,
+          "enumType": "TextCharAnimationLines"
+        },
+        {
+          "managedName": "Repeat",
+          "nativeMember": "repeat",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 7,
+          "enumType": "TextCharAnimationRepeat"
+        },
+        {
+          "managedName": "IntervalSeconds",
+          "nativeMember": "interval",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 13,
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "TotalSeconds",
+          "nativeMember": "totalDuration",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 14,
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "TimingEasing",
+          "nativeMember": "easing",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 15,
+          "enumType": "EasingType",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "Seed",
+          "nativeMember": "seed",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 16
+        },
+        {
+          "managedName": "ControlRequest",
+          "nativeMember": "runtimeRequest",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "id": 17,
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "SeekTimeRequest",
+          "nativeMember": "runtimeSeekTime",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 18,
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "Time",
+          "nativeMember": "runtimeTime",
+          "kind": "Float",
+          "access": "ReadOnly",
+          "id": 19
+        },
+        {
+          "managedName": "Duration",
+          "nativeMember": "runtimeDuration",
+          "kind": "Float",
+          "access": "ReadOnly",
+          "id": 20
+        },
+        {
+          "managedName": "IsPlaying",
+          "nativeMember": "runtimePlaying",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 21
+        },
+        {
+          "managedName": "IsPaused",
+          "nativeMember": "runtimePaused",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 22
+        },
+        {
+          "managedName": "IsFinished",
+          "nativeMember": "runtimeFinished",
+          "kind": "Bool",
+          "access": "ReadOnly",
+          "id": 23
         }
       ]
     }

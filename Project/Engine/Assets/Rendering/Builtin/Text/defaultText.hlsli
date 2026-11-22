@@ -40,5 +40,8 @@ struct PSInstance {
 	float padding0;
 	float4x4 uvMatrix;
 	ShineHighlightData shine;
+	float4 charColor;
+	uint entityIndex;
+	uint entityGeneration;
 };
 StructuredBuffer<PSInstance> gPSInstances : register(t2);

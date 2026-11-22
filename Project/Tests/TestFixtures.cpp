@@ -21,6 +21,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Animation/Clips/AnimationClipManager.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
@@ -255,12 +256,14 @@ bool NEMTests::RunManagedComponentProbe(const char* name, const char* typeName, 
 		setup(world);
 		AssetDatabase database;
 		RenderAssetLibrary library;
+		AnimationClipManager clips;
 		SystemContext context;
 		if (setupAssets) {
 			if (!database.Init() || !setupAssets(database)) return false;
 			library.Init(&database);
 			context.assetDatabase = &database;
 			context.renderAssetLibrary = &library;
+			context.animationClipManager = &clips;
 		}
 		context.world = &world;
 		context.mode = WorldMode::Play;

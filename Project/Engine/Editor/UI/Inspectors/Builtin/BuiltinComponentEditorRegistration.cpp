@@ -36,6 +36,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/LightInspectorDrawers.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Animation/TextCharAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SimpleAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/MotionAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/TimelinePlayerInspectorDrawer.h>
@@ -192,6 +193,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 			"UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<AnimationClipPlayerInspectorDrawer>(
 			"AnimationClipPlayer", "AnimationClipPlayer", "Animation", "UI/Inspectors/Builtin/Animation/AnimationClipPlayerInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<TextCharAnimationInspectorDrawer>(
+			"Text CharAnimation", "TextCharAnimation", "Animation", "UI/Inspectors/Builtin/Animation/TextCharAnimationInspectorDrawer.cpp"));
 	}
 	// ライト系
 	{

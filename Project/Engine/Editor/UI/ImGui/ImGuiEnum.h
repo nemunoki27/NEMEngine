@@ -12,10 +12,6 @@
 #include <type_traits>
 #include <imgui.h>
 
-namespace Easing {
-	bool DrawSelector(const char* label, EasingType& easing, float width);
-}
-
 namespace Engine::ImGuiUtility {
 
 	// 内部の列挙名を日本語の表示名へ変換する
@@ -29,12 +25,21 @@ namespace Engine::ImGuiUtility {
 		const char* disabledReason = nullptr;
 	};
 
+}
+
+namespace Easing {
+	bool DrawSelector(const char* label, EasingType& easing, float width,
+		std::span<const Engine::ImGuiUtility::EnumOptionState> options = {});
+}
+
+namespace Engine::ImGuiUtility {
+
 	// 列挙値を選択する
 	template <typename T>
 	bool EnumCombo(const char* label, T* current, std::span<const EnumOptionState> options = {}) noexcept {
 
 		if constexpr (std::is_same_v<T, EasingType>) {
-			if (options.empty()) return Easing::DrawSelector(label, *current, ImGui::CalcItemWidth());
+			return Easing::DrawSelector(label, *current, ImGui::CalcItemWidth(), options);
 		}
 		int idx = static_cast<int>(EnumAdapter<T>::GetIndex(*current));
 		// 表示名だけを変え、保存する列挙値は維持する

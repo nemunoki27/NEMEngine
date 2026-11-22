@@ -5,6 +5,26 @@
 //============================================================================
 const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, const char* name) {
 
+	if (type.ends_with("TextCharAnimationOrder")) {
+		if (std::string_view(name) == "Simultaneous") return "同時";
+		if (std::string_view(name) == "LeftToRight") return "左から右";
+		if (std::string_view(name) == "RightToLeft") return "右から左";
+		if (std::string_view(name) == "EndsToCenter") return "端から中央";
+		if (std::string_view(name) == "CenterToEnds") return "中央から端";
+		if (std::string_view(name) == "Random") return "ランダム";
+		return name;
+	}
+	if (type.ends_with("TextCharAnimationTiming")) {
+		if (std::string_view(name) == "Interval") return "文字間隔";
+		if (std::string_view(name) == "TotalDuration") return "全体時間";
+		return name;
+	}
+	if (type.ends_with("TextCharAnimationLines")) {
+		if (std::string_view(name) == "WholeText") return "テキスト全体";
+		if (std::string_view(name) == "PerLine") return "行ごと";
+		return name;
+	}
+	if (type.ends_with("TextCharAnimationRepeat")) return name;
 	if (type.ends_with("ShaderGraphValueType")) {
 		const std::string_view value = name;
 		if (value == "Float") return "float";

@@ -1,0 +1,17 @@
+{
+  "name": "TextPicking",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "4e454d4153534554e8d7a5d5e72fb5b4",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "4e454d41535345543090ee0d0bb9d7d4",
+      "entry": "PickText",
+      "profile": "ps_6_0"
+    }
+  ]
+}

@@ -10,6 +10,7 @@
 #include <Engine/Core/Assets/RendererRenderSettings.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
+#include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
 #include <span>
@@ -35,8 +36,9 @@ namespace Engine {
 		Vector2 rectMax{};
 		Vector2 uvMin{};
 		Vector2 uvMax{};
+		uint32_t lineIndex = 0;
 	};
-	// 文字ごとのトランスフォーム、グリフ中心を基準にSRTを掛ける
+	// 文字ごとのトランスフォーム、文字のピボットを基準にSRTを掛ける
 	struct TextCharTransform {
 
 		static constexpr ComponentStorageKind kStorageKind =
@@ -51,11 +53,16 @@ namespace Engine {
 		float rotation = 0.0f;
 		Vector2 scale = Vector2::AnyInit(1.0f);
 	};
+	struct TextCharAnimationPose {
+		TextCharTransform transform{};
+		Color4 color{1, 1, 1, 1};
+	};
 	// ランタイムキャッシュデータ
 	struct TextLayoutRuntimeComponent {
 
 		static constexpr bool kSerializable = false;
 
+		uint64_t layoutRevision = 0;
 		// キャッシュ生成時の設定
 		AssetID font{};
 		uint64_t fontContentRevision = 0;
@@ -103,6 +110,8 @@ namespace Engine {
 		float charSpacing = 0.0f;
 		// ピボット、テキストブロックを正規化した0-1基準でこの点が原点に合う、スプライトと同じ扱い
 		Vector2 pivot = Vector2::AnyInit(0.0f);
+		// 各文字の矩形内で回転と拡縮の基準になる位置
+		Vector2 charPivot = Vector2::AnyInit(0.5f);
 		// UVを文字ごとの0-1で扱うか
 		bool uvPerCharacter = true;
 
@@ -161,12 +170,15 @@ namespace Engine {
 	void InvalidateTextLayout(ECSWorld& world, const Entity& entity);
 	// 文字列のキャッシュ比較用Hashを返す
 	uint64_t HashTextLayoutString(std::string_view text);
+	// 現在のレイアウトと一致する評価結果を取得する
+	std::span<const TextCharAnimationPose> GetTextCharAnimationPoses(const ECSWorld& world, const Entity& entity,
+		const TextLayoutRuntimeComponent& layout, size_t glyphCount);
 	// 描画側と同じピボットと文字別SRTを適用したグリフ形状を返す
 	TextGlyphGeometry ResolveTextGlyphGeometry(
 		const TextRendererComponent& renderer,
 		const TextLayoutRuntimeComponent& layout,
 		const TextLayoutGlyph& glyph,
-		const TextCharTransform* charTransform,
+		const TextCharTransform* charTransform, const TextCharAnimationPose* animation,
 		const Matrix4x4& worldMatrix);
 	// 文字別変換を含む保存データへ変換する
 	void SerializeTextRenderer(const TextRendererComponent& component,

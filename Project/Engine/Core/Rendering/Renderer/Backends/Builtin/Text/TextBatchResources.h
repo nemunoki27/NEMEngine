@@ -66,8 +66,11 @@ namespace Engine {
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 		ShineHighlightData shine{};
+		Color4 charColor{1, 1, 1, 1};
+		uint32_t entityIndex = UINT32_MAX;
+		uint32_t entityGeneration = UINT32_MAX;
 	};
-	static_assert(sizeof(TextPSInstanceData) == 128);
+	static_assert(sizeof(TextPSInstanceData) == 152);
 
 	//============================================================================
 	//	TextBatchResources class

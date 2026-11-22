@@ -1,3 +1,5 @@
+#include "TextCharAnimationTests.h"
+#include "TextCharAnimationSamplerTests.h"
 #include "TestSelection.h"
 #include "TimelineTests.h"
 #include "TrailRendererTests.h"
@@ -146,6 +148,11 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return RunTest("TestInspectorPresentation", TestInspectorPresentation) ? 0 : 80;
 	}
 
+	if (1 < argc && std::string_view(argv[1]) == "--text-char-animation") {
+		return RunTest("TestTextCharAnimation", TestTextCharAnimation) &&
+			RunTest("TestTextCharAnimationSampler", TestTextCharAnimationSampler) &&
+			RunTest("TestTextCharAnimationManaged", TestTextCharAnimationManaged) ? 0 : 98;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--simple-animation") {
 		return RunTest("TestSimpleAnimation", TestSimpleAnimation) ? 0 : 79;
 	}

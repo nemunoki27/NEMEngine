@@ -5367,6 +5367,227 @@
         {
             "Components": {
                 "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 9
+                },
+                "Name": {
+                    "name": "Text"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "bdccabd79ebf38a1",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextCharAnimation": {
+                    "colorAsset": "00000000000000000000000000000000",
+                    "colorSource": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "easing": "Linear",
+                    "enabled": true,
+                    "interval": 0.1599999964237213,
+                    "lines": "WholeText",
+                    "order": "LeftToRight",
+                    "playInEditMode": false,
+                    "playOnStart": true,
+                    "repeat": "LoopText",
+                    "rotationAsset": "00000000000000000000000000000000",
+                    "rotationSource": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "scaleAsset": "00000000000000000000000000000000",
+                    "scaleSource": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "seed": 0,
+                    "timeSource": {
+                        "mode": "Hierarchy",
+                        "source": {
+                            "kind": "Scene",
+                            "localFileId": "",
+                            "sourceAsset": ""
+                        }
+                    },
+                    "timing": "Interval",
+                    "totalDuration": 1.0,
+                    "translationAsset": "00000000000000000000000000000000",
+                    "translationSource": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    }
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 4.5,
+                    "charTransforms": [
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        }
+                    ],
+                    "dimension": 0,
+                    "font": "c4f158fab92cfcf265eaa1407b4aa1a4",
+                    "fontSize": 50.0,
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "queue": "ScreenUI",
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "NONE",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": false,
+                        "depthWrite": false,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderingLayerMask": 1,
+                    "text": "Now Loading...",
+                    "uvPerCharacter": true,
+                    "visible": true,
+                    "worldScale": 0.009999999776482582
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 47.47475814819336,
+                        "y": 61.301292419433594,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.4999995231628418,
+                        "y": 1.4999995231628418,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "bdccabd79ebf38a1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
                     "parentLocalFileID": "69787571ec5f1544",
                     "siblingOrder": 0
                 },

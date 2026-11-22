@@ -184,6 +184,99 @@ namespace {
 		return state.ResolveComponentSelection(&world) == Entity::Null();
 	}
 
+	// 同じ欄で参照の種類を切り替えたときに以前の値が残らないことを確認する
+	bool TestObjectOrAssetReference() {
+
+		using namespace Engine;
+		auto* previous = ImGui::GetCurrentContext();
+		auto* gui = ImGui::CreateContext();
+		ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = ImVec2(800, 400);
+		io.DeltaTime = 1.0f / 60;
+		unsigned char* pixels;
+		int width, height;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+		ECSWorld world;
+		const Entity owner = world.CreateEntity(), target = world.CreateEntity();
+		const Engine::UUID targetID = world.GetUUID(target);
+		world.AddComponent<SceneObjectComponent>(target).localFileID = targetID;
+		EntityEditSetting options;
+		options.acceptEntity = [target](ECSWorld&, Entity candidate) { return target == candidate; };
+		const auto prefab = AssetID::New(), clip = AssetID::New();
+		const auto validAsset = [&](AssetID asset) -> const char* {
+			return asset == prefab || asset == clip ? nullptr : "参照できません";
+		};
+		Engine::UUID runtimeID;
+		SceneEntityReference reference;
+		AssetID asset;
+		const ImVec2 field(320, 16);
+		auto draw = [&](const char* payloadType = nullptr, const void* payload = nullptr, size_t size = 0) {
+			ImGui::NewFrame();
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::SetNextWindowSize(ImVec2(600, 230));
+			ImGui::Begin("MixedReference", nullptr, ImGuiWindowFlags_NoTitleBar);
+			if (payloadType && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceExtern | ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
+				ImGui::SetDragDropPayload(payloadType, payload, size);
+				ImGui::EndDragDropSource();
+			}
+			const auto result = SceneEntityReferenceFields::DrawObjectOrAsset("Source", world, owner, reference, runtimeID,
+				asset, nullptr, {AssetType::Prefab, AssetType::AnimationClip}, options, validAsset);
+			ImGui::End();
+			ImGui::Render();
+			return result.valueChanged && result.editFinished;
+		};
+		io.AddMousePosEvent(field.x, field.y);
+		draw();
+		draw();
+		const auto drop = [&](const char* type, const void* value, size_t size) {
+			draw(type, value, size);
+			draw(type, value, size);
+			const bool applied = draw();
+			draw();
+			return applied;
+		};
+		const auto dropAsset = [&](AssetID id, AssetType type) {
+			EditorAssetDragDropPayload payload;
+			payload.assetID = id;
+			payload.assetType = type;
+			return drop(IEditorPanel::kProjectAssetDragDropPayloadType, &payload, sizeof(payload));
+		};
+		if (!dropAsset(prefab, AssetType::Prefab) || asset != prefab) return false;
+		const auto ownerID = world.GetUUID(owner);
+		if (drop(IEditorPanel::kHierarchyDragDropPayloadType, &ownerID, sizeof(ownerID)) ||
+			dropAsset(AssetID::New(), AssetType::Prefab) || dropAsset(clip, AssetType::Texture) || asset != prefab) return false;
+		if (!drop(IEditorPanel::kHierarchyDragDropPayloadType, &targetID, sizeof(targetID)) ||
+			asset || runtimeID || reference.localFileID != targetID) return false;
+		if (!dropAsset(clip, AssetType::AnimationClip) || reference.localFileID || runtimeID || asset != clip) return false;
+
+		const auto click = [&](ImVec2 point, ImGuiMouseButton button) {
+			io.AddMousePosEvent(point.x, point.y);
+			draw();
+			io.AddMouseButtonEvent(button, true);
+			draw();
+			io.AddMouseButtonEvent(button, false);
+			draw();
+			draw();
+		};
+		const auto firstMenuItem = [&]() {
+			const auto* popup = gui->OpenPopupStack.back().Window;
+			return ImVec2(popup->InnerRect.Min.x + 16, popup->InnerRect.Min.y + 12);
+		};
+		click(field, ImGuiMouseButton_Right);
+		if (gui->OpenPopupStack.empty() || !gui->OpenPopupStack.back().Window) return false;
+		click(firstMenuItem(), ImGuiMouseButton_Left);
+		if (asset) return false;
+		click(field, ImGuiMouseButton_Left);
+		if (gui->OpenPopupStack.empty() || !gui->OpenPopupStack.back().Window) return false;
+		click(firstMenuItem(), ImGuiMouseButton_Left);
+		if (gui->OpenPopupStack.Size != 2 || !gui->OpenPopupStack.back().Window) return false;
+		click(firstMenuItem(), ImGuiMouseButton_Left);
+		return reference.localFileID == targetID && !asset;
+	}
+
 	bool TestColorEditCompletion() {
 
 		using namespace Engine;
@@ -342,6 +435,10 @@ bool NEMTests::TestInspectorPresentation() {
 		!CheckDebugDrawSettings<Engine::SpotLightComponent>() || !CheckDebugDrawSettings<Engine::RectLightComponent>()) return false;
 
 	using namespace Engine;
+	if (!TestObjectOrAssetReference()) {
+		std::cerr << "Inspector: object or asset reference failed\n";
+		return false;
+	}
 	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields() || !TestColorEditCompletion()) return false;
 	if (std::string_view(GetInspectorPlaybackState(true, false)) != "再生中" ||
 		std::string_view(GetInspectorPlaybackState(true, true)) != "一時停止" ||
@@ -427,7 +524,8 @@ bool NEMTests::TestInspectorPresentation() {
 		if (std::string_view(ImGuiUtility::GetEnumDisplayName("EasingType", name)) != name) return false;
 	}
 	for (const auto& [type, name] : std::array{
-		std::pair{"ShaderGraphDomain", "Surface"}, std::pair{"ShaderGraphDomain", "PostProcess"},
+		std::pair{"TextCharAnimationRepeat", "Once"}, std::pair{"TextCharAnimationRepeat", "LoopText"},
+		std::pair{"TextCharAnimationRepeat", "LoopCharacters"}, std::pair{"ShaderGraphDomain", "Surface"}, std::pair{"ShaderGraphDomain", "PostProcess"},
 		std::pair{"ShaderGraphDomain", "RayTracingEffect"}, std::pair{"ShaderGraphTarget", "Mesh"},
 		std::pair{"ShaderGraphTarget", "Primitive3D"}, std::pair{"ShaderGraphTarget", "Sprite"},
 		std::pair{"ShaderGraphTarget", "Text"}, std::pair{"ShaderGraphTarget", "Primitive2D"},

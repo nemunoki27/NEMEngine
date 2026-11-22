@@ -1,3 +1,5 @@
+#include "TextCharAnimationTests.h"
+#include "TextCharAnimationSamplerTests.h"
 #include "TestSuite.h"
 #include "BeamRendererTests.h"
 #include "HexTilingTests.h"
@@ -43,6 +45,8 @@ using namespace NEMTests;
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
 
+	if (!RunTest("TestTextCharAnimation", TestTextCharAnimation) ||
+		!RunTest("TestTextCharAnimationSampler", TestTextCharAnimationSampler)) return 98;
 	if (!RunTest("TestLogicPlacement", TestLogicPlacement)) return 95;
 
 	if (!RunTest("TestTimeline", TestTimeline) || !RunTest("TestTimelineBuiltins", TestTimelineBuiltins) ||

@@ -16,7 +16,6 @@
 // c++
 #include <algorithm>
 #include <array>
-#include <limits>
 #include <optional>
 
 namespace {
@@ -29,26 +28,26 @@ namespace {
 		const std::array<Engine::Vector3, 4> corners{
 			Engine::Vector3(rectMin.x, rectMin.y, 0.0f),
 			Engine::Vector3(rectMax.x, rectMin.y, 0.0f),
-			Engine::Vector3(rectMin.x, rectMax.y, 0.0f),
 			Engine::Vector3(rectMax.x, rectMax.y, 0.0f),
+			Engine::Vector3(rectMin.x, rectMax.y, 0.0f),
 		};
-		Engine::Vector2 projectedMin = Engine::Vector2::AnyInit(
-			(std::numeric_limits<float>::max)());
-		Engine::Vector2 projectedMax = Engine::Vector2::AnyInit(
-			-(std::numeric_limits<float>::max)());
-		for (const Engine::Vector3& corner : corners) {
-			const Engine::Vector3 ndc = Engine::Vector3::Transform(
-				corner, worldViewProjection);
-			const Engine::Vector2 pixel(
+		std::array<Engine::Vector2, 4> pixels;
+		for (size_t i = 0; i < corners.size(); ++i) {
+			const auto ndc = Engine::Vector3::Transform(corners[i], worldViewProjection);
+			pixels[i] = Engine::Vector2(
 				(ndc.x + 1.0f) * 0.5f * static_cast<float>(viewWidth),
 				(1.0f - ndc.y) * 0.5f * static_cast<float>(viewHeight));
-			projectedMin.x = (std::min)(projectedMin.x, pixel.x);
-			projectedMin.y = (std::min)(projectedMin.y, pixel.y);
-			projectedMax.x = (std::max)(projectedMax.x, pixel.x);
-			projectedMax.y = (std::max)(projectedMax.y, pixel.y);
 		}
-		return point.x >= projectedMin.x && point.x <= projectedMax.x &&
-			point.y >= projectedMin.y && point.y <= projectedMax.y;
+		bool positive = false;
+		bool negative = false;
+		for (size_t i = 0; i < pixels.size(); ++i) {
+			const auto edge = pixels[(i + 1) % pixels.size()] - pixels[i];
+			const auto offset = point - pixels[i];
+			const float side = edge.x * offset.y - edge.y * offset.x;
+			positive |= side > 0;
+			negative |= side < 0;
+		}
+		return positive != negative;
 	}
 }
 
@@ -148,11 +147,14 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(*world, entity);
 		const std::span<const TextCharTransform> charTransforms =
 			GetTextCharTransforms(*world, entity);
+		const auto poses = GetTextCharAnimationPoses(*world, entity, *layout, glyphs.size());
 		for (size_t glyphIndex = 0; glyphIndex < glyphs.size(); ++glyphIndex) {
 			const TextCharTransform* charTransform = glyphIndex < charTransforms.size() ?
 				&charTransforms[glyphIndex] : nullptr;
+			const auto* animation = poses.empty() ? nullptr : &poses[glyphIndex];
+			if (animation && animation->color.a < 1.0f / 255.0f) continue;
 			const TextGlyphGeometry geometry = ResolveTextGlyphGeometry(
-				renderer, *layout, glyphs[glyphIndex], charTransform, worldMatrix);
+				renderer, *layout, glyphs[glyphIndex], charTransform, animation, worldMatrix);
 			if (IsPointInsideProjectedRect(inputPixel,
 				geometry.rectMin, geometry.rectMax,
 				geometry.worldMatrix * camera->matrices.viewProjectionMatrix,

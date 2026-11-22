@@ -47,9 +47,7 @@ float ComputeScreenPxRange(float2 uv, float pxRange, float2 atlasSize) {
 //============================================================================
 //	main
 //============================================================================
-PSOutput main(VSOutput input) {
-
-	PSInstance instance = gPSInstances[input.instanceID];
+PSOutput EvaluateTextColor(VSOutput input, PSInstance instance) {
 
 	// テクスチャからMSDFをサンプリング
 	float3 msdf = gAtlas.Sample(gSampler, input.texcoord).rgb;
@@ -75,8 +73,23 @@ PSOutput main(VSOutput input) {
 	} else {
 		output.color = float4(fillColor.rgb, fillAlpha * fillColor.a);
 	}
+	output.color *= instance.charColor;
 	// グリフ外の透明ピクセルには深度を書き込まない
 	clip(output.color.a - 1.0f / 255.0f);
+	return output;
+}
+
+uint4 PickText(VSOutput input) : SV_TARGET0 {
+
+	PSInstance instance = gPSInstances[input.instanceID];
+	EvaluateTextColor(input, instance);
+	return uint4(instance.entityIndex, instance.entityGeneration, 0u, 1u);
+}
+
+PSOutput main(VSOutput input) {
+
+	PSInstance instance = gPSInstances[input.instanceID];
+	PSOutput output = EvaluateTextColor(input, instance);
 	output.color = ApplyShineHighlight(output.color, input.layoutTexcoord, instance.shine);
 	output.color = ApplyTransparentFog(output.color, input.position);
 	return output;
