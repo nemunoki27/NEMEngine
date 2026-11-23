@@ -67,6 +67,7 @@
             $material = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
             if ($material.PSObject.Properties.Name -contains "shaderGraph") {
                 $material.PSObject.Properties.Remove("shaderGraph")
+                $material.PSObject.Properties.Remove("graphOverrides")
                 ++$detachedMaterialCount
                 Write-Utf8Json -Path $_.FullName -Value $material
             }

@@ -266,6 +266,7 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorViewportSizing.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/CompositeEditorCommand.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/EditorCommandExecution.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Assets/EditMaterialAssetCommand.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/EditorSelectionSnapshot.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Core/EditorCommandContext.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Commands/Entity/EditorEntitySnapshot.cpp"),

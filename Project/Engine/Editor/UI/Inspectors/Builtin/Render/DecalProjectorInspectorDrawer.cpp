@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Common/DecalMaterialFields.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -16,6 +17,7 @@ void Engine::DecalProjectorInspectorDrawer::DrawFields(const EditorPanelContext&
 	materialSetting.defaultAssetID = defaultMaterial;
 	DrawField(anyItemActive, [&]() { return MyGUI::AssetReferenceField("マテリアル", draft.material,
 		context.editorContext->assetDatabase, {AssetType::Material}, materialSetting); });
+	PushEditResult(MaterialParameterEditor::DrawReload(draft.materialInstance), anyItemActive);
 	// 寸法とPivotは親Transformのローカル空間で指定する
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("大きさと奥行き", draft.size, {.minValue = 0.001f}); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragVector3("中心のオフセット", draft.pivot); });

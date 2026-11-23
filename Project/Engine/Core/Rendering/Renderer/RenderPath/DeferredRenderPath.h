@@ -71,7 +71,7 @@ namespace Engine {
 		DeferredRenderPath& operator=(const DeferredRenderPath&) = delete;
 
 		// パスの初期化でdepsはRenderPipelineRunnerが所有するメンバーへのポインタを渡す
-		void Initialize(const RenderPipelineDeps& deps);
+		void Initialize(const RenderPipelineDeps& deps, bool materialPreview = false);
 		void RetainViews(const std::unordered_set<std::string>& activeViews);
 		uint64_t GetShadowAnalysisCount() const;
 		// 終了処理

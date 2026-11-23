@@ -69,6 +69,10 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--material-preview-gpu") {
+		return RunTest("TestMaterialPreviewGPU", TestMaterialPreviewGPU) ? 0 : 1;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--logic-placement") {
 		return RunTest("TestLogicPlacement", TestLogicPlacement) ? 0 : 95;
 	}
@@ -474,6 +478,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			!RunTest("TestMaterialParameterHash", TestMaterialParameterHash) ||
 			!RunTest("TestMaterialReflectionCache", TestMaterialReflectionCache) ||
 			!RunTest("TestMaterialCreationFailures", TestMaterialCreationFailures) ||
+			!RunTest("TestShaderGraphPublication", TestShaderGraphPublication) ||
+			!RunTest("TestMaterialAssetHistory", TestMaterialAssetHistory) ||
 			!RunTest("TestMaterialResolverIndexChanges", TestMaterialResolverIndexChanges) ||
 			!RunTest("TestMeshAuthoringCache", TestMeshAuthoringCache) ||
 			!RunTest("TestPrimitiveTangents", TestPrimitiveTangents) ||

@@ -1,4 +1,5 @@
 #include "LineRendererInspectorDrawer.h"
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
@@ -46,6 +47,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
+	PushEditResult(MaterialParameterEditor::DrawReload(draft.materialInstance), anyItemActive);
 	PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
 	//============================================================================
 	//	ライン描画パラメータ

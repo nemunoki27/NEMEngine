@@ -38,7 +38,7 @@ uint64_t Engine::DeferredRenderPath::GetShadowAnalysisCount() const {
 	return deps_.shadowStamps ? deps_.shadowStamps->GetRebuildCount() : 0;
 }
 
-void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
+void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps, bool materialPreview) {
 
 	deps_ = deps;
 	deps_.shadowStamps = std::make_shared<ShadowSceneStampCache>();
@@ -97,6 +97,24 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 	for (auto& pass : fixedPasses) {
 
 		const RenderPathPassKind kind = pass->GetKind();
+		if (materialPreview) {
+			switch (kind) {
+			case RenderPathPassKind::ClearRenderTargets:
+			case RenderPathPassKind::DepthPrepass:
+			case RenderPathPassKind::Opaque:
+			case RenderPathPassKind::Decal:
+			case RenderPathPassKind::Lighting:
+			case RenderPathPassKind::Transparent:
+			case RenderPathPassKind::PostProcessUI:
+			case RenderPathPassKind::BlitToView:
+			case RenderPathPassKind::ScreenUI:
+				passes_.emplace_back(std::move(pass));
+				break;
+			default:
+				break;
+			}
+			continue;
+		}
 		passes_.emplace_back(std::move(pass));
 		// 固定反射を任意のポストプロセスより先に合成する
 		if (kind == RenderPathPassKind::Lighting) {

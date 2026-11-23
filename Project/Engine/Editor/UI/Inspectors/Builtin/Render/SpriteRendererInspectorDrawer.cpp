@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -47,6 +48,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
+	PushEditResult(MaterialParameterEditor::DrawReload(draft.materialInstance), anyItemActive);
 	PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
 	//============================================================================
 	//	スプライト見た目パラメータ

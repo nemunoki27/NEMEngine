@@ -7,12 +7,15 @@
 #include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
 #include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 
 // c++
 #include <utility>
@@ -82,6 +85,31 @@ Engine::AssetID Engine::ShaderGraphPublication::SaveGraph(AssetDatabase& databas
 		return {};
 	}
 	changes.front().document = ToJson(graph);
+	if (expectedID) {
+		const auto materialPath = path.parent_path() / Algorithm::PathFromUTF8(GraphFileStem(path) + ".material.json");
+		nlohmann::json document;
+		MaterialAsset previous;
+		ShaderGraphAsset source;
+		if (std::filesystem::exists(materialPath) && JsonFile::TryLoad(materialPath, document) &&
+			!document.contains("graphOverrides") && FromJson(document, previous) && previous.shaderGraph == expectedID &&
+			ShaderGraphAssetReferences::LoadSource(expectedID, &database, source) &&
+			(WriteMaterialInstance(ShaderGraphParameterDefaults::Build(source)) != WriteMaterialInstance(ShaderGraphParameterDefaults::Build(graph)))) {
+			// 元の既定値が変わる前に旧Materialの上書きだけを記録する
+			auto& migration = changes.emplace_back();
+			if (!AssetDocumentPublication::Prepare(database, RuntimePaths::ToAssetPath(materialPath), AssetType::Material, migration, status))
+				return {};
+			// Prepare後の内容を読み取り外部で保存された共有値も取り込む
+			if (!JsonFile::TryLoad(materialPath, document) || !FromJson(document, previous) || previous.shaderGraph != expectedID) {
+				status = "旧マテリアルの公開値を移行できませんでした";
+				return {};
+			}
+			migration.document = std::move(document);
+			if (!migration.document.contains("graphOverrides")) {
+				ShaderGraphParameterDefaults::ImportLegacyOverrides(source, previous);
+				migration.document["graphOverrides"] = ToJson(previous)["graphOverrides"];
+			}
+		}
+	}
 	if (!AssetDocumentPublication::Commit(
 			database, changes, AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::ShaderGraph), status)) {
 		return {};
@@ -109,6 +137,25 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 			database, RuntimePaths::ToAssetPath(materialPath), AssetType::Material, changes[0], status) ||
 		!PrepareGraphDocument(database, graphPath, assetID, changes[1], status)) {
 		return false;
+	}
+	if (changes[0].fileRevision != "missing") {
+		nlohmann::json document;
+		MaterialAsset previous;
+		if (!JsonFile::TryLoad(materialPath, document) || !FromJson(document, previous)) {
+			status = "既存のマテリアルを読み込めませんでした";
+			return false;
+		}
+		if (previous.shaderGraph == assetID) {
+			ShaderGraphAsset source;
+			if (ShaderGraphAssetReferences::LoadSource(assetID, &database, source)) {
+				if (previous.name != source.name) material.name = previous.name;
+				// 旧形式では保存済みの公開値と元グラフの差分を引き継ぐ
+				if (!document.contains("graphOverrides")) {
+					ShaderGraphParameterDefaults::ImportLegacyOverrides(source, previous);
+				}
+			}
+			ShaderGraphParameterDefaults::RestoreOverrides(graph, previous, material);
+		}
 	}
 	changes[0].document = ToJson(material);
 	changes[1].document = ToJson(graph);

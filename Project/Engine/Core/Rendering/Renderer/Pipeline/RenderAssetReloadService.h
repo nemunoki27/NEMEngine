@@ -53,5 +53,6 @@ namespace Engine {
 		PostProcessExecutor& postProcessExecutor_;
 		RayTracingExecutor& rayTracingExecutor_;
 		std::unordered_map<AssetID, MaterialRenderState> materialRenderStateCache_{};
+		std::shared_ptr<const uint64_t> materialStateRevision_;
 	};
 }

@@ -133,6 +133,7 @@ namespace Engine::GameBuildUtility {
 
 		return StartsWith(assetPath, "Engine/Assets/Textures/Editor/") ||
 			StartsWith(assetPath, "Engine/Assets/Rendering/Editor/") ||
+			StartsWith(assetPath, "Engine/Assets/Models/Editor/") ||
 			(StartsWith(assetPath, "Engine/Assets/Config/") &&
 				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json" &&
 				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json.meta");

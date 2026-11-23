@@ -90,18 +90,24 @@ ShaderGraphAsset Engine::ShaderGraphAssetReferences::ResolveFunctions(const Shad
 	return resolved;
 }
 
-bool Engine::ShaderGraphAssetReferences::Load(AssetID id, const AssetDatabase* database, ShaderGraphAsset& graph) {
+bool Engine::ShaderGraphAssetReferences::LoadSource(AssetID id, const AssetDatabase* database, ShaderGraphAsset& graph) {
 
-	if (!database) return false;
+	if (!database || !id) return false;
 	const auto path = database->ResolveFullPath(id);
-	if (path.empty()) return false;
+	nlohmann::json document;
+	if (path.empty() || !JsonAdapter::TryLoad(path, document)) return false;
 	try {
-		if (!FromJson(JsonAdapter::Load(path, true), graph)) return false;
-		graph = ResolveFunctions(graph, database);
-		return true;
+		return FromJson(document, graph);
 	} catch (const nlohmann::json::exception&) {
 		return false;
 	}
+}
+
+bool Engine::ShaderGraphAssetReferences::Load(AssetID id, const AssetDatabase* database, ShaderGraphAsset& graph) {
+
+	if (!LoadSource(id, database, graph)) return false;
+	graph = ResolveFunctions(graph, database);
+	return true;
 }
 
 bool Engine::ShaderGraphAssetReferences::RefreshSubGraphPorts(ShaderGraphNode& node, const ShaderGraphAsset& child,

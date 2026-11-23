@@ -51,4 +51,6 @@ namespace NEMTests {
 	bool WriteShaderGraphNodePreviewFixtures();
 	// 表示用の全GPU出力を画像へ保存する
 	bool WriteShaderGraphNodePreviewImages();
+	// 材質プレビューの実描画で屈折の切替を確認する
+	bool TestMaterialPreviewGPU();
 }

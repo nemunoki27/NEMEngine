@@ -31,20 +31,15 @@ Engine::JsonFileJournal::Scope Engine::AssetDocumentRecovery::MakeScope(AssetDoc
 
 	const auto gameRoot = RuntimePaths::GetGameAssetsRoot();
 	const auto engineRoot = RuntimePaths::GetEngineAssetsRoot();
-	if (kind == AssetDocumentSaveKind::Material) {
-		return {RuntimePaths::GetSavedRoot() / "MaterialAssetRecovery", [gameRoot](const std::filesystem::path& path) {
-					return RuntimePaths::CanWritePath(path) && StorageFileUtility::IsInside(path, gameRoot);
-				}};
+	const char* folder = "ShaderGraphAssetRecovery";
+	switch (kind) {
+	case AssetDocumentSaveKind::Material: folder = "MaterialAssetRecovery"; break;
+	case AssetDocumentSaveKind::Prefab: folder = "PrefabAssetRecovery"; break;
+	case AssetDocumentSaveKind::Font: folder = "FontAssetRecovery"; break;
+	case AssetDocumentSaveKind::GeneratedRender: folder = "GeneratedRenderAssetRecovery"; break;
+	case AssetDocumentSaveKind::ShaderGraph: break;
 	}
-	if (kind == AssetDocumentSaveKind::Prefab || kind == AssetDocumentSaveKind::Font) {
-		return {
-			RuntimePaths::GetSavedRoot() / (kind == AssetDocumentSaveKind::Font ? "FontAssetRecovery" : "PrefabAssetRecovery"),
-			[gameRoot, engineRoot](const std::filesystem::path& path) {
-				return RuntimePaths::CanWritePath(path) && (StorageFileUtility::IsInside(path, gameRoot) || StorageFileUtility::IsInside(path, engineRoot));
-			}};
-	}
-	return {RuntimePaths::GetSavedRoot() /
-				(kind == AssetDocumentSaveKind::GeneratedRender ? "GeneratedRenderAssetRecovery" : "ShaderGraphAssetRecovery"),
+	return {RuntimePaths::GetSavedRoot() / folder,
 		[gameRoot, engineRoot](const std::filesystem::path& path) {
 			return RuntimePaths::CanWritePath(path) && (StorageFileUtility::IsInside(path, gameRoot) || StorageFileUtility::IsInside(path, engineRoot));
 		}};

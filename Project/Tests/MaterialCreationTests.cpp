@@ -5,6 +5,9 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Builtin/Material/MaterialCreationSession.h>
+#include <Engine/Editor/Commands/Assets/EditMaterialAssetCommand.h>
+#include <Engine/Editor/Commands/Core/EditorCommandExecution.h>
+#include <Engine/Editor/Core/EditorSceneDirtyState.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialCreationImportUtility.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialCreationDocument.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
@@ -141,6 +144,56 @@ bool NEMTests::TestMaterialReflectionCache() {
 	}
 	// 同じ更新番号でも失敗した読込は再試行する
 	return matches(7.0f);
+}
+
+bool NEMTests::TestMaterialAssetHistory() {
+
+	using namespace Engine;
+	TestDirectory directory("MaterialAssetHistory", RuntimePaths::GetGameAssetsRoot() / "Materials");
+	const auto file = directory.GetPath() / "Shared.material.json";
+	const nlohmann::json before{{"name", "Shared"}, {"parameters", nlohmann::json::array()}};
+	auto after = before;
+	after["name"] = "変更後";
+	if (!JsonFile::Save(file, before)) return false;
+
+	AssetDatabase database;
+	database.Init();
+	const AssetID id = database.ImportOrGet(RuntimePaths::ToAssetPath(file), AssetType::Material);
+	RenderAssetLibrary library;
+	library.Init(&database);
+	SystemContext systems;
+	systems.renderAssetLibrary = &library;
+	ECSWorld world;
+	EditorContext context;
+	context.systemContext = &systems;
+	context.assetDatabase = &database;
+	context.activeWorld = &world;
+	context.activeSceneAsset = AssetID{1, 1};
+	EditorState state;
+	EditorSceneDirtyState dirty;
+	const auto run = [&](const auto& operation) {
+		return EditorCommandExecution::Run(context, state, dirty, operation, false);
+	};
+	const auto nameMatches = [&](const nlohmann::json& document) {
+		const auto* material = library.LoadMaterial(id);
+		return material && material->name == document.at("name").get<std::string>() &&
+			JsonFile::Load(file, false) == document;
+	};
+	const auto undo = [&](EditorCommandContext& edit) { return state.commandHistory.Undo(edit); };
+	const auto redo = [&](EditorCommandContext& edit) { return state.commandHistory.Redo(edit); };
+	const auto revision = database.GetContentRevision(id);
+	if (!id || !nameMatches(before) || !run([&](EditorCommandContext& edit) {
+			return state.commandHistory.Execute(std::make_unique<EditMaterialAssetCommand>(
+				id, database.GetProjectRoot(), before, after), edit);
+		}) || database.GetContentRevision(id) == revision || state.commandHistory.GetUndoCount() != 1 ||
+		!nameMatches(after) || !run(undo) || !nameMatches(before) || !run(redo) || !nameMatches(after)) {
+		return false;
+	}
+	// 外部編集と競合したUndoは文書と履歴を残す
+	auto external = after;
+	external["name"] = "外部で変更";
+	return JsonFile::Save(file, external) && !run(undo) && JsonFile::Load(file, false) == external &&
+		state.commandHistory.GetUndoCount() == 1 && !state.commandHistory.CanRedo() && !dirty.HasDirtyScenes();
 }
 
 bool NEMTests::TestMaterialCreationFailures() {

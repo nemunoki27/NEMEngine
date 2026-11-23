@@ -188,6 +188,8 @@ namespace Engine {
 		bool forceVertexMeshVariant = false;
 		// ProjectPanelの小さいモデル画像だけ縮小Textureを使う
 		bool useThumbnailTextures = false;
+		// 独立したWorldを本描画と同じ材質で表示する
+		bool materialPreview = false;
 	};
 
 	//============================================================================
@@ -388,6 +390,8 @@ namespace Engine {
 		// 描画ビューの情報を要求に応じて確定させる
 		void ResolveViews(const RenderFrameRequest& request);
 
+		// ShaderGraphと描画パスから参照するGBufferを登録する
+		static void RegisterSceneMaterialInputs(SceneExecutionContext& context);
 		// ビューの情報に応じたコンテキストを構築
 		SceneExecutionContext BuildViewExecutionContext(GraphicsCore& graphicsCore,
 			const RenderFrameRequest& request, const SceneInstance* sceneInstance,

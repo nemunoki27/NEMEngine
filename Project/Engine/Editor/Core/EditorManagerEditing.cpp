@@ -13,12 +13,13 @@ bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand>
 		return false;
 	}
 
+	const bool assetCommand = dynamic_cast<const IEditorAssetCommand*>(command.get()) != nullptr;
 	return EditorCommandExecution::Run(
 		*currentRenderContext_, editorState_, dirtyState_, [&](EditorCommandContext& commandContext) {
 			// Play中は実行Worldへ直接反映しUndoへ積まない
-			return currentRenderContext_->isPlaying ? command->Execute(commandContext)
+			return currentRenderContext_->isPlaying && !assetCommand ? command->Execute(commandContext)
 													: editorState_.commandHistory.Execute(std::move(command), commandContext);
-		});
+		}, !assetCommand);
 }
 
 bool Engine::EditorManager::UndoEditorCommand() {
@@ -27,12 +28,13 @@ bool Engine::EditorManager::UndoEditorCommand() {
 		AnimationPropertyEditCapture::HasRecorder(*currentRenderContext_->activeWorld))
 		return AnimationPropertyEditCapture::RestoreHistory(*currentRenderContext_->activeWorld, false);
 	// Play中はEdit Worldの履歴を操作しない
-	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
+	const bool assetCommand = dynamic_cast<const IEditorAssetCommand*>(editorState_.commandHistory.PeekUndo()) != nullptr;
+	if (!currentRenderContext_ || (currentRenderContext_->isPlaying && !assetCommand)) {
 		return false;
 	}
 
 	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
-		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Undo(commandContext); });
+		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Undo(commandContext); }, !assetCommand);
 }
 
 bool Engine::EditorManager::RedoEditorCommand() {
@@ -41,12 +43,13 @@ bool Engine::EditorManager::RedoEditorCommand() {
 		AnimationPropertyEditCapture::HasRecorder(*currentRenderContext_->activeWorld))
 		return AnimationPropertyEditCapture::RestoreHistory(*currentRenderContext_->activeWorld, true);
 	// Play中はEdit Worldの履歴を操作しない
-	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
+	const bool assetCommand = dynamic_cast<const IEditorAssetCommand*>(editorState_.commandHistory.PeekRedo()) != nullptr;
+	if (!currentRenderContext_ || (currentRenderContext_->isPlaying && !assetCommand)) {
 		return false;
 	}
 
 	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
-		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Redo(commandContext); });
+		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Redo(commandContext); }, !assetCommand);
 }
 
 bool Engine::EditorManager::DuplicateSelection() {

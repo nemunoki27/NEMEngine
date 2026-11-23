@@ -65,6 +65,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
+	PushEditResult(MaterialParameterEditor::DrawReload(draft.materialInstance), anyItemActive);
 	PushEditResult(DrawRendererRenderSettingsFields(draft.renderSettings), anyItemActive);
 	// 描画パラメータ
 	InspectorDrawerCommon::DrawCommonRenderFields(context,

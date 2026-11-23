@@ -8,7 +8,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
 
 // c++
 #include <filesystem>
@@ -67,14 +67,7 @@ const Engine::ShaderReflectionInfo* Engine::MaterialReflectionCache::EnsureRefle
 			const auto path = database.ResolveFullPath(cachedMaterial_.shaderGraph);
 			hasGraphParameters_ = !path.empty() && JsonFile::TryLoad(path, data) && FromJson(data, graph);
 			if (hasGraphParameters_) {
-				for (const auto& parameter : graph.parameters) {
-					if (parameter.exposed && parameter.scope != ShaderGraphParameterScope::Global) {
-						graphParameters_.push_back(MaterialParameterID::FromUUID(parameter.id));
-					}
-				}
-				for (const auto& keyword : graph.keywords) {
-					if (keyword.runtimeToggle) graphParameters_.push_back(MaterialParameterID::FromUUID(keyword.id));
-				}
+				graphParameters_ = ShaderGraphParameterDefaults::CollectExposed(graph);
 			}
 		}
 	}

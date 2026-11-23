@@ -12,12 +12,16 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <unordered_set>
 
 //============================================================================
 //	MaterialParameterEditor
 //	反射情報からMaterialの編集UIを作る
 //============================================================================
 namespace Engine::MaterialParameterEditor {
+
+	bool DrawReloadButton(bool hasOverrides);
+	ValueEditResult DrawReload(MaterialParameterSet& parameters);
 
 	// 値編集と同じ名前とIDをクリップボードへコピーする
 	MyGUI::ScopedPropertyLabelContextMenu MakeLabelContextMenu(MaterialParameterID parameterID, std::string_view name);
@@ -84,8 +88,8 @@ namespace Engine::MaterialParameterEditor {
 		const FloatEditSetting& floatSetting = FloatEditSetting{});
 
 	// 未登録値を補完して指定定数Bufferの編集結果を返す
-	bool DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection, const std::string& cbufferName,
-		MaterialParameterSet& parameters);
+	ValueEditResult DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection, const std::string& cbufferName,
+		MaterialParameterSet& parameters, std::unordered_set<uint64_t>& drawn);
 
 	ValueEditResult DrawGraphOverrides(MaterialParameterSet& instance, const MaterialParameterSet& defaults,
 		std::span<const MaterialParameterID> exposed, const AssetDatabase* database);

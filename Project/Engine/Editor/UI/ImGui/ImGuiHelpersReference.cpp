@@ -127,7 +127,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 	const bool hasValue = static_cast<bool>(value);
 	// 値が未設定でも既定アセットが渡されていれば、描画で効く既定の名前を表示する
 	const bool usesDefault = !hasValue && static_cast<bool>(setting.defaultAssetID);
-	std::string displayText = BuildAssetReferenceLabel(value, assetDatabase, acceptedTypes);
+	std::string displayText = setting.resolvedLabel.empty() ? BuildAssetReferenceLabel(value, assetDatabase, acceptedTypes) : setting.resolvedLabel;
 	if (usesDefault) {
 
 		const AssetMeta* defaultMeta = assetDatabase ? assetDatabase->Find(setting.defaultAssetID) : nullptr;
@@ -162,7 +162,7 @@ Engine::ValueEditResult Engine::MyGUI::AssetReferenceField(const char* label, As
 
 	// ツールチップとプレビュー画像の表示
 	if (setting.showTooltip && ImGui::BeginItemTooltip()) {
-		const std::string tooltip = BuildAssetReferenceTooltip(value, assetDatabase, acceptedTypes);
+		const std::string tooltip = setting.resolvedLabel.empty() ? BuildAssetReferenceTooltip(value, assetDatabase, acceptedTypes) : setting.resolvedLabel;
 		ImGui::TextUnformatted(tooltip.c_str());
 		if (resolvedPreviewID != ImTextureID{}) {
 			ImGui::Image(resolvedPreviewID, ImVec2(128.0f, 128.0f));

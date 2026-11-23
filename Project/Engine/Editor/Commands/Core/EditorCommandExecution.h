@@ -20,6 +20,6 @@ namespace Engine {
 	public:
 		// 操作単位でdirty通知と例外処理を行う
 		static bool Run(const EditorContext& context, EditorState& state, EditorSceneDirtyState& dirtyState,
-			const std::function<bool(EditorCommandContext&)>& operation);
+			const std::function<bool(EditorCommandContext&)>& operation, bool editsScene = true);
 	};
 }

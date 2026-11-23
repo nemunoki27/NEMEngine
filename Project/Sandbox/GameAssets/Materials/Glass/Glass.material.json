@@ -1,5 +1,8 @@
 {
     "domain": "Surface",
+    "graphOverrides": [
+        "25474f0511217f1d"
+    ],
     "name": "Glass",
     "parameters": [
         {
@@ -15,6 +18,12 @@
             "value": 0.11999999731779099
         },
         {
+            "id": "0973e20c0de8b234",
+            "name": "屈折",
+            "semantic": "None",
+            "value": true
+        },
+        {
             "id": "20751295ab4b9442",
             "name": "Roughness",
             "semantic": "None",
@@ -26,9 +35,9 @@
             "semantic": "None",
             "value": {
                 "a": 1.0,
-                "b": 0.9800000190734863,
-                "g": 0.8799999952316284,
-                "r": 0.6499999761581421
+                "b": 0.03063826635479927,
+                "g": 0.6000000238418579,
+                "r": 0.07909466326236725
             }
         },
         {
@@ -82,12 +91,6 @@
             "name": "EdgeOpacity",
             "semantic": "None",
             "value": 0.7599999904632568
-        },
-        {
-            "id": "0973e20c0de8b234",
-            "name": "屈折",
-            "semantic": "None",
-            "value": true
         }
     ],
     "passes": [

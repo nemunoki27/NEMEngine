@@ -270,6 +270,7 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestFBXImport", TestFBXImport) ||
 		!RunTest("TestProjectAssetMoveTransaction", TestProjectAssetMoveTransaction) ||
 		!RunTest("TestMaterialCreationFailures", TestMaterialCreationFailures) ||
+		!RunTest("TestMaterialAssetHistory", TestMaterialAssetHistory) ||
 		!RunTest("TestMaterialReflectionCache", TestMaterialReflectionCache) ||
 		!RunTest("TestMaterialResolverIndexChanges", TestMaterialResolverIndexChanges) ||
 		!RunTest("TestAssetDocumentRecovery", TestAssetDocumentRecovery) ||

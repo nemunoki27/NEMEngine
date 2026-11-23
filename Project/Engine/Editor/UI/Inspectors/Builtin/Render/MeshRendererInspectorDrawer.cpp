@@ -3,11 +3,15 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	MeshRendererInspectorDrawer classMethods
@@ -55,13 +59,18 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 				"マテリアル", draft.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
 		});
 
+		const bool hasOverrides = std::ranges::any_of(subMeshDraft_, [](const SubMeshMaterial& subMesh) {
+			return !subMesh.materialInstance.empty();
+		});
+		if (MaterialParameterEditor::DrawReloadButton(hasOverrides)) {
+			for (auto& subMesh : subMeshDraft_) subMesh.materialInstance.clear();
+			PushEditResult({ .valueChanged = true, .editFinished = true }, anyItemActive);
+		}
+
 		// モデルファイルのマテリアル係数やテクスチャを現shaderのパラメータへ再適用する
 		DrawField(anyItemActive, [&]() {
 			ValueEditResult result{};
-			const float fullWidth = ImGui::GetContentRegionAvail().x;
-			const float buttonWidth = fullWidth * 0.5f;
-			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (fullWidth - buttonWidth) * 0.5f);
-			if (ImGui::Button("マテリアルパラメータを再読み込み", ImVec2(buttonWidth, 0.0f))) {
+			if (ImGui::Button("モデルデータからマテリアル値を再読み込み", ImVec2(-1.0f, 0.0f))) {
 
 				ApplyModelMaterialParameters(context, draft);
 				result.valueChanged = true;

@@ -1,5 +1,10 @@
 {
     "domain": "Surface",
+    "graphOverrides": [
+        "4d506a1e1591fd80",
+        "51f1e040a81863f7",
+        "0a25373d638d79b9"
+    ],
     "name": "Lava",
     "parameters": [
         {
@@ -9,10 +14,39 @@
             "value": 0.0
         },
         {
+            "id": "0a25373d638d79b9",
+            "name": "割れ目の太さ",
+            "semantic": "None",
+            "value": 0.029999999329447746
+        },
+        {
+            "id": "1657fdeaede6057d",
+            "name": "溶岩色",
+            "semantic": "None",
+            "value": {
+                "a": 1.0,
+                "b": 0.009999999776482582,
+                "g": 0.1899999976158142,
+                "r": 1.0
+            }
+        },
+        {
             "id": "31d4f90ec37c453f",
             "name": "emissiveIntensity",
             "semantic": "EmissiveIntensity",
             "value": 0.0
+        },
+        {
+            "id": "4d506a1e1591fd80",
+            "name": "流速",
+            "semantic": "None",
+            "value": 4.28000020980835
+        },
+        {
+            "id": "51f1e040a81863f7",
+            "name": "発光強度",
+            "semantic": "None",
+            "value": 5.230000019073486
         },
         {
             "id": "77f5c18e246c6638",
@@ -24,6 +58,12 @@
                 "g": 1.0,
                 "r": 1.0
             }
+        },
+        {
+            "id": "a6ef6168961d7b4f",
+            "name": "模様のスケール",
+            "semantic": "None",
+            "value": 2.299999952316284
         },
         {
             "id": "c4617cc0ecd319d1",
@@ -43,6 +83,17 @@
             "value": 0.5
         },
         {
+            "id": "c9106cc588483a02",
+            "name": "岩色",
+            "semantic": "None",
+            "value": {
+                "a": 1.0,
+                "b": 0.03200000151991844,
+                "g": 0.03400000184774399,
+                "r": 0.04500000178813934
+            }
+        },
+        {
             "id": "df9e0c473a8555c8",
             "name": "metallic",
             "semantic": "Metallic",
@@ -53,52 +104,6 @@
             "name": "displacementMidpoint",
             "semantic": "DisplacementMidpoint",
             "value": 0.5
-        },
-        {
-            "id": "a6ef6168961d7b4f",
-            "name": "模様のスケール",
-            "semantic": "None",
-            "value": 2.3
-        },
-        {
-            "id": "0a25373d638d79b9",
-            "name": "割れ目の太さ",
-            "semantic": "None",
-            "value": 0.1
-        },
-        {
-            "id": "c9106cc588483a02",
-            "name": "岩色",
-            "semantic": "None",
-            "value": {
-                "r": 0.045,
-                "g": 0.034,
-                "b": 0.032,
-                "a": 1.0
-            }
-        },
-        {
-            "id": "4d506a1e1591fd80",
-            "name": "流速",
-            "semantic": "None",
-            "value": 0.7
-        },
-        {
-            "id": "51f1e040a81863f7",
-            "name": "発光強度",
-            "semantic": "None",
-            "value": 4.5
-        },
-        {
-            "id": "1657fdeaede6057d",
-            "name": "溶岩色",
-            "semantic": "None",
-            "value": {
-                "r": 1.0,
-                "g": 0.19,
-                "b": 0.01,
-                "a": 1.0
-            }
         }
     ],
     "passes": [

@@ -8,6 +8,9 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUFeedbackWorld.h>
 #include "RenderScenePreparation.h"
+#include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
 
 namespace Engine {
 
@@ -40,5 +43,8 @@ namespace Engine {
 		MeshRenderBackend* previewMeshBackend_ = nullptr;
 		// 本描画の抽出結果と前回行列を上書きしない
 		RenderScenePreparation previewScenePreparation_;
+		DeferredRenderPath materialPath_;
+		RenderPathResources materialTargets_;
+		ColorPipelineProcessor materialColor_;
 	};
 }

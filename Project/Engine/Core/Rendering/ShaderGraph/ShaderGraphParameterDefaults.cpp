@@ -31,6 +31,50 @@ Engine::MaterialParameterSet Engine::ShaderGraphParameterDefaults::Build(const S
 	return parameters;
 }
 
+std::vector<Engine::MaterialParameterID> Engine::ShaderGraphParameterDefaults::CollectExposed(const ShaderGraphAsset& graph) {
+
+	std::vector<MaterialParameterID> result;
+	for (const auto& parameter : graph.parameters) {
+		if (parameter.exposed && parameter.scope != ShaderGraphParameterScope::Global) {
+			result.push_back(MaterialParameterID::FromUUID(parameter.id));
+		}
+	}
+	for (const auto& keyword : graph.keywords) {
+		if (keyword.runtimeToggle) result.push_back(MaterialParameterID::FromUUID(keyword.id));
+	}
+	return result;
+}
+
+void Engine::ShaderGraphParameterDefaults::ImportLegacyOverrides(const ShaderGraphAsset& graph, MaterialAsset& material) {
+
+	const auto defaults = Build(graph);
+	material.graphOverrides.clear();
+	for (const auto id : CollectExposed(graph)) {
+		const auto* value = material.parameters.Find(id);
+		const auto* fallback = defaults.Find(id);
+		if (value && fallback && value->value.index() == fallback->value.index() &&
+			SerializeMaterialParameterValue(*value) != SerializeMaterialParameterValue(*fallback)) {
+			material.graphOverrides.push_back(id);
+		}
+	}
+}
+
+void Engine::ShaderGraphParameterDefaults::RestoreOverrides(const ShaderGraphAsset& graph,
+	const MaterialAsset& previous, MaterialAsset& material) {
+
+	const auto exposed = CollectExposed(graph);
+	for (const auto id : previous.graphOverrides) {
+		if (std::ranges::find(exposed, id) == exposed.end()) continue;
+		const auto* stored = previous.parameters.Find(id);
+		const auto records = material.parameters.GetRecords();
+		const auto field = std::ranges::find(records, id, &MaterialParameterRecord::id);
+		if (!stored || field == records.end() || stored->value.index() != field->namedValue.second.value.index()) continue;
+		const std::string name = field->namedValue.first;
+		material.parameters.Set(id, name, field->semantic, *stored);
+		material.graphOverrides.push_back(id);
+	}
+}
+
 void Engine::ShaderGraphParameterDefaults::ApplyMissing(const MaterialParameterSet& defaults,
 	MaterialParameterSet& parameters) {
 

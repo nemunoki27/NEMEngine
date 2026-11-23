@@ -10,6 +10,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -133,9 +134,13 @@ bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, Asse
 	previewCompileDirty_ = refreshed || !previewMaterial_;
 	if (previewMaterial_) {
 		MaterialAsset material{};
-		const MaterialAsset expected = ShaderGraphArtifactCache::CreateMaterial(graph_, selectedAsset_);
-		previewCompileDirty_ |=
-			!FromJson(JsonAdapter::Load(materialPath, false), material) || !HasCurrentGraphDefaults(material, expected);
+		MaterialAsset expected = ShaderGraphArtifactCache::CreateMaterial(graph_, selectedAsset_);
+		if (FromJson(JsonAdapter::Load(materialPath, false), material)) {
+			ShaderGraphParameterDefaults::RestoreOverrides(graph_, material, expected);
+			previewCompileDirty_ |= !HasCurrentGraphDefaults(material, expected);
+		} else {
+			previewCompileDirty_ = true;
+		}
 	}
 	graphLoaded_ = true;
 	graphDirty_ = false;

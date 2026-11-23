@@ -1,4 +1,5 @@
 #include "RenderAssetLibrary.h"
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 
 //============================================================================
 //	include
@@ -114,14 +115,8 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	if (ShaderCook::IsCookedProduct()) {
 		return;
 	}
-	const std::filesystem::path graphPath =
-		database_->ResolveFullPath(asset.shaderGraph);
-	if (graphPath.empty()) {
-		return;
-	}
-
 	ShaderGraphAsset graph{};
-	if (!FromJson(JsonAdapter::Load(graphPath, true), graph)) {
+	if (!ShaderGraphAssetReferences::LoadSource(asset.shaderGraph, database_, graph)) {
 		return;
 	}
 	ShaderGraphArtifact artifact{};

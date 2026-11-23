@@ -127,6 +127,8 @@ namespace Engine {
 		bool allowDelete = true;
 		// 値が未設定のとき既定として効くアセットを表示用に渡す(描画側で既定が解決される場合に何が効くか示す)
 		AssetID defaultAssetID{};
+		// 実行時に解決したアセットの表示名
+		std::string resolvedLabel;
 		// プロパティ行設定
 		PropertyRowSetting propertyRow{};
 	};

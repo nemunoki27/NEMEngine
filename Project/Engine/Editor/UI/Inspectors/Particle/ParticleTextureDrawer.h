@@ -8,6 +8,8 @@
 
 namespace Engine::ParticleTextureDrawer {
 
+	bool HasOverrides(const ParticlePhaseMaterialSettings& settings);
+
 	// PhaseとTrailの共通Texture入力を表示する
 	bool Draw(const EditorPanelContext& context, ParticlePhaseMaterialSettings& settings, AssetID materialID);
 }

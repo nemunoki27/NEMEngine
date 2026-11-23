@@ -53,7 +53,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	renderAssetLibrary_.Init(request.assetDatabase);
 	previewResources_.BeginFrame(graphicsCore);
 	auto& preparation = previewResources_.previewScenePreparation_;
-	preparation.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, nullptr);
+	preparation.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, request.materialPreview ? &assetReloadService_ : nullptr);
 
 	RenderViewRequest viewRequest{};
 	viewRequest.kind = RenderViewKind::Scene;
@@ -125,6 +125,35 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		}
 		PreDispatchVisibleMeshSkinning(graphicsCore, context,
 			preparation.renderBatch_, previewResources_.previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
+	}
+
+	if (request.materialPreview) {
+		auto& targets = previewResources_.materialTargets_;
+		const bool firstPreview = !targets.IsValid();
+		targets.Resize(graphicsCore, previewView.width, previewView.height);
+		if (!targets.IsValid()) return false;
+		if (firstPreview) {
+			RenderPipelineDeps deps{};
+			deps.renderBatch = &preparation.renderBatch_;
+			deps.backendRegistry = &previewResources_.previewBackendRegistry_;
+			deps.assetLibrary = &renderAssetLibrary_;
+			deps.pipelineCache = &pipelineStateCache_;
+			deps.materialResolver = &materialResolver_;
+			deps.colorPipelineProcessor = &previewResources_.materialColor_;
+			deps.dispatcher = &batchDispatcher_;
+			previewResources_.materialPath_.Initialize(deps, true);
+		}
+		previewView.historyWorldRevision = UINT64_MAX;
+		context.resources = &targets;
+		context.viewLights = &previewResources_.previewLightSet_;
+		context.postProcessCamera = previewView.perspective;
+		context.postProcessCamera.postProcessEnabled = false;
+		context.disableMeshCulling = true;
+		RegisterSceneMaterialInputs(context);
+		previewResources_.materialPath_.Execute(graphicsCore, passBuckets, context);
+		request.surface->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
+		previewTargetRegistry.EndFrame();
+		return true;
 	}
 
 	// プレビュー:クリア→全フェーズを描画サーフェスへ直接描画

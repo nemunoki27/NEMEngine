@@ -388,6 +388,25 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// ビルボードはGameViewを基準にする
 	context.billboardView = (kind == RenderViewKind::Scene && gameViewState_.view.valid) ? &gameViewState_.view : &view;
 
+	RegisterSceneMaterialInputs(context);
+
+	// Camera別の転送先を登録する
+	context.hasShadowCastingLight = cameraState.lightSet.hasShadowCastingLight;
+	context.viewLights = &cameraState.lightSet;
+	cameraState.lightBuffers.RegisterTo(context.bufferRegistry);
+	// 反射定数を転送してから、この描画のGPUアドレスを登録する
+	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
+		graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
+	cameraState.raytracingBuffers.Upload(*context.view, skyboxInfo, context.postProcessCamera.surfaceSettings);
+	context.raytracingViewConstants = &cameraState.raytracingBuffers.GetData();
+	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
+	return context;
+}
+
+void Engine::RenderPipelineRunner::RegisterSceneMaterialInputs(SceneExecutionContext& context) {
+
+	auto& resources = *context.resources;
+	auto* registry = context.targetRegistry;
 	// 中間RenderTargetをレジストリに登録してPostProcessExecutorが名前で解決できるようにする
 	if (resources.GetSceneMain()) {
 		registry->Register("SceneMain", resources.GetSceneMain(),
@@ -429,16 +448,4 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	registerGBuffer(ShaderGraphBindingNames::kSceneMaterial, GBufferAttachment::Material);
 	registerGBuffer(ShaderGraphBindingNames::kSceneEmissive, GBufferAttachment::Emissive);
 	registerGBuffer(ShaderGraphBindingNames::kSceneFlags, GBufferAttachment::Flags);
-
-	// Camera別の転送先を登録する
-	context.hasShadowCastingLight = cameraState.lightSet.hasShadowCastingLight;
-	context.viewLights = &cameraState.lightSet;
-	cameraState.lightBuffers.RegisterTo(context.bufferRegistry);
-	// 反射定数を転送してから、この描画のGPUアドレスを登録する
-	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
-		graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
-	cameraState.raytracingBuffers.Upload(*context.view, skyboxInfo, context.postProcessCamera.surfaceSettings);
-	context.raytracingViewConstants = &cameraState.raytracingBuffers.GetData();
-	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
-	return context;
 }

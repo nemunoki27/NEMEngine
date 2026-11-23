@@ -116,6 +116,10 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		}
 	}
 	componentSession_.SyncPreviewOwner(previewWorld, previewEntity);
+	if (!*open || lockedEntityUUID_ || lockedInspection_.IsSet() || !context.editorState ||
+		context.editorState->selectionKind != EditorSelectionKind::Asset) {
+		materialSession_.EndEdit(context);
+	}
 	if (!*open) {
 		EndPreview();
 	}
@@ -141,6 +145,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	const bool visible = Engine::EditorWindowPresentation::Begin(windowName.c_str(), open);
 	assetEditSession_.KeepPanelOpen(*open);
 	if (assetEditSession_.ResolvePanelClose(context, *open)) {
+		materialSession_.EndEdit(context);
 		ImGui::End();
 		return;
 	}
@@ -148,6 +153,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}
 	if (!visible) {
+		materialSession_.EndEdit(context);
 		DrawTitleBarContextMenu(context);
 		ImGui::End();
 		return;
@@ -342,6 +348,7 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext& context) {
 
 	if (!context.editorContext || !context.editorContext->assetDatabase || !context.editorState->selectedAsset) {
+		materialSession_.EndEdit(context);
 		ImGui::TextDisabled("Asset is not selected.");
 		return;
 	}
@@ -350,10 +357,18 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 	const AssetMeta* meta = database->Find(context.editorState->selectedAsset);
 	if (!meta) {
 
+		materialSession_.EndEdit(context);
 		ImGui::TextDisabled("Selected asset was not found.");
 		return;
 	}
 
+	if (meta->type == AssetType::Material) {
+		assetEditSession_.TrackDrawer(nullptr, {});
+		materialSession_.DrawMaterialAssetInspector(context, *meta);
+		return;
+	}
+
+	materialSession_.EndEdit(context);
 	ImGui::Text("Asset");
 	ImGui::Separator();
 	MyGUI::Text("Path", meta->assetPath);
@@ -378,12 +393,6 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 		}
 		assetEditSession_.TrackDrawer(nullptr, {});
 
-		// Materialの専用編集へ渡す
-		if (meta->type == AssetType::Material) {
-
-			materialSession_.DrawMaterialAssetInspector(context, *meta);
-			return;
-		}
 		if (meta->type == AssetType::Mesh) {
 
 			modelPreview_.DrawMeshAssetInspector(context, *meta);

@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "GraphMaterialAssetFields.h"
+#include "InspectorMaterialPreview.h"
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
@@ -20,8 +22,10 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		// Materialアセットのインスペクターを描画する
 		void DrawMaterialAssetInspector(const EditorPanelContext& context, const AssetMeta& meta);
+		// 未確定のプレビューを保存済みの状態へ戻す
+		void EndEdit(const EditorPanelContext& context);
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -29,16 +33,21 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// Materialアセット編集用の一時データ
+		InspectorMaterialPreview preview_;
+		GraphMaterialAssetFields graphFields_;
 		AssetID editingMaterialAsset_{};
 		MaterialAsset materialDraft_{};
-		bool materialDraftValid_ = false;
+		nlohmann::json savedDocument_;
+		nlohmann::json savedFields_;
+		std::weak_ptr<const uint8_t> databaseLifetime_;
+		uint64_t contentRevision_ = 0;
+		bool readOnly_ = false;
+		bool pendingEdit_ = false;
+		std::string diagnostic_;
 
 		//--------- functions ----------------------------------------------------
 
-		// Materialアセットの編集用データを読み込む
 		bool LoadMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta);
-		// Materialアセットの編集用データを保存する
-		void SaveMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta);
+		void SaveMaterialDraft(const EditorPanelContext& context);
 	};
 }

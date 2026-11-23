@@ -39,6 +39,21 @@ namespace {
 
 namespace Engine::MaterialParameterEditor {
 
+	bool DrawReloadButton(bool hasOverrides) {
+
+		ImGui::BeginDisabled(!hasOverrides);
+		const bool pressed = ImGui::Button("マテリアル値を再読み込み", ImVec2(-1.0f, 0.0f));
+		ImGui::EndDisabled();
+		return pressed;
+	}
+
+	ValueEditResult DrawReload(MaterialParameterSet& parameters) {
+
+		if (!DrawReloadButton(!parameters.empty())) return {};
+		parameters.clear();
+		return { .valueChanged = true, .editFinished = true };
+	}
+
 	MyGUI::ScopedPropertyLabelContextMenu MakeLabelContextMenu(
 		MaterialParameterID parameterID, std::string_view name) {
 
@@ -421,39 +436,22 @@ namespace Engine::MaterialParameterEditor {
 		return result;
 	}
 
-	bool DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection,
-		const std::string& cbufferName,
-		MaterialParameterSet& parameters) {
+	ValueEditResult DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection,
+		const std::string& cbufferName, MaterialParameterSet& parameters, std::unordered_set<uint64_t>& drawn) {
 
-		bool valueChanged = false;
-		for (const ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
-			if (cb.name != cbufferName) {
-				continue;
-			}
-			for (const ShaderConstantBufferVariable& var : cb.variables) {
-				if (!IsExposedParameter(var) ||
-					IsReflectedTextureParam(var, reflection)) {
-					continue;
-				}
+		ValueEditResult result{};
+		if (const auto* buffer = FindConstantBuffer(reflection, cbufferName)) {
+			for (const auto& var : buffer->variables) {
+				if (!IsExposedParameter(var) || IsReflectedTextureParam(var, reflection) ||
+					!drawn.insert(var.parameterID.value).second) continue;
 
-				const MaterialParameterValue* value =
-					parameters.Find(var.parameterID);
-				if (!value) {
-					// シェーダーが要求するパラメータをUIへ出すため既定値で補完する
-					parameters.Set(
-						var.parameterID, var.name, var.semantic,
-						DefaultValueForVariable(var));
-					value = parameters.Find(var.parameterID);
-				}
-				if (value) {
-					MaterialParameterValue draft = *value;
-					if (DrawValueEdit(var, draft).valueChanged) {
-						parameters.Set(var.parameterID, var.name, var.semantic, draft);
-						valueChanged = true;
-					}
-				}
+				const auto* stored = parameters.Find(var.parameterID);
+				auto value = stored ? *stored : DefaultValueForVariable(var);
+				const auto edit = DrawValueEdit(var, value);
+				if (edit.valueChanged) parameters.Set(var.parameterID, var.name, var.semantic, value);
+				result.Merge(edit);
 			}
 		}
-		return valueChanged;
+		return result;
 	}
 }

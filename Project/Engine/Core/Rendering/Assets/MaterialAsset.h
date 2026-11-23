@@ -110,6 +110,8 @@ namespace Engine {
 		// ID順に保持するマテリアル既定値
 		MaterialParameterSet parameters;
 		std::shared_ptr<const DecalGraphProgram> decalGraph;
+		// 元Graphの再生成時に保持する公開値
+		std::vector<MaterialParameterID> graphOverrides;
 	};
 
 	// json変換

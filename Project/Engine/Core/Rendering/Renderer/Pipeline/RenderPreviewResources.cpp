@@ -6,6 +6,7 @@ void Engine::RenderPreviewResources::BeginFrame(GraphicsCore& graphicsCore) {
 
 		previewBackendRegistry_.BeginFrame(graphicsCore);
 		previewLightBufferPool_.BeginFrame();
+		materialColor_.BeginFrame();
 		previewBackendFrameStarted_ = true;
 	}
 }

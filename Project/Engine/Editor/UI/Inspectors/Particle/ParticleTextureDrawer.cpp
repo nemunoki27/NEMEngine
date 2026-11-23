@@ -3,8 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include "ParticleMaterialResolver.h"
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+
+bool Engine::ParticleTextureDrawer::HasOverrides(const ParticlePhaseMaterialSettings& settings) {
+
+	return settings.baseColorTexture || !settings.textureOverrides.empty() || !settings.parameters.empty();
+}
 
 bool Engine::ParticleTextureDrawer::Draw(const EditorPanelContext& context,
 	ParticlePhaseMaterialSettings& settings, AssetID materialID) {
@@ -12,7 +18,10 @@ bool Engine::ParticleTextureDrawer::Draw(const EditorPanelContext& context,
 	using namespace ParticleMaterialResolver;
 	AssetDatabase* database = context.editorContext->assetDatabase;
 	AssetEditSetting editSetting{};
-	bool changed = MyGUI::AssetReferenceField("ベースカラーテクスチャ", settings.baseColorTexture,
+	const bool reload = MaterialParameterEditor::DrawReloadButton(HasOverrides(settings));
+	if (reload) settings = {};
+	bool changed = reload;
+	changed |= MyGUI::AssetReferenceField("ベースカラーテクスチャ", settings.baseColorTexture,
 		database, { AssetType::Texture, AssetType::RenderTexture }, editSetting).valueChanged;
 	AssetID normalTexture{};
 	if (const auto found = settings.textureOverrides.find("particleNormalTexture"); found != settings.textureOverrides.end()) {

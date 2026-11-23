@@ -1,4 +1,5 @@
 #include "RenderAssetReloadService.h"
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 
 //============================================================================
 //	include
@@ -220,10 +221,7 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 		for (AssetID graphID : affectedGraphs) {
 			ShaderGraphAsset graph{};
 			ShaderGraphArtifact artifact{};
-			const std::filesystem::path graphPath =
-				assetDatabase.ResolveFullPath(graphID);
-			if (graphPath.empty() ||
-				!FromJson(JsonAdapter::Load(graphPath, true), graph) ||
+			if (!ShaderGraphAssetReferences::LoadSource(graphID, &assetDatabase, graph) ||
 				!ShaderGraphArtifactCache::Compile(
 					graph, graphID, artifact, &assetDatabase)) {
 
@@ -310,6 +308,11 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 
 bool RenderAssetReloadService::ApplyMaterialRenderStates(RenderSceneBatch& renderBatch) {
 
+	const auto& revision = renderAssetLibrary_.GetMaterialRevision();
+	if (materialStateRevision_ != revision) {
+		materialRenderStateCache_.clear();
+		materialStateRevision_ = revision;
+	}
 	bool sortChanged = false;
 	for (RenderItem& item : renderBatch.GetMutableItems()) {
 

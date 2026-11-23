@@ -115,6 +115,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 		return MyGUI::AssetReferenceField(
 			"マテリアル", subMesh.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
 	});
+	editResult.Merge(MaterialParameterEditor::DrawReload(subMesh.materialInstance));
 	InspectorDrawerCommon::DrawFieldEdit(editResult, [&]() { return DrawSurfaceModeCombo("表面方式", subMesh.surfaceMode); });
 
 	MyGUI::Text("モデル判定", SurfaceModeLabel(subMesh.sourceSurfaceMode));

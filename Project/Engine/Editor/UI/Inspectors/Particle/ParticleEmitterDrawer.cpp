@@ -1,4 +1,5 @@
 #include "ParticleEmitterDrawer.h"
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 
 //============================================================================
@@ -156,6 +157,17 @@ bool ParticleEmitterDrawer::Draw(const EditorPanelContext& context, ParticleSyst
 					}
 				}
 			}
+			const bool hasOverrides = std::ranges::any_of(group.phases, [](const ParticlePhaseSettings& phase) {
+				return !phase.material && ParticleTextureDrawer::HasOverrides(phase.materialSettings);
+			});
+			ImGui::PushID("EmitterMaterial");
+			if (MaterialParameterEditor::DrawReloadButton(hasOverrides)) {
+				for (auto& phase : group.phases) {
+					if (!phase.material) phase.materialSettings = {};
+				}
+				changed = true;
+			}
+			ImGui::PopID();
 			drawRenderSettings();
 			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::BlendMode), group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo(Engine::GetInspectorLabel(Engine::InspectorFieldID::RenderQueue), group.queue).valueChanged;

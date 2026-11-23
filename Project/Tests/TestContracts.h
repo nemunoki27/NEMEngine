@@ -82,6 +82,7 @@ namespace NEMTests {
 	bool TestProjectAssetCopyTransaction();
 	bool TestProjectAssetMoveTransaction();
 	bool TestMaterialCreationFailures();
+	bool TestMaterialAssetHistory();
 	bool TestMaterialReflectionCache();
 	bool TestMaterialResolverIndexChanges();
 	bool TestAssetDocumentRecovery();

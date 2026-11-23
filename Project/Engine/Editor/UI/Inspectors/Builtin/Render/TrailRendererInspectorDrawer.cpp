@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Inspectors/Common/RibbonRendererFields.h>
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
@@ -52,6 +53,7 @@ void TrailRendererInspectorDrawer::DrawFields(const EditorPanelContext& context,
 
 	field(DrawInspectorCommonFields(context, { .visible = &s.visible, .displayLayer = &s.renderingLayerMask }));
 	field(RibbonRendererFields::DrawMaterial(context, s.material, invalidMaterial_, BuiltinAssets::Materials::DefaultTrail));
+	field(MaterialParameterEditor::DrawReload(s.materialInstance));
 	field(DrawRendererRenderSettingsFields(s.renderSettings));
 	InspectorDrawerCommon::DrawCommonRenderFields(context, [&](auto&& f) { field(f()); }, s.layer, s.order, s.blendMode, s.queue);
 

@@ -9,21 +9,23 @@
 
 // c++
 #include <exception>
+#include <optional>
 
 bool Engine::EditorCommandExecution::Run(const EditorContext& context, EditorState& state,
-	EditorSceneDirtyState& dirtyState, const std::function<bool(EditorCommandContext&)>& operation) {
+	EditorSceneDirtyState& dirtyState, const std::function<bool(EditorCommandContext&)>& operation, bool editsScene) {
 
 	EditorCommandContext commandContext;
 	commandContext.editorContext = &context;
 	commandContext.editorState = &state;
 	commandContext.allowRuntimeEdit = context.isPlaying;
-	EditorSceneEditScope editScope(context, dirtyState);
+	std::optional<EditorSceneEditScope> editScope;
+	if (editsScene) editScope.emplace(context, dirtyState);
 	EditorSelectionSnapshot selection;
 	selection.Capture(commandContext);
 	try {
 		const bool executed = operation(commandContext);
-		if (executed) {
-			editScope.Commit();
+		if (executed && editScope) {
+			editScope->Commit();
 		}
 		return executed;
 	} catch (const std::exception& error) {
@@ -34,6 +36,6 @@ bool Engine::EditorCommandExecution::Run(const EditorContext& context, EditorSta
 
 	// 取消まで失敗した場合も変更したSceneの保存対象を残す
 	selection.Restore(commandContext);
-	editScope.Commit();
+	if (editScope) editScope->Commit();
 	return false;
 }

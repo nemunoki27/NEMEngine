@@ -1,5 +1,9 @@
 {
     "domain": "Surface",
+    "graphOverrides": [
+        "a7f2d826d7c27bd5",
+        "2142cbbde99b9c95"
+    ],
     "name": "Hologram",
     "parameters": [
         {
@@ -9,10 +13,39 @@
             "value": 0.0
         },
         {
+            "id": "131ff2c654e118f2",
+            "name": "輪郭の発光強度",
+            "semantic": "None",
+            "value": 2.200000047683716
+        },
+        {
+            "id": "2142cbbde99b9c95",
+            "name": "ホログラム色",
+            "semantic": "None",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
             "id": "31d4f90ec37c453f",
             "name": "emissiveIntensity",
             "semantic": "EmissiveIntensity",
             "value": 0.0
+        },
+        {
+            "id": "341a01eada2ef73a",
+            "name": "走査線の密度",
+            "semantic": "None",
+            "value": 8.5
+        },
+        {
+            "id": "512d2ecbb2246137",
+            "name": "走査速度",
+            "semantic": "None",
+            "value": 0.6499999761581421
         },
         {
             "id": "77f5c18e246c6638",
@@ -24,6 +57,12 @@
                 "g": 1.0,
                 "r": 1.0
             }
+        },
+        {
+            "id": "a7f2d826d7c27bd5",
+            "name": "透明面の不透明度",
+            "semantic": "None",
+            "value": 0.20999999344348907
         },
         {
             "id": "c4617cc0ecd319d1",
@@ -53,41 +92,6 @@
             "name": "displacementMidpoint",
             "semantic": "DisplacementMidpoint",
             "value": 0.5
-        },
-        {
-            "id": "341a01eada2ef73a",
-            "name": "走査線の密度",
-            "semantic": "None",
-            "value": 8.5
-        },
-        {
-            "id": "512d2ecbb2246137",
-            "name": "走査速度",
-            "semantic": "None",
-            "value": 0.65
-        },
-        {
-            "id": "2142cbbde99b9c95",
-            "name": "ホログラム色",
-            "semantic": "None",
-            "value": {
-                "r": 0.015,
-                "g": 0.67,
-                "b": 0.88,
-                "a": 1.0
-            }
-        },
-        {
-            "id": "a7f2d826d7c27bd5",
-            "name": "透明面の不透明度",
-            "semantic": "None",
-            "value": 0.28
-        },
-        {
-            "id": "131ff2c654e118f2",
-            "name": "輪郭の発光強度",
-            "semantic": "None",
-            "value": 2.2
         }
     ],
     "passes": [

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
@@ -71,6 +72,7 @@ void BeamRendererInspectorDrawer::DrawFields(const EditorPanelContext& context, 
 
 	field(DrawInspectorCommonFields(context, { .visible = &s.visible, .displayLayer = &s.renderingLayerMask }));
 	field(RibbonRendererFields::DrawMaterial(context, s.material, invalidMaterial_, BuiltinAssets::Materials::DefaultBeam));
+	field(MaterialParameterEditor::DrawReload(s.materialInstance));
 	field(DrawRendererRenderSettingsFields(s.renderSettings));
 	InspectorDrawerCommon::DrawCommonRenderFields(context, [&](auto&& f) { field(f()); }, s.layer, s.order, s.blendMode, s.queue);
 	field(MyGUI::CheckboxField("2D描画", s.is2D));

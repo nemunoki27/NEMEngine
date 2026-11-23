@@ -82,6 +82,13 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 		if (data.contains("parameters")) {
 			ReadMaterialInstance(data["parameters"], loaded.parameters);
 		}
+		if (loaded.shaderGraph && data.contains("graphOverrides")) {
+			for (const auto& entry : data["graphOverrides"]) {
+				if (!entry.is_string()) continue;
+				const auto id = MaterialParameterID::FromUUID(FromString16Hex(entry.get<std::string>()));
+				if (id && loaded.parameters.Find(id)) loaded.graphOverrides.push_back(id);
+			}
+		}
 	} catch (const nlohmann::json::exception&) {
 		return false;
 	}
@@ -100,6 +107,10 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);
 	if (asset.shaderGraph) {
 		data["shaderGraph"] = ToAssetReferenceJson(asset.shaderGraph);
+		data["graphOverrides"] = nlohmann::json::array();
+		for (const auto id : asset.graphOverrides) {
+			data["graphOverrides"].push_back(ToString(UUID{ id.value }));
+		}
 	}
 	if (asset.renderState.overridesRenderer) {
 		data["renderState"] = {

@@ -61,6 +61,10 @@ bool NEMTests::TestShaderGraphPublication() {
 	const auto graphPath = directory.GetPath() / "Fixture.shadergraph.json";
 	const auto materialPath = directory.GetPath() / "Fixture.material.json";
 	auto graph = CreateDefaultSurfaceShaderGraph("Fixture", ShaderGraphTarget::Sprite);
+	const Engine::UUID tintID = Engine::UUID::New();
+	const Engine::UUID keywordID = Engine::UUID::New();
+	graph.parameters.push_back({.id = tintID, .name = "Weight", .defaultValue = {.value = 0.25f}});
+	graph.keywords.push_back({.id = keywordID, .name = "UseHighlight", .runtimeToggle = true});
 	const nlohmann::json initialGraph = ToJson(graph);
 	const nlohmann::json initialMaterial = {{"name", "retained"}, {"passes", nlohmann::json::array()}};
 	if (!JsonFile::Save(graphPath, initialGraph) || !JsonFile::Save(materialPath, initialMaterial)) {
@@ -222,6 +226,40 @@ bool NEMTests::TestShaderGraphPublication() {
 		StorageFileUtility::FileRevision(materialPath) != materialHash) {
 		return false;
 	}
+
+	// 旧形式のGraphだけを先に保存しても未編集の値は新しい既定値に従う
+	MaterialAsset legacy;
+	if (!FromJson(savedMaterial, legacy)) return false;
+	const auto weight = MaterialParameterID::FromUUID(tintID);
+	const auto highlight = MaterialParameterID::FromUUID(keywordID);
+	legacy.parameters.Set(highlight, "UseHighlight", MaterialParameterSemantic::None, {.value = true});
+	auto legacyDocument = ToJson(legacy);
+	legacyDocument.erase("graphOverrides");
+	if (!JsonFile::Save(materialPath, legacyDocument)) return false;
+	graph.parameters.front().defaultValue.value = 0.4f;
+	if (!ShaderGraphPublication::SaveGraph(database, graph, graphPath, graphID, status) ||
+		!ShaderGraphPublication::CompileAndPublish(context, database, graph, graphID, graphPath, materialID, diagnostics, status) ||
+		!JsonFile::TryLoad(materialPath, savedMaterial) || !FromJson(savedMaterial, legacy)) return false;
+	const auto* inherited = legacy.parameters.Find(weight);
+	const auto* legacyKeyword = legacy.parameters.Find(highlight);
+	if (!inherited || !legacyKeyword || std::get<float>(inherited->value) != 0.4f ||
+		!std::get<bool>(legacyKeyword->value) || legacy.graphOverrides != std::vector{highlight}) return false;
+
+	// 公開名を変更しても共有値と実行時Keywordの上書きを保つ
+	MaterialAsset edited;
+	if (!FromJson(savedMaterial, edited)) return false;
+	edited.parameters.Set(weight, "Weight", MaterialParameterSemantic::None, {.value = 0.75f});
+	edited.parameters.Set(highlight, "UseHighlight", MaterialParameterSemantic::None, {.value = true});
+	edited.graphOverrides = {weight, highlight};
+	if (!JsonFile::Save(materialPath, ToJson(edited))) return false;
+	graph.parameters.front().name = "Opacity";
+	graph.parameters.front().defaultValue.value = 0.5f;
+	if (!ShaderGraphPublication::CompileAndPublish(context, database, graph, graphID, graphPath, materialID, diagnostics, status) ||
+		!JsonFile::TryLoad(materialPath, savedMaterial) || !FromJson(savedMaterial, edited)) return false;
+	const auto* opacity = edited.parameters.Find(weight);
+	const auto* enabled = edited.parameters.Find(highlight);
+	if (!opacity || !enabled || std::get<float>(opacity->value) != 0.75f || !std::get<bool>(enabled->value) ||
+		!edited.parameters.FindByName("Opacity") || edited.graphOverrides.size() != 2) return false;
 
 	// 新規作成の登録失敗では文書を残さない
 	ShaderGraphCreationRequest request;

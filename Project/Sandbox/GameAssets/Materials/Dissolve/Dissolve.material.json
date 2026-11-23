@@ -1,5 +1,9 @@
 {
     "domain": "Surface",
+    "graphOverrides": [
+        "6e42822b6e5d3207",
+        "4f65105ef36b6c94"
+    ],
     "name": "Dissolve",
     "parameters": [
         {
@@ -20,16 +24,16 @@
             "semantic": "None",
             "value": {
                 "a": 1.0,
-                "b": 0.11999999731779099,
-                "g": 1.2999999523162842,
-                "r": 4.0
+                "b": 4.0,
+                "g": 0.11999988555908203,
+                "r": 0.25208425521850586
             }
         },
         {
             "id": "6e42822b6e5d3207",
             "name": "NoiseScale",
             "semantic": "None",
-            "value": 50.0
+            "value": 33.18000030517578
         },
         {
             "id": "77f5c18e246c6638",

@@ -12,4 +12,7 @@ namespace Engine {
 	// エディタコマンドで使用する型エイリアス
 	using IEditorCommand = ICommand<EditorCommandContext>;
 	using EditorCommandHistory = CommandHistory<EditorCommandContext>;
+
+	// シーンを変更せずアセットへ保存する操作
+	class IEditorAssetCommand : public IEditorCommand {};
 } // Engine
