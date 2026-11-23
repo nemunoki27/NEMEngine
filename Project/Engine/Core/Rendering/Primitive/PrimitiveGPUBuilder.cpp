@@ -29,8 +29,29 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 		}
 	}
 
-	// 中立形式からMeshVertexへ詰め替える、描画とレイトレで同じ形式を共用する
 	std::vector<MeshVertex> vertices;
+	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
+	BufferUploadService& uploadService = graphicsCore.GetBufferUploadService();
+
+	// すべての描画資源が揃ってから公開する
+	PrimitiveGeometry candidate{};
+	ConvertVertices(mesh, vertices, candidate.planarUVBounds);
+	MeshBoundsUtility::Calculate(vertices, {}, candidate.boundsCenter, candidate.boundsRadius);
+	candidate.vertexBuffer.Create(device, uploadService, *srvDescriptor, std::span<const MeshVertex>(vertices), L"PrimitiveVertices");
+
+	CreateIndices(graphicsCore, *srvDescriptor, mesh, candidate);
+
+	// 完成した形状を公開する
+	candidate.vertexCount = static_cast<uint32_t>(vertices.size());
+	candidate.indexCount = static_cast<uint32_t>(mesh.indices.size());
+	geometry = std::move(candidate);
+	return true;
+}
+
+void Engine::PrimitiveGPUBuilder::ConvertVertices(const PrimitiveMeshData& mesh, std::vector<MeshVertex>& vertices, Vector4& planarUVBounds) {
+
+	// 中立形式からMeshVertexへ詰め替える、描画とレイトレで同じ形式を共用する
+	vertices.clear();
 	vertices.reserve(mesh.vertices.size());
 	Vector2 minimum{mesh.vertices.front().position.x, mesh.vertices.front().position.y};
 	Vector2 maximum = minimum;
@@ -49,25 +70,18 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 		vertices.emplace_back(vertex);
 	}
 
-	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
-	BufferUploadService& uploadService = graphicsCore.GetBufferUploadService();
-
-	// すべての描画資源が揃ってから公開する
-	PrimitiveGeometry candidate{};
-	candidate.planarUVBounds = {minimum.x, minimum.y, 1.0f / std::max(maximum.x - minimum.x, 0.00001f),
+	planarUVBounds = {minimum.x, minimum.y, 1.0f / std::max(maximum.x - minimum.x, 0.00001f),
 		1.0f / std::max(maximum.y - minimum.y, 0.00001f)};
-	MeshBoundsUtility::Calculate(vertices, {}, candidate.boundsCenter, candidate.boundsRadius);
-	candidate.vertexBuffer.Create(device, uploadService, *srvDescriptor, std::span<const MeshVertex>(vertices), L"PrimitiveVertices");
+}
 
+void Engine::PrimitiveGPUBuilder::CreateIndices(GraphicsCore& graphicsCore, SRVDescriptor& descriptor,
+	const PrimitiveMeshData& mesh, PrimitiveGeometry& geometry) {
+
+	auto* device = graphicsCore.GetDXObject().GetDevice();
+	auto& uploadService = graphicsCore.GetBufferUploadService();
 	// 描画とBLASのIndexBuffer、ヒットShader用SRVを作る
-	candidate.indexBuffer.Create(device, uploadService, std::span<const uint32_t>(mesh.indices),
-		DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
-	candidate.indexSRV.Create(device, uploadService, *srvDescriptor, std::span<const uint32_t>(mesh.indices), L"PrimitiveIndices");
+	geometry.indexSRV.Create(device, uploadService, descriptor, std::span<const uint32_t>(mesh.indices), L"PrimitiveIndices");
+	geometry.indexBuffer.Share32BitResource(uploadService.GetResourceRetirement(), geometry.indexSRV.buffer->GetResource(),
+		static_cast<uint32_t>(mesh.indices.size()));
 	uploadService.SubmitBatch();
-
-	// 完成した形状を公開する
-	candidate.vertexCount = static_cast<uint32_t>(vertices.size());
-	candidate.indexCount = static_cast<uint32_t>(mesh.indices.size());
-	geometry = std::move(candidate);
-	return true;
 }

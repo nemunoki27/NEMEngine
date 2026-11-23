@@ -13,6 +13,7 @@
 #include "TimelineBuiltinTests.h"
 #include "TimelineGateTests.h"
 #include "TimelineManagedTests.h"
+#include "ClothManagedTests.h"
 #include "HeightFogGPUTests.h"
 #include "RendererRenderSettingsGPUTests.h"
 #include "EditorWindowTests.h"
@@ -384,6 +385,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		std::cout << "Prefab test passed\n";
 		return 0;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--cloth") {
+		return RunTest("TestCloth", TestCloth) && RunTest("TestClothManaged", TestClothManaged) ? 0 : 27;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
 		if (!RunTest("TestBeamSegmentQueries", TestBeamSegmentQueries) ||
 			!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) ||
@@ -396,7 +400,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			!RunTest("TestCollisionWorldShapes", TestCollisionWorldShapes) ||
 			!RunTest("TestCollisionSettingsPersistence", TestCollisionSettingsPersistence) ||
 			!RunTest("TestEditCollisionState", TestEditCollisionState) ||
-			!RunTest("TestCapsuleCollisions", TestCapsuleCollisions)) {
+			!RunTest("TestCapsuleCollisions", TestCapsuleCollisions) ||
+			!RunTest("TestCloth", TestCloth)) {
 			std::cerr << "Physics collision test failed\n";
 			return 27;
 		}
@@ -470,6 +475,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		}
 		std::cout << "Shader Graph compilation passed\n";
 		return 0;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--cloth-gpu") {
+		return RunTest("TestClothGeometryGPU", TestClothGeometryGPU) ? 0 : 27;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--materials") {
 

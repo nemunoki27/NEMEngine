@@ -30,6 +30,7 @@ void Engine::PrimitiveGeometryManager::Init(GraphicsCore& graphicsCore) {
 void Engine::PrimitiveGeometryManager::BeginFrame() {
 
 	++frameIndex_;
+	std::erase_if(clothGeometries_, [&](const auto& item) { return item.second.lastUsedFrame + kEvictionFrames < frameIndex_; });
 
 	// 猶予フレームを超えて未使用のジオメトリを破棄する
 	for (auto it = geometries_.begin(); it != geometries_.end();) {
@@ -69,14 +70,14 @@ bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,
 	if (geometry.blasBuilt && geometry.blas.IsBuilt()) {
 		return true;
 	}
-	if (!geometry.vertexBuffer.buffer || !geometry.indexBuffer.IsCreatedResource() || geometry.indexCount == 0) {
+	if (!geometry.GetVertexResource() || !geometry.indexBuffer.IsCreatedResource() || geometry.indexCount == 0) {
 		return false;
 	}
 
 	// 描画と同じ頂点/インデックスからBLASを組む、positionは先頭なのでoffsetは0
 	RaytracingBLASGeometryInput geometryInput{};
 	geometryInput.vertexAddress =
-		geometry.vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress() +
+		geometry.GetVertexResource()->GetGPUVirtualAddress() +
 		offsetof(MeshVertex, position);
 	geometryInput.vertexStride = sizeof(MeshVertex);
 	geometryInput.vertexCount = geometry.vertexCount;
@@ -87,10 +88,14 @@ bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,
 
 	RaytracingBLASInput input{};
 	input.geometries = std::span(&geometryInput, 1);
-	input.allowUpdate = false;
+	input.allowUpdate = geometry.clothVertices != nullptr;
 
 	geometry.blas.SetRetirementQueue(srvDescriptor_->GetRetirementQueue());
-	geometry.blas.Build(device, commandList, input);
+	if (input.allowUpdate && geometry.blas.IsBuilt()) {
+		geometry.blas.Update(commandList, input);
+	} else {
+		geometry.blas.Build(device, commandList, input);
+	}
 	geometry.blasBuilt = geometry.blas.IsBuilt();
 	return geometry.blasBuilt;
 }
@@ -102,6 +107,7 @@ void Engine::PrimitiveGeometryManager::Clear() {
 		pair.second.indexSRV.Release();
 	}
 	geometries_.clear();
+	clothGeometries_.clear();
 	frameIndex_ = 0;
 }
 

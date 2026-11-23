@@ -10,6 +10,10 @@
 #include "ManagedRendererSettings.h"
 #include "ManagedLightSettings.h"
 #include <Engine/Core/Animation/Text/TextCharAnimationSampler.h>
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
+#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/Physics/Collision/CollisionDetection.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/World/Systems/Animation/TextCharAnimationSystem.h>
@@ -167,6 +171,10 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			const auto* component = world->TryGetComponentForBinding<MeshRendererComponent>(target);
 			if (!component) return -1;
 			SerializeMeshRenderer(*component, GetMeshSubMeshes(*world, target), data);
+		} else if (type == 82) {
+			const auto* record = TryGetCloth(*world, target);
+			if (!record) return -1;
+			data = record->settings;
 		} else if (type == 79) {
 			const auto* component = world->TryGetComponentForBinding<HexTilingComponent>(target);
 			if (!component) return -1;
@@ -245,6 +253,18 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 		if (type == 81 && data.contains("sourceSlot")) {
 			if (!SetTextSource(*world, target, GetCurrentContext(), data)) return 0;
 			world->MarkComponentModified(target, type);
+			return 1;
+		}
+		if (type == 82) {
+			const auto* record = TryGetCloth(*world, target);
+			if (!record) return 0;
+			if (data.contains("reset")) {
+				ResetCloth(*world, target);
+				return 1;
+			}
+			auto candidate = record->settings;
+			from_json(data, candidate);
+			SetClothSettings(*world, target, candidate);
 			return 1;
 		}
 		if (type == 79) {

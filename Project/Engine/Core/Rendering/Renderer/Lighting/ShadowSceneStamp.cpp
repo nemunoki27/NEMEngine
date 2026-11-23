@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -51,6 +52,11 @@ struct Engine::ShadowSceneStampCache::Implementation {
 	std::unordered_set<AssetID> materials;
 	std::unordered_set<WorldEntityKey, WorldEntityKeyHash> entities;
 	std::vector<MeshRecord> meshes;
+	struct ClothRecord {
+		WorldEntityKey owner;
+		std::shared_ptr<const ECSWorldLifetime> lifetime;
+	};
+	std::vector<ClothRecord> cloths;
 	bool reusable = false;
 	uint64_t rebuildCount = 0;
 };
@@ -90,6 +96,7 @@ Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& grap
 		cache.materials.clear();
 		cache.entities.clear();
 		cache.meshes.clear();
+		cache.cloths.clear();
 		cache.reusable = true;
 		++cache.rebuildCount;
 
@@ -112,6 +119,9 @@ Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& grap
 				if (payload) cache.meshes.push_back({item.world, item.entity, item.world->GetLifetime(), payload->mesh});
 			}
 			if (item.backendID == RenderBackendID::Primitive) {
+				if (item.world && item.world->HasComponent<ClothComponent>(item.entity)) {
+					cache.cloths.push_back({{item.world, item.entity}, item.world->GetLifetime()});
+				}
 				const auto* payload = deps.renderBatch->GetPayload<PrimitiveRenderPayload>(item);
 				if (payload && payload->materialInstance && HasRenderTexture(*payload->materialInstance, context.assetDatabase)) {
 					cache.reusable = false;
@@ -127,6 +137,11 @@ Engine::ShadowSceneStamp Engine::ShadowSceneStampCache::Build(GraphicsCore& grap
 			result.skinningGenerations.push_back(source.poseGeneration);
 			result.skinningGenerations.push_back(source.bufferGeneration);
 		}
+	}
+	for (const auto& record : cache.cloths) {
+		if (!record.lifetime->IsAlive()) continue;
+		const auto* cloth = TryGetCloth(*record.owner.world, record.owner.entity);
+		if (cloth && !cloth->runtime.mesh.vertices.empty()) Algorithm::HashCombine(result.renderRevision, cloth->runtime.revision);
 	}
 	result.reusable = cache.reusable && !graphicsCore.GetTextureUploadService().HasPendingRequests();
 	result.geometryGeneration = context.raytracing.geometryGeneration;

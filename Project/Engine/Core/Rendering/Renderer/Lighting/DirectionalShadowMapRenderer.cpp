@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
+#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -172,7 +174,12 @@ namespace {
 			if (!payload || !payload->renderer) {
 				return false;
 			}
-			radius *= GetPrimitiveBoundsRadius(*payload->renderer);
+			if (const auto* cloth = Engine::FindClothGeometry(*payload->renderer, item.world, item.entity)) {
+				center = Engine::Vector3::Transform(cloth->boundsCenter, item.worldMatrix);
+				radius *= cloth->boundsRadius;
+			} else {
+				radius *= GetPrimitiveBoundsRadius(*payload->renderer);
+			}
 			return true;
 		}
 		return false;

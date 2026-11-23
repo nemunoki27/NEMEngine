@@ -274,8 +274,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	const bool useMeshShader = variant && variant->kind == PipelineVariantKind::GraphicsMesh;
 
 	// 正規化した形状キーから共有ジオメトリを取得する
-	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, *payload->renderer);
-	if (!geometry || geometry->indexCount == 0 || !geometry->vertexBuffer.buffer) {
+	const PrimitiveGeometry* geometry = geometryManager_.Resolve(graphicsCore, *payload->renderer, item->world, item->entity);
+	if (!geometry || geometry->indexCount == 0 || !geometry->GetVertexResource()) {
 		return;
 	}
 
@@ -335,7 +335,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	if (perDrawBindCache_.Has(verticesSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
-			geometry->vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress(), {});
+			geometry->GetVertexResource()->GetGPUVirtualAddress(), {});
 	}
 	if (perDrawBindCache_.Has(instancesSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(instancesSRVSlot_),

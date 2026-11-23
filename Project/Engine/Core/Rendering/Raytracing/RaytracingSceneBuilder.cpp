@@ -191,8 +191,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 			it = state.cachedTLASInstanceIndices.equal_range(key).second;
 			const auto* renderer = key.world->TryGetComponent<PrimitiveRendererComponent>(key.entity);
 			if (!renderer) continue;
-			const auto* geometry = primitiveGeometryManager->GetOrCreate(graphicsCore, *renderer);
-			if (!geometry || !geometry->blasBuilt) {
+			const auto* geometry = primitiveGeometryManager->Resolve(graphicsCore, *renderer, key.world, key.entity);
+			if (!geometry || geometry->clothVertices || !geometry->blasBuilt) {
 				matchesStaticScene = false;
 				break;
 			}

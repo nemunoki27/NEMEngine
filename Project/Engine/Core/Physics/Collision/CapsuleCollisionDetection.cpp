@@ -27,9 +27,16 @@ namespace Engine::CollisionDetectionDetail {
 		}
 
 		const float distance = std::sqrt(distanceSq);
-		Engine::Vector3 fallback = sphereCenter - (is2D ? Flatten2D(capsule.center) : capsule.center);
-		fallback = Engine::Vector3::NormalizeOr(fallback, Engine::Vector3(1.0f, 0.0f, 0.0f));
-		const Engine::Vector3 capsuleToSphere = Engine::Vector3::NormalizeOr(delta, fallback);
+		Engine::Vector3 capsuleToSphere;
+		if (kEpsilon < distance) {
+			capsuleToSphere = delta / distance;
+		} else {
+			// 中心線上でも押し戻し1回で側面へ到達する法線を選ぶ
+			const Engine::Vector3 axis = Engine::Vector3::NormalizeOr(segmentEnd - segmentStart, {0.0f, 1.0f, 0.0f});
+			const Engine::Vector3 basis = is2D || std::abs(axis.z) < 0.9f ?
+				Engine::Vector3(0.0f, 0.0f, 1.0f) : Engine::Vector3(0.0f, 1.0f, 0.0f);
+			capsuleToSphere = Engine::Vector3::NormalizeOr(Engine::Vector3::Cross(axis, basis), {1.0f, 0.0f, 0.0f});
+		}
 		const Engine::Vector3 point = closest + capsuleToSphere * capsule.radius;
 		// 法線と接触対象を入力順へ揃える
 		if (capsuleIsA) {

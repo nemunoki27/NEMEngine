@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
+#include <Engine/Core/World/ECS/Entity/WorldEntityKey.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
@@ -20,6 +21,9 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class SRVDescriptor;
+	struct ClothRuntime;
+	const ClothRuntime* FindClothGeometry(const PrimitiveRendererComponent& renderer, const ECSWorld* world, Entity owner);
+	struct ClothVertexBuffers;
 
 	// PrimitiveGeometryKeyをunordered_mapで使う
 	struct PrimitiveGeometryKeyHash {
@@ -35,6 +39,9 @@ namespace Engine {
 
 		// 頂点はSRVで描画とレイトレの両方から読み、インデックスバッファは描画とBLASで使う
 		MeshStructuredHandle<MeshVertex> vertexBuffer{};
+		std::shared_ptr<ClothVertexBuffers> clothVertices;
+		ID3D12Resource* GetVertexResource() const;
+		uint32_t GetVertexDescriptorIndex() const;
 		ImmutableIndexBuffer indexBuffer{};
 		// レイトレのヒットシェーダーがインデックスを読むためのSRV
 		MeshStructuredHandle<uint32_t> indexSRV{};
@@ -74,6 +81,10 @@ namespace Engine {
 		PrimitiveGeometry* GetOrCreate(GraphicsCore& graphicsCore,
 			const PrimitiveRendererComponent& renderer);
 
+		// 布が動いている間はオブジェクト固有の変形頂点を返す
+		PrimitiveGeometry* Resolve(GraphicsCore& graphicsCore, const PrimitiveRendererComponent& renderer,
+			const ECSWorld* world, Entity owner);
+
 		// レイトレ用にBLASを構築する、共有の頂点/インデックスから作る
 		bool EnsureBLAS(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList, PrimitiveGeometry& geometry);
 
@@ -93,6 +104,7 @@ namespace Engine {
 		uint64_t frameIndex_ = 0;
 		std::unordered_map<PrimitiveGeometryKey, PrimitiveGeometry,
 			PrimitiveGeometryKeyHash> geometries_{};
+		std::unordered_map<WorldEntityKey, PrimitiveGeometry, WorldEntityKeyHash> clothGeometries_;
 
 		//--------- functions ----------------------------------------------------
 

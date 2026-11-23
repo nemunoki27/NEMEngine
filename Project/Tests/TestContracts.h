@@ -48,6 +48,7 @@ namespace NEMTests {
 	bool TestCollisionSettingsPersistence();
 	bool TestEditCollisionState();
 	bool TestCapsuleCollisions();
+	bool TestCloth();
 	bool TestPhysicsQueryTriggers();
 	bool TestBeamSegmentQueries();
 	bool TestMeshletGeneration();
@@ -83,6 +84,7 @@ namespace NEMTests {
 	bool TestProjectAssetMoveTransaction();
 	bool TestMaterialCreationFailures();
 	bool TestMaterialAssetHistory();
+	bool TestClothGeometryGPU();
 	bool TestMaterialReflectionCache();
 	bool TestMaterialResolverIndexChanges();
 	bool TestAssetDocumentRecovery();

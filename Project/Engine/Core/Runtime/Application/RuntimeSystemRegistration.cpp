@@ -21,6 +21,7 @@
 #include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
+#include <Engine/Core/World/Systems/Physics/ClothSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 #include <Engine/Core/World/Systems/Physics/JointConstraintSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
@@ -66,6 +67,7 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	scheduler.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新後にジョイントのワールド行列を参照する
 	scheduler.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
+	scheduler.AddSystem(std::make_unique<ClothSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<TrailRendererSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<BeamRendererSystem>(), ++order);
 	// 受音と発音の位置は全Transform更新後に反映する

@@ -4,6 +4,11 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
+#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshFileImporter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -316,4 +321,71 @@ bool NEMTests::TestPrimitiveTangents() {
 	}
 	return TestNormalizedGeometryKeys() && TestFiniteParameters() && TestGeometryKeyCollision() &&
 		TestGeometryCapacity() && TestTriangleWinding() && TestRaytracingCullFlags() && TestImportedMeshWinding();
+}
+
+bool NEMTests::TestClothGeometryGPU() {
+
+	using namespace Engine;
+	GraphicsCore graphics;
+	graphics.Init(false);
+	const ScopedCleanup finalize([&]() noexcept { graphics.Finalize(); });
+	PrimitiveGeometryManager manager;
+	manager.Init(graphics);
+	const ScopedCleanup release([&]() noexcept { graphics.GetDXObject().WaitForGPU(); manager.Clear(); });
+	ECSWorld world;
+	const std::array owners{world.CreateEntity(), world.CreateEntity()};
+	for (Entity owner : owners) {
+		auto& plane = world.AddComponent<PrimitiveRendererComponent>(owner);
+		plane.plane.divideX = 12;
+		plane.plane.divideY = 8;
+		world.AddComponent<ClothComponent>(owner);
+		auto& runtime = TryGetCloth(world, owner)->runtime;
+		PrimitiveMeshGenerator::Generate(world.GetComponent<PrimitiveRendererComponent>(owner), runtime.mesh);
+	}
+	auto& platform = graphics.GetDXObject();
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 support{};
+	const bool dxr = SUCCEEDED(platform.GetDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &support,
+		sizeof(support))) && support.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+	std::array<std::array<ID3D12Resource*, kGraphicsFrameContextCount>, 2> vertexSlots{};
+	std::array<ID3D12Resource*, 2> acceleration{};
+	for (uint32_t frame = 1; frame <= 6; ++frame) {
+		graphics.TickFrameServices();
+		graphics.BeginRenderFrame();
+		manager.BeginFrame();
+		bool valid = true;
+		for (size_t i = 0; i < owners.size(); ++i) {
+			const auto& plane = world.GetComponent<PrimitiveRendererComponent>(owners[i]);
+			auto& runtime = TryGetCloth(world, owners[i])->runtime;
+			runtime.revision = frame;
+			runtime.mesh.vertices[0].position.z = float(frame) * (i == 0 ? 0.25f : -0.25f);
+			auto* geometry = manager.Resolve(graphics, plane, &world, owners[i]);
+			if (!geometry || !geometry->clothVertices) { valid = false; break; }
+			auto* resource = geometry->GetVertexResource();
+			auto& previous = vertexSlots[i][GraphicsFrameState::GetCurrentIndex()];
+			if (!resource || (previous && resource != previous)) { valid = false; break; }
+			previous = resource;
+			// 実際にShaderが参照するフレーム領域に各布の座標が入っているか確認する
+			D3D12_RANGE first{0, sizeof(MeshVertex)};
+			void* mapped = nullptr;
+			if (FAILED(resource->Map(0, &first, &mapped))) { valid = false; break; }
+			const float position = static_cast<MeshVertex*>(mapped)->position.z;
+			D3D12_RANGE written{};
+			resource->Unmap(0, &written);
+			valid &= position == runtime.mesh.vertices[0].position.z;
+			if (dxr) {
+				valid &= manager.EnsureBLAS(platform.GetDevice(), platform.GetDxCommand()->GetCommandList(), *geometry);
+				auto* blas = geometry->blas.GetResource();
+				valid &= blas && (!acceleration[i] || acceleration[i] == blas);
+				acceleration[i] = blas;
+			}
+		}
+		const auto slot = GraphicsFrameState::GetCurrentIndex();
+		valid &= vertexSlots[0][slot] != vertexSlots[1][slot];
+		valid &= !dxr || acceleration[0] != acceleration[1];
+		graphics.SubmitRenderFrame();
+		graphics.EndRenderFrame();
+		if (!valid) return false;
+	}
+	platform.WaitForGPU();
+	return SUCCEEDED(platform.GetDevice()->GetDeviceRemovedReason());
 }

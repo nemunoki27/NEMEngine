@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
@@ -45,7 +46,11 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		// 同じ形状と上書き値で描画をまとめる
 		const uint64_t shapeHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		const uint64_t materialHash = renderer.materialInstance.GetContentHash();
-		item.batchKey = Algorithm::MixHash(shapeHash, materialHash);
+		item.batchKey = Algorithm::MixHash(shapeHash, materialHash) & ~uint64_t{1};
+		if (IsClothPlane(&renderer) && world.HasComponent<ClothComponent>(entity)) {
+			// 個別頂点を持つ布は共有形状と別のキーで単独描画する
+			item.batchKey = reinterpret_cast<uintptr_t>(&renderer) | uint64_t{1};
+		}
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		// 2D形状はCanvasの行列と描画順を使う
 		if (isScreen2D) {

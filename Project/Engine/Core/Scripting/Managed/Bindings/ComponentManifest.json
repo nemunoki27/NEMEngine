@@ -6553,6 +6553,19 @@
           "id": 23
         }
       ]
+    },
+    {
+      "id": 82,
+      "registryName": "Cloth",
+      "nativeType": "ClothComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/ClothComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Cloth",
+      "reason": "布の固定、風、衝突、シミュレーションのリセットを公開する",
+      "managedType": "Cloth",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": []
     }
   ]
 }

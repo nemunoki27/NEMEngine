@@ -20,6 +20,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/CameraControllerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SpriteRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TrailRendererInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/ClothInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BeamRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/LineRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/DecalProjectorInspectorDrawer.h>
@@ -136,6 +137,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>(
 			"Primitive Renderer", "PrimitiveRenderer", "Rendering",
 			"UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.cpp"));
+		registry.Register(MakeComponentEditorDescriptor<ClothInspectorDrawer>(
+			"Cloth", "Cloth", "Physics", "UI/Inspectors/Builtin/ClothInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<ParticleSystemInspectorDrawer>(
 			"Particle System", "ParticleSystem", "Rendering", "UI/Inspectors/Builtin/Render/ParticleSystemInspectorDrawer.cpp"));
 		registry.Register(MakeComponentEditorDescriptor<ParticlePaintReceiverInspectorDrawer>(

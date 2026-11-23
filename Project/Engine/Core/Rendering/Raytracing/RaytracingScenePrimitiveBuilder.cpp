@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include "RaytracingSceneGeometryUtility.h"
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
@@ -81,18 +82,26 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		}
 		++work.blasGeometryCount;
 
-		PrimitiveGeometry* geometry = work.primitiveGeometryManager->GetOrCreate(work.graphicsCore, renderer);
+		PrimitiveGeometry* geometry = work.primitiveGeometryManager->Resolve(work.graphicsCore, renderer, src.world, src.entity);
 		if (!geometry) {
 			continue;
 		}
 		// 新規BLASの構築後にTLASも再構築
-		const bool wasBuilt = geometry->blasBuilt;
+		const bool wasBuilt = geometry->blas.IsBuilt();
+		const bool refit = wasBuilt && !geometry->blasBuilt;
+		if (const auto* cloth = FindClothGeometry(renderer, src.world, src.entity)) {
+			work.staticScene = false;
+			Algorithm::HashCombine(work.geometryContentHash, cloth->revision);
+		}
 		if (!work.primitiveGeometryManager->EnsureBLAS(work.device, work.commandList, *geometry)) {
 			continue;
 		}
 		if (!wasBuilt) {
 			FrameProfiler::GetInstance().AddBLASBuild(1);
 			work.requireTLASRebuild = true;
+		} else if (refit) {
+			FrameProfiler::GetInstance().AddBLASRefit(1);
+			work.blasContentsChanged = true;
 		} else {
 
 			FrameProfiler::GetInstance().AddBLASSkip(1);
@@ -133,7 +142,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		work.scene.result.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
-		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
+		instanceShaderData.vertexDescriptorIndex = geometry->GetVertexDescriptorIndex();
 		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
 		instanceShaderData.entityIndex = src.entity.index;

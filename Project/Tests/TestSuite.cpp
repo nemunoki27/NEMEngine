@@ -12,6 +12,7 @@
 #include "TimelineBuiltinTests.h"
 #include "TimelineGateTests.h"
 #include "TimelineManagedTests.h"
+#include "ClothManagedTests.h"
 #include "RuntimeAPITests.h"
 #include "BloomTests.h"
 #include "DisplayOutputTests.h"
@@ -210,6 +211,8 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestBeamRenderer", TestBeamRenderer) ||
 		!RunTest("TestBeamSegmentQueries", TestBeamSegmentQueries) ||
 		!RunTest("TestCapsuleCollisions", TestCapsuleCollisions) ||
+		!RunTest("TestCloth", TestCloth) ||
+		!RunTest("TestClothManaged", TestClothManaged) ||
 		!RunTest("TestPhysicsQueryTriggers", TestPhysicsQueryTriggers)) {
 		std::cerr << "Capsule collision failed\n";
 		return 28;
