@@ -184,6 +184,7 @@ bool Engine::SceneViewCameraController::CanUpdate(InputViewArea viewArea) {
 
 void Engine::SceneViewCameraController::OpenEditorTool() {
 
+	focusSettings_ = openWindow_;
 	openWindow_ = true;
 }
 

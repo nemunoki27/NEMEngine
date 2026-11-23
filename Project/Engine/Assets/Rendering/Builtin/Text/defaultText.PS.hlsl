@@ -50,11 +50,20 @@ float ComputeScreenPxRange(float2 uv, float pxRange, float2 atlasSize) {
 PSOutput EvaluateTextColor(VSOutput input, PSInstance instance) {
 
 	// テクスチャからMSDFをサンプリング
-	float3 msdf = gAtlas.Sample(gSampler, input.texcoord).rgb;
+	float3 msdf;
+	if (enableOutline && outlineWidth > 0.0f) {
+		float2 halfTexel = 0.5f / instance.atlasSize;
+		float2 inset = min(halfTexel, 0.5f * (input.atlasBounds.zw - input.atlasBounds.xy));
+		float2 uv = clamp(input.texcoord, input.atlasBounds.xy + inset, input.atlasBounds.zw - inset);
+		msdf = gAtlas.SampleLevel(gSampler, uv, 0).rgb;
+	} else {
+		msdf = gAtlas.Sample(gSampler, input.texcoord).rgb;
+	}
 	float4 transformedUV = mul(float4(input.materialTexcoord, 0.0f, 1.0f), instance.uvMatrix);
 	float4 fillColor = baseColorTexture.Sample(gSampler, transformedUV.xy) * color;
 	float signedDistance = Median(msdf.r, msdf.g, msdf.b) - 0.5f;
-	float screenPxDistance = ComputeScreenPxRange(input.texcoord, instance.pxRange, instance.atlasSize) * signedDistance;
+	float screenRange = ComputeScreenPxRange(input.texcoord, instance.pxRange, instance.atlasSize);
+	float screenPxDistance = screenRange * signedDistance;
 
 	// 文字本体のカバレッジ
 	float fillAlpha = saturate(screenPxDistance + 0.5f);
@@ -65,11 +74,17 @@ PSOutput EvaluateTextColor(VSOutput input, PSInstance instance) {
 	if (enableOutline && outlineWidth > 0.0f) {
 
 		float pixelScale = min(referenceToRenderScale.x, referenceToRenderScale.y);
-		float outerAlpha = saturate(screenPxDistance + outlineWidth * pixelScale + 0.5f);
-		// 縁はoutlineColor、内側へ向かって本体色へ補間する
-		float3 rgb = lerp(outlineColor.rgb, fillColor.rgb, fillAlpha);
-		float regionAlpha = lerp(outlineColor.a, fillColor.a, fillAlpha);
-		output.color = float4(rgb, outerAlpha * regionAlpha);
+		// 距離場の外端にアンチエイリアス用の余白を残す
+		float limit = max(0.0f, 0.5f * screenRange - 0.5f);
+		float width = outlineWidth * pixelScale;
+		float transition = min(0.5f, limit * 0.5f);
+		float overlap = max(transition - abs(width - limit), 0.0f);
+		width = min(width, limit) - overlap * overlap / max(4.0f * transition, 1e-6f);
+		float outerAlpha = saturate(screenPxDistance + width + 0.5f);
+		float fill = fillAlpha * fillColor.a;
+		float outline = (outerAlpha - fillAlpha) * outlineColor.a;
+		float alpha = fill + outline;
+		output.color = float4((fillColor.rgb * fill + outlineColor.rgb * outline) / max(alpha, 1e-6f), alpha);
 	} else {
 		output.color = float4(fillColor.rgb, fillAlpha * fillColor.a);
 	}

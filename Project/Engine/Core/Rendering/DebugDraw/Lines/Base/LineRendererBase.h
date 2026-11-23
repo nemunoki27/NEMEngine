@@ -187,7 +187,7 @@ namespace Engine {
 		desc.geometry.entry = "main";
 		desc.geometry.profile = "gs_6_0";
 		desc.pixel.file = BuiltinShaderSource::Line::GeometryPS;
-		desc.pixel.entry = "main";
+		desc.pixel.entry = "DebugLine";
 		desc.pixel.profile = "ps_6_0";
 
 		// ラスタライズ設定

@@ -17,6 +17,7 @@ struct VSOutput {
 	float2 materialTexcoord : TEXCOORD1;
 	float2 layoutTexcoord : TEXCOORD2;
 	uint instanceID : INSTANCEID;
+	nointerpolation float4 atlasBounds : TEXCOORD3;
 };
 
 struct VSInstance {

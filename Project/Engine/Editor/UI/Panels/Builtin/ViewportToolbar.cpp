@@ -1,5 +1,6 @@
 #include "ViewportToolbar.h"
 #include "ViewportCameraSelection.h"
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include "ViewportOrientationGizmo.h"
 
 //============================================================================
@@ -18,7 +19,7 @@
 
 namespace {
 
-	enum class ToolAction { None, Translate, Rotate, Scale, Pick, Selection, Dimension, Pivot, Snap, Grid, Manual, Camera, Prefab };
+	enum class ToolAction { None, Translate, Rotate, Scale, Pick, Selection, Dimension, Pivot, Snap, Grid, Manual, Camera, CameraSettings, Prefab };
 	struct ToolButton {
 
 		ToolAction action;
@@ -59,7 +60,7 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 
 	if (!context.editorState) return;
 	auto& state = *context.editorState;
-	std::array<ToolButton, 13> buttons{};
+	std::array<ToolButton, 14> buttons{};
 	size_t count = 0;
 	auto add = [&](ToolAction action, const std::string& icon, const char* tip, bool selected, int group) {
 		buttons[count++] = {action, &icon, tip, selected, group};
@@ -83,6 +84,8 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 	add(ToolAction::Manual, icons_.debugCameraKey, "マニュアルカメラ操作", state.sceneViewCamera.mode == SceneViewCameraMode::DebugManual, 3);
 	add(ToolAction::Camera, icons_.entityCameraKey, "オブジェクトカメラによる制御",
 		state.sceneViewCamera.mode == SceneViewCameraMode::SelectedEntityCamera, 3);
+
+	add(ToolAction::CameraSettings, icons_.cameraSettingsKey, "シーンカメラ設定", false, 3);
 
 	bool cameraPopup = false, snapPopup = false;
 	auto apply = [&](ToolAction action) {
@@ -110,6 +113,7 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 			state.sceneViewCamera.mode = SceneViewCameraMode::SelectedEntityCamera;
 			cameraPopup = true;
 			break;
+		case ToolAction::CameraSettings: EditorToolUI::OpenSceneCameraSettings(context); break;
 		case ToolAction::Prefab: if (context.host) context.host->RequestTogglePrefabInContext(); break;
 		}
 	};
@@ -129,8 +133,10 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 		const auto& item = buttons[index];
 		if (ImGui::GetCursorScreenPos().x + size.x * (index + 1 < count ? 2 : 1) > toolsRight) break;
 		ImGui::PushID(static_cast<int>(item.action));
+		ImGui::BeginDisabled(item.action == ToolAction::CameraSettings && context.IsPlaying());
 		if (EditorIconButton::DrawImage("Tool", GetTextureID(*item.icon), item.tooltip, item.selected, size)) apply(item.action);
 		if (item.action == ToolAction::Snap && ImGui::IsItemClicked(ImGuiMouseButton_Right)) snapPopup = true;
+		ImGui::EndDisabled();
 		ImGui::PopID();
 		ImGui::SameLine();
 	}
@@ -143,7 +149,7 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 		for (size_t hidden = index; hidden < count; ++hidden) {
 			const auto& item = buttons[hidden];
 			if (hidden > index && item.group != buttons[hidden - 1].group) ImGui::Separator();
-			if (ImGui::MenuItem(item.tooltip, nullptr, item.selected)) apply(item.action);
+			if (ImGui::MenuItem(item.tooltip, nullptr, item.selected, item.action != ToolAction::CameraSettings || !context.IsPlaying())) apply(item.action);
 		}
 		ImGui::Separator();
 		if (ImGui::MenuItem("スナップ設定")) snapPopup = true;
@@ -168,6 +174,7 @@ void Engine::ViewportToolbar::RequestIcons() {
 		&icons_.scaleKey,
 		&icons_.debugCameraKey,
 		&icons_.entityCameraKey,
+		&icons_.cameraSettingsKey,
 		&icons_.entitySelectKey,
 		&icons_.subMeshSelectKey,
 		&icons_.selection2DKey,

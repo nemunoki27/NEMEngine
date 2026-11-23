@@ -66,20 +66,20 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 }
 
 void Engine::LineRenderer3D::DrawSphere(const Vector3& center, const Vector3& xAxis, const Vector3& yAxis,
-	const Vector3& zAxis, const Color4& color, float thickness) {
+	const Vector3& zAxis, const Color4& color, float thickness, bool hemisphere) {
 
-	auto circle = [&](const Vector3& u, const Vector3& v) {
+	auto circle = [&](const Vector3& u, const Vector3& v, int segments) {
 		Vector3 previous = center + u;
-		for (int i = 1; i <= 32; ++i) {
+		for (int i = 1; i <= segments; ++i) {
 			float angle = Math::pi * i / 16.0f;
 			Vector3 next = center + u * std::cos(angle) + v * std::sin(angle);
 			DrawLine(previous, next, color, thickness);
 			previous = next;
 		}
 	};
-	circle(xAxis, zAxis);
-	circle(xAxis, yAxis);
-	circle(zAxis, yAxis);
+	circle(xAxis, zAxis, 32);
+	circle(xAxis, yAxis, hemisphere ? 16 : 32);
+	circle(zAxis, yAxis, hemisphere ? 16 : 32);
 }
 
 void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, const Color4& color, float thickness) {

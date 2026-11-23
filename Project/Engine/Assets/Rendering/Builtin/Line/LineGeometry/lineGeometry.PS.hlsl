@@ -7,7 +7,7 @@
 //============================================================================
 //	main
 //============================================================================
-float4 main(GSOutput input) : SV_TARGET0 {
+float4 DebugLine(GSOutput input) : SV_TARGET0 {
 
 	float safeOuter = max(input.outerHalfWidth, 1e-4f);
 	float safeInner = clamp(input.halfWidth, 0.0f, safeOuter);
@@ -21,5 +21,10 @@ float4 main(GSOutput input) : SV_TARGET0 {
 	color.a *= coverage;
 
 	clip(color.a - (1.0f / 255.0f));
-	return ApplyTransparentFog(color, input.position);
+	return color;
+}
+
+float4 main(GSOutput input) : SV_TARGET0 {
+
+	return ApplyTransparentFog(DebugLine(input), input.position);
 }

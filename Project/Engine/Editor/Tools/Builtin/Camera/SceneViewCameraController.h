@@ -81,6 +81,7 @@ namespace Engine {
 		// 閉じた時に保存するカメラパス
 		std::string savePath_ = "";
 		bool persistSettings_ = true;
+		bool focusSettings_ = false;
 
 		// カメラの状態
 		SceneViewCameraSettings settings_;

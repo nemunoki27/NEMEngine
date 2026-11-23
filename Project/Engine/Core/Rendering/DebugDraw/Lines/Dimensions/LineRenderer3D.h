@@ -45,7 +45,7 @@ namespace Engine {
 		// 球の中心を通る3つの円を描く
 		void DrawSphere(const Vector3& center, float radius, const Color4& color, float thickness = 1.0f);
 		void DrawSphere(const Vector3& center, const Vector3& xAxis, const Vector3& yAxis,
-			const Vector3& zAxis, const Color4& color, float thickness = 1.0f);
+			const Vector3& zAxis, const Color4& color, float thickness = 1.0f, bool hemisphere = false);
 		// 半球
 		template <typename T>
 		void DrawHemisphere(const Vector3& center, float radius, const T& rotation,
@@ -169,4 +169,3 @@ namespace Engine {
 			});
 	}
 }
-

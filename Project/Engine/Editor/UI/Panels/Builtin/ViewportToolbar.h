@@ -52,6 +52,7 @@ namespace Engine {
 			std::string debugCameraKey = "debugCamera.dds";
 			// EntityCamera
 			std::string entityCameraKey = "entityCamera.dds";
+			std::string cameraSettingsKey = "cameraSettings.dds";
 			// Entity選択
 			std::string entitySelectKey = "entitySelect.dds";
 			// SubMesh選択

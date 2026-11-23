@@ -15,34 +15,6 @@
 #include <cmath>
 #include <numbers>
 
-namespace {
-
-	// 非等方スケールを含む行列で球の補助線を変換する
-	void DrawWireSphere(Engine::LineRenderer3D& renderer, const Engine::Vector3& center,
-		const Engine::Matrix4x4& matrix, float radius, bool hemisphere) {
-
-		using namespace Engine;
-		constexpr int kDivision = 16;
-		constexpr float kPi = std::numbers::pi_v<float>;
-		auto point = [&](float latitude, float longitude) {
-			Vector3 local(std::cos(latitude) * std::cos(longitude), std::sin(latitude),
-				std::cos(latitude) * std::sin(longitude));
-			return center + Vector3::Transform(local * radius, matrix);
-		};
-		float start = hemisphere ? 0.0f : -kPi * 0.5f;
-		for (int ring = 0; ring < 8; ++ring) {
-			float lat0 = std::lerp(start, kPi * 0.5f, ring / 8.0f);
-			float lat1 = std::lerp(start, kPi * 0.5f, (ring + 1) / 8.0f);
-			for (int i = 0; i < kDivision; ++i) {
-				float angle0 = 2.0f * kPi * i / kDivision;
-				float angle1 = 2.0f * kPi * (i + 1) / kDivision;
-				renderer.DrawLine(point(lat0, angle0), point(lat0, angle1), Color4::Red());
-				renderer.DrawLine(point(lat0, angle0), point(lat1, angle0), Color4::Red());
-			}
-		}
-	}
-}
-
 //============================================================================
 //	ParticleEmitterDebugDraw classMethods
 //============================================================================
@@ -113,7 +85,10 @@ void Engine::ParticleEmitterDebugDraw::DrawHemisphere(const ParticleEmitterSetti
 	if (!renderer) {
 		return;
 	}
-	DrawWireSphere(*renderer, center, emitterMatrix, settings.sphere.radius, true);
+	const float radius = settings.sphere.radius;
+	renderer->DrawSphere(center, Vector3::Transform({ radius, 0, 0 }, emitterMatrix),
+		Vector3::Transform({ 0, radius, 0 }, emitterMatrix), Vector3::Transform({ 0, 0, radius }, emitterMatrix),
+		Color4::Red(), 1.0f, true);
 }
 
 void Engine::ParticleEmitterDebugDraw::DrawTorus(const ParticleEmitterSettings& settings,
@@ -171,7 +146,8 @@ void Engine::ParticleEmitterDebugDraw::DrawPoint(const ParticleEmitterSettings& 
 		return;
 	}
 	// 射出方向を線で表す
-	DrawWireSphere(*renderer, center, emitterMatrix, 0.05f, false);
+	renderer->DrawSphere(center, Vector3::Transform({ 0.05f, 0, 0 }, emitterMatrix),
+		Vector3::Transform({ 0, 0.05f, 0 }, emitterMatrix), Vector3::Transform({ 0, 0, 0.05f }, emitterMatrix), color);
 	renderer->DrawLine(center, center + Vector3::Transform(direction, rotationMatrix), color);
 }
 

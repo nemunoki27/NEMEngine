@@ -31,6 +31,7 @@ VSOutput main(VSInput input, uint instanceID : SV_InstanceID) {
 	output.materialTexcoord = lerp(instance.materialUVMin, instance.materialUVMax, input.texcoord);
 	output.layoutTexcoord = lerp(instance.layoutUVMin, instance.layoutUVMax, input.texcoord);
 	output.instanceID = instanceID;
+	output.atlasBounds = float4(instance.uvMin, instance.uvMax);
 
 	return output;
 }

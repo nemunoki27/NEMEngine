@@ -22,7 +22,7 @@ namespace {
 	// 空IDの位置には音声設定を表示する
 	constexpr std::string_view kProjectSettingsTools[] = {
 		"engine.tag_manager", "engine.collision_manager", "engine.script_execution_order",
-		"engine.input_device", "", "engine.sceneViewCamera"
+		"engine.input_device", ""
 	};
 
 	// メニューの所属だけを判定しツールの更新順序は変えない
@@ -160,7 +160,7 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(0.8f);
 
 	auto tools = CollectEditorTools();
-	std::erase_if(tools, [](const auto& tool) { return IsProjectSettingsTool(tool->GetDescriptor().id); });
+	std::erase_if(tools, [](const auto& tool) { return IsProjectSettingsTool(tool->GetDescriptor().id) || tool->GetDescriptor().id == "engine.sceneViewCamera"; });
 	const ToolContext toolContext = MakeToolContext(context);
 	std::string openToolID;
 
@@ -195,6 +195,11 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 	ImGui::EndMenu();
 
 	OpenRequestedTool(openToolID, toolContext);
+}
+
+void Engine::EditorToolUI::OpenSceneCameraSettings(const EditorPanelContext& context) {
+
+	OpenRequestedTool("engine.sceneViewCamera", MakeToolContext(context));
 }
 
 void Engine::EditorToolUI::DrawProjectSettingsMenu(const EditorPanelContext& context) {
