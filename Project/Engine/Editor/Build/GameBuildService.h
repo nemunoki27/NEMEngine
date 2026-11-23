@@ -50,9 +50,11 @@ namespace Engine {
 		const std::vector<GameBuildSceneEntry>& GetScenes() const { return scenes_; }
 		GameBuildState GetState() const { return state_; }
 		bool IsBuilding() const { return state_ == GameBuildState::Building; }
+		float GetProgress() const { return progressPercent_ / 100.0f; }
 		const std::string& GetStatusMessage() const { return statusMessage_; }
 		const std::string& GetFailureDetail() const { return failureDetail_; }
 		const std::filesystem::path& GetOutputDirectory() const { return outputDirectory_; }
+		const std::string& GetSizeReport() const { return sizeReport_; }
 		const std::vector<GameBuildWarning>& GetWarnings() const { return warnings_; }
 	private:
 		//============================================================================
@@ -65,8 +67,10 @@ namespace Engine {
 		std::vector<GameBuildSceneEntry> scenes_;
 		std::vector<GameBuildWarning> warnings_;
 		GameBuildState state_ = GameBuildState::Idle;
+		int progressPercent_ = 0;
 		std::string statusMessage_;
 		std::string failureDetail_;
+		std::string sizeReport_;
 		std::filesystem::path manifestPath_;
 		std::filesystem::path outputDirectory_;
 

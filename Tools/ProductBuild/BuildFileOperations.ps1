@@ -1,4 +1,9 @@
-﻿function Write-Utf8Json {
+﻿function Write-BuildProgress {
+    param([int]$Percent, [string]$Message)
+    [Console]::WriteLine("[NEM_GAME_BUILD_PROGRESS] $Percent $Message")
+}
+
+function Write-Utf8Json {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path,

@@ -170,3 +170,26 @@ void Engine::WorldCommandBuffer::EnqueueCreateEntity(
 	command.parent = parent;
 	commands_.emplace_back(std::move(command));
 }
+
+bool Engine::WorldCommandBuffer::EnqueueKeepCreatedRoot(ECSWorld& world, Entity root) {
+
+	if (!world.IsAlive(root) || world.IsPendingDestroy(root)) return false;
+	bool created = false;
+	Entity parent = Entity::Null();
+	const auto inspect = [&](const WorldCommand& command) {
+		if (command.target != root) return;
+		if (command.kind == WorldCommandKind::CreateEntity) created = true;
+		if (command.kind == WorldCommandKind::DestroyEntity) created = false;
+		if (command.kind == WorldCommandKind::CreateEntity || command.kind == WorldCommandKind::SetParent) {
+			parent = command.parent;
+		}
+	};
+	for (size_t i = activeCommandIndex_; i < activeBatch_.size(); ++i) inspect(activeBatch_[i]);
+	for (const WorldCommand& command : commands_) inspect(command);
+	if (!created || world.IsAlive(parent)) return false;
+	WorldCommand command{};
+	command.kind = WorldCommandKind::KeepEntityOnLoad;
+	command.target = root;
+	commands_.emplace_back(std::move(command));
+	return true;
+}

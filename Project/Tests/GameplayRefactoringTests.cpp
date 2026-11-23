@@ -1,6 +1,7 @@
 #include "GameplayRefactoringTests.h"
 #include <Engine/Core/World/Components/Animation/AnimationClipPlayerComponent.h>
 #include "AnimationPlaybackTests.h"
+#include "TestRunner.h"
 #include "InputConfigurationTests.h"
 #include "AnimationSnapshotTests.h"
 #include "SkeletonAnimationTests.h"
@@ -314,6 +315,8 @@ namespace {
 
 bool TestGameplayContracts() {
 
+	using namespace NEMTests;
+
 	if (!NEMTests::TestShaderCookInputs() || !NEMTests::TestShaderCookDependencies()) {
 		std::cerr << "Shader Cook input contract failed\n";
 		return false;
@@ -339,9 +342,11 @@ bool TestGameplayContracts() {
 		std::cerr << "Particle execution contract failed\n";
 		return false;
 	}
-	if (!NEMTests::TestAnimationPlayback() || !TestAnimationEvaluation() || !NEMTests::TestAnimationSnapshot() ||
-		!NEMTests::TestSkeletonAnimation() ||
-		!NEMTests::TestAnimationClipPreview()) {
+	if (!RunTest("TestAnimationPlayback", TestAnimationPlayback) ||
+		!RunTest("TestAnimationEvaluation", TestAnimationEvaluation) ||
+		!RunTest("TestAnimationSnapshot", TestAnimationSnapshot) ||
+		!RunTest("TestSkeletonAnimation", TestSkeletonAnimation) ||
+		!RunTest("TestAnimationClipPreview", TestAnimationClipPreview)) {
 		std::cerr << "Animation evaluation contract failed\n";
 		return false;
 	}

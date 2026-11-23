@@ -67,7 +67,10 @@ bool Engine::ShaderCookCompiler::Cook(ShaderAsset shader, std::string_view sourc
 			Algorithm::ConvertString(entry).c_str(), stage.stage);
 		if (!compiled.IsValid()) {
 			outError = "シェーダーのコンパイルに失敗しました: " + std::string(sourceName) + " [" +
-				std::string(EnumAdapter<ShaderStage>::ToString(stage.stage)) + "]";
+				std::string(EnumAdapter<ShaderStage>::ToString(stage.stage)) + " / " + entry + "] " + Algorithm::PathToUTF8(sourcePath.filename());
+			if (!compiled.diagnostics.empty()) {
+				outError += " / " + compiled.diagnostics.substr(0, compiled.diagnostics.find_first_of("\r\n"));
+			}
 			return false;
 		}
 		ApplyShaderParameterMetadata(compiled.reflection, shader);

@@ -5,15 +5,15 @@
     if (-not $prebuiltRuntime) {
         $msbuild = Get-MSBuildPath
         $nativeArguments = @(Get-NativeBuildArguments 'Release')
-        Write-Output "ゲームのReleaseビルドを開始します"
+        Write-BuildProgress 5 "ゲーム本体をReleaseビルドしています"
         & $msbuild $projectPath @nativeArguments
         if ($LASTEXITCODE -ne 0) { throw "ゲームのReleaseビルドに失敗しました" }
     }
 
     # 製品には通常出力の最新DLLだけを使うためC#を強制再ビルドする
-    Write-Output "C#ゲームスクリプトのReleaseビルドを確認します"
+    Write-BuildProgress 25 "C#ゲームスクリプトをコンパイルしています"
     $dotnet = if ($toolchainRoot) { Join-Path $toolchainRoot 'dotnet.exe' } else { 'dotnet' }
-    & $dotnet build $gameScriptsProject -c Release --no-incremental -p:NEMScriptMetadataMode=EditorSync
+    & $dotnet build $gameScriptsProject -c Release --no-incremental -p:CopyLocalLockFileAssemblies=true -p:NEMScriptMetadataMode=EditorSync
     if ($LASTEXITCODE -ne 0) {
         throw "C#ゲームスクリプトのReleaseビルドに失敗しました"
     }
@@ -25,7 +25,7 @@
     }
 
     if (-not [string]::IsNullOrWhiteSpace($buildToolProject)) {
-        Write-Output "製品ビルドツールをビルドしています"
+        Write-BuildProgress 35 "製品ビルドツールをコンパイルしています"
         & $msbuild $buildToolProject @nativeArguments
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $buildToolExecutable -PathType Leaf)) {
             throw "製品ビルドツールのビルドに失敗しました"

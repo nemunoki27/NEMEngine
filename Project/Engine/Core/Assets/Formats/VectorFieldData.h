@@ -7,6 +7,8 @@
 
 // c++
 #include <istream>
+#include <span>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -22,6 +24,8 @@ namespace Engine {
 
 	// X方向を最短軸とするFGA格子を読み込み、失敗時は出力を保持する
 	bool ReadFGA(std::istream& stream, VectorFieldData& field, std::string& reason);
+	void WriteProductVectorField(VectorFieldData& field, std::vector<uint8_t>& bytes);
+	bool ReadProductVectorField(std::span<const uint8_t> bytes, VectorFieldData& field);
 	// 格子の範囲外をゼロとして三線形補間する
 	Vector3 SampleVectorField(const VectorFieldData& field, const Vector3& position);
 }

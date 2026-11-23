@@ -2,6 +2,8 @@
 
 using namespace Engine;
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -82,7 +84,7 @@ bool Audio::EnsureLoaded(const std::filesystem::path& filename, AudioType type) 
 
 	const std::string key = AudioSoundCache::NormalizeKey(Algorithm::PathToUTF8(filename));
 	std::error_code error;
-	if (!std::filesystem::exists(filename, error) || error) {
+	if (!(ProductContentPack::Contains(filename) || std::filesystem::exists(filename, error))) {
 		return false;
 	}
 

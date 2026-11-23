@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderCookStorage.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -200,5 +201,6 @@ bool Engine::ShaderCook::Load(const ShaderCookRequest& request,
 	outShader.entry = Algorithm::ConvertString(request.entry);
 	outShader.profile = Algorithm::ConvertString(request.profile);
 	outShader.reflection = stage->reflection;
+	if (ProductContentPack::IsMounted()) { return ProductContentPack::Read(stage->bytecodePath, outShader.bytecode); }
 	return ReadBinary(stage->bytecodePath, outShader.bytecode);
 }

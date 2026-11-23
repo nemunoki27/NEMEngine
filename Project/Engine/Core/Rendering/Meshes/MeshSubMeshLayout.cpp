@@ -1,5 +1,8 @@
 #include "MeshSubMeshAuthoring.h"
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <Engine/Core/Assets/Package/ProductMesh.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -77,9 +80,34 @@ namespace {
 		return (minV + maxV) * 0.5f;
 	}
 
-	std::shared_ptr<const SourceLayout> ReadSourceLayout(const std::filesystem::path& path, uint64_t contentRevision) {
+	template<class A>
+	void Layout(A& archive, SourceLayout& source) {
+		using namespace Engine::ProductBinary;
+		Scalars(archive, source.info.hasBones);
+		Sequence(archive, source.items, [&](SourceLayoutItem& item) {
+			auto& value = item.layout;
+			Scalars(archive, value.sourceSubMeshIndex, value.vertexCount);
+			String(archive, value.name);
+			Scalars(archive, value.sourcePivot, value.baseColorFactor, value.emissiveFactor, value.metallicFactor,
+				value.roughnessFactor, value.hasBaseColorFactor, value.hasEmissiveFactor, value.hasMetallicFactor,
+				value.hasRoughnessFactor, value.sourceSurfaceMode, value.alphaCutoff);
+			Engine::ProductMesh::TexturePaths(archive, item.textures);
+		});
+	}
+
+	std::shared_ptr<SourceLayout> ReadSourceLayout(const std::filesystem::path& path, uint64_t contentRevision) {
 
 		using namespace Engine;
+		if (ProductContentPack::IsMounted()) {
+			std::vector<uint8_t> storage;
+			ProductBinary::Reader reader(ProductMesh::ReadSection(path, ProductMesh::Section::Layout, storage));
+			auto source = std::make_shared<SourceLayout>();
+			source->path = path;
+			source->contentRevision = contentRevision;
+			Layout(reader, *source);
+			if (reader.Remaining()) throw std::runtime_error("製品メッシュのサブメッシュ領域が不正です");
+			return source;
+		}
 		const auto writeTime = std::filesystem::last_write_time(path);
 		const auto fileSize = std::filesystem::file_size(path);
 		Assimp::Importer importer;
@@ -148,8 +176,8 @@ bool Engine::MeshSubMeshAuthoring::PrepareSourceLayout(std::weak_ptr<const uint8
 			const auto entry = database->second.find(meshAssetID);
 			if (entry != database->second.end() && entry->second.source &&
 				entry->second.source->path == path && entry->second.source->contentRevision == contentRevision &&
-				entry->second.source->writeTime == std::filesystem::last_write_time(path) &&
-				entry->second.source->fileSize == std::filesystem::file_size(path)) return true;
+				(ProductContentPack::IsMounted() || (entry->second.source->writeTime == std::filesystem::last_write_time(path) &&
+				entry->second.source->fileSize == std::filesystem::file_size(path)))) return true;
 		}
 	}
 	const auto source = ReadSourceLayout(path, contentRevision);
@@ -177,7 +205,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 	}
 
 	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(meshAssetID);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+	if (fullPath.empty() || !(ProductContentPack::Contains(fullPath) || std::filesystem::exists(fullPath))) {
 		return false;
 	}
 	const auto cacheKey = assetDatabase->GetCacheLifetime();
@@ -262,5 +290,12 @@ void Engine::MeshSubMeshAuthoring::InvalidateCachedLayout(
 	for (auto& [database, cache] : gLayoutCaches) {
 		cache.erase(meshAssetID);
 	}
+}
+
+void Engine::ProductMesh::CookLayout(const std::filesystem::path& path, std::vector<uint8_t>& bytes) {
+	auto source = ReadSourceLayout(path, 0);
+	if (!source) throw std::runtime_error("サブメッシュ情報を読み込めません");
+	ProductBinary::Writer writer(bytes);
+	Layout(writer, *source);
 }
 

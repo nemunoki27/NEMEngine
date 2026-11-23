@@ -289,7 +289,6 @@ namespace Engine::RuntimeTextureResolver {
 		TextureImportSettings importSettings = ResolveImportSettings(assetDatabase, textureAssetID);
 		// 法線用途は色画像や2成分データと別の読込結果を使う
 		if (normalMap) {
-			importSettings.preset = TextureImportPreset::NormalMap;
 			importSettings.colorSpace = TextureColorSpace::Linear;
 		}
 		const bool useThumbnail = thumbnail && !normalMap && requestedColorSpace == TextureColorSpace::SRGB;

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   リファクタリング前後の静的構造と回帰項目を検証する
 
@@ -455,7 +455,7 @@ function Invoke-ShaderCompile {
             "-E", $entry.entry,
             "-T", $entry.profile,
             "-Zi",
-            "-Qembed_debug",
+            "-Qstrip_debug",
             "-Zpr",
             "-I", ([System.IO.Path]::GetDirectoryName($entry.path)),
             "-I", $shaderRoot,

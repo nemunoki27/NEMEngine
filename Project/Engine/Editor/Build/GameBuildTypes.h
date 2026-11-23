@@ -29,6 +29,7 @@ namespace Engine {
 		std::string destination;
 		uintmax_t size = 0;
 		std::string sha256;
+		std::string reason;
 	};
 	// 継続確認が必要な参照欠損
 	struct GameBuildWarning {

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "AnimationChannelUtility.h"
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -19,15 +20,9 @@ using namespace Engine::AnimationChannelUtility;
 
 bool Engine::LoadAnimationClipAsset(const std::filesystem::path& path, AnimationClipAsset& outClip) {
 
-	// AnimationClipはjson単体で管理する
-	std::ifstream file(path, std::ios::binary);
-	if (!file.is_open()) {
-		return false;
-	}
-
 	try {
-		nlohmann::json data{};
-		file >> data;
+		nlohmann::json data;
+		if (!JsonFile::TryLoad(path, data)) return false;
 		outClip = data.get<AnimationClipAsset>();
 		return true;
 	} catch (const std::exception& e) {

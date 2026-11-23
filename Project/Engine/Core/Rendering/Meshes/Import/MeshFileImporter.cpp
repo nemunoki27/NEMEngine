@@ -1,5 +1,8 @@
 #include "MeshFileImporter.h"
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <Engine/Core/Assets/Package/ProductMesh.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -98,6 +101,11 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 	ImportedMeshAsset result{};
 	result.assetID = assetID;
 	result.sourcePath = Algorithm::ConvertString(fullPath.generic_wstring());
+
+	if (ProductContentPack::IsMounted()) {
+		ProductMesh::LoadGeometry(fullPath, result);
+		return result;
+	}
 
 	// テクスチャアセット参照を解決
 	TextureAssetResolver textureResolver{};

@@ -70,6 +70,8 @@ namespace Engine {
 
 		// 初期値を予約し、親子関係を安全地点で確定する
 		void EnqueueCreateEntity(ECSWorld& world, const Entity& reserved, std::string_view name, const Entity& parent);
+		// 生成予約中のルートを生成後に常駐Sceneへ移す
+		bool EnqueueKeepCreatedRoot(ECSWorld& world, Entity root);
 		// Sceneの追加読み込みを予約する
 		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset);
 		// 指定Sceneの解放を予約する

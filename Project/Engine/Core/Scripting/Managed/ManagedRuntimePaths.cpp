@@ -44,6 +44,9 @@ namespace Engine::ManagedRuntimePaths {
 		const std::filesystem::path current = std::filesystem::current_path();
 		const std::filesystem::path exeDir = GetExecutableDirectory();
 		const std::filesystem::path engineRoot = Engine::RuntimePaths::GetEngineProjectRoot().parent_path();
+		if (std::filesystem::is_regular_file(exeDir / "Data/Content.nempak")) {
+			return exeDir / "Data/Runtime/Managed/NEM.ScriptCore.dll";
+		}
 		return FindFirstExistingPath({
 			exeDir / "Managed/NEM.ScriptCore.dll",
 			engineRoot / "Generated/Managed/NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
@@ -58,6 +61,9 @@ namespace Engine::ManagedRuntimePaths {
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		const std::filesystem::path exeDir = GetExecutableDirectory();
+		if (std::filesystem::is_regular_file(exeDir / "Data/Content.nempak")) {
+			return exeDir / "Data/Runtime/Managed/GameScripts.dll";
+		}
 		return FindFirstExistingPath({
 			exeDir / "Managed/GameScripts.dll",
 			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "GameScripts.dll",

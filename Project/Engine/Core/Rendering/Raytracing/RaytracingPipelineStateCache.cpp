@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingPipelineBuilder.h"
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -235,7 +236,7 @@ bool Engine::RaytracingPipelineStateCache::StartMaterialReflectionBuild(Graphics
 	entry.build.result = std::async(std::launch::async,
 		[device, variant = std::move(variant), shader = std::move(combined), samplers]() mutable {
 			DxShaderCompiler compiler{};
-			compiler.Init();
+			if (!ShaderCook::IsCookedProduct()) compiler.Init();
 			return RaytracingPipelineBuilder::Create(device.Get(), &compiler, variant, shader, &samplers);
 		});
 	return true;
@@ -471,7 +472,7 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 			hasSamplerOverrides]() mutable {
 
 			DxShaderCompiler compiler{};
-			compiler.Init();
+			if (!ShaderCook::IsCookedProduct()) compiler.Init();
 			return RaytracingPipelineBuilder::Create(retainedDevice.Get(), &compiler,
 				variant, shader, hasSamplerOverrides ? &samplerCopy : nullptr);
 		});

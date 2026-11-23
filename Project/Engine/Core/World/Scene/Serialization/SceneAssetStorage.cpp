@@ -1,4 +1,5 @@
 #include "SceneAssetStorage.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -116,7 +117,7 @@ std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Validate(const
 			if (!IsInside(path, root)) {
 				throw std::runtime_error("Actorが所有フォルダーの外を参照しています");
 			}
-			const bool missing = !std::filesystem::is_regular_file(path);
+			const bool missing = !ProductContentPack::Contains(path) && !std::filesystem::is_regular_file(path);
 			const auto actor = JsonAdapter::Load(path, false);
 			if (missing || !SceneDocument::ValidateExternalActor(actor, *id)) {
 				issues.push_back({scenePath, path, *id,

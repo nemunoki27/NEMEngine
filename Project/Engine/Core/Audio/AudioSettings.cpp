@@ -1,4 +1,5 @@
 #include "AudioSettings.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -8,7 +9,7 @@
 bool Engine::AudioSettings::Load(const std::filesystem::path& path) {
 
 	std::error_code error;
-	if (!std::filesystem::exists(path, error)) { return !error; }
+	if (!ProductContentPack::Contains(path) && !std::filesystem::exists(path, error)) { return !error; }
 	nlohmann::json data;
 	if (!JsonAdapter::TryLoad(path, data)) { return false; }
 	if (!data.is_object() || (data.contains("playInBackground") && !data["playInBackground"].is_boolean())) {

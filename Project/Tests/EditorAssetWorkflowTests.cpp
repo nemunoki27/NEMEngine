@@ -425,6 +425,20 @@ bool NEMTests::TestBistroNormalTextures() {
 	using namespace Engine;
 	TextureFileRequestDesc request{};
 	request.assetPath = "GameAssets/Models/Bistro/BistroExterior/_resources/0/MASTER_Bistro_Main_Door_Normal.dds";
+	NEMTests::TestDirectory fixture("BC5Normal", RuntimePaths::GetGameAssetsRoot());
+	if (!std::filesystem::is_regular_file(RuntimePaths::ResolveAssetPath(request.assetPath))) {
+		// サンプル未導入の環境でも同じ2チャンネル圧縮形式を検証する
+		DirectX::ScratchImage image;
+		if (FAILED(image.Initialize2D(DXGI_FORMAT_BC5_UNORM, 4, 4, 1, 1))) return false;
+		auto* block = image.GetPixels();
+		std::fill_n(block, image.GetPixelsSize(), uint8_t{});
+		block[0] = block[1] = 160;
+		block[8] = block[9] = 96;
+		const auto path = fixture.GetPath() / "normal.dds";
+		if (FAILED(DirectX::SaveToDDSFile(image.GetImages(), image.GetImageCount(), image.GetMetadata(),
+			DirectX::DDS_FLAGS_NONE, path.c_str()))) return false;
+		request.assetPath = RuntimePaths::ToAssetPath(path);
+	}
 	request.importSettings.generateMipmaps = false;
 	const auto source = TextureDecoder::Decode(request);
 	request.normalMap = true;

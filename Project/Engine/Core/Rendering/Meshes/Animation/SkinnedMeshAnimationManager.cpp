@@ -1,5 +1,8 @@
 #include "SkinnedMeshAnimationManager.h"
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <Engine/Core/Assets/Package/ProductMesh.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -24,6 +27,25 @@
 //	SkinnedMeshAnimationManager classMethods
 //============================================================================
 namespace {
+
+	void BuildJointTracks(Engine::SkinnedMeshAnimationSet& result) {
+		using namespace Engine;
+		// Clip別にJointへ対応するTrack参照を作る
+		result.clipJointTracks.reserve(result.clips.size());
+		for (auto& [clipName, clip] : result.clips) {
+
+			std::vector<const NodeAnimation*>& tracks = result.clipJointTracks[clipName];
+			tracks.assign(result.skeleton.joints.size(), nullptr);
+			for (const Joint& joint : result.skeleton.joints) {
+
+				auto it = clip.nodeAnimations.find(joint.nodePath);
+				if (it != clip.nodeAnimations.end()) {
+					tracks[joint.index] = &it->second;
+				}
+			}
+		}
+	}
+
 
 	// 同じノードを参照する重複Channelでも補間順を維持する
 	template <class T>
@@ -184,10 +206,15 @@ void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_un
 }
 
 Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnimationFile(
-	AssetID meshAssetID, const std::filesystem::path& fullPath) const {
+	AssetID meshAssetID, const std::filesystem::path& fullPath) {
 
 	SkinnedMeshAnimationSet result{};
 	result.meshAssetID = meshAssetID;
+	if (ProductContentPack::IsMounted()) {
+		ProductMesh::LoadAnimation(fullPath, result);
+		BuildJointTracks(result);
+		return result;
+	}
 
 	Assimp::Importer importer;
 	auto* fileSystem = new ModelFileIOSystem(fullPath);
@@ -302,21 +329,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		result.clips[clipName] = std::move(clip);
 	}
 
-	// Clip別にJointへ対応するTrack参照を作る
-	result.clipJointTracks.reserve(result.clips.size());
-	for (auto& [clipName, clip] : result.clips) {
-
-		std::vector<const NodeAnimation*>& tracks = result.clipJointTracks[clipName];
-		tracks.assign(result.skeleton.joints.size(), nullptr);
-		for (const Joint& joint : result.skeleton.joints) {
-
-			auto it = clip.nodeAnimations.find(joint.nodePath);
-			if (it != clip.nodeAnimations.end()) {
-				tracks[joint.index] = &it->second;
-			}
-		}
-	}
-
+	BuildJointTracks(result);
 	// 骨格とClipの両方がある定義を有効にする
 	result.valid = !result.skeleton.joints.empty() && !result.clips.empty();
 	return result;

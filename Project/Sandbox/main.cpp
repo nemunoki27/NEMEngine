@@ -3,10 +3,10 @@
 //============================================================================
 #include <Windows.h>
 
-#include <NEMEngineRuntime.h>
+#include <NEMGameBootstrap.h>
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR arguments, int) {
 
 	// エンジンソースには触れず、公開ABIだけで起動する
-	return NEM_RunGame();
+	return NEM_LaunchGame(arguments);
 }

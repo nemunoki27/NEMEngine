@@ -98,6 +98,9 @@ bool Engine::SceneInstanceManager::DontDestroyOnLoad(ECSWorld& world, Entity roo
 	if (!world.IsAlive(root) || world.IsPendingDestroy(root)) {
 		return false;
 	}
+	if (!world.HasComponent<SceneObjectComponent>(root)) {
+		return world.GetCommandBuffer().EnqueueKeepCreatedRoot(world, root);
+	}
 	const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(root);
 	if (hierarchy && world.IsAlive(hierarchy->parent)) {
 		return false;

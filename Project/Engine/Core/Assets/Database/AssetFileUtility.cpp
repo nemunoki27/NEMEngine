@@ -1,4 +1,5 @@
 #include "AssetFileUtility.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -15,6 +16,11 @@ namespace Engine::AssetFileUtility {
 
 	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
 
+		if (ProductContentPack::Contains(path)) {
+			nlohmann::json data;
+			ProductContentPack::ReadJson(path, data);
+			return data;
+		}
 		std::ifstream ifs(path, std::ios::binary);
 		if (!ifs.is_open()) {
 			return nlohmann::json{};

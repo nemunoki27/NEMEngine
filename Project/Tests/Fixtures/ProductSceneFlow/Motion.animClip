@@ -1,0 +1,58 @@
+{
+  "name": "Product Clip",
+  "duration": 30,
+  "autoDuration": false,
+  "loop": true,
+  "relativeTransform": false,
+  "curveTracks": [
+    {
+      "component": "Transform",
+      "property": "localPos",
+      "type": "Vector3",
+      "channels": [
+        {
+          "name": "X",
+          "defaultValue": 13,
+          "keys": [
+            {
+              "time": 0,
+              "value": 13
+            },
+            {
+              "time": 30,
+              "value": 13
+            }
+          ]
+        },
+        {
+          "name": "Y",
+          "defaultValue": 0,
+          "keys": [
+            {
+              "time": 0,
+              "value": 0
+            },
+            {
+              "time": 30,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "Z",
+          "defaultValue": 0,
+          "keys": [
+            {
+              "time": 0,
+              "value": 0
+            },
+            {
+              "time": 30,
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

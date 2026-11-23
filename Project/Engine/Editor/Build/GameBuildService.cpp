@@ -14,6 +14,8 @@
 
 // c++
 #include <algorithm>
+#include <charconv>
+#include <string_view>
 #include <exception>
 
 using namespace Engine::GameBuildUtility;
@@ -89,6 +91,8 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	RemoveManifest();
 	std::filesystem::path scriptPath;
 	warnings_.clear();
+	sizeReport_.clear();
+	progressPercent_ = 0;
 	bool manifestWritten = false;
 	try {
 		manifestWritten = WriteManifest(settings, database, scriptPath, outError, sceneStorage);
@@ -122,7 +126,7 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	}
 
 	state_ = GameBuildState::Building;
-	statusMessage_ = "ビルド中...";
+	statusMessage_ = "ビルド設定を読み込んでいます";
 	failureDetail_.clear();
 	Logger::Output(LogType::Engine, "[ゲームビルド] ビルドを開始しました 出力={}",
 		Algorithm::PathToUTF8(outputDirectory_));
@@ -138,6 +142,22 @@ void Engine::GameBuildService::Update() {
 	const bool finished = processRunner_.Poll([this](const std::string& line) {
 
 		if (line.empty()) {
+			return;
+		}
+		constexpr std::string_view sizePrefix = "[NEM_GAME_BUILD_SIZE] ";
+		if (line.starts_with(sizePrefix)) {
+			sizeReport_.append(line.substr(sizePrefix.size())).push_back('\n');
+		}
+		constexpr std::string_view prefix = "[NEM_GAME_BUILD_PROGRESS] ";
+		if (line.starts_with(prefix)) {
+			const char* end = line.data() + line.size();
+			int percent = 0;
+			const auto result = std::from_chars(line.data() + prefix.size(), end, percent);
+			if (result.ec == std::errc{} && result.ptr < end && *result.ptr == ' ' &&
+				result.ptr + 1 < end && progressPercent_ <= percent && percent < 100) {
+				progressPercent_ = percent;
+				statusMessage_.assign(result.ptr + 1, end);
+			}
 			return;
 		}
 		Logger::Output(LogType::Engine, "[ゲームビルド] {}", line);
@@ -156,6 +176,7 @@ void Engine::GameBuildService::Update() {
 	RemoveManifest();
 	if (exitCode == 0) {
 
+		progressPercent_ = 100;
 		state_ = GameBuildState::Completed;
 		statusMessage_ = "完了しました";
 		Logger::Output(LogType::Engine, "[ゲームビルド] ビルドが完了しました 出力={}",

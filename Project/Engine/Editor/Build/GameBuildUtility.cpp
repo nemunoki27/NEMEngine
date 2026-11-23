@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
@@ -12,6 +13,20 @@
 #include <fstream>
 
 namespace Engine::GameBuildUtility {
+
+	std::vector<std::string> LoadAdditionalAssets() {
+
+		const auto path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild);
+		if (!std::filesystem::exists(path)) return {};
+		const auto data = LoadJson(path);
+		if (!data.is_object()) throw std::runtime_error("ゲームのビルド設定を読み込めません");
+		return data.value("additionalAssets", std::vector<std::string>{});
+	}
+
+	bool IsAdditionalAssetPath(const std::string& path) {
+
+		return path == "GameAssets" || path.starts_with("GameAssets/") || path.starts_with("package://");
+	}
 
 	// 製品名として使用できないWindows予約名か
 	bool IsReservedWindowsName(const std::string& name) {

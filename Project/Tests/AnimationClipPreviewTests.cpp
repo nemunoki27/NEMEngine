@@ -76,9 +76,14 @@ bool NEMTests::TestAnimationClipPreview() {
 	if (AnimationClipEditorUtility::BuildTrackLabel(labelTrack, &world, entity) != labelTrack.binding.propertyPath) {
 		return false;
 	}
-	EditorToolContext context;
-	context.toolContext.world = &world;
-	context.toolContext.assetDatabase = &database;
+	EditorState state;
+	EditorContext editor;
+	editor.activeWorld = &world;
+	editor.assetDatabase = &database;
+	EditorPanelContext panel;
+	panel.editorState = &state;
+	panel.editorContext = &editor;
+	auto context = MakeEditorToolContext(panel);
 	AnimationClipEditSession session;
 	session.GetClipAssetID() = clipID;
 	session.LoadClipFromSelectedAsset(context);

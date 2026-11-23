@@ -205,9 +205,13 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			return false;
 		}
 		ShaderGraphArtifact artifact{};
+		std::vector<ShaderGraphDiagnostic> diagnostics;
 		if (!ShaderGraphArtifactCache::Compile(
-			graph, meta->guid, artifact, &database)) {
+			graph, meta->guid, artifact, &database, &diagnostics, false)) {
 			outError = "Shader Graphのコンパイルに失敗しました: " + meta->assetPath;
+			for (const auto& diagnostic : diagnostics) {
+				if (diagnostic.severity == ShaderGraphDiagnosticSeverity::Error) outError += " / " + diagnostic.message;
+			}
 			return false;
 		}
 		if (artifact.opaqueShader.guid &&

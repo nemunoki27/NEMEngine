@@ -293,6 +293,29 @@ namespace NEMTests {
 			directory.Remove();
 			return false;
 		}
+		// 同じ更新内で生成・親付けしたルートの常駐化をSingleより先に確定する
+		const auto pendingRoot = world.CreateEntity();
+		const auto pendingChild = world.CreateEntity();
+		auto& commands = world.GetCommandBuffer();
+		commands.EnqueueCreateEntity(world, pendingRoot, "Traveler", Engine::Entity::Null());
+		commands.EnqueueCreateEntity(world, pendingChild, "Child", Engine::Entity::Null());
+		commands.EnqueueSetParent(pendingChild, pendingRoot, false);
+		const auto discarded = world.CreateEntity();
+		commands.EnqueueCreateEntity(world, discarded, "Discarded", Engine::Entity::Null());
+		commands.EnqueueDestroyEntity(discarded);
+		passed &= !scenes.DontDestroyOnLoad(world, discarded);
+		passed &= !scenes.DontDestroyOnLoad(world, pendingChild);
+		passed &= scenes.DontDestroyOnLoad(world, pendingRoot);
+		passed &= scenes.TryBeginSingleLoadRequest();
+		commands.EnqueueLoadSceneSingle(Engine::UUID::New(), sceneAssets.front());
+		commands.Flush(world);
+		passed &= world.IsAlive(pendingRoot) && world.IsAlive(pendingChild);
+		const auto* ownerScene = world.TryGetComponent<Engine::SceneObjectComponent>(pendingRoot);
+		const auto* persistent = ownerScene ? scenes.Find(ownerScene->sceneInstanceID) : nullptr;
+		passed &= persistent && persistent->persistent;
+		commands.EnqueueDestroyEntity(pendingRoot);
+		commands.Flush(world);
+
 		const Engine::Entity music = Engine::SceneAuthoring::CreateGameObject(world, "Music");
 		const Engine::Entity source = Engine::SceneAuthoring::CreateGameObject(world, "Source");
 		Engine::HierarchySystem hierarchy;

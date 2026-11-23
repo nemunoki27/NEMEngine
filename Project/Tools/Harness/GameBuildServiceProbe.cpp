@@ -2,6 +2,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <cstring>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -24,6 +26,38 @@ int main(int argc, char** argv) {
 	if (argc != 4 && argc != 5) {
 		std::cerr << "使い方: GameBuildServiceProbe <検証用ゲーム> <開始シーンGUID> <出力先> [--collect|--manifest]\n";
 		return 1;
+	}
+	// 製品パックの各ステージを、元Shaderのエントリーと照合する
+	if (std::string_view(argv[1]) == "--packed-shader") {
+		const auto path = Engine::Algorithm::PathFromUTF8(argv[3]);
+		const auto source = Engine::JsonAdapter::Load(path, true);
+		const auto meta = Engine::JsonAdapter::Load(path.wstring() + L".meta", true);
+		std::string error;
+		if (!Engine::ProductContentPack::Mount(Engine::Algorithm::PathFromUTF8(argv[2]), error)) {
+			std::cerr << error << '\n';
+			return 9;
+		}
+		nlohmann::json manifest;
+		const std::filesystem::path shaders = "Cooked/Shaders";
+		if (!Engine::ProductContentPack::ReadJson(shaders / "ShaderCookManifest.json", manifest)) return 9;
+		for (const auto& shader : manifest.at("shaders")) {
+			if (shader.at("asset").at("guid") != meta.at("guid")) continue;
+			const auto& stages = shader.at("stages");
+			if (stages.size() != source.at("stages").size()) return 9;
+			for (const auto& input : source.at("stages")) {
+				const auto found = std::find_if(stages.begin(), stages.end(), [&](const auto& stage) {
+					return stage.at("stage") == input.at("stage") && stage.at("entry") == input.at("entry") &&
+						stage.at("profile") == input.at("profile");
+				});
+				if (found == stages.end()) return 9;
+				std::vector<uint8_t> bytes;
+				if (!Engine::ProductContentPack::Read(shaders / found->at("bytecode").get<std::string>(), bytes) ||
+					bytes.size() < 32 || std::memcmp(bytes.data(), "DXBC", 4) != 0) return 9;
+			}
+			std::cout << path.filename().string() << ": " << stages.size() << " stages\n";
+			return 0;
+		}
+		return 9;
 	}
 	// 配置前後で実際の衝突フィルターが一致するかを調べる
 	if (std::string_view(argv[1]) == "--collision") {
@@ -74,7 +108,7 @@ int main(int argc, char** argv) {
 		if (std::string_view(argv[4]) != "--collect") return 1;
 		// 日本語パスも登録時と検索時で同じGUIDへ正規化されることを確認する
 		for (const auto& [assetID, meta] : database.GetAssets()) {
-			const std::string lookupPath = "./" + meta.assetPath;
+			const std::string lookupPath = meta.assetPath.starts_with("package://") ? meta.assetPath : "./" + meta.assetPath;
 			const auto* found = database.FindByPath(lookupPath);
 			if (!found || found->guid != assetID ||
 				database.ImportOrGet(meta.assetPath, meta.type) != assetID) return 8;
@@ -91,7 +125,7 @@ int main(int argc, char** argv) {
 		nlohmann::json result = nlohmann::json::array();
 		for (const auto& file : files) {
 			result.push_back({ { "source", Engine::Algorithm::PathToUTF8(file.source) },
-				{ "destination", file.destination }, { "size", file.size }, { "sha256", file.sha256 } });
+				{ "destination", file.destination }, { "size", file.size }, { "sha256", file.sha256 }, { "reason", file.reason } });
 		}
 		if (!Engine::JsonAdapter::SaveCanonical(settings.outputRoot, result)) return 4;
 		std::cout << "製品ファイル収集の検証が完了しました: " << files.size() << '\n';

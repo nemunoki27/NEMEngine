@@ -15,6 +15,7 @@
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
@@ -52,7 +53,7 @@ namespace {
 
 void Engine::GameApplication::InitSystems() {
 
-	RegisterRuntimeSystems(scheduler_);
+	RegisterRuntimeSystems(scheduler_, managedStarted_);
 }
 
 void Engine::GameApplication::LoadActiveSceneConfig() {
@@ -93,9 +94,12 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 
 	InitFirstScene();
 	ApplicationPreloader::PrepareReflectionAnimations(graphicsCore, worldManager_.GetEditWorld(), assetDatabase_, skinnedAnimationManager_);
-	managedStarted_ = true;
-	ManagedScriptRuntime::GetInstance().Init();
-	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
+	const auto settings = JsonAdapter::Load(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild), false);
+	managedStarted_ = !RuntimePaths::IsProductBuild() || !settings.is_object() || settings.value("managedScripts", true);
+	if (managedStarted_) {
+		ManagedScriptRuntime::GetInstance().Init();
+		ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
+	}
 	InitSystems();
 
 	renderPipeline_ = std::make_unique<RenderPipelineRunner>();
@@ -135,7 +139,7 @@ void Engine::GameApplication::StartPlayWorld() {
 	// 最初の更新前に全EntityのRuntime派生データを構築する
 	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDatabase_);
 	runtimeWorldBaker_.BakeAll();
-	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
+	if (managedStarted_) ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
 	systemContext_.time = 0.0f;
 	systemContext_.unscaledTime = 0.0f;
@@ -150,7 +154,7 @@ void Engine::GameApplication::StopPlayWorld() {
 	scheduler_.DetachCurrentWorld(systemContext_);
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();
-	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
+	if (ECSWorld* playWorld = worldManager_.GetPlayWorld(); playWorld && managedStarted_) {
 		ManagedWorldRegistry::GetInstance().Unregister(ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
 	}
 	worldManager_.DestroyPlayWorld();
@@ -199,6 +203,11 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	LineRenderer::GetInstance()->BeginFrame();
 #endif
+
+	const auto& swapChain = graphicsCore.GetSwapChainDesc();
+	Input::GetInstance()->SetViewRect(InputViewArea::Game, Vector2{},
+		Vector2(static_cast<float>(swapChain.Width), static_cast<float>(swapChain.Height)),
+		graphicsCore.GetContext().GetWindowSetting().gameSizeFloat);
 
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();

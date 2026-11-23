@@ -9,6 +9,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
@@ -36,16 +37,35 @@ bool GameBuildAssetCollector::Collect(Engine::AssetID startupScene, std::vector<
 		outError = "未完了のシーン操作があります、Projectパネルのシーンデータ検証・修復から復旧してください";
 		return false;
 	}
-	AddAllGameAssets();
-	AddPackageFiles();
+	AddAdditionalAssets();
+	reason_ = "最初のシーン";
 	AddAsset(startupScene, true);
+	reason_ = "エンジンの既定アセット";
 	for (const Engine::AssetID assetID : Engine::BuiltinAssets::Runtime::Assets) {
 		AddAsset(assetID, true);
 	}
 
+	for (const auto& package : RuntimePaths::GetPackages()) {
+		AddFile(package.root / "package.json", "Packages/" + package.name + "/package.json", true);
+	}
 	AddFixedRuntimeFiles();
 	AddDefaultMaterialAssets();
 	ProcessAssets();
+	reason_ = "Shader Graphのコンパイル";
+	if (needsGraphShaderSources_) {
+		// GraphがCook時に生成するHLSLから参照される組み込みソースも作業先に配置する
+		const auto root = RuntimePaths::GetEngineAssetPath("Rendering/Builtin");
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+			const auto& path = entry.path();
+			if (path.extension() != ".hlsli" && path.extension() != ".hlsl") continue;
+			const auto destination = RuntimePaths::ToAssetPath(path);
+			AddFile(path, destination, true);
+			auto meta = path;
+			meta += L".meta";
+			if (std::filesystem::is_regular_file(meta)) AddFile(meta, destination + ".meta", true);
+		}
+	}
+	for (const auto& [destination, source] : files_) CollectNotices(source.parent_path());
 	// 同じ欠損集合の確認結果を再収集時にも照合できる順序にする
 	std::sort(warnings_.begin(), warnings_.end(), [](const GameBuildWarning& lhs, const GameBuildWarning& rhs) {
 		return std::tie(lhs.assetPath, lhs.detail, lhs.assetID, lhs.referenceID) <
@@ -69,7 +89,7 @@ bool GameBuildAssetCollector::Collect(Engine::AssetID startupScene, std::vector<
 				Engine::Algorithm::PathToUTF8(source);
 			return false;
 		}
-		outFiles.push_back({ source, destination, size, sha256 });
+		outFiles.push_back({ source, destination, size, sha256, fileReasons_.at(destination) });
 	}
 	return true;
 }
@@ -82,11 +102,25 @@ void GameBuildAssetCollector::AddWarning(AssetID asset, AssetID reference, std::
 	}
 }
 
+std::string GameBuildAssetCollector::DescribeReference(const nlohmann::json& data, const std::string& target,
+	AssetType type, std::string detail) {
+
+	if (type != AssetType::Unknown) detail += std::string("（必要な種類: ") + EnumAdapter<AssetType>::ToString(type) + "）";
+	const auto fields = data.flatten();
+	for (const auto& [field, value] : fields.items()) {
+		if (value.is_string() && value.get_ref<const std::string&>() == target) {
+			detail += "\n項目: " + field;
+		}
+	}
+	return detail + "\n参照先: " + target;
+}
+
 void GameBuildAssetCollector::AddAsset(Engine::AssetID assetID, bool required) {
 
 	if (!assetID) return;
 	const bool newlyRequired = required && requiredAssets_.insert(assetID).second;
 	if (queuedAssets_.insert(assetID).second || newlyRequired) {
+		assetReasons_.try_emplace(assetID, reason_);
 		assetQueue_.push_back(assetID);
 	}
 }
@@ -105,6 +139,7 @@ void GameBuildAssetCollector::AddFile(const std::filesystem::path& source, const
 		return;
 	}
 	const auto [it, inserted] = files_.emplace(destination, source);
+	if (inserted) fileReasons_.emplace(destination, reason_);
 	if (!inserted &&
 		NormalizeBuildPath(it->second) != NormalizeBuildPath(source)) {
 		errors_.push_back("ビルド出力パスが重複しています: " + destination);
@@ -117,8 +152,9 @@ std::string GameBuildAssetCollector::ToBuildDestination(const std::string& asset
 	if (!assetPath.starts_with(kPackageScheme)) {
 		return assetPath;
 	}
-	return "Packages/" +
-		assetPath.substr(kPackageScheme.size());
+	std::string destination = "Packages/" + assetPath.substr(kPackageScheme.size());
+	std::ranges::replace(destination, '\\', '/');
+	return destination;
 }
 
 void GameBuildAssetCollector::AddAssetFile(const Engine::AssetMeta& meta) {
@@ -144,93 +180,57 @@ void GameBuildAssetCollector::AddLogicalFile(const std::string& assetPath) {
 		return;
 	}
 	const std::filesystem::path source = Engine::RuntimePaths::ResolveAssetPath(assetPath);
-	AddFile(source, assetPath);
+	AddFile(source, ToBuildDestination(assetPath));
 	std::filesystem::path metaPath = source;
 	metaPath += L".meta";
-	AddFile(metaPath, assetPath + ".meta");
+	if (std::filesystem::is_regular_file(metaPath)) AddFile(metaPath, ToBuildDestination(assetPath) + ".meta");
 }
 
-void GameBuildAssetCollector::AddAllGameAssets() {
+void GameBuildAssetCollector::AddAdditionalAssets() {
 
-	const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-	const std::filesystem::path gameAssetsRoot = gameRoot / "GameAssets";
-	std::error_code ec;
-	for (std::filesystem::recursive_directory_iterator it(gameAssetsRoot, ec), end;
-		it != end && !ec; it.increment(ec)) {
-
-		if (it->is_directory(ec)) {
-
-			if (Engine::Algorithm::ToLower(
-				Engine::Algorithm::PathToUTF8(it->path().filename())) == "externalactors") {
+	for (const auto& path : LoadAdditionalAssets()) {
+		const auto source = NormalizeBuildPath(RuntimePaths::ResolveAssetPath(path));
+		const auto actual = RuntimePaths::ToAssetPath(source);
+		if (!IsAdditionalAssetPath(path) || actual.empty() || !IsAdditionalAssetPath(actual) || !std::filesystem::exists(source)) {
+			errors_.push_back("追加で含めるアセットが見つかりません: " + path);
+			continue;
+		}
+		reason_ = "追加指定: " + path;
+		const auto add = [&](const std::filesystem::path& candidate) {
+			const auto logical = RuntimePaths::ToAssetPath(NormalizeBuildPath(candidate));
+			if (!IsAdditionalAssetPath(logical)) {
+				errors_.push_back("追加対象がアセットフォルダー外を参照しています: " + Algorithm::PathToUTF8(candidate));
+				return;
+			}
+			if (!logical.ends_with(".meta")) AddLogicalFile(logical);
+		};
+		if (std::filesystem::is_regular_file(source)) {
+			add(source);
+			continue;
+		}
+		for (std::filesystem::recursive_directory_iterator it(source), end; it != end; ++it) {
+			if (it->is_directory() && Algorithm::ToLower(Algorithm::PathToUTF8(it->path().filename())) == "externalactors") {
 				it.disable_recursion_pending();
+			} else if (it->is_regular_file()) {
+				add(it->path());
 			}
-			continue;
 		}
-		if (!it->is_regular_file(ec)) {
-			continue;
-		}
-
-		const std::filesystem::path relative = std::filesystem::relative(it->path(), gameRoot, ec);
-		if (ec) {
-			break;
-		}
-		const std::string assetPath = Engine::Algorithm::ConvertString(relative.generic_wstring());
-		AddFile(it->path(), assetPath);
-
-		if (Engine::Algorithm::EndsWith(Engine::Algorithm::ToLower(assetPath), ".meta")) {
-			continue;
-		}
-		if (Engine::Algorithm::EndsWith(
-			Engine::Algorithm::ToLower(assetPath), ".actor.json")) {
-			const nlohmann::json actor = LoadJson(it->path());
-			if (actor.is_object()) {
-				InspectJson(actor);
-			}
-			continue;
-		}
-		if (const Engine::AssetMeta* meta = database_.FindByPath(assetPath)) {
-			AddAsset(meta->guid);
-		}
-	}
-	if (ec) {
-		errors_.push_back("GameAssetsのファイルを収集できません: " + ec.message());
 	}
 }
 
-void GameBuildAssetCollector::AddPackageFiles() {
+void GameBuildAssetCollector::CollectNotices(const std::filesystem::path& directory) {
 
-	for (const Engine::ResolvedPackage& package :
-		Engine::RuntimePaths::GetPackages()) {
-
-		std::error_code ec;
-		for (auto it = std::filesystem::recursive_directory_iterator(
-			package.root,
-			std::filesystem::directory_options::skip_permission_denied, ec);
-			it != std::filesystem::recursive_directory_iterator{};
-			it.increment(ec)) {
-
-			if (ec) {
-				errors_.push_back("Packageを収集できません: " +
-					package.name + ": " + ec.message());
-				ec.clear();
-				break;
-			}
-			if (!it->is_regular_file(ec)) {
-				continue;
-			}
-
-			const std::filesystem::path relative =
-				it->path().lexically_relative(package.root);
-			const std::string destination = "Packages/" +
-				package.name + "/" +
-				Engine::Algorithm::PathToUTF8(relative);
-			AddFile(it->path(), destination);
-			if (Engine::Algorithm::EndsWith(
-				Engine::Algorithm::ToLower(destination), ".actor.json")) {
-				const nlohmann::json actor = LoadJson(it->path());
-				if (actor.is_object()) {
-					InspectJson(actor);
-				}
+	for (auto path = directory; !path.empty() && noticeDirectories_.insert(path).second; path = path.parent_path()) {
+		const auto logical = RuntimePaths::ToAssetPath(path);
+		if (!IsAdditionalAssetPath(logical) && logical != "Engine/Assets" && !logical.starts_with("Engine/Assets/")) break;
+		for (const auto& entry : std::filesystem::directory_iterator(path)) {
+			if (!entry.is_regular_file()) continue;
+			const auto name = Algorithm::ToLower(Algorithm::PathToUTF8(entry.path().filename()));
+			const auto stem = name.substr(0, name.find_first_of(".-"));
+			if (!name.ends_with(".meta") && (stem == "license" || stem == "licence" || stem == "copying" ||
+				stem == "notice" || stem == "thirdpartynotices" || stem == "attribution" || stem == "ofl")) {
+				reason_ = logical + " の配布表記";
+				AddFile(entry.path(), ToBuildDestination(RuntimePaths::ToAssetPath(entry.path())), true);
 			}
 		}
 	}
@@ -258,7 +258,6 @@ void GameBuildAssetCollector::ProcessAssets() {
 				errors_.push_back("製品に必須のアセットが登録されていません GUID=" + Engine::ToString(assetID));
 				continue;
 			}
-			AddWarning({}, assetID, {}, "参照Assetが登録されていません GUID=" + Engine::ToString(assetID));
 			continue;
 		}
 		if (meta->type == Engine::AssetType::Script ||
@@ -266,13 +265,23 @@ void GameBuildAssetCollector::ProcessAssets() {
 			continue;
 		}
 
+		reason_ = assetReasons_.at(assetID);
 		AddAssetFile(*meta);
+		reason_ = meta->assetPath;
 		if (const auto found = issues.find(assetID); found != issues.end()) {
+			const auto data = LoadJson(database_.ResolveFullPath(assetID));
 			for (const auto* issue : found->second) {
+				const auto target = issue->referencedAssetID ? ToString(issue->referencedAssetID) : issue->relatedPath;
+				std::string detail = DescribeReference(data, target, issue->expectedType,
+					issue->type == AssetDatabaseIssueType::ReferenceTypeMismatch ? "参照先の種類が一致しません" : "参照先が見つかりません");
+				if (issue->type == AssetDatabaseIssueType::ReferenceTypeMismatch) {
+					detail += "\n実際の種類: " + std::string(EnumAdapter<AssetType>::ToString(issue->actualType));
+					if (!issue->relatedPath.empty()) detail += "\n参照先ファイル: " + issue->relatedPath;
+				}
 				if (requiredAssets_.contains(assetID) && meta->type != AssetType::Scene) {
-					errors_.push_back(issue->detail + " path=" + meta->assetPath);
+					errors_.push_back(meta->assetPath + "\n" + detail);
 				} else {
-					AddWarning(assetID, issue->referencedAssetID, meta->assetPath, issue->detail);
+					AddWarning(assetID, issue->referencedAssetID, meta->assetPath, detail);
 				}
 			}
 		}
@@ -307,6 +316,9 @@ void GameBuildAssetCollector::AddFixedRuntimeFiles() {
 		if (!exists) continue;
 		const std::string destination = std::string("ProjectSettings/") + setting;
 		AddFile(source, destination, true);
+		reason_ = destination;
+		InspectJson(LoadJson(source), destination, false);
+		reason_ = "エンジンの既定アセット";
 	}
 }
 

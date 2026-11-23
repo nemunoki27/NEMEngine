@@ -7,5 +7,5 @@ namespace Engine {
 	class UIInputSystem;
 
 	// Editorと製品実行で共通のECSシステムを登録する
-	UIInputSystem* RegisterRuntimeSystems(SystemScheduler& scheduler);
+	UIInputSystem* RegisterRuntimeSystems(SystemScheduler& scheduler, bool managedScripts = true);
 } // Engine

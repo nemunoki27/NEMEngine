@@ -35,7 +35,7 @@ internal static class DistributionIntegration {
                 private void Update() {
                     // 実行中の保存値へアクセスする
                     transform.Translate(new Vector3(speed * Time.deltaTime, 0, 0), Space.World);
-                    if (Time.frameCount < 40 || !File.Exists(Path.Combine(Application.ProjectRoot, ".nemBuildManifest.json"))) return;
+                    if (Time.frameCount < 40 || !File.Exists(Path.Combine(Application.ProjectRoot, "Data/Content.nempak"))) return;
                     // 製品のC#実行を記録して通常終了する
                     File.WriteAllText(Path.Combine(Application.persistentDataPath, "launcher-smoke.txt"), speed.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     Application.Quit();
@@ -98,11 +98,11 @@ internal static class DistributionIntegration {
         string buildManifest = await WriteBuildManifestAsync(project, engine, Path.Combine(root, "Products"));
         await RunAsync(shell, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(engine.Root, "Tools/BuildGame.ps1"), "-ManifestPath", buildManifest], game, environment, Path.Combine(reports, "Product.Build.log"));
         string product = Path.Combine(root, "Products/LauncherSmoke");
-        check(File.Exists(Path.Combine(product, "LauncherSmoke.exe")) && !Directory.Exists(Path.Combine(product, "DotNet/sdk")), "製品へSDKが混入しています");
+        check(File.Exists(Path.Combine(product, "LauncherSmoke.exe")) && File.Exists(Path.Combine(product, "Data/Content.nempak")) && !Directory.Exists(Path.Combine(product, "Data/Runtime/DotNet/sdk")), "製品へSDKが混入しています");
         var productEnvironment = new Dictionary<string, string> {
             ["NEMENGINE_ROOT"] = engine.Root, ["NEMENGINE_TOOLCHAIN_ROOT"] = Path.Combine(root, "MissingSDK"),
             ["DOTNET_ROOT"] = "", ["DOTNET_HOST_PATH"] = "",
-            ["PATH"] = Environment.GetFolderPath(Environment.SpecialFolder.System), ["NEMENGINE_USER_SETTINGS_ROOT"] = Path.Combine(root, "ProductUser")
+            ["PATH"] = Environment.GetFolderPath(Environment.SpecialFolder.System), ["LOCALAPPDATA"] = Path.Combine(root, "ProductUser")
         };
         await RunAsync(Path.Combine(product, "LauncherSmoke.exe"), [], repository, productEnvironment, Path.Combine(reports, "Product.Run.log"));
         string marker = Directory.EnumerateFiles(Path.Combine(root, "ProductUser"), "launcher-smoke.txt", SearchOption.AllDirectories).Single();

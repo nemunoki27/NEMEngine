@@ -34,7 +34,7 @@
 //============================================================================
 //	RuntimeSystemRegistration functions
 //============================================================================
-Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler) {
+Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler, bool managedScripts) {
 
 	int32_t order = 0;
 	scheduler.AddSystem(std::make_unique<HierarchySystem>(), ++order);
@@ -43,7 +43,7 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	UIInputSystem* result = uiInputSystem.get();
 	scheduler.AddSystem(std::move(uiInputSystem), ++order);
 
-	scheduler.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
+	if (managedScripts) scheduler.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<TimelineSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<AnimationClipPlayerSystem>(), ++order);
 	scheduler.AddSystem(std::make_unique<SimpleAnimationSystem>(), ++order);

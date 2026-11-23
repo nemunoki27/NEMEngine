@@ -1,4 +1,5 @@
 #include "CollisionSettings.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -40,7 +41,7 @@ bool Engine::CollisionSettings::Load() {
 	CollisionSettings next = *this;
 	next.ResetDefault();
 	std::error_code error;
-	const bool exists = !settingsPath_.empty() && std::filesystem::exists(settingsPath_, error);
+	const bool exists = !settingsPath_.empty() && (ProductContentPack::Contains(settingsPath_) || std::filesystem::exists(settingsPath_, error));
 	if (error) {
 		Logger::Output(LogType::Engine, spdlog::level::warn, "衝突設定を確認できません path={} 内容={}",
 			settingsPath_.string(), error.message());

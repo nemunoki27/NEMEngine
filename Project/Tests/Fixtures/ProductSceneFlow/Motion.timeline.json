@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "name": "Product Motion",
+  "frameRate": 60,
+  "duration": 30,
+  "bindings": [
+    {
+      "id": "3b2922f25351838e",
+      "name": "Mover",
+      "component": "Transform"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "ea6284ac392bef2e",
+      "name": "Target Motion",
+      "kind": "Property",
+      "binding": "3b2922f25351838e",
+      "clips": [
+        {
+          "id": "88cb79fac89ecdac",
+          "name": "Lower",
+          "start": 0,
+          "duration": 30,
+          "sourceDuration": 30,
+          "data": {
+            "binding": {
+              "component": "Transform",
+              "property": "localPos",
+              "type": "Vector3"
+            },
+            "from": {
+              "x": 21,
+              "y": 0,
+              "z": 0
+            },
+            "to": {
+              "x": 21,
+              "y": 0,
+              "z": 0
+            },
+            "restoreOnEnd": false
+          },
+          "easing": "EaseInOutSine"
+        }
+      ]
+    }
+  ]
+}

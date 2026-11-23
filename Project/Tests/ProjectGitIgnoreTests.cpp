@@ -77,7 +77,7 @@ bool NEMTests::TestProjectGitIgnoreReadOnly() {
 	if (!assets || !assets->valid || assets->parentExcluded || assets->relativePath.find("..") != std::string::npos) {
 		return false;
 	}
-	const auto ignored = query(assets->repository / "Generated" / "Refactoring");
+	const auto ignored = query(assets->repository / "Generated" / "Output");
 	if (!ignored || !ignored->valid || !ignored->excluded || !ignored->parentExcluded) { return false; }
 	// パス表記の大小文字が違ってもRepository内として解決する
 	const auto lowerPath = Algorithm::PathFromUTF8(Algorithm::ToLower(Algorithm::PathToUTF8(assets->target)));

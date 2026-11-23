@@ -30,6 +30,7 @@ namespace Engine {
 		LoadSceneAdditive,
 		LoadSceneSingle,
 		UnloadScene,
+		KeepEntityOnLoad,
 	};
 
 	// 1件の要求と共有する予約値を保持する

@@ -65,12 +65,10 @@ namespace Engine::AssetMetaStorage {
 		return metaPath;
 	}
 
-	bool ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out) {
+	bool ParseMeta(const nlohmann::json& data, AssetMeta& out) {
 
 		AssetMeta loaded;
 		try {
-
-			const nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
 			if (!data.is_object() || !data.contains("schemaVersion") || !data["schemaVersion"].is_number_integer() ||
 				data["schemaVersion"] != kAssetMetaSchemaVersion) {
 				return false;
@@ -108,21 +106,26 @@ namespace Engine::AssetMetaStorage {
 				loaded.importerSettings = nlohmann::json::object();
 			}
 
-			std::filesystem::path assetFullPath = metaFullPath;
-			assetFullPath.replace_extension("");
-			loaded.assetPath = RuntimePaths::ToAssetPath(assetFullPath);
-			if (loaded.assetPath.empty()) {
-				return false;
-			}
-			// 廃止した設定だけを除去し、参照GUIDと未知の設定を保持する
-			if (NormalizeMeshImporter(loaded) && RuntimePaths::CanWritePath(metaFullPath)) {
-				WriteMetaFile(metaFullPath, loaded);
-			}
 			out = std::move(loaded);
 			return true;
 		} catch (const nlohmann::json::exception&) {
 			return false;
 		}
+	}
+
+	bool ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out) {
+
+		AssetMeta loaded;
+		if (!ParseMeta(LoadJsonFileNoThrow(metaFullPath), loaded)) return false;
+		auto assetFullPath = metaFullPath;
+		assetFullPath.replace_extension("");
+		loaded.assetPath = RuntimePaths::ToAssetPath(assetFullPath);
+		if (loaded.assetPath.empty()) return false;
+		if (NormalizeMeshImporter(loaded) && RuntimePaths::CanWritePath(metaFullPath)) {
+			WriteMetaFile(metaFullPath, loaded);
+		}
+		out = std::move(loaded);
+		return true;
 	}
 
 	bool BuildMetaDocument(const AssetMeta& meta, const nlohmann::json& source, nlohmann::json& out) {

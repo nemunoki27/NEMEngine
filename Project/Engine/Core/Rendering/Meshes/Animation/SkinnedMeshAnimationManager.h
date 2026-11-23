@@ -84,6 +84,9 @@ namespace Engine {
 		// 読込待ちと、更新まで再試行しない失敗を区別する
 		bool HasLoadFailed(AssetID meshAssetID) const;
 
+		// アニメーションファイルのインポート
+		static SkinnedMeshAnimationSet ImportAnimationFile(AssetID meshAssetID, const std::filesystem::path& fullPath);
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -130,7 +133,6 @@ namespace Engine {
 
 		// アニメーションセットの読み込みジョブ
 		void LoadJobAsync(LoadJob&& job, uint32_t workerIndex);
-		// アニメーションファイルのインポート
-		SkinnedMeshAnimationSet ImportAnimationFile(AssetID meshAssetID, const std::filesystem::path& fullPath) const;
+
 	};
 } // Engine

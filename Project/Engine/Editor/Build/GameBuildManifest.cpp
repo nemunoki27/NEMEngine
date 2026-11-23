@@ -142,6 +142,7 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 			{ "destination", file.destination },
 			{ "size", file.size },
 			{ "sha256", file.sha256 },
+			{ "reason", file.reason },
 			});
 		cookHashSource += file.destination;
 		cookHashSource.push_back('\0');

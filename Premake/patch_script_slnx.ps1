@@ -228,6 +228,20 @@ $gameScriptsProjectId = if ([string]::IsNullOrWhiteSpace($GameScriptsSolutionFol
 Add-ProjectIfMissing $GameScriptsProject $gameScriptsProjectId $GameScriptsSolutionFolder
 Add-BuildDependency $DependentProject $GameScriptsProject
 
+# SDK形式のC#プロジェクトは、VSの構成名「Any CPU」に割り当てる。
+foreach ($project in $solution.SelectNodes("//Project[@Path]")) {
+    if ($project.Path -notlike "*.csproj" -or $project.Path -ieq (Convert-ToSolutionRelativePath $GameScriptsProject)) {
+        continue
+    }
+    $platform = $project.SelectSingleNode("Platform[@Solution='*|x64']")
+    if ($null -eq $platform) {
+        $platform = $xml.CreateElement("Platform")
+        $platform.SetAttribute("Solution", "*|x64")
+        [void]$project.AppendChild($platform)
+    }
+    $platform.SetAttribute("Project", "Any CPU")
+}
+
 $settings = [System.Xml.XmlWriterSettings]::new()
 $settings.Indent = $true
 $settings.OmitXmlDeclaration = $true

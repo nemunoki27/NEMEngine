@@ -102,6 +102,11 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 	}
 
 	switch (command.kind) {
+	case WorldCommandKind::KeepEntityOnLoad:
+		if (auto* scenes = world.GetCommandServices().sceneInstances) {
+			scenes->DontDestroyOnLoad(world, command.target);
+		}
+		break;
 	case WorldCommandKind::DestroyEntity:
 
 		// 同一エンティティへの重複Destroyはpendingで安全に無視される

@@ -6,6 +6,8 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 namespace Engine::GameBuildUtility {
+	std::vector<std::string> LoadAdditionalAssets();
+	bool IsAdditionalAssetPath(const std::string& path);
 	bool IsReservedWindowsName(const std::string& name);
 	bool ResolveProductName(const std::string& input, std::string& outName, std::string& outError);
 	nlohmann::json LoadJson(const std::filesystem::path& path);

@@ -77,7 +77,8 @@ namespace Engine {
 
 		// グラフをコンパイルして派生成果物を更新
 		static bool Compile(const ShaderGraphAsset& graph, AssetID graphID, ShaderGraphArtifact& outArtifact,
-			AssetDatabase* database = nullptr, std::vector<ShaderGraphDiagnostic>* diagnostics = nullptr);
+			AssetDatabase* database = nullptr, std::vector<ShaderGraphDiagnostic>* diagnostics = nullptr,
+			bool includeEditorPicking = true);
 		// Renderer向けのMaterial構成を生成
 		static MaterialAsset CreateMaterial(const ShaderGraphAsset& graph, AssetID graphID);
 		// 生成ShaderをMaterialの描画パスへ適用

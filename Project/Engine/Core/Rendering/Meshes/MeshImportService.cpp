@@ -1,6 +1,8 @@
 #include "MeshImportService.h"
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshUploadPreparation.h>
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -57,7 +59,7 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 
 	// アセットデータベースからフルパスを解決して存在を確認
 	std::filesystem::path fullPath = assetDatabase.ResolveFullPath(meshAssetID);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
+	if (fullPath.empty() || !(ProductContentPack::Contains(fullPath) || std::filesystem::exists(fullPath))) {
 		return false;
 	}
 

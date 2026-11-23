@@ -1,4 +1,4 @@
-param([switch]$PrepareOnly)
+param([switch]$PrepareOnly, [switch]$UsePrebuiltRuntime, [string]$Probe)
 
 $ErrorActionPreference = 'Stop'
 $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -11,7 +11,7 @@ Copy-Item -LiteralPath (Join-Path $engineRoot 'Project/Sandbox/Sandbox.vcxproj')
     assetsDirectory = 'GameAssets'; packagesDirectory = 'Packages'; projectSettingsDirectory = 'ProjectSettings' } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $gameRoot 'Sandbox.nemproject') -Encoding utf8
 
-$probe = Join-Path $engineRoot 'Generated/Output/Debug/GameBuildServiceProbe/GameBuildServiceProbe.exe'
+if (!$Probe) { $Probe = Join-Path $engineRoot 'Generated/Output/Debug/GameBuildServiceProbe/GameBuildServiceProbe.exe' }
 $previousEngineRoot = $env:NEMENGINE_ROOT
 try {
     $env:NEMENGINE_ROOT = $engineRoot
@@ -29,6 +29,17 @@ try {
     $manifest.projectPath = Join-Path $engineRoot 'Project/Sandbox/Sandbox.vcxproj'
     # WindowsPowerShellでも配置先が長くなりすぎない場所を使う
     $manifest.outputRoot = Join-Path $engineRoot 'LocalWork/Tests/PSP'
+    if ($UsePrebuiltRuntime) {
+        $manifest | Add-Member -NotePropertyName prebuiltRuntime -NotePropertyValue $true -Force
+        $manifest.projectPath = Join-Path $gameRoot 'Sandbox.vcxproj'
+        $scripts = Join-Path $gameRoot 'Scripts'
+        $null = New-Item -ItemType Directory -Path $scripts -Force
+        $scriptProject = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputPath>../Managed/Release/</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath></PropertyGroup></Project>'
+        [IO.File]::WriteAllText((Join-Path $scripts 'GameScripts.csproj'), $scriptProject)
+        $manifest.buildToolProject = ''
+        $manifest.sourceRuntime = Join-Path $engineRoot 'Generated/Output/Release/Sandbox'
+        $manifest.buildToolExecutable = Join-Path $engineRoot 'Generated/Output/Release/NEMBuildTool/NEMBuildTool.exe'
+    }
     $manifest.gameWidth = 640
     $manifest.gameHeight = 360
     $manifest | ConvertTo-Json -Depth 64 | Set-Content -LiteralPath $manifestPath -Encoding utf8
@@ -40,20 +51,13 @@ try {
     $result.output | Set-Content -LiteralPath (Join-Path $validationRoot 'Build.log') -Encoding utf8
     if ($result.exitCode -ne 0 -or $result.timedOut) { throw "製品の構築とCookに失敗しました: $($result.output)" }
     $productRoot = Join-Path $engineRoot 'LocalWork/Tests/PSP/ProductProbe'
-    $cook = Get-Content -LiteralPath (Join-Path $productRoot 'Cooked/Shaders/ShaderCookManifest.json') -Raw | ConvertFrom-Json
+    $pack = Join-Path $productRoot 'Data/Content.nempak'
     foreach ($name in @('particleGPUSimulate', 'particleGPUView', 'particleGPURibbonSelect',
         'particleGPUTrailUpdate', 'particleGPUTrailPrepare', 'particleGPUTrailDraw', 'particleGPUDraw')) {
         $sourcePath = Join-Path $engineRoot ("Project/Engine/Assets/Rendering/Builtin/Particle/GPU/$name.shader.json")
-        $source = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
-        $meta = Get-Content -LiteralPath ($sourcePath + '.meta') -Raw | ConvertFrom-Json
-        $shader = @($cook.shaders | Where-Object { $_.asset.guid -eq $meta.guid })
-        if ($shader.Count -ne 1 -or $shader[0].stages.Count -ne $source.stages.Count) { throw "製品のShaderが不足しています: $name" }
-        foreach ($stage in $shader[0].stages) {
-            $bytecode = Join-Path $productRoot ('Cooked/Shaders/' + $stage.bytecode)
-            if (!(Test-Path -LiteralPath $bytecode) -or (Get-Item -LiteralPath $bytecode).Length -eq 0) {
-                throw "製品のShaderが空です: $bytecode"
-            }
-        }
+        $result = Invoke-HarnessProcess -FilePath $Probe -Arguments @('--packed-shader', $pack, $sourcePath) -WorkingDirectory $productRoot -TimeoutSeconds 60
+        if ($result.exitCode -ne 0 -or $result.timedOut) { throw "製品のShaderを検証できません: $name / $($result.output)" }
+        Write-Output $result.output
     }
     Write-Output "ParticleSystem製品の構築とCook検証完了: $productRoot"
 } finally {

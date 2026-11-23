@@ -29,7 +29,7 @@ namespace {
 			ParseAssetReference(data, "activeScene", &database, AssetType::Scene);
 		const std::filesystem::path fullPath =
 			database.ResolveFullPath(sceneAsset);
-		if (!sceneAsset || fullPath.empty() || !std::filesystem::exists(fullPath)) {
+		if (!sceneAsset || fullPath.empty() || !JsonAdapter::Check(fullPath, false)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"{}: 設定が存在しないシーンを参照しています config={}",
 				application, Algorithm::PathToUTF8(configPath));

@@ -74,7 +74,10 @@ namespace {
 				"ManagedScriptRuntime: nethost.dllを探索する実行ファイルDirectoryを取得できません");
 			return {};
 		}
-		return (executableDirectory / L"nethost.dll").lexically_normal();
+		if (std::filesystem::is_regular_file(executableDirectory / "Data/Content.nempak")) {
+			return executableDirectory / "Data/Runtime/nethost.dll";
+		}
+		return executableDirectory / "nethost.dll";
 	}
 
 	// nethostからhostfxrの配置を取得
@@ -226,7 +229,12 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 
 	// Runtime設定からHostを初期化
 	hostfxr_handle context = nullptr;
-	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(), nullptr, &context);
+	const auto toolchainRoot = RuntimePaths::GetToolchainRoot();
+	hostfxr_initialize_parameters parameters{};
+	parameters.size = sizeof(parameters);
+	parameters.dotnet_root = toolchainRoot.c_str();
+	int32_t result = initializeForRuntimeConfig(runtimeConfigPath.c_str(),
+		toolchainRoot.empty() ? nullptr : &parameters, &context);
 	// 負の戻り値と空のContextを失敗とする
 	if (result < 0 || !context) {
 

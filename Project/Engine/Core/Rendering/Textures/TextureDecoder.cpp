@@ -1,6 +1,8 @@
 #include "TextureDecoder.h"
 #include "TexturePreviewResize.h"
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -271,6 +273,11 @@ HRESULT Engine::TextureDecoder::ReadMetadata(const std::string& assetPath, Direc
 
 	metadata = {};
 	const auto fullPath = RuntimePaths::ResolveAssetPath(assetPath);
+	if (ProductContentPack::IsMounted()) {
+		std::vector<uint8_t> bytes;
+		if (!ProductContentPack::Read(fullPath, bytes)) return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+		return DirectX::GetMetadataFromDDSMemory(bytes.data(), bytes.size(), DirectX::DDS_FLAGS_NONE, metadata);
+	}
 	const std::string extension = Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension()));
 	if (extension == ".dds") {
 		return DirectX::GetMetadataFromDDSFile(fullPath.c_str(), DirectX::DDS_FLAGS_NONE, metadata);
@@ -298,8 +305,8 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 
 	// ファイルパスからテクスチャをデコードする
 	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);
-	const std::string extension = Algorithm::ToLower(
-		Algorithm::PathToUTF8(fullPath.extension()));
+	const bool cooked = ProductContentPack::IsMounted();
+	const std::string extension = cooked ? ".dds" : Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension()));
 	const std::wstring fullPathW = fullPath.wstring();
 	const TextureColorSpace colorSpace = job.overrideImportColorSpace &&
 		job.requestedColorSpace != TextureColorSpace::Auto ?
@@ -323,7 +330,12 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 	HRESULT hr = E_FAIL;
 	const char* failureStage = "Decode";
 	DirectX::TexMetadata loadedMeta{};
-	if (extension == ".dds") {
+	if (cooked && !job.snapshotBytes) {
+		std::vector<uint8_t> bytes;
+		if (ProductContentPack::Read(fullPath, bytes)) {
+			hr = DirectX::LoadFromDDSMemory(bytes.data(), bytes.size(), DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded);
+		}
+	} else if (extension == ".dds") {
 
 		hr = job.snapshotBytes ? DirectX::LoadFromDDSMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
 			DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded) :
@@ -345,9 +357,24 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 	if (SUCCEEDED(hr)) {
 
 		OverrideColorSpace(loaded, job.normalMap ? TextureColorSpace::Linear : colorSpace);
+		const bool convertNormal = (job.normalMap || job.importSettings.preset == TextureImportPreset::NormalMap) &&
+			(!cooked || job.importSettings.preset != TextureImportPreset::NormalMap);
+		// 別用途に割り当てた画像では、色空間と法線に合わせて元のMipから補間し直す
+		if (cooked && loadedMeta.mipLevels > 1 && loadedMeta.arraySize == 1 &&
+			Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension())) != ".dds" &&
+			(convertNormal || DirectX::IsSRGB(loadedMeta.format) != DirectX::IsSRGB(loaded.GetMetadata().format))) {
+			DirectX::ScratchImage base;
+			const auto* image = loaded.GetImage(0, 0, 0);
+			hr = image ? base.InitializeFromImage(*image) : E_FAIL;
+			if (FAILED(hr)) {
+				result.result = hr;
+				result.failureStage = "RestoreBaseMip";
+				return result;
+			}
+			loaded = std::move(base);
+		}
 		bool processingSucceeded = true;
-		const bool isNormalMap = job.normalMap || job.importSettings.preset == TextureImportPreset::NormalMap;
-		if (isNormalMap) {
+		if (convertNormal) {
 
 			failureStage = "NormalConvert";
 			const DXGI_FORMAT sourceFormat = loaded.GetMetadata().format;
@@ -395,7 +422,7 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 				processingSucceeded = NormalizeNormalMap(loaded,
 					job.importSettings.normalConvention == TextureNormalConvention::OpenGL, reconstructZ);
 			}
-		} else if (job.importSettings.alphaColorBleed &&
+		} else if (!cooked && job.importSettings.alphaColorBleed &&
 			(job.importSettings.preset == TextureImportPreset::Color ||
 				job.importSettings.preset == TextureImportPreset::UI)) {
 
@@ -416,7 +443,7 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 			failureStage = "MipGeneration";
 			processingSucceeded = GenerateMipChain(loaded);
 		}
-		if (processingSucceeded && isNormalMap) {
+		if (processingSucceeded && convertNormal) {
 
 			// Mip補間後に各法線を再正規化する、Y反転は基底Mipで完了している
 			failureStage = "NormalMipNormalize";

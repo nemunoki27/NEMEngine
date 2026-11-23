@@ -1,4 +1,5 @@
 #include "PrefabBaseCache.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -24,12 +25,13 @@ std::shared_ptr<const Engine::PrefabBaseEntities> Engine::PrefabBaseCache::Load(
 
 	// 保存通知とファイル情報の両方で更新を確認する
 	std::error_code error;
-	const auto writeTime = std::filesystem::last_write_time(path, error);
+	const auto packedSize = ProductContentPack::Size(path);
+	const auto writeTime = packedSize ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(path, error);
 	if (error) {
 		Clear();
 		return {};
 	}
-	const auto fileSize = std::filesystem::file_size(path, error);
+	const auto fileSize = packedSize ? *packedSize : std::filesystem::file_size(path, error);
 	if (error) {
 		Clear();
 		return {};
@@ -46,12 +48,12 @@ std::shared_ptr<const Engine::PrefabBaseEntities> Engine::PrefabBaseCache::Load(
 		Clear();
 		return {};
 	}
-	const auto afterWriteTime = std::filesystem::last_write_time(path, error);
+	const auto afterWriteTime = packedSize ? writeTime : std::filesystem::last_write_time(path, error);
 	if (error || afterWriteTime != writeTime) {
 		Clear();
 		return {};
 	}
-	const auto afterFileSize = std::filesystem::file_size(path, error);
+	const auto afterFileSize = packedSize ? fileSize : std::filesystem::file_size(path, error);
 	if (error || afterFileSize != fileSize) {
 		Clear();
 		return {};

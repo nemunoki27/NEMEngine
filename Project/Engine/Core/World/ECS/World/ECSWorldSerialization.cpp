@@ -208,7 +208,7 @@ std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECS
 
 		// Sceneロードは保存用Worldへ反映しない
 		if (command.kind == WorldCommandKind::LoadSceneAdditive || command.kind == WorldCommandKind::LoadSceneSingle ||
-			command.kind == WorldCommandKind::UnloadScene) {
+			command.kind == WorldCommandKind::UnloadScene || command.kind == WorldCommandKind::KeepEntityOnLoad) {
 			continue;
 		}
 		// 追加値は先に保存用Archetypeへ複製済み

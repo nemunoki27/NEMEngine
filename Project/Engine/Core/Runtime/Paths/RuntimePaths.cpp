@@ -5,6 +5,7 @@
 //============================================================================
 #include "RuntimePathResolution.h"
 #include "RuntimeAssetPaths.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 #include <mutex>
@@ -61,7 +62,7 @@ bool Engine::RuntimePaths::CanWritePath(const std::filesystem::path& path) {
 
 	// 設定の構築中と単体検証では探索を開始しない
 	std::scoped_lock lock(g_pathMutex);
-	if (!g_pathState || !g_pathState->installedEngine) { return true; }
+	if (!g_pathState || (!g_pathState->installedEngine && !ProductContentPack::IsMounted())) { return true; }
 	std::error_code error;
 	const auto target = std::filesystem::weakly_canonical(path, error);
 	if (error) { return false; }
@@ -142,8 +143,9 @@ std::filesystem::path Engine::RuntimePaths::GetSavedRoot() {
 bool Engine::RuntimePaths::IsProductBuild() {
 
 	std::error_code ec;
-	return std::filesystem::is_regular_file(
-		GetGameRoot() / ".nemBuildManifest.json", ec);
+	const auto gameRoot = GetGameRoot();
+	return ProductContentPack::IsMounted() || std::filesystem::is_regular_file(
+		gameRoot / ".nemBuildManifest.json", ec);
 }
 
 std::filesystem::path Engine::RuntimePaths::GetPackagesRoot() {
@@ -214,6 +216,7 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 
 std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::string& assetPath) {
 
+	if (const auto resolved = ResolveVirtualPath(assetPath); !resolved.empty()) return resolved;
 	return ResolveAssetPath(Algorithm::PathFromUTF8(assetPath));
 }
 

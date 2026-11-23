@@ -80,7 +80,7 @@
                             "name": "A"
                         }
                     ],
-                    "emitting": false,
+                    "emitting": true,
                     "is2D": false,
                     "layer": 0,
                     "lifetime": 0.41999998688697815,
@@ -152,10 +152,10 @@
                         "z": 0.0
                     },
                     "localRotation": {
-                        "w": 0.8316290974617004,
+                        "w": 0.8780536651611328,
                         "x": 0.0,
                         "y": 0.0,
-                        "z": -0.5553314685821533
+                        "z": -0.47856220602989197
                     },
                     "localScale": {
                         "x": 1.0,
@@ -2988,9 +2988,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -18.661699295043945,
-                        "y": 8.446715354919434,
-                        "z": 4.4564313888549805
+                        "x": -8.556002616882324,
+                        "y": 8.318146705627441,
+                        "z": 2.5964956283569336
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -3312,8 +3312,8 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": -2.4464783668518066,
-                        "y": -0.35542169213294983,
+                        "x": -2.3790438175201416,
+                        "y": -0.26775678992271423,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -5509,7 +5509,7 @@
                     "interval": 0.1599999964237213,
                     "lines": "WholeText",
                     "order": "LeftToRight",
-                    "playInEditMode": false,
+                    "playInEditMode": true,
                     "playOnStart": true,
                     "repeat": "LoopText",
                     "rotationAsset": "00000000000000000000000000000000",
@@ -5521,8 +5521,8 @@
                     "scaleAsset": "00000000000000000000000000000000",
                     "scaleSource": {
                         "kind": "Scene",
-                        "localFileId": "",
-                        "sourceAsset": ""
+                        "localFileId": "d798d4bb156b2238",
+                        "sourceAsset": "9ae738b8c4d75926215a9de84fd12c6f"
                     },
                     "seed": 0,
                     "timeSource": {
@@ -5704,7 +5704,7 @@
                         "stencilWriteMask": 255
                     },
                     "renderingLayerMask": 1,
-                    "text": "ABCDEFGHIJKLMNOPQRSTU",
+                    "text": "HELLO WORLD\n",
                     "uvPerCharacter": true,
                     "visible": true,
                     "worldScale": 0.009999999776482582
@@ -6093,6 +6093,119 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 13
+                },
+                "Name": {
+                    "name": "Animation"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d798d4bb156b2238",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SimpleAnimation": {
+                    "autoApply": false,
+                    "binding": {
+                        "component": "",
+                        "property": "",
+                        "type": "Float"
+                    },
+                    "enabled": true,
+                    "playInEditMode": false,
+                    "playOnStart": true,
+                    "settings": {
+                        "amplitude": {
+                            "x": 0.16000007092952728,
+                            "y": 0.16000007092952728
+                        },
+                        "angularAmplitude": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "blendDuration": 0.0,
+                        "center": {
+                            "x": 0.8999999761581421,
+                            "y": 0.8999999761581421
+                        },
+                        "centerEuler": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "cycleCount": 0,
+                        "delay": 0.0,
+                        "duration": 1.0,
+                        "easing": "EaseOutExpo",
+                        "end": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "endEuler": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "mode": "Sin",
+                        "period": 0.46000000834465027,
+                        "phaseDegrees": 0.0,
+                        "repeat": "Once",
+                        "rotationMode": "AxisAngle",
+                        "speed": 0.6800000071525574,
+                        "start": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "startEuler": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "startFromCurrent": false,
+                        "type": "Vector2",
+                        "unscaledTime": false
+                    },
+                    "target": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "timeSource": {
+                        "mode": "Hierarchy",
+                        "source": {
+                            "kind": "Scene",
+                            "localFileId": "",
+                            "sourceAsset": ""
+                        }
+                    }
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "d798d4bb156b2238"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 8
                 },
                 "Name": {
@@ -6403,7 +6516,7 @@
                     "dimension": 1,
                     "localPos": {
                         "x": 2.4000000953674316,
-                        "y": -1.0109416246414185,
+                        "y": 0.5707672834396362,
                         "z": 0.0
                     },
                     "localRotation": {

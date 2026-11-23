@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include "ManagedScriptUtility.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <algorithm>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Runtime/Settings/RuntimeProjectSettings.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
@@ -58,7 +60,18 @@ int32_t Engine::ManagedScriptRuntime::CopyTextAssetBytesCallback(ManagedAssetGUI
 	if (!meta || meta->type != AssetType::Text) return -1;
 	try {
 		// 容量確認だけならファイル本体を読み込まない
-		std::ifstream stream(context->assetDatabase->ResolveFullPath(meta->guid), std::ios::binary | std::ios::ate);
+		const auto path = context->assetDatabase->ResolveFullPath(meta->guid);
+		if (ProductContentPack::IsMounted()) {
+			const auto length = ProductContentPack::Size(path);
+			if (!length || *length > 64 * 1024 * 1024) return -1;
+			const auto size = static_cast<int32_t>(*length);
+			if (!buffer || capacity < size) return size;
+			std::vector<uint8_t> bytes;
+			if (!ProductContentPack::Read(path, bytes)) return -1;
+			std::copy(bytes.begin(), bytes.end(), buffer);
+			return size;
+		}
+		std::ifstream stream(path, std::ios::binary | std::ios::ate);
 		const auto length = stream.tellg();
 		if (!stream || length < 0 || length > 64 * 1024 * 1024) return -1;
 		const auto size = static_cast<int32_t>(length);

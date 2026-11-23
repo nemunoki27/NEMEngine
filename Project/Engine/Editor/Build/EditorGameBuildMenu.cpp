@@ -13,7 +13,7 @@ void Engine::EditorGameBuildMenu::DrawMenu(const EditorPanelContext& context, Ed
 
 	ImGui::SetWindowFontScale(0.72f);
 	const bool canBuild = context.editorContext && context.editorContext->assetDatabase &&
-		!context.IsPlaying() && !session.GetService().IsBuilding();
+		!context.IsPlaying() && !session.IsPreparingBuild() && !session.GetService().IsBuilding();
 	if (ImGui::MenuItem("ビルド", nullptr, false, canBuild)) {
 
 		session.Prepare(context);
@@ -34,9 +34,9 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 	if (!MyGUI::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize, 1000.0f)) {
 		return;
 	}
-	session.ContinueAfterSceneSave(context);
+	session.AdvanceBuildRequest(context);
 
-	const bool isBuilding = session.GetService().IsBuilding();
+	const bool isBuilding = session.IsPreparingBuild() || session.GetService().IsBuilding();
 	const bool waitingForSave = session.IsWaitingForSceneSave();
 	ImGui::BeginDisabled(isBuilding || waitingForSave);
 	{
@@ -59,6 +59,26 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 			ImGui::EndDisabled();
 			MyGUI::EndPropertyRow();
 		}
+		if (MyGUI::BeginPropertyRow("追加で含めるアセット")) {
+			ImGui::BeginDisabled(session.IsDirectoryDialogOpen());
+			if (ImGui::Button("ファイルを追加")) session.RequestAdditionalAsset(false);
+			ImGui::SameLine();
+			if (ImGui::Button("フォルダーを追加")) session.RequestAdditionalAsset(true);
+			ImGui::EndDisabled();
+			const auto& paths = session.GetDraft().additionalAssets;
+			for (size_t i = 0; i < paths.size(); ++i) {
+				ImGui::PushID(static_cast<int>(i));
+				const bool remove = ImGui::SmallButton("削除");
+				ImGui::SameLine();
+				ImGui::TextWrapped("%s", paths[i].c_str());
+				ImGui::PopID();
+				if (remove) {
+					session.RemoveAdditionalAsset(i);
+					break;
+				}
+			}
+			MyGUI::EndPropertyRow();
+		}
 		MyGUI::Checkbox("起動時にフルスクリーン", session.GetDraft().startupFullscreen);
 		const ValueEditResult widthResult = MyGUI::DragInt("ゲーム画像の幅", session.GetDraft().gameWidth);
 		const ValueEditResult heightResult = MyGUI::DragInt("ゲーム画像の高さ", session.GetDraft().gameHeight);
@@ -78,11 +98,17 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 		if (ImGui::Button("保存済み内容でビルド", ImVec2(choiceWidth, 0.0f))) { session.Start(context, false, true); }
 	}
 	const GameBuildState state = session.GetService().GetState();
-	if (state == GameBuildState::AwaitingConfirmation) {
+	if (isBuilding) {
+		ImGui::TextDisabled("ビルド中...");
+		ImGui::ProgressBar(session.IsPreparingBuild() ? 0.0f : session.GetService().GetProgress(), ImVec2(-1.0f, 0.0f));
+		ImGui::TextWrapped("%s", session.IsPreparingBuild() ? "アセットの参照とビルド対象ファイルを確認しています" :
+			session.GetService().GetStatusMessage().c_str());
+	} else if (state == GameBuildState::AwaitingConfirmation) {
 		ImGui::TextWrapped("参照先の欠損があります。継続すると欠損を含む製品を作成します。");
 		ImGui::BeginChild("BuildWarnings", ImVec2(0.0f, 160.0f));
 		for (const GameBuildWarning& warning : session.GetService().GetWarnings()) {
-			ImGui::TextWrapped("%s\n%s", warning.assetPath.c_str(), warning.detail.c_str());
+			ImGui::TextWrapped("ファイル: %s\n%s", warning.assetPath.c_str(), warning.detail.c_str());
+			ImGui::Separator();
 		}
 		ImGui::EndChild();
 		ImGui::BeginDisabled(waitingForSave || session.IsSceneSaveChoiceOpen());
@@ -90,13 +116,18 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 			session.Start(context, true);
 		}
 		ImGui::EndDisabled();
-	} else if (state == GameBuildState::Building) {
-		ImGui::TextDisabled("ビルド中...");
+
 	} else if (state == GameBuildState::Completed) {
 		ImGui::TextColored(ImVec4(0.35f, 0.85f, 0.45f, 1.0f), "完了しました");
 		const std::string outputDirectory =
 			Algorithm::PathToUTF8(session.GetService().GetOutputDirectory());
 		ImGui::TextWrapped("%s", outputDirectory.c_str());
+		const auto& report = session.GetService().GetSizeReport();
+		if (!report.empty()) {
+			ImGui::BeginChild("BuildSizeReport", ImVec2(0.0f, 180.0f));
+			ImGui::TextWrapped("%s", report.c_str());
+			ImGui::EndChild();
+		}
 	} else if (state == GameBuildState::Failed) {
 		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "失敗しました");
 		if (!session.GetService().GetFailureDetail().empty()) {

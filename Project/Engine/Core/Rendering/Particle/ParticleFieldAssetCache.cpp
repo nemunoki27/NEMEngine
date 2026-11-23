@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Textures/TextureDecoder.h>
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 // c++
 #include <algorithm>
@@ -88,9 +89,17 @@ void ParticleFieldAssetCache::Decode(Request request) {
 
 	try {
 		if (!request.heightmap) {
-			std::ifstream stream(request.path);
 			auto field = std::make_shared<VectorFieldData>();
-			if (ReadFGA(stream, *field, request.result->diagnostic)) request.result->vector = std::move(field);
+			if (ProductContentPack::IsMounted()) {
+				std::vector<uint8_t> bytes;
+				if (!ProductContentPack::Read(request.path, bytes) || !ReadProductVectorField(bytes, *field)) {
+					throw std::runtime_error("製品のベクトル場を読み込めません");
+				}
+				request.result->vector = std::move(field);
+			} else {
+				std::ifstream stream(request.path);
+				if (ReadFGA(stream, *field, request.result->diagnostic)) request.result->vector = std::move(field);
+			}
 		} else {
 			TextureFileRequestDesc description;
 			description.assetPath = request.path.string();

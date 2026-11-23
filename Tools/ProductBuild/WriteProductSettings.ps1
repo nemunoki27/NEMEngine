@@ -1,4 +1,4 @@
-function Write-ProductAssetRoots {
+﻿function Write-ProductAssetRoots {
     param($manifest, [string]$stageDirectory, [string]$productName, [string]$executableName)
 
     $packageDependencies = [ordered]@{}
@@ -37,7 +37,7 @@ function Write-ProductAssetRoots {
 }
 
 function Write-ProductSettings {
-    param($manifest, [string]$stageDirectory, [string]$productName, [string]$executableName)
+    param($manifest, [string]$stageDirectory, [string]$productName, [string]$executableName, [bool]$managedScripts = $true)
 
     Write-ProductAssetRoots $manifest $stageDirectory $productName $executableName
 
@@ -48,41 +48,9 @@ function Write-ProductSettings {
     }
     Write-Utf8Json -Path (Join-Path $runtimeSettingsDirectory "Game.json") -Value @{
         gameName = $productName
+        managedScripts = $managedScripts
         startupFullscreen = [bool]$manifest.startupFullscreen
         gameWidth = [int]$manifest.gameWidth
         gameHeight = [int]$manifest.gameHeight
     }
-    Write-Utf8Json -Path (Join-Path $stageDirectory ".nemBuildManifest.json") -Value @{
-        schemaVersion = 2
-        productName = $productName
-        executableName = $executableName
-        startupScene = [string]$manifest.startupScene
-        startupFullscreen = [bool]$manifest.startupFullscreen
-        gameWidth = [int]$manifest.gameWidth
-        gameHeight = [int]$manifest.gameHeight
-        assetFileCount = @($manifest.files).Count
-        packageCount = @($manifest.packages).Count
-        cookHash = [string]$manifest.cookHash
-        configuration = "Release"
-    }
-    $stageRootFull = [System.IO.Path]::GetFullPath($stageDirectory).TrimEnd(
-        [System.IO.Path]::DirectorySeparatorChar,
-        [System.IO.Path]::AltDirectorySeparatorChar)
-    $cookFiles = @(Get-ChildItem -LiteralPath $stageDirectory -Recurse -File |
-        ForEach-Object {
-            $relative = $_.FullName.Substring($stageRootFull.Length).TrimStart(
-                [System.IO.Path]::DirectorySeparatorChar,
-                [System.IO.Path]::AltDirectorySeparatorChar).Replace('\', '/')
-            [ordered]@{
-                path = $relative
-                size = [long]$_.Length
-                sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-        } | Sort-Object { $_.path })
-    Write-Utf8Json -Path (Join-Path $stageDirectory ".nemCookManifest.json") -Value ([ordered]@{
-        schemaVersion = 1
-        cookHash = [string]$manifest.cookHash
-        files = $cookFiles
-    })
-
 }

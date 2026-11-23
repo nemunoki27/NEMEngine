@@ -27,15 +27,20 @@ using namespace Engine::ShaderGraphArtifactBuilder;
 //	ShaderGraphArtifactCache classMethods
 //============================================================================
 bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, AssetID graphID, ShaderGraphArtifact& outArtifact,
-	AssetDatabase* database, std::vector<ShaderGraphDiagnostic>* diagnostics) {
+	AssetDatabase* database, std::vector<ShaderGraphDiagnostic>* diagnostics, bool includeEditorPicking) {
 
 	// 成功するまで呼出し元の成果物を維持
 	ShaderGraphArtifact artifact;
 	if (diagnostics) {
 		diagnostics->clear();
 	}
-	if (!graphID) {
+	const auto fail = [&](std::string message) {
+		if (diagnostics) diagnostics->push_back({ .message = message });
+		Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] graph={} 詳細={}", ToString(graphID), message);
 		return false;
+	};
+	if (!graphID) {
+		return fail("グラフのIDが無効です");
 	}
 
 	const std::string graphIDText = ToString(graphID);
@@ -73,15 +78,11 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 		};
 		// 前回中断した生成ソースを復旧してから保存する
 		if (!JsonFileJournal::RecoverPending(scope, error)) {
-			Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] 中断した成果物を復旧できません graph={} 詳細={}",
-				ToString(graphID), error);
-			return false;
+			return fail("中断した成果物を復旧できません: " + error);
 		}
 		// 全Passの構成と保存が揃ってから結果を公開
 		if (!JsonFileJournal::Commit(scope, sources, "ShaderGraph成果物生成", error, recover)) {
-			Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] 成果物を保存できません graph={} 詳細={}",
-				ToString(graphID), error);
-			return false;
+			return fail("成果物を保存できません: " + error);
 		}
 		static_assert(std::is_nothrow_move_assignable_v<ShaderGraphArtifact>);
 		outArtifact = std::move(artifact);
@@ -117,7 +118,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.computePipeline,
 				artifact.computePipelineID, BuiltinAssets::Pipelines::PostProcessMaskComposite, 0x504f535450495045ull,
 				"ComputePipeline")) {
-			return false;
+			return fail("Computeパスの基底パイプラインを読み込めません");
 		}
 		if (!publishArtifact()) {
 			return false;
@@ -133,8 +134,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 	// RayTracingの構成を作る
 	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
 		if (artifact.compileOutput.rayTracingHLSL.empty()) {
-
-			return false;
+			return fail("RayTracingパスのソースが生成されていません");
 		}
 		queueSource(artifact.rayTracingPath, artifact.compileOutput.rayTracingHLSL);
 		artifact.rayTracingShaderID = MakeDerivedID(graphID, 0x5241594645415455ull);
@@ -142,8 +142,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 			artifact.rayTracingPath, artifact.compileOutput.parameters, true);
 		if (!MakeRayTracingPipeline(
 				graph, artifact.compileOutput, graphID, database, artifact.rayTracingPipeline, artifact.rayTracingPipelineID)) {
-
-			return false;
+			return fail("RayTracingパスの基底パイプラインを読み込めません");
 		}
 		if (!publishArtifact()) {
 			return false;
@@ -169,8 +168,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 			artifact.rayTracingPath, artifact.compileOutput.parameters, false);
 		if (!MakeRayTracingPipeline(
 				graph, artifact.compileOutput, graphID, database, artifact.rayTracingPipeline, artifact.rayTracingPipelineID)) {
-
-			return false;
+			return fail("RayTracingパスの基底パイプラインを読み込めません");
 		}
 	}
 
@@ -217,13 +215,15 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 	// Meshの深度と選択Shaderを構成する
 	if (graph.target == ShaderGraphTarget::Mesh) {
 		queueSource(artifact.depthPixelPath, artifact.compileOutput.depthPixelHLSL);
-		queueSource(artifact.pickingPixelPath, artifact.compileOutput.pickingPixelHLSL);
 		artifact.depthShaderID = MakeDerivedID(graphID, 0x44455054485f5053ull);
-		artifact.pickingShaderID = MakeDerivedID(graphID, 0x5049434b494e4750ull);
 		artifact.depthShader = MakePixelShader(
 			graph.name + "Depth", artifact.depthShaderID, artifact.depthPixelPath, "main", artifact.compileOutput.parameters);
-		artifact.pickingShader = MakePixelShader(graph.name + "Picking", artifact.pickingShaderID, artifact.pickingPixelPath,
-			"main", artifact.compileOutput.parameters);
+		if (includeEditorPicking) {
+			queueSource(artifact.pickingPixelPath, artifact.compileOutput.pickingPixelHLSL);
+			artifact.pickingShaderID = MakeDerivedID(graphID, 0x5049434b494e4750ull);
+			artifact.pickingShader = MakePixelShader(graph.name + "Picking", artifact.pickingShaderID,
+				artifact.pickingPixelPath, "main", artifact.compileOutput.parameters);
+		}
 
 		const std::filesystem::path vertexPath =
 			hasVertexGraph ? artifact.vertexPath
@@ -250,6 +250,8 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 		if (hasVertexGraph) {
 			appendGeometryStages(artifact.opaqueShader);
 			appendGeometryStages(artifact.transparentShader);
+		}
+		if (includeEditorPicking && hasVertexGraph) {
 			artifact.pickingShader.stages.emplace_back(ShaderStageEntry{
 				.stage = ShaderStage::VS,
 				.file = Algorithm::PathToUTF8(vertexPath),
@@ -268,10 +270,12 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 	}
 	// 全描画PassのPipelineが揃わなければ公開しない
 	if (!MakeGraphPipeline(
-			graph, artifact.compileOutput, graphID, false, database, artifact.opaquePipeline, artifact.opaquePipelineID) ||
-		!MakeGraphPipeline(graph, artifact.compileOutput, graphID, true, database, artifact.transparentPipeline,
+			graph, artifact.compileOutput, graphID, false, database, artifact.opaquePipeline, artifact.opaquePipelineID)) {
+		return fail("不透明パスの基底パイプラインを読み込めません");
+	}
+	if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, true, database, artifact.transparentPipeline,
 			artifact.transparentPipelineID)) {
-		return false;
+		return fail("透明パスの基底パイプラインを読み込めません");
 	}
 	if (artifact.outlineShaderID) {
 		const AssetID basePipeline = graph.target == ShaderGraphTarget::Sprite
@@ -279,19 +283,20 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 										 : BuiltinAssets::Pipelines::Primitive2DOutlineMask;
 		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.outlinePipeline,
 				artifact.outlinePipelineID, basePipeline, 0x4f55544c494e4551ull, "OutlinePipeline")) {
-
-			return false;
+			return fail("Outlineパスの基底パイプラインを読み込めません");
 		}
 	}
 	// Meshの深度と選択Shaderを構成する
 	if (graph.target == ShaderGraphTarget::Mesh) {
 		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.depthPipeline,
 				artifact.depthPipelineID, BuiltinAssets::Pipelines::DefaultMeshZPrepass, 0x44455054485f504cull,
-				"DepthPipeline") ||
-			!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.pickingPipeline,
+				"DepthPipeline")) {
+			return fail("深度パスの基底パイプラインを読み込めません");
+		}
+		if (includeEditorPicking && !MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.pickingPipeline,
 				artifact.pickingPipelineID, BuiltinAssets::Pipelines::DefaultMeshEditorPicking, 0x5049434b494e4750ull,
 				"PickingPipeline")) {
-			return false;
+			return fail("EditorPickingパスの基底パイプラインを読み込めません");
 		}
 	}
 	if (!publishArtifact()) {

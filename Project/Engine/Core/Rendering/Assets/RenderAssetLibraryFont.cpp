@@ -1,5 +1,7 @@
 #include "RenderAssetLibrary.h"
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -30,20 +32,32 @@ std::shared_ptr<const Engine::FontSourceSnapshot> Engine::RenderAssetLibrary::Lo
 	try {
 		// 配置情報と画像をファイル変更前のバイト列で保持する
 		const auto path = database_->ResolveFullPath(assetID);
-		const auto revision = StorageFileUtility::FileRevision(path);
-		const auto bytes = StorageFileUtility::ReadVerifiedBytes(path, revision);
+		const bool packed = ProductContentPack::IsMounted();
+		std::string revision;
+		nlohmann::json font;
+		if (packed) {
+			if (!ProductContentPack::ReadJson(path, font)) throw std::runtime_error("製品Fontを読み込めません");
+		} else {
+			revision = StorageFileUtility::FileRevision(path);
+			font = nlohmann::json::parse(StorageFileUtility::ReadVerifiedBytes(path, revision));
+		}
 		auto source = std::make_shared<FontSourceSnapshot>();
-		if (!FromJson(nlohmann::json::parse(bytes), source->font) || !source->font.atlasTexture ||
+		if (!FromJson(font, source->font) || !source->font.atlasTexture ||
 			source->font.glyphMap.empty() || !std::isfinite(source->font.metrics.elementSize) ||
 			source->font.metrics.elementSize <= 0.0f) {
 			throw std::runtime_error("Fontの配置情報が無効です");
 		}
 		const auto atlasPath = database_->ResolveFullPath(source->font.atlasTexture);
-		const auto atlasRevision = StorageFileUtility::FileRevision(atlasPath);
 		source->atlas.assetPath = Algorithm::PathToUTF8(atlasPath);
-		source->atlas.snapshotBytes =
-			std::make_shared<const std::string>(StorageFileUtility::ReadVerifiedBytes(atlasPath, atlasRevision));
-		if (source->atlas.snapshotBytes->empty() || StorageFileUtility::FileRevision(path) != revision) {
+		if (packed) {
+			std::vector<uint8_t> bytes;
+			if (!ProductContentPack::Read(atlasPath, bytes) || bytes.empty()) throw std::runtime_error("製品FontのAtlasを読み込めません");
+			source->atlas.snapshotBytes = std::make_shared<const std::string>(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+		} else {
+			const auto atlasRevision = StorageFileUtility::FileRevision(atlasPath);
+			source->atlas.snapshotBytes = std::make_shared<const std::string>(StorageFileUtility::ReadVerifiedBytes(atlasPath, atlasRevision));
+		}
+		if (source->atlas.snapshotBytes->empty() || (!packed && StorageFileUtility::FileRevision(path) != revision)) {
 			throw std::runtime_error("Font読込中に配置情報が変更されました");
 		}
 		if (const AssetMeta* atlasMeta = database_->Find(source->font.atlasTexture)) {

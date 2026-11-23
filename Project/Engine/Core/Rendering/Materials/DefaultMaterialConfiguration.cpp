@@ -1,4 +1,5 @@
 #include "DefaultMaterialConfiguration.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -13,7 +14,7 @@ bool Engine::DefaultMaterialConfigurationIO::Read(
 
 	DefaultMaterialConfiguration loaded;
 	std::error_code error;
-	bool exists = std::filesystem::exists(path, error);
+	bool exists = ProductContentPack::Contains(path) || std::filesystem::exists(path, error);
 	if (error) {
 		return false;
 	}

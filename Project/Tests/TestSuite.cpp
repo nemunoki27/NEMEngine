@@ -45,6 +45,10 @@ using namespace NEMTests;
 // 標準の検証を既定の順序で実行する
 int NEMTests::RunAllTests() {
 
+	if (!RunTest("TestFoundationContracts", TestFoundationContracts)) {
+		return 41;
+	}
+
 	if (!RunTest("TestTextCharAnimation", TestTextCharAnimation) ||
 		!RunTest("TestTextCharAnimationSampler", TestTextCharAnimationSampler)) return 98;
 	if (!RunTest("TestLogicPlacement", TestLogicPlacement)) return 95;
@@ -70,9 +74,6 @@ int NEMTests::RunAllTests() {
 	}
 	if (!RunTest("TestGameplayContracts", TestGameplayContracts)) {
 		return 42;
-	}
-	if (!RunTest("TestFoundationContracts", TestFoundationContracts)) {
-		return 41;
 	}
 	if (!RunTest("TestAssetGUIDRoundTrip", TestAssetGUIDRoundTrip) ||
 		!RunTest("TestAssetDatabaseTransactions", TestAssetDatabaseTransactions) ||

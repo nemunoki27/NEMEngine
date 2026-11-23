@@ -367,7 +367,8 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		filePath.c_str(),
 		L"-E", entry,
 		L"-T", profile,
-		L"-Zi", L"-Qembed_debug",
+		// GPUへ渡すDXILにはソースとデバッグ情報を埋め込まない
+		L"-Zi", L"-Qstrip_debug",
 		L"-Zpr",
 #if defined(_DEBUG)
 		L"-Od",

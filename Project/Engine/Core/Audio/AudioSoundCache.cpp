@@ -2,6 +2,9 @@
 
 using namespace Engine;
 
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
+#include <Engine/Core/Assets/Package/ProductBinary.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -62,7 +65,8 @@ void AudioSoundCache::Load(const std::filesystem::path& filename, AudioType type
 	const std::string key = NormalizeKey(Algorithm::PathToUTF8(filename));
 
 	std::error_code error;
-	auto writeTime = std::filesystem::last_write_time(filename, error);
+	const bool packed = ProductContentPack::IsMounted();
+	const auto writeTime = packed ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(filename, error);
 	if (error) { return; }
 	// 同じ入力を繰り返し復号しない
 	auto found = sounds_.find(key);
@@ -79,7 +83,19 @@ void AudioSoundCache::Load(const std::filesystem::path& filename, AudioType type
 	AudioSoundData data{};
 	// 読込失敗とメモリ不足では公開済みPCMを保持する
 	try {
-		if (ext == ".wav" || ext == ".wave") {
+		if (packed) {
+			std::vector<uint8_t> bytes;
+			if (!ProductContentPack::Read(filename, bytes)) return;
+			ProductBinary::Reader reader(bytes);
+			uint32_t signature{};
+			ProductBinary::Scalars(reader, signature);
+			if (signature != 0x31445541) return;
+			ProductBinary::Array(reader, data.formatBlob);
+			ProductBinary::Array(reader, data.pcmBuffer);
+			if (reader.Remaining() || data.formatBlob.size() < sizeof(WAVEFORMATEX) ||
+				data.GetFormat()->cbSize > data.formatBlob.size() - sizeof(WAVEFORMATEX) ||
+				data.GetFormat()->nBlockAlign == 0 || data.pcmBuffer.size() % data.GetFormat()->nBlockAlign != 0) return;
+		} else if (ext == ".wav" || ext == ".wave") {
 			data = decoder_.LoadWaveFile(filename);
 		} else if (ext == ".mp3") {
 			data = decoder_.LoadMP3File(filename);

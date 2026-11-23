@@ -1,4 +1,5 @@
 #include "AssetDatabase.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 
 //============================================================================
 //	include
@@ -64,6 +65,23 @@ bool Engine::AssetDatabase::RebuildMeta() {
 
 bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>& scanRoots) {
 
+	if (ProductContentPack::IsMounted()) {
+		AssetDatabase candidate;
+		candidate.guidToMeta_.reserve(ProductContentPack::Assets().size());
+		candidate.pathToGuid_.reserve(ProductContentPack::Assets().size());
+		for (const AssetMeta& asset : ProductContentPack::Assets()) {
+			candidate.guidToMeta_.emplace(asset.guid, asset);
+			candidate.pathToGuid_.emplace(NormalizeLookupKey(asset.assetPath), asset.guid);
+			for (const AssetID dependency : asset.dependencies) candidate.referencersByGuid_[dependency].push_back(asset.guid);
+		}
+		guidToMeta_.swap(candidate.guidToMeta_);
+		pathToGuid_.swap(candidate.pathToGuid_);
+		referencersByGuid_.swap(candidate.referencersByGuid_);
+		issues_.clear();
+		lastRebuildError_.clear();
+		++structureRevision_;
+		return true;
+	}
 	// 指定範囲の走査でも未完了保存を先に復旧
 	std::vector<AssetDatabaseIssue> recoveryIssues;
 	const bool recovered = AssetDocumentRecovery::RecoverPending(recoveryIssues);

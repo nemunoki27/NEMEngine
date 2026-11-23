@@ -26,5 +26,6 @@ for _, name in ipairs({ "NEM.Distribution", "NEM.ProjectTool", "NEM.Launcher", "
         filename (name)
         kind "SharedLib"
         language "C#"
+        configmap { ["Develop"] = "Debug" }
 end
 group ""

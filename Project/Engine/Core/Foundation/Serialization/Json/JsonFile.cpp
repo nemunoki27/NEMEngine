@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "JsonCanonical.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
@@ -52,6 +53,11 @@ bool JsonFile::TryLoad(const std::filesystem::path& path, nlohmann::json& output
 	if (diagnostic) {
 		diagnostic->clear();
 	}
+	if (ProductContentPack::Contains(path)) {
+		if (ProductContentPack::ReadJson(path, output)) return true;
+		if (diagnostic) *diagnostic = "製品パックのJSONデータが不正です: " + Algorithm::PathToUTF8(path);
+		return false;
+	}
 	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open()) {
 		if (diagnostic) {
@@ -85,6 +91,7 @@ bool JsonFile::Check(const std::string& directoryFilePath, bool assertion) {
 
 bool JsonFile::Check(const std::filesystem::path& directoryFilePath, bool assertion) {
 
+	if (ProductContentPack::Contains(directoryFilePath)) return true;
 	std::ifstream file(directoryFilePath);
 
 	// 読み込めなかった場合

@@ -1,6 +1,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ProductContentWriter.h"
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
@@ -10,6 +12,8 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
+#include <objbase.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
@@ -225,7 +229,7 @@ namespace {
 		std::string error;
 		if (!Engine::ShaderCook::Cook(
 			manifestPath, outputRoot, result, error)) {
-			std::cerr << "[シェーダーCook] " << error << '\n';
+			std::cout << "[シェーダーCook] " << error << '\n';
 			return 11;
 		}
 		std::cout << "[シェーダーCook] シェーダー数=" << result.shaderCount <<
@@ -237,6 +241,27 @@ namespace {
 
 int wmain(int argc, wchar_t** argv) {
 
+	// WICの共有Factoryを、画像ごとの読み込みが終わっても維持する
+	const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
+		std::cerr << "製品ビルド用COMの初期化に失敗しました HRESULT=" << initialized << '\n';
+		return 2;
+	}
+	Engine::ScopedCleanup comCleanup([initialized]() noexcept { if (SUCCEEDED(initialized)) CoUninitialize(); });
+
+	if ((argc == 4 || argc == 5) && std::wstring_view(argv[1]) == L"--pack-product") {
+		std::string error;
+		if (Engine::ProductContentWriter::Write(argv[2], argv[3], argc == 5 ? argv[4] : L"", error)) return 0;
+		std::cerr << error << '\n';
+		return 12;
+	}
+	if ((argc == 3 || argc == 4) && std::wstring_view(argv[1]) == L"--verify-product") {
+		std::string error;
+		const std::string expected = argc == 4 ? Engine::Algorithm::ConvertString(argv[3]) : "";
+		if (Engine::ProductContentPack::Verify(argv[2], error, expected)) return 0;
+		std::cerr << error << '\n';
+		return 13;
+	}
 	if (argc == 3 && std::wstring_view(argv[1]) == L"--validate-project") {
 		return ValidateProject(std::filesystem::path(argv[2]));
 	}
@@ -265,6 +290,8 @@ int wmain(int argc, wchar_t** argv) {
 		"NEMBuildTool --merge-json <共通祖先> <自分側> <相手側> <出力先>\n"
 		"NEMBuildTool --recover-json-merge <出力先> <復旧記録ディレクトリ>\n"
 		"NEMBuildTool --verify-cook <マニフェスト> <検証対象フォルダー>\n"
-		"NEMBuildTool --cook-shaders <製品ビルドマニフェスト> <出力先>\n";
+		"NEMBuildTool --cook-shaders <製品ビルドマニフェスト> <出力先>\n"
+		"NEMBuildTool --pack-product <Cookフォルダー> <製品パック> [ビルドマニフェスト]\n"
+		"NEMBuildTool --verify-product <製品パック> [プロジェクトGUID]\n";
 	return argc == 1 ? 0 : 1;
 }

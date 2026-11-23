@@ -1,4 +1,5 @@
 #include "EditorGameBuildSession.h"
+#include "GameBuildUtility.h"
 
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -14,6 +15,12 @@ using namespace Engine;
 void Engine::EditorGameBuildSession::Prepare(const EditorPanelContext& context) {
 
 	ResetStatus();
+	try {
+		draft_.additionalAssets = GameBuildUtility::LoadAdditionalAssets();
+	} catch (const std::exception& error) {
+		draft_.additionalAssets.clear();
+		buildError_ = error.what();
+	}
 	gameBuildService_.RefreshScenes(*context.editorContext->assetDatabase);
 
 	buildSceneNames_.clear();
@@ -60,6 +67,18 @@ void EditorGameBuildSession::Update() {
 	if (buildDirectoryDialog_.Poll(selectedDirectory) && selectedDirectory) {
 		draft_.outputPath = Algorithm::PathToUTF8(*selectedDirectory);
 	}
+	std::optional<std::filesystem::path> selected;
+	if (assetDialog_.Poll(selected) && selected) {
+		auto path = RuntimePaths::ToAssetPath(GameBuildUtility::NormalizeBuildPath(*selected));
+		std::ranges::replace(path, '\\', '/');
+		if (!GameBuildUtility::IsAdditionalAssetPath(path)) {
+			buildError_ = "GameAssetsまたはPackage内のアセットを選択してください";
+		} else if (std::ranges::find(draft_.additionalAssets, path) == draft_.additionalAssets.end()) {
+			auto assets = draft_.additionalAssets;
+			assets.push_back(path);
+			SaveAdditionalAssets(std::move(assets));
+		}
+	}
 }
 
 void EditorGameBuildSession::Start(const EditorPanelContext& context, bool confirmWarnings, bool useSavedFiles) {
@@ -81,19 +100,13 @@ void EditorGameBuildSession::Start(const EditorPanelContext& context, bool confi
 	settings.gameHeight = static_cast<uint32_t>(draft_.gameHeight);
 	settings.startupFullscreen = draft_.startupFullscreen;
 	settings.confirmedWarnings = std::move(savedConfirmedWarnings_);
-	if (!context.editorContext || !context.editorContext->assetDatabase ||
-		!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
-			context.editorContext->sceneStorage.get())) {
-
-		if (buildError_.empty()) {
-			buildError_ = "製品ビルドを開始できませんでした";
-		}
-	}
+	pendingSettings_ = std::move(settings);
+	preparationShown_ = false;
 }
 
 void EditorGameBuildSession::ResetStatus() {
 
-	if (waitingForSceneSave_ || gameBuildService_.IsBuilding()) { return; }
+	if (waitingForSceneSave_ || IsPreparingBuild() || gameBuildService_.IsBuilding()) { return; }
 	// 次のビルドへ保存済み通知や継続確認を持ち越さない
 	sceneSaveReady_ = false;
 	sceneSaveRequested_ = false;
@@ -101,6 +114,40 @@ void EditorGameBuildSession::ResetStatus() {
 	savedConfirmedWarnings_.clear();
 	buildError_.clear();
 	gameBuildService_.ResetStatus();
+}
+
+void EditorGameBuildSession::RequestAdditionalAsset(bool directory) {
+
+	const auto root = RuntimePaths::GetGameRoot() / "GameAssets";
+	if (directory) assetDialog_.Open(root);
+	else assetDialog_.OpenFile(root);
+}
+
+void EditorGameBuildSession::RemoveAdditionalAsset(size_t index) {
+
+	auto assets = draft_.additionalAssets;
+	assets.erase(assets.begin() + index);
+	SaveAdditionalAssets(std::move(assets));
+}
+
+void EditorGameBuildSession::SaveAdditionalAssets(std::vector<std::string> assets) {
+
+	const auto path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild);
+	nlohmann::json data = JsonAdapter::Load(path, false);
+	if (!data.is_object()) {
+		if (std::filesystem::exists(path)) {
+			buildError_ = "ゲームのビルド設定を読み込めません";
+			return;
+		}
+		data = nlohmann::json::object();
+	}
+	data["additionalAssets"] = assets;
+	if (JsonAdapter::SaveCanonical(path, data)) {
+		draft_.additionalAssets = std::move(assets);
+		buildError_.clear();
+	} else {
+		buildError_ = "追加アセットの設定を保存できません";
+	}
 }
 
 void EditorGameBuildSession::RequestDirectory() {
@@ -127,9 +174,25 @@ void EditorGameBuildSession::CompleteSceneSave(bool success) {
 	if (!success) { buildError_ = "Sceneの保存が完了しなかったためビルドを中止しました"; }
 }
 
-void EditorGameBuildSession::ContinueAfterSceneSave(const EditorPanelContext& context) {
+void EditorGameBuildSession::AdvanceBuildRequest(const EditorPanelContext& context) {
 
 	if (sceneSaveReady_) { Start(context); }
+	if (!pendingSettings_) { return; }
+	// 収集開始前に準備中の表示を1フレーム描画する
+	if (!preparationShown_) {
+		preparationShown_ = true;
+		return;
+	}
+	GameBuildSettings settings = std::move(*pendingSettings_);
+	pendingSettings_.reset();
+	if (!context.editorContext || !context.editorContext->assetDatabase ||
+		!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
+			context.editorContext->sceneStorage.get())) {
+
+		if (buildError_.empty()) {
+			buildError_ = "製品ビルドを開始できませんでした";
+		}
+	}
 }
 
 void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) {

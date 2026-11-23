@@ -10,6 +10,7 @@
 // c++
 #include <deque>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -51,9 +52,14 @@ namespace Engine {
 		std::unordered_set<Engine::AssetID> requiredAssets_;
 		std::unordered_set<std::string> scannedShaderFiles_;
 		std::map<std::string, std::filesystem::path> files_;
+		std::map<std::string, std::string> fileReasons_;
+		std::unordered_map<AssetID, std::string> assetReasons_;
+		std::unordered_set<std::filesystem::path> noticeDirectories_;
+		std::string reason_;
 		std::vector<std::string> errors_;
 		std::vector<GameBuildWarning> warnings_;
 		AssetID currentAsset_{};
+		bool needsGraphShaderSources_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -61,6 +67,8 @@ namespace Engine {
 		void AddAsset(Engine::AssetID assetID, bool required = false);
 		// 同じ欠損の診断を一度だけ保持する
 		void AddWarning(AssetID asset, AssetID reference, std::string path, std::string detail);
+		static std::string DescribeReference(const nlohmann::json& data, const std::string& target, AssetType type,
+			std::string detail = "参照先が見つかりません");
 		// 配置先とファイルを検証
 		void AddFile(const std::filesystem::path& source, const std::string& destination, bool required = false);
 		// 製品内の配置先を解決
@@ -69,10 +77,9 @@ namespace Engine {
 		void AddAssetFile(const Engine::AssetMeta& meta);
 		// 論理pathの本体とmetaを収集
 		void AddLogicalFile(const std::string& assetPath);
-		// ゲーム内の配布対象を列挙
-		void AddAllGameAssets();
-		// Package内の配布対象を列挙
-		void AddPackageFiles();
+		// 動的に読み込むファイルとディレクトリを収集
+		void AddAdditionalAssets();
+		void CollectNotices(const std::filesystem::path& directory);
 		// 参照待ちのAssetを順に解析
 		void ProcessAssets();
 		// 形式ごとの参照解析へ振り分ける
@@ -81,7 +88,7 @@ namespace Engine {
 		void CollectExternalActors(
 			const Engine::AssetMeta& sceneMeta, const std::filesystem::path& scenePath, const nlohmann::json& sceneData);
 		// 保存データの参照を収集
-		void InspectJson(const nlohmann::json& node);
+		void InspectJson(const nlohmann::json& node, const std::string& sourcePath, bool indexed);
 		// Shaderのincludeを再帰収集
 		void CollectShaderIncludes(const std::filesystem::path& shaderPath);
 		// モデル形式ごとの付随ファイルを収集

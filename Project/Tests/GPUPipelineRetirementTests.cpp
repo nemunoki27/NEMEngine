@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
@@ -66,12 +67,10 @@ bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::Graph
 	desc.pixel = { .file = Algorithm::PathToUTF8(directory.GetPath() / "opaque.PS.hlsl"), .entry = "main", .profile = "ps_6_0" };
 	desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	const DXGI_FORMAT formats[]{ DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
-		DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R11G11B10_FLOAT,
-		DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R16G16_FLOAT, DXGI_FORMAT_R16G16_FLOAT };
-	desc.numRenderTargets = static_cast<UINT>(std::size(formats));
-	std::copy(std::begin(formats), std::end(formats), desc.rtvFormats);
+	const auto targets = RenderPathResources::BuildSceneMainDesc(1, 1);
+	desc.dsvFormat = targets.depth->dsvFormat;
+	desc.numRenderTargets = static_cast<UINT>(targets.colors.size());
+	for (size_t index = 0; index < targets.colors.size(); ++index) desc.rtvFormats[index] = targets.colors[index].format;
 	// 個別コンパイルだけでなくVSとPSの接続まで検証する
 	if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
 	// 対応GPUではDescriptor Heapを直接参照する経路も検証する

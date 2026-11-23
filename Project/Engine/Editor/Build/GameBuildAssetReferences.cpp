@@ -34,6 +34,7 @@ namespace Engine {
 
 	void GameBuildAssetCollector::InspectFile(const Engine::AssetMeta& meta, const std::filesystem::path& source) {
 
+		if (meta.type == AssetType::ShaderGraph) needsGraphShaderSources_ = true;
 		const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(source.extension()));
 		if (meta.type != AssetType::Text && (extension == ".json" || AssetTypeResolver::IsJsonAssetFile(meta.type, source))) {
 
@@ -42,7 +43,7 @@ namespace Engine {
 				if (meta.type == Engine::AssetType::Scene) {
 					CollectExternalActors(meta, source, data);
 				}
-				InspectJson(data);
+				InspectJson(data, meta.assetPath, AssetTypeResolver::IsJsonAssetFile(meta.type, source));
 			}
 		}
 		if (extension == ".hlsl" || extension == ".hlsli") {
@@ -86,20 +87,22 @@ namespace Engine {
 			AddFile(actorPath, ToBuildDestination(assetPath));
 			const nlohmann::json actor = LoadJson(actorPath);
 			if (actor.is_object()) {
-				InspectJson(actor);
+				InspectJson(actor, assetPath, false);
 			}
 		}
 	}
 
-	void GameBuildAssetCollector::InspectJson(const nlohmann::json& node) {
+	void GameBuildAssetCollector::InspectJson(const nlohmann::json& node, const std::string& sourcePath, bool indexed) {
 
 		// 構文解析をAssetDatabaseと共有し、製品収集の方針はここで適用する
 		AssetDependencyScanner::IDReferences candidates;
 		AssetDependencyScanner::PathReferences paths;
 		AssetDependencyScanner::ScanReferences(node, candidates, paths, true);
 		for (const auto& [id, type] : candidates) {
-			if (type != AssetType::Unknown || database_.Find(id)) {
+			if (database_.Find(id)) {
 				AddAsset(id);
+			} else if (!indexed && type != AssetType::Unknown) {
+				AddWarning(currentAsset_, id, sourcePath, DescribeReference(node, ToString(id), type));
 			}
 		}
 		for (const auto& [path, type] : paths) {

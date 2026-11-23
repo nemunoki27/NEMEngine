@@ -15,6 +15,8 @@ namespace Engine::AssetMetaStorage {
 
 	std::filesystem::path MetaPathOf(const std::filesystem::path& assetFullPath);
 
+	bool ParseMeta(const nlohmann::json& data, AssetMeta& out);
+
 	bool ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out);
 
 	// 未知キーを保って保存用のmeta文書を作る

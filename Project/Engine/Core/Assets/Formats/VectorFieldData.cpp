@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Package/ProductBinary.h>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -62,6 +63,29 @@ bool Engine::ReadFGA(std::istream& stream, VectorFieldData& field, std::string& 
 	if (stream.peek() != std::char_traits<char>::eof()) { reason = "FGAの末尾に余分な値があります"; return false; }
 	field = std::move(candidate);
 	reason.clear();
+	return true;
+}
+
+void Engine::WriteProductVectorField(VectorFieldData& field, std::vector<uint8_t>& bytes) {
+
+	uint32_t signature = 0x31414746; // FGA1
+	ProductBinary::Writer writer(bytes);
+	ProductBinary::Scalars(writer, signature, field.resolution, field.minimum, field.maximum);
+	ProductBinary::Array(writer, field.vectors);
+}
+
+bool Engine::ReadProductVectorField(std::span<const uint8_t> bytes, VectorFieldData& field) {
+
+	ProductBinary::Reader reader(bytes);
+	VectorFieldData result;
+	uint32_t signature = 0;
+	ProductBinary::Scalars(reader, signature, result.resolution, result.minimum, result.maximum);
+	const auto& size = result.resolution;
+	if (signature != 0x31414746 || size.x < 1 || size.y < 1 || size.z < 1 ||
+		256 < size.x || 256 < size.y || 256 < size.z) return false;
+	ProductBinary::Array(reader, result.vectors);
+	if (result.vectors.size() != static_cast<size_t>(size.x) * size.y * size.z || reader.Remaining()) return false;
+	field = std::move(result);
 	return true;
 }
 

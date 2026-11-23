@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
@@ -19,6 +20,7 @@ using namespace Engine::SceneStorageFiles;
 //============================================================================
 std::string Engine::SceneAssetStorage::ReadRevision(const std::filesystem::path& path, AssetID asset) {
 
+	if (ProductContentPack::IsMounted() && ProductContentPack::Contains(path)) { return "packed"; }
 	const std::string revision = FileRevision(path);
 	const std::string key = PathKey(path);
 	auto found = revisionSources_.find(key);

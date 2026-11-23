@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Probe = "",
     [string]$BuildTool = "",
     [string]$GameSourceRoot = "",
@@ -60,11 +60,20 @@ Write-TestJson $collisionPath @{
 }
 [System.IO.File]::WriteAllText((Join-Path $gameRoot "GameAssets\Stage.csv"), "0,1,2`n3,4,5`n", $OutputEncoding)
 
+Invoke-Collect "UnreferencedData"
+$unreferenced = @(Get-Content (Join-Path $testRoot 'UnreferencedData.json') -Raw -Encoding UTF8 | ConvertFrom-Json)
+if (@($unreferenced | Where-Object destination -eq 'GameAssets/Stage.csv').Count) { throw '未使用のアセットが製品に混入しています' }
+$runtime = Join-Path $settingsRoot 'Runtime'
+[void][IO.Directory]::CreateDirectory($runtime)
+$buildSettings = Join-Path $runtime 'Game.json'
+Write-TestJson $buildSettings @{additionalAssets=@('GameAssets/Stage.csv')}
 Invoke-Collect "MinimumProject"
 # 新規ゲームの既定Sceneにも解決不能な組込参照を残さない
 $previousSceneID = $sceneID
 try {
-    $sampleMeta = Get-Content -LiteralPath (Join-Path $gameRoot "Engine\Assets\Scenes\Sample.scene.json.meta") -Raw |
+    $sample = Join-Path $gameRoot 'GameAssets/TemplateFixture'
+    Copy-Item -LiteralPath (Join-Path $engineRoot 'Templates/ManagedProject/3D/GameAssets/Scenes') -Destination $sample -Recurse
+    $sampleMeta = Get-Content -LiteralPath (Join-Path $sample "Main.scene.json.meta") -Raw |
         ConvertFrom-Json
     $sceneID = $sampleMeta.guid
     Invoke-Collect "BuiltinSampleScene"
@@ -133,6 +142,7 @@ New-Item -ItemType Directory -Path (Join-Path $gameRoot $unicodeDirectory) | Out
 foreach ($assetPath in $unicodeFiles) {
     [System.IO.File]::WriteAllText((Join-Path $gameRoot $assetPath), "Unicode asset", $OutputEncoding)
 }
+Write-TestJson $buildSettings @{additionalAssets=@('GameAssets/Stage.csv', $unicodeDirectory)}
 Invoke-Collect "UnicodeAssets"
 $unicodeResult = @((Get-Content -LiteralPath (Join-Path $testRoot "UnicodeAssets.json") -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
 foreach ($assetPath in $unicodeFiles) {
@@ -146,9 +156,28 @@ foreach ($assetPath in $unicodeFiles) {
 $invalidIncludePath = Join-Path $gameRoot "GameAssets/InvalidInclude.hlsl"
 $invalidInclude = [byte[]]($OutputEncoding.GetBytes('#include "') + @(0xFF) + $OutputEncoding.GetBytes('"'))
 [System.IO.File]::WriteAllBytes($invalidIncludePath, $invalidInclude)
+Write-TestJson $buildSettings @{additionalAssets=@($unicodeDirectory, 'GameAssets/InvalidInclude.hlsl')}
 try { Invoke-Collect "InvalidIncludeEncoding" "製品ファイルの収集中に例外が発生しました" }
 finally { [System.IO.File]::WriteAllText($invalidIncludePath, "// restored", $OutputEncoding) }
 Invoke-Collect "RecoveredAfterException"
+
+# 追加指定されたパッケージ内のフォルダーだけを収集する
+$package = Join-Path $gameRoot 'Packages/com.test.product'
+[void][IO.Directory]::CreateDirectory((Join-Path $package 'Tables'))
+Write-TestJson (Join-Path $gameRoot 'Packages/manifest.json') @{schemaVersion=1;dependencies=@{'com.test.product'='1.0.0'}}
+Write-TestJson (Join-Path $package 'package.json') @{name='com.test.product'; version='1.0.0'}
+[IO.File]::WriteAllText((Join-Path $package 'Tables/map.csv'), "1,2", $OutputEncoding)
+[IO.File]::WriteAllText((Join-Path $package 'unused.csv'), "3,4", $OutputEncoding)
+[IO.File]::WriteAllText((Join-Path $package 'LICENSE.txt'), 'test notice', $OutputEncoding)
+Write-TestJson $buildSettings @{additionalAssets=@('package://com.test.product/Tables')}
+Invoke-Collect "PackageFiles"
+$packageFiles = (Get-Content (Join-Path $testRoot 'PackageFiles.json') -Raw -Encoding UTF8 | ConvertFrom-Json).destination
+foreach ($leaf in 'Tables/map.csv','package.json','LICENSE.txt') {
+    if ($packageFiles -notcontains ('Packages/com.test.product/' + $leaf)) { throw "パッケージの配布対象がありません: $leaf" }
+}
+if ($packageFiles -contains 'Packages/com.test.product/unused.csv') { throw 'パッケージの未使用素材が混入しています' }
+
+Write-TestJson $buildSettings @{additionalAssets=@()}
 
 if ($GameSourceRoot) {
     # 元ゲームは変更せずGameAssetsと設定だけを検証用プロジェクトへコピーする
