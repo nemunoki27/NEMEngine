@@ -4,7 +4,21 @@ RWStructuredBuffer<float4> gWorldResults : register(u0);
 
 [numthreads(16, 1, 1)]
 void main(uint index : SV_DispatchThreadID) {
-	if (index >= 11) return;
+	if (index >= 15) return;
+	if (11 <= index) {
+		ParticleAttributesGPU p = (ParticleAttributesGPU)0;
+		p.positionAge.xyz = float3(0.8f, 0.8f, 0);
+		ParticleGPUInstruction op = (ParticleGPUInstruction)0;
+		op.flags = 1;
+		op.parameter0.x = 1;
+		op.parameter3.w = asfloat(1u << (index - 11));
+		ParticleRunForceFields(p, op, 1);
+		gWorldResults[index * 2] = p.velocityLifetime;
+		p.velocityLifetime = 0;
+		ParticleRunVectorFields(p, op, 1);
+		gWorldResults[index * 2 + 1] = p.velocityLifetime;
+		return;
+	}
 	ParticleGPUCollisionHit hit = ParticleEmptyCollision();
 	if (index == 0) {
 		ParticleGPUCollider plane = (ParticleGPUCollider) 0;
@@ -27,7 +41,7 @@ void main(uint index : SV_DispatchThreadID) {
 	} else if (index == 5) hit = ParticleSweepHeightmap(gGPUHeightmaps[0], float3(0.2f, 2, 0.1f), float3(0.2f, -2, 0.1f), 0.25f, 1);
 	else if (index == 6) hit = ParticleFindCollision(float3(-3, 0, 0), float3(3, 0, 0), 0.5f, 1, 1, 3, 0.2f, 0);
 	else if (index == 7) {
-		gWorldResults[index * 2] = float4(ParticleForce(float3(2, 0, 0), float3(0, 1, 0), float4(2, 4, 1, 0)), 1);
+		gWorldResults[index * 2] = float4(ParticleForce(float3(2, 0, 0), 2, float3(0, 1, 0), float4(2, 4, 1, 0)), 1);
 		gWorldResults[index * 2 + 1] = 0;
 		return;
 	} else if (index == 8) {

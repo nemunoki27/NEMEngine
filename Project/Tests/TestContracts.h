@@ -85,6 +85,8 @@ namespace NEMTests {
 	bool TestMaterialCreationFailures();
 	bool TestMaterialAssetHistory();
 	bool TestClothGeometryGPU();
+	bool TestClothSimulationGPU();
+	bool TestClothEnvironmentGPU();
 	bool TestMaterialReflectionCache();
 	bool TestMaterialResolverIndexChanges();
 	bool TestAssetDocumentRecovery();

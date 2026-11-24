@@ -70,12 +70,14 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 	};
 	auto* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
-	const auto samples = BuildSplineSamples(*data, Matrix4x4::Identity());
-	for (size_t i = 1; i < samples.size(); ++i) {
-		ImVec2 a, b;
-		float depth;
-		if (project(samples[i - 1].position, a, depth) && project(samples[i].position, b, depth))
-			draw->AddLine(a, b, IM_COL32(255, 190, 65, 255), 2);
+	if (data->is2D) {
+		const auto samples = BuildSplineSamples(*data, Matrix4x4::Identity());
+		for (size_t i = 1; i < samples.size(); ++i) {
+			ImVec2 a, b;
+			float depth;
+			if (project(samples[i - 1].position, a, depth) && project(samples[i].position, b, depth))
+				draw->AddLine(a, b, IM_COL32(255, 190, 65, 255), 2);
+		}
 	}
 	const auto mouse = ImGui::GetMousePos();
 	int32_t hoverPoint = -1;

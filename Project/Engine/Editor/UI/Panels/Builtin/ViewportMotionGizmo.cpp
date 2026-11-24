@@ -33,10 +33,12 @@ void Engine::ViewportMotionGizmo::Draw(const EditorPanelContext& context, ImVec2
 	};
 	auto* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
-	for (size_t index = 1; index < points.size(); ++index) {
-		ImVec2 start, end;
-		if (project(points[index - 1], start) && project(points[index], end))
-			draw->AddLine(start, end, IM_COL32(90, 230, 140, 255), 2);
+	if (context.editorState->sceneViewPickDimension == SceneViewPickDimension::Type2D) {
+		for (size_t index = 1; index < points.size(); ++index) {
+			ImVec2 start, end;
+			if (project(points[index - 1], start) && project(points[index], end))
+				draw->AddLine(start, end, IM_COL32(90, 230, 140, 255), 2);
+		}
 	}
 	if (!points.empty()) {
 		ImVec2 start, end;

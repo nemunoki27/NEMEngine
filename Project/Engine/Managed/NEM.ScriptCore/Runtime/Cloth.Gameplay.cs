@@ -62,6 +62,21 @@ public sealed partial class Cloth {
 		set => Write("gravityScale", value);
 	}
 
+	public bool WindEnabled {
+		get => Read<bool>("windEnabled");
+		set => Write("windEnabled", value);
+	}
+
+	public bool ReceiveSceneWind {
+		get => Read<bool>("receiveSceneWind");
+		set => Write("receiveSceneWind", value);
+	}
+
+	public uint WindCollisionMask {
+		get => Read<uint>("windCollisionMask");
+		set => Write("windCollisionMask", value);
+	}
+
 	public float WindStrength {
 		get => Read<float>("windStrength");
 		set => Write("windStrength", value);

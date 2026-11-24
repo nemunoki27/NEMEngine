@@ -72,6 +72,7 @@ void Engine::to_json(nlohmann::json& out, const ClothSettings& s) {
 		{"fasteners", s.fasteners}, {"foldDepth", s.foldDepth}, {"stretchCompliance", s.stretchCompliance},
 		{"shearCompliance", s.shearCompliance},
 		{"bendCompliance", s.bendCompliance}, {"damping", s.damping}, {"gravityScale", s.gravityScale},
+		{"windEnabled", s.windEnabled}, {"receiveSceneWind", s.receiveSceneWind}, {"windCollisionMask", s.windCollisionMask},
 		{"windStrength", s.windStrength}, {"gustStrength", s.gustStrength}, {"gustFrequency", s.gustFrequency},
 		{"thickness", s.thickness}, {"collisionMask", s.collisionMask}};
 }
@@ -90,6 +91,9 @@ void Engine::from_json(const nlohmann::json& in, ClothSettings& s) {
 	s.bendCompliance = in.value("bendCompliance", s.bendCompliance);
 	s.damping = in.value("damping", s.damping);
 	s.gravityScale = in.value("gravityScale", s.gravityScale);
+	s.windEnabled = in.value("windEnabled", s.windEnabled);
+	s.receiveSceneWind = in.value("receiveSceneWind", s.receiveSceneWind);
+	s.windCollisionMask = in.value("windCollisionMask", s.windCollisionMask);
 	s.windStrength = in.value("windStrength", s.windStrength);
 	s.gustStrength = in.value("gustStrength", s.gustStrength);
 	s.gustFrequency = in.value("gustFrequency", s.gustFrequency);

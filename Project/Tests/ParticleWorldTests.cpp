@@ -14,6 +14,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 
 // c++
@@ -151,6 +152,28 @@ namespace {
 		return leaves == 65;
 	}
 
+	bool CheckFieldShapes() {
+
+		const auto matrix = Matrix4x4::MakeAffineMatrix({2, 1, 1}, Quaternion::FromEulerDegrees({0, 0, 90}), {3, 4, 5});
+		for (auto shape : {ParticleFieldShape::Sphere, ParticleFieldShape::AABB, ParticleFieldShape::OBB}) {
+			ParticleFieldBounds bounds;
+			if (!bounds.Build(shape, 3, {4, 2, 2}, matrix)) return false;
+			const auto basis = Vector3::TransferNormal({1, 0, 0}, bounds.UnitToWorld());
+			if ((bounds.center - Vector3(3, 4, 5)).Length() > 0.001f) return false;
+			if (shape == ParticleFieldShape::Sphere && (bounds.halfSize - Vector3::AnyInit(6)).Length() > 0.001f) return false;
+			if (shape == ParticleFieldShape::AABB && std::abs(basis.x - 4) > 0.001f) return false;
+			if (shape == ParticleFieldShape::OBB && std::abs(std::abs(basis.y) - 4) > 0.001f) return false;
+		}
+		auto force = nlohmann::json(ForceFieldComponent{});
+		auto vector = nlohmann::json(VectorFieldComponent{});
+		force.erase("shape");
+		force.erase("size");
+		vector.erase("shape");
+		vector.erase("range");
+		return force.get<ForceFieldComponent>().shape == ParticleFieldShape::Sphere &&
+			vector.get<VectorFieldComponent>().shape == ParticleFieldShape::OBB;
+	}
+
 	// Cameraと曲線を所有Sceneへ限定し、移動形状の速度と世代を保持する
 	bool CheckSnapshots() {
 
@@ -202,5 +225,6 @@ bool NEMTests::TestParticleWorldData() {
 
 	return RunTest("ParticleFGA", CheckFGA) && RunTest("ParticleSpline", CheckSpline) &&
 		RunTest("Spline2D", CheckSpline2D) && RunTest("ParticleIDPhase", CheckParticleIDPhase) &&
-		RunTest("ParticleWorldCompiler", CheckCompiler) && RunTest("ParticleWorldSnapshots", CheckSnapshots);
+		RunTest("ParticleWorldCompiler", CheckCompiler) && RunTest("ParticleWorldSnapshots", CheckSnapshots) &&
+		RunTest("ParticleFieldShapes", CheckFieldShapes);
 }

@@ -8,6 +8,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
 
 // c++
@@ -35,7 +36,8 @@ const Engine::ShaderReflectionInfo* Engine::MaterialReflectionCache::EnsureRefle
 		!less(cachedDatabaseLifetime_, lifetime) && !less(lifetime, cachedDatabaseLifetime_);
 	// 同じMaterialの保存とProject切替も読込へ反映する
 	const bool reload = !cachedMaterialValid_ || cachedMaterialID_ != materialID || !sameDatabase ||
-		cachedDatabaseRevision_ != revision || cachedMaterialRevision_ != contentRevision;
+		cachedDatabaseRevision_ != revision || cachedMaterialRevision_ != contentRevision ||
+		(cachedMaterial_.shaderGraph && graphRevision_ != database.GetContentRevision(cachedMaterial_.shaderGraph));
 	if (reload) {
 		hasGraphParameters_ = false;
 		graphParameters_.clear();
@@ -53,24 +55,18 @@ const Engine::ShaderReflectionInfo* Engine::MaterialReflectionCache::EnsureRefle
 			nlohmann::json data;
 			cachedMaterialValid_ = JsonFile::TryLoad(path, data) && FromJson(data, cachedMaterial_);
 		}
-	}
-	if (!cachedMaterialValid_) {
-		return nullptr;
-	}
-	if (cachedMaterial_.usage == MaterialUsage::Particle && cachedMaterial_.shaderGraph) {
-		const uint64_t revisionNow = database.GetContentRevision(cachedMaterial_.shaderGraph);
-		if (reload || graphRevision_ != revisionNow) {
-			graphRevision_ = revisionNow;
-			graphParameters_.clear();
-			ShaderGraphAsset graph{};
-			nlohmann::json data;
-			const auto path = database.ResolveFullPath(cachedMaterial_.shaderGraph);
-			hasGraphParameters_ = !path.empty() && JsonFile::TryLoad(path, data) && FromJson(data, graph);
+		graphRevision_ = database.GetContentRevision(cachedMaterial_.shaderGraph);
+		if (cachedMaterial_.shaderGraph &&
+			(cachedMaterial_.usage == MaterialUsage::Mesh || cachedMaterial_.usage == MaterialUsage::Particle)) {
+			ShaderGraphAsset graph;
+			hasGraphParameters_ = ShaderGraphAssetReferences::LoadSource(cachedMaterial_.shaderGraph, &database, graph);
 			if (hasGraphParameters_) {
 				graphParameters_ = ShaderGraphParameterDefaults::CollectExposed(graph);
+				ShaderGraphParameterDefaults::ApplyMissing(ShaderGraphParameterDefaults::Build(graph), cachedMaterial_.parameters);
 			}
 		}
 	}
+	if (!cachedMaterialValid_) return nullptr;
 	return context.renderPipeline->FindMaterialDrawReflection(cachedMaterial_);
 }
 

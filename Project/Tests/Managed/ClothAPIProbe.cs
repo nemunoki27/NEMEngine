@@ -19,9 +19,13 @@ public sealed class ClothAPIProbe : MonoBehaviour {
 			cloth.CollisionMask = 0x80000004u;
 			cloth.WindDirection = new Vector3(0.25f, 0, 1);
 			cloth.WindStrength = 4;
+			cloth.WindEnabled = false;
+			cloth.ReceiveSceneWind = true;
+			cloth.WindCollisionMask = 2;
 			cloth.BendCompliance = 0.002f;
 			cloth.Reset();
-			if (cloth.Enabled || cloth.PinMode != ClothPinMode.Fasteners || cloth.Edge != ClothEdge.Top ||
+			if (cloth.WindEnabled || !cloth.ReceiveSceneWind || cloth.WindCollisionMask != 2 ||
+				cloth.Enabled || cloth.PinMode != ClothPinMode.Fasteners || cloth.Edge != ClothEdge.Top ||
 				cloth.Fasteners != 7 || cloth.WindDirection != new Vector3(0.25f, 0, 1) || cloth.WindStrength != 4 ||
 				cloth.BendCompliance != 0.002f || cloth.CollisionMask != 0x80000004u)
 				throw new InvalidOperationException("Clothの設定または衝突レイヤーが一致しません");

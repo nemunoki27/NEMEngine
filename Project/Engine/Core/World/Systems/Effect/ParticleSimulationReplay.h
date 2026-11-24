@@ -28,7 +28,7 @@ namespace Engine {
 
 		void Reset(uint32_t seed, bool oneShot);
 		// 準備途中の結果を公開せず、要求時刻まで同じ呼出し内で評価する
-		void Evaluate(ECSWorld& world, ParticleInstanceState& instance,
+		bool Evaluate(ECSWorld& world, ParticleInstanceState& instance,
 			std::shared_ptr<const ParticleSystemSettings> settings, ParticleSimulationTarget target,
 			const ParticlePhaseParentSettings& parent, bool phaseParent, double time,
 			uint64_t revision, bool suppressFeedback, const TransformSampler& sampleTransform);

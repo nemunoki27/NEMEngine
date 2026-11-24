@@ -7,6 +7,20 @@
 
 namespace Engine::EditorIconButton {
 
+	namespace Playback {
+		inline constexpr char Play[] = "\xef\x81\x8b";
+		inline constexpr char Pause[] = "\xef\x81\x8c";
+		inline constexpr char Stop[] = "\xef\x81\x8d";
+		inline constexpr char Previous[] = "\xef\x81\x93";
+		inline constexpr char Next[] = "\xef\x81\x94";
+		inline constexpr char First[] = "\xef\x81\x88";
+		inline constexpr char Last[] = "\xef\x81\x91";
+		inline constexpr char Resume[] = "\xef\x81\x8e";
+		inline constexpr char Clear[] = "\xef\x8b\xad";
+		inline constexpr char Reset[] = "\xef\x8b\xaa";
+		inline constexpr char EmitOnce[] = "\xef\x83\xa7";
+	}
+
 	struct Colors {
 		ImVec4 normal;
 		ImVec4 hovered;

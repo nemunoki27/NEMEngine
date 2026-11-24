@@ -251,6 +251,61 @@ namespace {
 			second.emitter.particles[0].phaseIndex == 0;
 	}
 
+	bool TestPreviewFrameStep() {
+
+		for (const auto target : {ParticleSimulationTarget::CPU, ParticleSimulationTarget::GPU}) {
+			ECSWorld world(ECSWorldKind::Runtime);
+			const Entity entity = world.CreateEntity();
+			world.AddComponent<TransformComponent>(entity);
+			world.AddComponent<ParticleSystemComponent>(entity);
+			auto& component = world.GetComponent<ParticleSystemComponent>(entity);
+			component.simulationTarget = target;
+			component.playInEditMode = true;
+			component.useAutoRandomSeed = true;
+			auto settings = MakeDefaultParticleSystemSettings();
+			settings.emitter.shape = ParticleEmitterShape::Point;
+			settings.emitter.emitCount = ParticleValue<uint32_t>{2u};
+			settings.phases.front().modules.clear();
+			SetParticleSystemSettings(world, entity, settings);
+			RequestParticleSystemRestart(world, entity, true);
+			ParticleSystem system;
+			SystemContext context;
+			context.mode = WorldMode::Edit;
+			context.deltaTime = context.unscaledDeltaTime = 1.0f / 60.0f;
+			system.Update(world, context);
+			auto* runtime = TryGetParticleSystemRuntime(world, entity);
+			if (!runtime || !runtime->instance.randomInitialized || !runtime->instance.oneShot) return false;
+			const auto seed = runtime->instance.randomSeed;
+			const auto step = [&](int direction) {
+				runtime->previewStep = direction;
+				system.Update(world, context);
+			};
+			step(1);
+			const double time = runtime->previewTime;
+			auto& emitter = runtime->instance.emitter;
+			if (!runtime->paused || emitter.nextParticleID != 2 || std::abs(time - 2.0 / 60) > 1e-8) return false;
+			float age = 0;
+			Vector3 position{};
+			if (target == ParticleSimulationTarget::CPU) {
+				if (emitter.particles.size() != 2) return false;
+				age = emitter.particles[0].age;
+				position = emitter.particles[0].worldPos;
+			}
+			step(-1);
+			if (std::abs(runtime->previewTime - 1.0 / 60) > 1e-8) return false;
+			step(1);
+			if (runtime->previewTime != time || runtime->instance.randomSeed != seed || emitter.nextParticleID != 2) return false;
+			if (target == ParticleSimulationTarget::CPU) {
+				if (emitter.particles.size() != 2 || emitter.particles[0].age != age || emitter.particles[0].worldPos != position) return false;
+			} else if (!emitter.gpu || emitter.gpu->pending.empty() || emitter.gpu->pending.back().randomSequence != 2) return false;
+			step(-1);
+			step(-1);
+			step(-1);
+			if (runtime->previewTime != 0 || !runtime->paused) return false;
+		}
+		return true;
+	}
+
 	bool TestPauseAndParent() {
 
 		ECSWorld world(ECSWorldKind::Runtime);
@@ -411,6 +466,7 @@ bool NEMTests::TestParticleSystemRuntime() {
 		RunTest("TestEmissiveCurrentColor", TestEmissiveCurrentColor) &&
 		RunTest("TestInstanceShapeAndSeed", TestInstanceShapeAndSeed) &&
 		RunTest("TestPauseAndParent", TestPauseAndParent) &&
+		RunTest("TestPreviewFrameStep", TestPreviewFrameStep) &&
 		RunTest("TestEmitterVisibility", TestEmitterVisibility) &&
 		RunTest("TestGPURejectionAndRetry", TestGPURejectionAndRetry) &&
 		RunTest("TestSettingsOwnership", TestSettingsOwnership) &&

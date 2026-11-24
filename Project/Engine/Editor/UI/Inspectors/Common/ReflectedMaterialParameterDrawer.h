@@ -77,7 +77,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	ImGui::SeparatorText("シェーダーパラメータ");
 
 	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, materialID, defaultMaterialID);
-	if (const auto* exposed = materialReflection_.GetParticleGraphParameters()) {
+	if (const auto* exposed = materialReflection_.GetGraphParameters()) {
 		drawField([&]() {
 			return MaterialParameterEditor::DrawGraphOverrides(parameters, materialReflection_.GetMaterial().parameters,
 				*exposed, context.editorContext->assetDatabase);

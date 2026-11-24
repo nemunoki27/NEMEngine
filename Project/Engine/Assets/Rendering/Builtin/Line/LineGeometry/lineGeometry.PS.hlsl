@@ -24,6 +24,13 @@ float4 DebugLine(GSOutput input) : SV_TARGET0 {
 	return color;
 }
 
+float4 HiddenDebugLine(GSOutput input) : SV_TARGET0 {
+
+	float4 color = DebugLine(input);
+	color.a *= 0.25f;
+	return color;
+}
+
 float4 main(GSOutput input) : SV_TARGET0 {
 
 	return ApplyTransparentFog(DebugLine(input), input.position);

@@ -16,10 +16,6 @@
 #include <Engine/Core/Rendering/Particle/Structures/ParticleEmissionClock.h>
 #include <Engine/Core/Rendering/Particle/ParticleSimulationValidation.h>
 
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
-#endif
-
 // c++
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -316,16 +312,6 @@ void Engine::ParticleInstanceUpdater::DrawEmitterShape(const Matrix4x4& emitterW
 		return;
 	}
 
-	LineRenderer3D* renderer = nullptr;
-	if (!is2D) {
-		renderer = LineRenderer::GetInstance()->Get3D();
-		if (renderer) {
-			renderer->SetOccludedMode(true);
-		}
-	}
 	ParticleEmitterShapeRegistry::GetInstance().DrawDebugShape(settings, emitterWorld, is2D);
-	if (renderer) {
-		renderer->SetOccludedMode(false);
-	}
 #endif
 }

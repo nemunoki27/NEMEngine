@@ -14,7 +14,12 @@ void ForceFieldInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelCon
 	DrawField(active, [&]() { return MyGUI::EnumCombo("種類", draft.type); });
 	DrawField(active, [&]() { return MyGUI::DragVector3("軸方向", draft.axis); });
 	DrawField(active, [&]() { return MyGUI::DragFloat("強さ", draft.strength); });
-	DrawField(active, [&]() { return MyGUI::DragFloat("範囲", draft.range, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	DrawField(active, [&]() { return MyGUI::EnumCombo("形状", draft.shape); });
+	if (draft.shape == ParticleFieldShape::Sphere) {
+		DrawField(active, [&]() { return MyGUI::DragFloat("半径", draft.range, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	} else {
+		DrawField(active, [&]() { return MyGUI::DragVector3("サイズ", draft.size, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	}
 	DrawField(active, [&]() { return MyGUI::DragFloat("減衰", draft.falloff, ParticleGUI::MakeDragSetting(0, 16)); });
 }
 
@@ -26,7 +31,12 @@ void VectorFieldInspectorDrawer::DrawFields(const EditorPanelContext& context, [
 	if (draft.preset == ParticleVectorFieldPreset::Asset) DrawField(active, [&]() {
 		return MyGUI::AssetReferenceField("FGA", draft.field, context.editorContext->assetDatabase, {AssetType::DefaultAsset});
 	});
-	DrawField(active, [&]() { return MyGUI::DragVector3("範囲", draft.size, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	DrawField(active, [&]() { return MyGUI::EnumCombo("形状", draft.shape); });
+	if (draft.shape == ParticleFieldShape::Sphere) {
+		DrawField(active, [&]() { return MyGUI::DragFloat("半径", draft.range, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	} else {
+		DrawField(active, [&]() { return MyGUI::DragVector3("サイズ", draft.size, ParticleGUI::MakeDragSetting(0.001f, 100000)); });
+	}
 	DrawField(active, [&]() { return MyGUI::DragFloat("強さ", draft.intensity); });
 	DrawField(active, [&]() { return MyGUI::DragFloat("追従", draft.tightness, ParticleGUI::MakeDragSetting(0, 1)); });
 }

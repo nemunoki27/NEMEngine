@@ -14,6 +14,7 @@ internal static class ScriptServiceLifetime {
     // Assembly終了時の購読と予約を解放する
     internal static void ResetForReload() {
 
+        SerialDevice.CloseAll();
         SceneManager.ResetForReload();
         Application.ResetForReload();
         InputActions.ResetForReload();
@@ -28,6 +29,12 @@ internal static class ScriptServiceLifetime {
     internal static void TickFrame(int phase) {
 
         switch (phase) {
+        case 3:
+            SerialDevice.UpdateAll();
+            break;
+        case 4:
+            SerialDevice.CloseAll();
+            break;
         case 0:
             EventDispatch.FlushDeferred();
             if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }

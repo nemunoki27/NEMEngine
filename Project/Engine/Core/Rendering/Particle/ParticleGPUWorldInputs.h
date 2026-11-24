@@ -31,8 +31,9 @@ namespace Engine {
 		Matrix4x4 vectorToWorld = Matrix4x4::Identity();
 		uint32_t grid[4]{};
 		Vector4 parameters{0, 0, 0, 0};
+		uint32_t shape = 2, padding[3]{};
 	};
-	static_assert(sizeof(ParticleGPUVectorField) == 160);
+	static_assert(sizeof(ParticleGPUVectorField) == 176);
 
 	struct ParticleGPUSplineSample {
 

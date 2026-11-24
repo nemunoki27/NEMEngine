@@ -5,8 +5,14 @@
 //============================================================================
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
+#include <Engine/Core/Rendering/Primitive/ClothGPUSolver.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
+#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Systems/Physics/ClothSystem.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h>
@@ -258,6 +264,109 @@ namespace {
 		return foundFace;
 	}
 
+	bool CheckSimulatedClothGeometry(Engine::GraphicsCore& graphics, Engine::PrimitiveGeometryManager& manager, bool dxr) {
+
+		using namespace Engine;
+		AssetDatabase database;
+		database.Init();
+		if (!database.RebuildMeta({RuntimePaths::GetEngineAssetsRoot() / "Rendering/Builtin/Cloth"})) return false;
+		RenderAssetLibrary assets;
+		assets.Init(&database);
+		PipelineStateCache pipelines;
+		ECSWorld world;
+		ClothSystem system;
+		SystemContext context;
+		context.mode = WorldMode::Play;
+		context.deltaTime = 1.0f / 60.0f;
+		auto& platform = graphics.GetDXObject();
+		context.graphicsPlatform = &platform;
+		context.renderAssetLibrary = &assets;
+		context.assetDatabase = &database;
+		const std::array owners{world.CreateEntity(), world.CreateEntity()};
+		for (size_t i = 0; i < owners.size(); ++i) {
+			const auto owner = owners[i];
+			world.AddComponent<TransformComponent>(owner);
+			auto& plane = world.AddComponent<PrimitiveRendererComponent>(owner);
+			plane.plane.divideX = 12;
+			plane.plane.divideY = 8;
+			world.AddComponent<ClothComponent>(owner);
+			ClothSettings settings;
+			settings.gravityScale = settings.gustStrength = 0.0f;
+			settings.windStrength = 8.0f;
+			settings.windDirection = {0, 0, i == 0 ? 1.0f : -1.0f};
+			SetClothSettings(world, owner, settings);
+		}
+		ComPtr<ID3D12Resource> readback;
+		constexpr size_t bytes = 4 * sizeof(MeshVertex);
+		DxUtils::CreateReadbackBufferResource(platform.GetDevice(), readback, bytes);
+		const auto wait = ScopedCleanup([&]() noexcept { platform.WaitForGPU(); });
+		auto& command = *platform.GetDxCommand();
+		std::array<ID3D12Resource*, 2> blas{};
+		for (int frame = 0; frame < 3; ++frame) {
+			system.Update(world, context);
+			graphics.BeginRenderFrame();
+			graphics.TickFrameServices();
+			manager.BeginFrame();
+			command.SetDescriptorHeaps({graphics.GetSRVDescriptor().GetDescriptorHeap()});
+			ClothSystem::DispatchGPU(world, graphics, assets, pipelines);
+			const auto revision = TryGetCloth(world, owners.front())->runtime.revision;
+			ClothSystem::DispatchGPU(world, graphics, assets, pipelines);
+			bool valid = revision == TryGetCloth(world, owners.front())->runtime.revision;
+			for (size_t i = 0; i < owners.size(); ++i) {
+				const auto& r = TryGetCloth(world, owners[i])->runtime;
+				const auto& plane = world.GetComponent<PrimitiveRendererComponent>(owners[i]);
+				auto* g = manager.Resolve(graphics, plane, &world, owners[i]);
+				if (!r.gpu || !g || g->GetVertexResource() != r.gpu->GetVertexResource() ||
+					g->GetVertexDescriptorIndex() != r.gpu->GetVertexDescriptorIndex()) { valid = false; break; }
+				if (dxr) {
+					if (g->blasBuilt || !manager.EnsureBLAS(platform.GetDevice(), command.GetCommandList(), *g)) { valid = false; break; }
+					valid &= !blas[i] || blas[i] == g->blas.GetResource();
+					blas[i] = g->blas.GetResource();
+					valid &= manager.Resolve(graphics, plane, &world, owners[i])->blasBuilt;
+				}
+				if (frame == 2) {
+					const auto readable = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+					auto* vertexBuffer = g->GetVertexResource();
+					command.TransitionBarriers(vertexBuffer, readable, D3D12_RESOURCE_STATE_COPY_SOURCE);
+					command.GetCommandList()->CopyBufferRegion(readback.Get(), 2 * i * sizeof(MeshVertex), vertexBuffer, 0, sizeof(MeshVertex));
+					command.GetCommandList()->CopyBufferRegion(readback.Get(), (2 * i + 1) * sizeof(MeshVertex), vertexBuffer,
+						(g->vertexCount - 1) * sizeof(MeshVertex), sizeof(MeshVertex));
+					command.TransitionBarriers(vertexBuffer, D3D12_RESOURCE_STATE_COPY_SOURCE, readable);
+				}
+			}
+			graphics.SubmitRenderFrame();
+			graphics.EndRenderFrame();
+			if (!valid) return false;
+		}
+		platform.WaitForGPU();
+		void* mapped = nullptr;
+		const D3D12_RANGE range{0, bytes};
+		if (FAILED(readback->Map(0, &range, &mapped))) return false;
+		const auto* vertices = static_cast<const MeshVertex*>(mapped);
+		const bool moved = std::abs(vertices[0].position.z) < 1e-4f && std::abs(vertices[2].position.z) < 1e-4f &&
+			1e-4f < vertices[1].position.z && vertices[3].position.z < -1e-4f;
+		const D3D12_RANGE empty{};
+		readback->Unmap(0, &empty);
+		if (!moved) return false;
+		const std::weak_ptr<ClothGPUSolver> oldSolver = TryGetCloth(world, owners[0])->runtime.gpu;
+		auto& resized = world.GetComponent<PrimitiveRendererComponent>(owners[0]);
+		resized.plane.divideX = 24;
+		system.Update(world, context);
+		world.DestroyEntity(owners[1]);
+		graphics.BeginRenderFrame();
+		graphics.TickFrameServices();
+		manager.BeginFrame();
+		command.SetDescriptorHeaps({graphics.GetSRVDescriptor().GetDescriptorHeap()});
+		ClothSystem::DispatchGPU(world, graphics, assets, pipelines);
+		const auto* geometry = manager.Resolve(graphics, world.GetComponent<PrimitiveRendererComponent>(owners[0]), &world, owners[0]);
+		const auto* record = TryGetCloth(world, owners[0]);
+		const bool rebuilt = oldSolver.expired() && record->runtime.gpu && geometry && geometry->vertexCount == 25 * 9 &&
+			geometry->GetVertexResource() == record->runtime.gpu->GetVertexResource();
+		graphics.SubmitRenderFrame();
+		graphics.EndRenderFrame();
+		return rebuilt && SUCCEEDED(platform.GetDevice()->GetDeviceRemovedReason());
+	}
+
 	bool TestTriangleWinding() {
 
 		using namespace Engine;
@@ -387,5 +496,5 @@ bool NEMTests::TestClothGeometryGPU() {
 		if (!valid) return false;
 	}
 	platform.WaitForGPU();
-	return SUCCEEDED(platform.GetDevice()->GetDeviceRemovedReason());
+	return SUCCEEDED(platform.GetDevice()->GetDeviceRemovedReason()) && CheckSimulatedClothGeometry(graphics, manager, dxr);
 }

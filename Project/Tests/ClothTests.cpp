@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -162,6 +163,52 @@ namespace {
 		return !TryGetCloth(world, first) && !TryGetCloth(world, second)->runtime.mesh.vertices.empty();
 	}
 
+	bool TestSceneWind() {
+
+		for (auto shape : {ParticleFieldShape::Sphere, ParticleFieldShape::AABB, ParticleFieldShape::OBB}) {
+			ECSWorld world;
+			const auto emitter = world.CreateEntity(), cloth = world.CreateEntity();
+			world.AddComponent<TransformComponent>(emitter);
+			world.AddComponent<ForceFieldComponent>(emitter);
+			world.AddComponent<VectorFieldComponent>(emitter);
+			auto& force = world.GetComponent<ForceFieldComponent>(emitter);
+			force.type = ParticleForceFieldType::Wind;
+			force.shape = shape;
+			force.axis = {0, 0, -1};
+			force.strength = 25;
+			force.layerMask = 2;
+			auto& vector = world.GetComponent<VectorFieldComponent>(emitter);
+			vector.shape = shape;
+			vector.intensity = 25;
+			vector.layerMask = 4;
+			world.AddComponent<TransformComponent>(cloth);
+			world.AddComponent<PrimitiveRendererComponent>(cloth);
+			world.AddComponent<ClothComponent>(cloth);
+			ClothSettings s;
+			s.gravityScale = 0;
+			s.windEnabled = false;
+			s.collisionMask = 0;
+			SystemContext context;
+			context.mode = WorldMode::Play;
+			context.deltaTime = 1.0f / 60;
+			ClothSystem system;
+			const auto displacement = [&](uint32_t mask) {
+				s.windCollisionMask = mask;
+				SetClothSettings(world, cloth, s);
+				ResetCloth(world, cloth);
+				system.Update(world, context);
+				const auto& r = TryGetCloth(world, cloth)->runtime;
+				return r.positions.back().z - r.rest.back().z;
+			};
+			if (std::abs(displacement(6)) > 1e-5f) return false;
+			s.receiveSceneWind = true;
+			if (std::abs(displacement(1)) > 1e-5f || displacement(2) >= -0.001f || displacement(4) <= 0.001f) return false;
+			world.GetComponent<TransformComponent>(emitter).localPos = {100, 100, 100};
+			if (std::abs(displacement(6)) > 1e-5f) return false;
+		}
+		return true;
+	}
+
 	bool SampleFlag(int frameRate, std::vector<Vector3>& positions) {
 
 		ECSWorld world;
@@ -200,6 +247,9 @@ namespace {
 		const nlohmann::json saved = record->settings;
 		auto legacy = saved;
 		legacy.erase("collisionMask");
+		legacy.erase("windCollisionMask");
+		legacy.erase("receiveSceneWind");
+		legacy.erase("windEnabled");
 		legacy["colliders"] = nlohmann::json::array();
 		if (nlohmann::json(legacy.get<ClothSettings>()) != saved || saved.contains("colliders")) return false;
 		auto copy = world.CloneForSerialization();
@@ -213,6 +263,10 @@ namespace {
 
 bool NEMTests::TestCloth() {
 
+	if (!TestSceneWind()) {
+		std::cerr << "Cloth scene wind filtering failed\n";
+		return false;
+	}
 	if (!TestContacts()) {
 		std::cerr << "Cloth collider projection failed\n";
 		return false;

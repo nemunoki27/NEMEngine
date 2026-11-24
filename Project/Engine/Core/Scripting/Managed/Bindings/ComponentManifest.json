@@ -874,6 +874,24 @@
           "value": 2
         }
       ]
+    },
+    {
+      "managedType": "ParticleFieldShape",
+      "nativeType": "ParticleFieldShape",
+      "members": [
+        {
+          "name": "Sphere",
+          "value": 0
+        },
+        {
+          "name": "AABB",
+          "value": 1
+        },
+        {
+          "name": "OBB",
+          "value": 2
+        }
+      ]
     }
   ],
   "components": [
@@ -5384,6 +5402,28 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 1
+        },
+        {
+          "managedName": "shape",
+          "nativeMember": "shape",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 7,
+          "enumType": "ParticleFieldShape"
+        },
+        {
+          "managedName": "size",
+          "nativeMember": "size",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "id": 8
+        },
+        {
+          "managedName": "drawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 9
         }
       ]
     },
@@ -5449,6 +5489,28 @@
           "kind": "Bool",
           "access": "ReadWrite",
           "id": 0
+        },
+        {
+          "managedName": "shape",
+          "nativeMember": "shape",
+          "kind": "Enum",
+          "access": "ReadWrite",
+          "id": 7,
+          "enumType": "ParticleFieldShape"
+        },
+        {
+          "managedName": "range",
+          "nativeMember": "range",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "id": 8
+        },
+        {
+          "managedName": "drawDebug",
+          "nativeMember": "drawDebug",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "id": 9
         }
       ]
     },

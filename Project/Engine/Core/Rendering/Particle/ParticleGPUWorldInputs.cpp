@@ -73,9 +73,11 @@ void ParticleGPUWorldInputCache::BeginFrame(const ECSWorld& world, float deltaTi
 		const TransformComponent& transform) {
 		if (!component.enabled || !IsEntityActiveInHierarchy(world, entity)) return;
 		ParticleGPUForceField field;
-		if (!Matrix4x4::TryInverse(transform.worldMatrix, field.worldToLocal)) return;
-		field.parameters = Vector4(component.strength, component.range, component.falloff, static_cast<float>(component.type));
-		field.axis = Pack(Vector3::NormalizeOr(Vector3::TransferNormal(component.axis, transform.worldMatrix), Vector3(0, 1, 0)));
+		ParticleFieldBounds bounds;
+		if (!bounds.Build(component.shape, component.range, component.size, transform.worldMatrix) ||
+			!Matrix4x4::TryInverse(bounds.UnitToWorld(), field.worldToLocal)) return;
+		field.parameters = Vector4(component.strength, 1.0f, component.falloff, static_cast<float>(component.type));
+		field.axis = Pack(Vector3::NormalizeOr(Vector3::TransferNormal(component.axis, transform.worldMatrix), Vector3(0, 1, 0)), static_cast<float>(component.shape));
 		field.metadata[0] = component.layerMask;
 		const auto center = transform.worldMatrix.GetTranslationValue();
 		field.metadata[1] = std::bit_cast<uint32_t>(center.x);
@@ -87,12 +89,15 @@ void ParticleGPUWorldInputCache::BeginFrame(const ECSWorld& world, float deltaTi
 		const TransformComponent& transform) {
 		if (!component.enabled || !IsEntityActiveInHierarchy(world, entity)) return;
 		Matrix4x4 inverse;
-		if (!Matrix4x4::TryInverse(transform.worldMatrix, inverse)) return;
+		ParticleFieldBounds bounds;
+		if (!bounds.Build(component.shape, component.range, component.size, transform.worldMatrix) ||
+			!Matrix4x4::TryInverse(bounds.UnitToWorld(), inverse)) return;
 		ParticleGPUVectorField field;
+		field.shape = static_cast<uint32_t>(component.shape);
 		field.vectorToWorld = transform.worldMatrix;
 		field.parameters = Vector4(component.intensity, component.tightness,
 			static_cast<float>(component.preset), std::bit_cast<float>(component.layerMask));
-		field.worldToGrid = MakeGridTransform(inverse, component.size * -0.5f, component.size * 0.5f);
+		field.worldToGrid = MakeGridTransform(inverse, Vector3::AnyInit(-1), Vector3::AnyInit(1));
 		if (component.preset == ParticleVectorFieldPreset::Asset) {
 			const auto data = loaders.vectorField ? loaders.vectorField(component.field) : nullptr;
 			if (loaders.diagnostic && frame_.diagnostic.empty()) frame_.diagnostic = loaders.diagnostic(component.field);

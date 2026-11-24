@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Animation/Timeline/TimelineControl.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/RendererRenderSettingsFields.h>
 #include <Engine/Editor/UI/Inspectors/Common/TimeSourceFields.h>
@@ -113,17 +114,22 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	PushEditResult({.valueChanged = changed, .anyItemActive = active, .editFinished = changed && !active}, anyItemActive);
 	if (!status_.empty()) MyGUI::Text("設定状態", status_);
 	ImGui::Separator();
-	constexpr InspectorPlaybackAction actions[]{InspectorPlaybackAction::Play, InspectorPlaybackAction::EmitOnce,
-		InspectorPlaybackAction::Pause, InspectorPlaybackAction::Stop, InspectorPlaybackAction::Clear};
-	switch (DrawInspectorPlaybackControls(context.IsPlaying() || draft.playInEditMode, false, actions)) {
-	case InspectorPlaybackAction::Play: RequestParticleSystemPlay(world, entity); break;
-	case InspectorPlaybackAction::EmitOnce: RequestParticleSystemRestart(world, entity, true); break;
-	case InspectorPlaybackAction::Pause: RequestParticleSystemPause(world, entity); break;
-	case InspectorPlaybackAction::Stop: RequestParticleSystemStop(world, entity); break;
-	case InspectorPlaybackAction::Clear: RequestParticleSystemClear(world, entity); break;
+	using Action = InspectorPlaybackAction;
+	constexpr Action actions[]{Action::PreviousFrame, Action::Play, Action::NextFrame, Action::EmitOnce,
+		Action::Pause, Action::Stop, Action::Clear};
+	auto* runtime = TryGetParticleSystemRuntime(world, entity);
+	const bool canStep = !context.IsPlaying() && draft.playInEditMode && draft.enabled && runtime &&
+		!IsTimelineControlled(world, entity, "ParticleSystem");
+	switch (DrawInspectorPlaybackControls(context.IsPlaying() || draft.playInEditMode, false, actions, canStep)) {
+	case Action::PreviousFrame: --runtime->previewStep; break;
+	case Action::NextFrame: ++runtime->previewStep; break;
+	case Action::Play: RequestParticleSystemPlay(world, entity); break;
+	case Action::EmitOnce: RequestParticleSystemRestart(world, entity, true); break;
+	case Action::Pause: RequestParticleSystemPause(world, entity); break;
+	case Action::Stop: RequestParticleSystemStop(world, entity); break;
+	case Action::Clear: RequestParticleSystemClear(world, entity); break;
 	default: break;
 	}
-	const auto* runtime = TryGetParticleSystemRuntime(world, entity);
 	const char* state = GetInspectorPlaybackState(IsParticleSystemPlaying(world, entity), runtime && runtime->paused);
 	if (runtime && !runtime->paused && !IsParticleSystemPlaying(world, entity) && IsParticleSystemAlive(world, entity)) state = "停止処理中";
 	MyGUI::Text(GetInspectorLabel(InspectorFieldID::PlaybackState), state);

@@ -7,6 +7,8 @@
 
 namespace Engine {
 
+	class ECSWorld;
+
 	//============================================================================
 	//	ParticleEmitterDebugDraw class
 	//	発生形状の補助線をEditorで描画する
@@ -16,6 +18,8 @@ namespace Engine {
 		//========================================================================
 		//	public Methods
 		//========================================================================
+
+		static void DrawFieldBounds(ECSWorld& world);
 
 		// 発生形状に対応する補助線を描く
 		static void Draw(const ParticleEmitterSettings& settings,

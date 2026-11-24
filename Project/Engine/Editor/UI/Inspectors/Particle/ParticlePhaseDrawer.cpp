@@ -56,7 +56,7 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 	const ImVec2 buttonSize(buttonWidth, 0.0f);
 	if (ImGui::Button("追加##Phase", buttonSize)) {
 		ParticlePhaseSettings phase;
-		phase.name = "フェーズ" + std::to_string(group.phases.size() + 1);
+		phase.name = "Phase" + std::to_string(group.phases.size() + 1);
 		group.phases.push_back(std::move(phase));
 		editorState.moduleCache.emplace_back();
 		selected = static_cast<int32_t>(group.phases.size()) - 1;
@@ -89,7 +89,7 @@ bool ParticlePhaseDrawer::Draw(const EditorPanelContext& context,
 	ParticlePhaseSettings& phase = group.phases[selected];
 	changed |= MyGUI::InputText("名前", phase.name).valueChanged;
 	changed |= ParticleGUI::DrawParticleValueFloat("寿命", phase.lifetime, MakeDragSetting(0.001f, 600.0f));
-	changed |= MyGUI::EnumCombo("寿命終了時", phase.lifeEndMode).valueChanged;
+	changed |= MyGUI::EnumCombo("寿命終了時の挙動", phase.lifeEndMode).valueChanged;
 	AssetEditSetting setting{};
 	changed |= MyGUI::AssetReferenceField("マテリアル", phase.material,
 		context.editorContext->assetDatabase, {AssetType::Material}, setting).valueChanged;
@@ -142,8 +142,8 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		for (const auto& descriptor : ParticleModuleRegistry::GetInstance().GetDescriptors()) {
 			if (gpu && !IsParticleGPUModuleSupported(descriptor.id)) continue;
 			if (!gpu && IsParticleModuleGPUOnly(descriptor.id)) continue;
-			if (!addModuleSearchFilter_.Matches(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) continue;
-			if (ImGui::MenuItem(ImGuiUtility::GetDisplayName(descriptor.id.c_str()))) {
+			if (!addModuleSearchFilter_.Matches(descriptor.id.c_str())) continue;
+			if (ImGui::MenuItem(descriptor.id.c_str())) {
 				ParticleModuleEntry entry;
 				entry.id = descriptor.id;
 				entry.params = ParticleModuleRegistry::GetInstance().Create(descriptor.typeID)->ToJson();
@@ -164,7 +164,7 @@ bool ParticlePhaseDrawer::DrawPhaseModules(const EditorPanelContext& context,
 		// CPU用の設定は保持し、GPUでは対応するModuleだけを表示する
 		if (gpu && !IsParticleGPUModuleSupported(entry.id)) continue;
 		ImGui::PushID(ToString(entry.instanceID).c_str());
-		const bool open = MyGUI::CollapsingHeader(ImGuiUtility::GetDisplayName(entry.id.c_str()), false);
+		const bool open = MyGUI::CollapsingHeader(entry.id.c_str(), false);
 		if (ImGui::BeginPopupContextItem()) {
 			if (ImGui::MenuItem("上へ", nullptr, false, i > 0)) { from = i; to = i - 1; }
 			if (ImGui::MenuItem("下へ", nullptr, false, i + 1 < static_cast<int32_t>(phase.modules.size()))) { from = i; to = i + 1; }

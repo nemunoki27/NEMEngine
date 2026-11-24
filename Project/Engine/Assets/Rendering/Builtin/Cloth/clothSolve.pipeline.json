@@ -1,0 +1,10 @@
+{
+  "name": "ClothSolvePipeline",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d4153534554636c6f7468000002"
+    }
+  ]
+}

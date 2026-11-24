@@ -9,7 +9,11 @@
 
 namespace Engine {
 
+	struct EditorContext;
+	struct EditorState;
+	struct ResolvedRenderView;
 	struct EditorPanelContext;
+	void DrawLogicPlacementPreview3D(const EditorContext& context, const EditorState& state, const ResolvedRenderView& view);
 	class ECSWorldLifetime;
 
 	// シーンへ保存しない配置候補の表示状態

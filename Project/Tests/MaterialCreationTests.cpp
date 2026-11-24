@@ -15,6 +15,7 @@
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterDefaults.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
@@ -143,7 +144,35 @@ bool NEMTests::TestMaterialReflectionCache() {
 		return false;
 	}
 	// 同じ更新番号でも失敗した読込は再試行する
-	return matches(7.0f);
+	if (!matches(7.0f)) return false;
+
+	// 描画パスの生成前でも、Meshの編集欄はグラフの公開設定に追従する
+	const auto graphPath = directory.GetPath() / "Mesh.shadergraph.json";
+	auto graph = CreateDefaultSurfaceShaderGraph("Mesh");
+	ShaderGraphParameter parameter;
+	parameter.id = Engine::UUID::New();
+	parameter.name = parameter.referenceName = "RimPower";
+	parameter.exposed = true;
+	parameter.defaultValue.value = 3.0f;
+	graph.parameters.push_back(parameter);
+	if (!JsonFile::Save(graphPath, ToJson(graph))) return false;
+	MaterialAsset mesh;
+	mesh.usage = MaterialUsage::Mesh;
+	mesh.shaderGraph = replacement.ImportOrGet(RuntimePaths::ToAssetPath(graphPath), AssetType::ShaderGraph);
+	if (!mesh.shaderGraph || !JsonFile::Save(path, ToJson(mesh))) return false;
+	replacement.NotifyContentChanged(id);
+	cache.EnsureReflection(context, id, {});
+	const auto* exposed = cache.GetGraphParameters();
+	const auto* rim = cache.GetMaterial().parameters.FindByName("RimPower");
+	if (!exposed || exposed->size() != 1 || exposed->front() != MaterialParameterID::FromUUID(parameter.id) ||
+		!rim || std::get<float>(rim->value) != 3.0f) return false;
+
+	graph.parameters.front().exposed = false;
+	if (!JsonFile::Save(graphPath, ToJson(graph))) return false;
+	replacement.NotifyContentChanged(mesh.shaderGraph);
+	cache.EnsureReflection(context, id, {});
+	exposed = cache.GetGraphParameters();
+	return exposed && exposed->empty();
 }
 
 bool NEMTests::TestMaterialAssetHistory() {

@@ -42,20 +42,20 @@ void TimelineTool::DrawToolbar(const EditorToolContext& context) {
 	}
 	ImGui::SameLine();
 	if (available > 520.0f) {
-		if (EditorIconButton::Draw("First", "\xef\x81\x88", "先頭へ Shift+,", false, size)) session_.Seek(context, 0.0);
+		if (EditorIconButton::Draw("First", EditorIconButton::Playback::First, "先頭へ Shift+,", false, size)) session_.Seek(context, 0.0);
 		ImGui::SameLine();
-		if (EditorIconButton::Draw("Previous", "\xef\x81\x93", "前のフレーム ,", false, size)) session_.Step(context, -1);
+		if (EditorIconButton::Draw("Previous", EditorIconButton::Playback::Previous, "前のフレーム ,", false, size)) session_.Step(context, -1);
 		ImGui::SameLine();
 	}
-	if (EditorIconButton::Draw("Play", session_.playing ? "\xef\x81\x8c" : "\xef\x81\x8b",
+	if (EditorIconButton::Draw("Play", session_.playing ? EditorIconButton::Playback::Pause : EditorIconButton::Playback::Play,
 		session_.playing ? "一時停止 Space" : "再生 Space", session_.playing, size)) session_.TogglePlayback(context);
 	ImGui::SameLine();
 	if (available > 520.0f) {
-		if (EditorIconButton::Draw("Next", "\xef\x81\x94", "次のフレーム .", false, size)) session_.Step(context, 1);
+		if (EditorIconButton::Draw("Next", EditorIconButton::Playback::Next, "次のフレーム .", false, size)) session_.Step(context, 1);
 		ImGui::SameLine();
-		if (EditorIconButton::Draw("Last", "\xef\x81\x91", "末尾へ Shift+.", false, size)) session_.Seek(context, session_.GetAsset().duration);
+		if (EditorIconButton::Draw("Last", EditorIconButton::Playback::Last, "末尾へ Shift+.", false, size)) session_.Seek(context, session_.GetAsset().duration);
 		ImGui::SameLine();
-		if (EditorIconButton::Draw("Stop", "\xef\x81\x8d", "停止してプレビュー前の状態へ戻す", false, size)) session_.StopPlayback(context);
+		if (EditorIconButton::Draw("Stop", EditorIconButton::Playback::Stop, "停止してプレビュー前の状態へ戻す", false, size)) session_.StopPlayback(context);
 		ImGui::SameLine();
 	}
 	if (available > 440.0f) {

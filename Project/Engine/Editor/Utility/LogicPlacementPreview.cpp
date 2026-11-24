@@ -5,12 +5,51 @@
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
+#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
-#include <array>
+#include <algorithm>
 #include <cmath>
-#include <numbers>
 
 using namespace Engine;
+
+namespace {
+
+	bool IsVisible(const LogicPlacementPreview& preview, const EditorContext& context, const EditorState& state) {
+		if (preview.requestedFrame < ImGui::GetFrameCount() - 1 || preview.lifetime.lock() != context.activeWorld->GetLifetime() ||
+			preview.scene != context.activeSceneInstanceID || !preview.layout || !preview.layout->IsValid()) return false;
+		if (preview.owner && (!context.activeWorld->IsAlive(state.selectedEntity) ||
+			context.activeWorld->GetUUID(state.selectedEntity) != preview.owner)) return false;
+		return true;
+	}
+}
+
+void Engine::DrawLogicPlacementPreview3D(const EditorContext& context, const EditorState& state, const ResolvedRenderView& view) {
+
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	if (context.isPlaying || !context.activeWorld || !view.perspective.valid || !view.width) return;
+	const bool requested = std::any_of(state.logicPlacementPreviews.begin(), state.logicPlacementPreviews.end(),
+		[&](const auto& preview) { return !preview.is2D && IsVisible(preview, context, state); });
+	if (!requested) return;
+	const auto& projection = view.perspective.matrices.viewProjectionMatrix;
+	Matrix4x4 inverse;
+	if (!Matrix4x4::TryInverse(projection, inverse)) return;
+	auto* renderer = LineRenderer::GetInstance()->Get3D();
+	for (const auto& preview : state.logicPlacementPreviews) {
+		if (preview.is2D || !IsVisible(preview, context, state)) continue;
+		const Color4 color = Color4::FromHex(preview.owner ? 0xffbe41ff : 0x41d2f0ff);
+		for (const auto& line : preview.layout->lines)
+			renderer->DrawLine(Vector3::Transform(line.from, preview.transform), Vector3::Transform(line.to, preview.transform), color, 1.5f);
+		for (const auto& point : preview.layout->points) {
+			const auto position = Vector3::Transform(point.position, preview.transform);
+			auto ndc = Vector3::Transform(position, projection);
+			if (!(0 <= ndc.z && ndc.z <= 1)) continue;
+			ndc.x += 8.0f / view.width;
+			const float radius = (Vector3::Transform(ndc, inverse) - position).Length();
+			if (std::isfinite(radius)) renderer->DrawSphere(position, radius, color);
+		}
+	}
+#endif
+}
 
 void Engine::SubmitLogicPlacementPreview(const EditorPanelContext& context, std::shared_ptr<const LogicPlacementResult> layout,
 	const Matrix4x4& transform, bool is2D, UUID splineOwner) {
@@ -34,16 +73,10 @@ void Engine::DrawLogicPlacementPreview(const EditorPanelContext& context, ImVec2
 	auto* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
 	for (const auto& preview : context.editorState->logicPlacementPreviews) {
-		if (preview.requestedFrame < ImGui::GetFrameCount() - 1 || preview.lifetime.lock() != world->GetLifetime() ||
-			preview.scene != context.editorContext->activeSceneInstanceID || !preview.layout || !preview.layout->IsValid()) continue;
-		if (preview.owner && (!world->IsAlive(context.editorState->selectedEntity) ||
-			world->GetUUID(context.editorState->selectedEntity) != preview.owner)) continue;
-		const auto* camera = context.sceneRenderView->FindCamera(preview.is2D ?
-			RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective);
+		if (!preview.is2D || !IsVisible(preview, *context.editorContext, *context.editorState)) continue;
+		const auto* camera = context.sceneRenderView->FindCamera(RenderCameraDomain::Orthographic);
 		if (!camera || !camera->valid) continue;
 		const auto& projection = camera->matrices.viewProjectionMatrix;
-		Matrix4x4 inverse;
-		if (!Matrix4x4::TryInverse(projection, inverse)) continue;
 		const auto project = [&](Vector3 position, ImVec2& screen) {
 			const float w = position.x * projection.m[0][3] + position.y * projection.m[1][3] +
 				position.z * projection.m[2][3] + projection.m[3][3];
@@ -86,20 +119,7 @@ void Engine::DrawLogicPlacementPreview(const EditorPanelContext& context, ImVec2
 			ImVec2 screen;
 			if (!project(position, screen) || screen.x < imagePosition.x - 8 || screen.y < imagePosition.y - 8 ||
 				screen.x > imagePosition.x + imageSize.x + 8 || screen.y > imagePosition.y + imageSize.y + 8) continue;
-			if (preview.is2D) { draw->AddCircle(screen, 4, color, 16, 1.5f); continue; }
-			auto ndc = Vector3::Transform(position, projection);
-			ndc.x += 8 / imageSize.x;
-			const float radius = (Vector3::Transform(ndc, inverse) - position).Length();
-			if (!std::isfinite(radius)) continue;
-			const std::array<Vector3, 3> axes{{{radius, 0, 0}, {0, radius, 0}, {0, 0, radius}}};
-			for (size_t plane = 0; plane < axes.size(); ++plane) for (int32_t segment = 0; segment < 16; ++segment) {
-				const float a = static_cast<float>(std::numbers::pi * 2 * segment / 16);
-				const float b = static_cast<float>(std::numbers::pi * 2 * (segment + 1) / 16);
-				ImVec2 from, to;
-				if (project(position + axes[plane] * std::cos(a) + axes[(plane + 1) % 3] * std::sin(a), from) &&
-					project(position + axes[plane] * std::cos(b) + axes[(plane + 1) % 3] * std::sin(b), to))
-					draw->AddLine(from, to, color);
-			}
+			draw->AddCircle(screen, 4, color, 16, 1.5f);
 		}
 	}
 	draw->PopClipRect();

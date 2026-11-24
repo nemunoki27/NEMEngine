@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/EditorIconButton.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -338,13 +339,21 @@ void Engine::AnimationClipTool::DrawEditAssetUI(const EditorToolContext& context
 			.maxValue = 8.0f,
 			.reserveRightWidth = ImGui::GetContentRegionAvail().x / 2.0f});
 
-	// 再生/ポーズボタン
-	if (ImGui::Button(session_.GetPreviewPlaying() ? "ポーズ" : "再生", ImVec2(100.f, ImGui::GetFrameHeight()))) {
-		session_.TogglePreviewPlayback(context);
-	}
+	using namespace EditorIconButton::Playback;
+	const ImVec2 size((std::min)(100.0f, MyGUI::CalcEqualItemWidth(4)), ImGui::GetFrameHeight());
+	const auto step = [&](int frames) {
+		if (session_.GetPreviewPlaying()) session_.TogglePreviewPlayback(context);
+		session_.GetPreviewTime() = std::clamp(session_.GetPreviewTime() + frames / 60.0f, 0.0f, session_.GetClip().duration);
+		session_.GetCurveState().currentTime = session_.GetPreviewTime();
+		session_.ApplyPreviewAtCurrentTime(context, true);
+	};
+	if (EditorIconButton::Draw("Previous", Previous, "前のフレーム", false, size)) step(-1);
 	ImGui::SameLine();
-	// 停止ボタン
-	if (ImGui::Button("停止", ImVec2(100.f, ImGui::GetFrameHeight()))) {
-		session_.StopPreviewPlayback(context);
-	}
+	const bool playing = session_.GetPreviewPlaying();
+	if (EditorIconButton::Draw("Play", playing ? Pause : Play, playing ? "一時停止" : "再生", playing, size))
+		session_.TogglePreviewPlayback(context);
+	ImGui::SameLine();
+	if (EditorIconButton::Draw("Next", Next, "次のフレーム", false, size)) step(1);
+	ImGui::SameLine();
+	if (EditorIconButton::Draw("Stop", Stop, "停止", false, size)) session_.StopPreviewPlayback(context);
 }

@@ -1,0 +1,11 @@
+{
+  "name": "ClothSolve",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d4153534554636c6f7468000001",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

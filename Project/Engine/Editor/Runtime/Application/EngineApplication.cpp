@@ -2,6 +2,7 @@
 #include <Engine/Core/Audio/AudioSystem.h>
 #include "EditorRenderBenchmark.h"
 #include <Engine/Editor/Utility/ViewportImageFile.h>
+#include <Engine/Editor/UI/Inspectors/Particle/ParticleEmitterDebugDraw.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
@@ -177,6 +178,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			playSession_->PauseForScriptException();
 		}
 	}
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	if (auto* world = GetActiveWorld()) ParticleEmitterDebugDraw::DrawFieldBounds(*world);
+#endif
 	// Script例外による停止も、安全地点でゲーム音声へ反映する
 	ApplicationPreloadContext preload{assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
 		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
@@ -236,7 +240,7 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 		if (!editorManager_.GetLayoutState().hidePanels) {
 
 			// SceneViewに重ねる選択エンティティのデバッグラインを、SceneView描画前に積む
-			editorManager_.DrawSceneDebugObjects(editorContext_);
+			editorManager_.DrawSceneDebugObjects(editorContext_, renderPipeline_->GetResolvedView(RenderViewKind::Scene));
 		}
 	}
 

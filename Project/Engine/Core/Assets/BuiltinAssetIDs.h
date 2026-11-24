@@ -88,6 +88,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultPrimitiveEditorPicking{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f619ull };
 		inline constexpr AssetID DefaultPrimitive2D{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f615ull };
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
+		inline constexpr AssetID ClothSolve{ 0x4e454d4153534554ull, 0x636c6f7468000003ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0x4e454d4153534554ull, 0xe0400afbd444f5d6ull };
 		inline constexpr AssetID InclusiveScan{ 0x4e454d4153534554ull, 0x7363616e00000003ull };
@@ -186,7 +187,7 @@ namespace Engine::BuiltinAssets {
 			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
 			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
 			Materials::DefaultParticle, Materials::DefaultParticle2D, Materials::DefaultTrail, Materials::DefaultBeam,
-			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
+			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::ClothSolve, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::DefaultMeshZPrepass,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
 			Pipelines::ParticleGPUExtendedSimulate, Pipelines::ParticleGPUEventPrepare, Pipelines::ParticleGPUPaint, Pipelines::ParticleGPUImpactDecal,

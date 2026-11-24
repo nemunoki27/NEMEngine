@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 
 // c++
+#include <bit>
 #include <cmath>
 #include <cstring>
 
@@ -21,7 +22,7 @@ bool NEMTests::CheckParticleWorldGPU(ParticleGPUFixture& fixture) {
 	resources.Init(fixture.device.Get(), fixture.descriptors, fixture.retirement);
 	StructuredRWBuffer<Vector4> results;
 	results.Init(fixture.device.Get(), &fixture.descriptors);
-	results.EnsureCapacity(22);
+	results.EnsureCapacity(30);
 	auto snapshot = std::make_shared<ParticleGPUWorldSnapshot>();
 	ParticleGPUCollider sphere;
 	sphere.metadata[0] = sphere.metadata[1] = 1;
@@ -42,7 +43,20 @@ bool NEMTests::CheckParticleWorldGPU(ParticleGPUFixture& fixture) {
 	ParticleGPUVectorField field;
 	field.grid[0] = field.grid[1] = field.grid[2] = 2;
 	field.parameters.z = 2;
-	snapshot->vectorFields.push_back(field);
+	for (uint32_t shape = 0; shape < 3; ++shape) {
+		const uint32_t mask = 1u << shape;
+		field.shape = shape;
+		field.parameters.x = 1;
+		field.parameters.w = std::bit_cast<float>(mask);
+		field.worldToGrid = Matrix4x4::MakeScaleMatrix(Vector3::AnyInit(0.5f)) * Matrix4x4::MakeTranslateMatrix(Vector3::AnyInit(0.5f));
+		snapshot->vectorFields.push_back(field);
+		ParticleGPUForceField force;
+		force.metadata[0] = mask;
+		force.parameters = Vector4(1, 1, 0, 3);
+		force.axis = Vector4(1, 0, 0, static_cast<float>(shape));
+		snapshot->forces.push_back(force);
+	}
+	snapshot->constants.counts[0] = snapshot->constants.counts[1] = 3;
 	snapshot->vectorSamples.resize(8, Vector4(1, 2, 3, 0));
 	snapshot->splineRanges.push_back({0, 2, 2, 0});
 	snapshot->splineSamples.push_back({Vector4(0, 0, 0, 0), Vector4(1, 0, 0, 0)});
@@ -61,9 +75,11 @@ bool NEMTests::CheckParticleWorldGPU(ParticleGPUFixture& fixture) {
 			commands->Dispatch(1, 1, 1);
 			fixture.commands.UAVBarrierAll();
 			results.Transition(fixture.commands, D3D12_RESOURCE_STATE_COPY_SOURCE);
-			const auto bytes = fixture.ReadResource(results.GetResource(), sizeof(Vector4) * 22);
-			Vector4 actual[22];
+			const auto bytes = fixture.ReadResource(results.GetResource(), sizeof(Vector4) * 30);
+			Vector4 actual[30];
 			std::memcpy(actual, bytes.data(), sizeof(actual));
+			if (actual[22].x != 0 || actual[24].x != 1 || actual[26].x != 1 || actual[28].x != 0 ||
+				actual[23].z != 0 || std::abs(actual[25].z - 3) > 0.0001f || std::abs(actual[27].z - 3) > 0.0001f || actual[29].z != 0) return false;
 			const float times[]{0.4375f, 0.25f, 0.25f, 1.0f / 3.0f, 0.125f, 0.4375f, 0.25f};
 			for (uint32_t i = 0; i < 7; ++i)
 				if (actual[i * 2 + 1].w != 1 || std::abs(actual[i * 2].x - times[i]) > 0.0005f) return false;

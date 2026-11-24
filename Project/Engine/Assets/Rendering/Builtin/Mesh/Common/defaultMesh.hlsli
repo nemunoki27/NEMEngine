@@ -62,7 +62,7 @@ StructuredBuffer<MeshPackedVertex> gPackedVertices : register(t0);
 StructuredBuffer<uint> gIndices : register(t1);
 StructuredBuffer<uint> gVertexSubMeshIndices : register(t9);
 StructuredBuffer<MeshInstance> gMeshInstances : register(t2);
-StructuredBuffer<MeshVertex> gSkinnedVertices : register(t4, space1);
+StructuredBuffer<MeshVertex> gSkinnedVertices : register(t9, space1);
 StructuredBuffer<MeshPackedVertex> gSkinnedPackedVertices : register(t6, space1);
 StructuredBuffer<MeshletDrawDesc> gMeshlets : register(t0, space1);
 StructuredBuffer<uint> gMeshletVertexIndices : register(t1, space1);

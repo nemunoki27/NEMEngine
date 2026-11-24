@@ -1,4 +1,5 @@
 #include "RenderPipelineRunner.h"
+#include <Engine/Core/World/Systems/Physics/ClothSystem.h>
 
 //============================================================================
 //	include
@@ -243,6 +244,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// GPU計測を開始し、前frameの結果を反映する
 	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(), graphicsCore.GetDXObject().GetResourceRetirement());
+
+	ClothSystem::DispatchGPU(*request.world, graphicsCore, renderAssetLibrary_, pipelineStateCache_);
 
 	// 描画アイテムの抽出
 	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, &assetReloadService_);

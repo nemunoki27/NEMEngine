@@ -16,8 +16,8 @@ namespace {
 	// 共有する場と衝突対象のマスクを選ぶ
 	bool DrawLayerMask(const EditorPanelContext& context, uint32_t& mask, bool collision = false) {
 
-		return DrawInspectorMask(context, collision ? "衝突対象マスク" : "対象作用グループ", mask,
-			collision ? InspectorMaskDomain::Collision : InspectorMaskDomain::Particle).valueChanged;
+		return DrawInspectorMask(context, collision ? "衝突対象マスク" : "対象の衝突タイプ", mask,
+			InspectorMaskDomain::Collision).valueChanged;
 	}
 
 	// 保存参照を保ちながらHierarchyのEntityで編集する
@@ -73,7 +73,7 @@ namespace {
 		if (settings.sceneColliders || settings.heightmap) {
 			changed |= DrawLayerMask(context, settings.layerMask, settings.sceneColliders);
 			if (settings.sceneColliders && settings.heightmap)
-				MyGUI::Text("対象マスク", "高さ画像の作用グループにも同じビットを使用");
+				MyGUI::Text("対象マスク", "高さ画像にも同じ衝突タイプを使用");
 		}
 		changed |= MyGUI::Checkbox("Camera深度", settings.depth);
 		if (settings.depth) {

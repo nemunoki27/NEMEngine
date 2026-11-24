@@ -13,6 +13,9 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/ClothComponent.h>
+#include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
 // c++
 #include <functional>
@@ -150,12 +153,36 @@ namespace {
 		return lower | upper;
 	}
 
+	bool IsFieldModule(const std::string& id) {
+
+		return id == "ForceField" || id == "VectorField" || id == "Collision";
+	}
+
+	bool RemapMask(nlohmann::json& object, const char* key, uint32_t index) {
+
+		auto found = object.find(key);
+		if (found == object.end() || !found->is_number_integer()) return false;
+		const auto mask = found->get<uint32_t>();
+		if (mask == UINT32_MAX) return false;
+		const auto next = RemoveMaskBit(mask, index);
+		if (next == mask) return false;
+		*found = next;
+		return true;
+	}
+
 	bool RemoveCollisionTypeMasks(nlohmann::json& value, uint32_t typeIndex) {
 
 		bool changed = false;
 		if (value.is_object()) {
 			for (auto& [key, child] : value.items()) {
-				if (key == "typeMask" && (child.is_number_unsigned() || child.is_number_integer())) {
+				if (key == "ForceField" || key == "VectorField" || key == "HeightmapCollider") {
+					changed |= RemapMask(child, "layerMask", typeIndex);
+				} else if (key == "Cloth") {
+					changed |= RemapMask(child, "windCollisionMask", typeIndex);
+					changed |= RemapMask(child, "collisionMask", typeIndex);
+				} else if (key == "params" && value.contains("id") && value["id"].is_string() && IsFieldModule(value["id"].get<std::string>())) {
+					changed |= RemapMask(child, "layerMask", typeIndex);
+				} else if (key == "typeMask" && (child.is_number_unsigned() || child.is_number_integer())) {
 					const uint32_t mask = child.get<uint32_t>();
 					const uint32_t next = RemoveMaskBit(mask, typeIndex);
 					if (next != mask) {
@@ -241,6 +268,39 @@ bool Engine::ProjectSettingsOperations::RemoveCollisionType(
 		return false;
 	}
 	if (ECSWorld* world = context.GetWorld()) {
+		const auto remap = [typeIndex](uint32_t mask) { return mask == UINT32_MAX ? mask : RemoveMaskBit(mask, typeIndex); };
+		const auto remapField = [&]<class T>() {
+			world->ForEach<T>([&](Entity owner, T& field) {
+				const auto next = remap(field.layerMask);
+				if (field.layerMask == next) return;
+				field.layerMask = next;
+				world->MarkComponentModified<T>(owner);
+			});
+		};
+		remapField.operator()<ForceFieldComponent>();
+		remapField.operator()<VectorFieldComponent>();
+		remapField.operator()<HeightmapColliderComponent>();
+		world->ForEach<ClothComponent>([&](Entity owner, ClothComponent&) {
+			const auto* record = TryGetCloth(*world, owner);
+			if (!record) return;
+			auto settings = record->settings;
+			settings.windCollisionMask = remap(settings.windCollisionMask);
+			settings.collisionMask = remap(settings.collisionMask);
+			if (settings.windCollisionMask != record->settings.windCollisionMask || settings.collisionMask != record->settings.collisionMask)
+				SetClothSettings(*world, owner, settings);
+		});
+		world->ForEach<ParticleSystemComponent>([&](Entity owner, ParticleSystemComponent&) {
+			const auto source = GetParticleSystemSettings(*world, owner);
+			if (!source) return;
+			auto settings = *source;
+			bool changed = false;
+			for (auto& phase : settings.phases) {
+				for (auto& module : phase.modules) {
+					if (IsFieldModule(module.id)) changed |= RemapMask(module.params, "layerMask", typeIndex);
+				}
+			}
+			if (changed) SetParticleSystemSettings(*world, owner, settings);
+		});
 		world->ForEach<CollisionComponent>([typeIndex](Entity, CollisionComponent& collision) {
 			collision.typeMask = RemoveMaskBit(collision.typeMask, typeIndex);
 			});

@@ -56,6 +56,9 @@ namespace Engine {
 		// Materialとモデル情報から実効表面方式を求める
 		static MaterialSurfaceMode ResolveSubMeshSurfaceMode(
 			const EditorPanelContext& context, const MeshRendererComponent& renderer, const SubMeshMaterial& subMesh);
+		bool AllowMixedEdit(const std::string& name);
+		ValueEditResult DrawGraphParameters(const EditorPanelContext& context, std::span<SubMeshMaterial> subMeshes,
+			std::span<const MaterialParameterID> exposed);
 		// 公開値をScalarとTextureへ分類する
 		static void CollectParameters(const ShaderReflectionInfo& reflection, const MaterialParameterLayout& layout,
 			std::vector<const ShaderConstantBufferVariable*>& scalars,

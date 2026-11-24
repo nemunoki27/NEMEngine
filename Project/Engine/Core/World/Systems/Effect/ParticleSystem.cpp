@@ -1,4 +1,5 @@
 #include "ParticleSystem.h"
+#include "ParticleSimulationReplay.h"
 
 //============================================================================
 //	include
@@ -16,6 +17,10 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
+#include <random>
+#include <stdexcept>
+#include <utility>
 
 //============================================================================
 //	ParticleSystem classMethods
@@ -48,6 +53,14 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 			if (runtime->stopActionPending) {
 				ApplyStopAction(world, entity, component, *runtime, context.mode);
+			}
+			const int step = std::exchange(runtime->previewStep, 0);
+			const bool stepping = step != 0 && context.mode == WorldMode::Edit && component.enabled && canPlay;
+			if (stepping) {
+				if (runtime->stopped && (!runtime->previewReplay || runtime->instance.emissionStopped)) StartEffect(*runtime, false);
+				runtime->playing = false;
+				runtime->paused = true;
+				runtime->stopped = false;
 			}
 			if (!runtime->playing && !runtime->paused) {
 				return;
@@ -87,9 +100,39 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 
 			// 無効なEntityとComponentの補助線は表示しない
 			const bool drawEmitterShape = active && component.enabled && component.drawEmitterShape;
-			if (instanceUpdater_.UpdateInstance(world, runtime->instance,
-				GetParticleSystemSettings(world, entity), emitterWorld, parentSettings, useAssetParentSettings,
-				deltaTime, updateSimulation, emissionEnabled, drawEmitterShape, component.simulationTarget)) {
+			const auto settings = GetParticleSystemSettings(world, entity);
+			const bool preview = context.mode == WorldMode::Edit && canPlay && component.enabled &&
+				!runtime->instance.emissionStopped;
+			bool finished = false;
+			if (preview && (stepping || updateSimulation)) {
+				if (!runtime->previewReplay) {
+					runtime->previewReplay = std::make_shared<ParticleSimulationReplay>();
+					const auto seed = component.useAutoRandomSeed ? std::random_device{}() : component.randomSeed;
+					runtime->previewReplay->Reset(seed, runtime->instance.oneShot);
+				}
+				constexpr double frame = ParticleSimulationReplay::kFixedDelta;
+				runtime->previewTime = stepping ? (std::max)(0.0, std::floor(runtime->previewTime / frame + 1e-6) + step) * frame :
+					runtime->previewTime + deltaTime;
+				const double sampleTime = std::floor(runtime->previewTime / frame + 1e-6) * frame;
+				try {
+					finished = runtime->previewReplay->Evaluate(world, runtime->instance, settings, component.simulationTarget,
+						parentSettings, useAssetParentSettings, sampleTime, 0, stepping,
+						[&](double, Matrix4x4& result) { result = emitterWorld; return true; });
+				} catch (const std::invalid_argument& error) {
+					runtime->instance.rejectedReason = error.what();
+					runtime->playing = false;
+					runtime->paused = false;
+					runtime->stopped = true;
+					return;
+				}
+				if (drawEmitterShape) instanceUpdater_.DrawEmitterShape(emitterWorld, settings->emitter,
+					settings->space == PrimitiveRenderSpace::Screen2D);
+			} else {
+				finished = instanceUpdater_.UpdateInstance(world, runtime->instance, settings, emitterWorld,
+					parentSettings, useAssetParentSettings, deltaTime, updateSimulation, emissionEnabled,
+					drawEmitterShape, component.simulationTarget);
+			}
+			if (finished && (!preview || !runtime->paused)) {
 
 				runtime->playing = false;
 				runtime->paused = false;
@@ -152,6 +195,8 @@ void Engine::ParticleSystem::ProcessCommands(
 void Engine::ParticleSystem::StartEffect(ParticleSystemRuntimeData& runtime,
 	bool oneShot) const {
 
+	runtime.previewReplay.reset();
+	runtime.previewTime = 0;
 	runtime.instance = ParticleInstanceState{};
 	runtime.instance.oneShot = oneShot;
 	runtime.playing = true;

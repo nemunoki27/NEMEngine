@@ -190,11 +190,6 @@ namespace {
 		case Engine::ColliderShapeType::OBB3D:
 		case Engine::ColliderShapeType::Capsule3D: {
 
-			// 3D形状は不透明メッシュに隠れるよう深度オクルージョン対象バッチへ積む
-			Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-			if (renderer) {
-				renderer->SetOccludedMode(true);
-			}
 			if (shape.type == Engine::ColliderShapeType::Sphere3D) {
 				DrawSphere3D(shape, color, thickness);
 			} else if (shape.type == Engine::ColliderShapeType::AABB3D) {
@@ -203,9 +198,6 @@ namespace {
 				DrawCapsule3D(shape, color, thickness);
 			} else {
 				DrawOBB3D(shape, color, thickness);
-			}
-			if (renderer) {
-				renderer->SetOccludedMode(false);
 			}
 			break;
 		}

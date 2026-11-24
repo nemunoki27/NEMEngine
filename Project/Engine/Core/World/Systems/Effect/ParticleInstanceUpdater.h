@@ -24,6 +24,8 @@ namespace Engine {
 			const ParticlePhaseParentSettings& parentSettings, bool usePhaseParentSettings,
 			float deltaTime, bool updateSimulation, bool emissionEnabled, bool drawEmitterShape,
 			ParticleSimulationTarget target = ParticleSimulationTarget::CPU);
+		// エミッター形状をデバッグ線で描画する
+		void DrawEmitterShape(const Matrix4x4& emitterWorld, const ParticleEmitterSettings& settings, bool is2D) const;
 	private:
 		//========================================================================
 		//	private Methods
@@ -47,7 +49,5 @@ namespace Engine {
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,
 			const ParticleValue<float>& lifetime, bool is2D, uint64_t firstSpawnIndex) const;
-		// エミッター形状をデバッグ線で描画する
-		void DrawEmitterShape(const Matrix4x4& emitterWorld, const ParticleEmitterSettings& settings, bool is2D) const;
 	};
 }

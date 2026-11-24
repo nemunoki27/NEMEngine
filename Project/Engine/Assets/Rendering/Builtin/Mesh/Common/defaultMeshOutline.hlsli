@@ -34,7 +34,7 @@ struct MeshOutlineGPUData {
 	float alphaThreshold;
 };
 // 既存割り当てと衝突しない番号を使う
-StructuredBuffer<MeshOutlineGPUData> gMeshOutlines : register(t7, space1);
+StructuredBuffer<MeshOutlineGPUData> gMeshOutlines : register(t8, space1);
 
 struct OutlineVertexOutput {
 

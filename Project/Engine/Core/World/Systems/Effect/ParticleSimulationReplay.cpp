@@ -24,7 +24,7 @@ void ParticleSimulationReplay::Reset(uint32_t seed, bool oneShot) {
 	time_ = -1;
 }
 
-void ParticleSimulationReplay::Evaluate(ECSWorld& world, ParticleInstanceState& instance,
+bool ParticleSimulationReplay::Evaluate(ECSWorld& world, ParticleInstanceState& instance,
 	std::shared_ptr<const ParticleSystemSettings> settings, ParticleSimulationTarget target,
 	const ParticlePhaseParentSettings& parent, bool phaseParent, double time,
 	uint64_t revision, bool suppressFeedback, const TransformSampler& sampleTransform) {
@@ -41,7 +41,8 @@ void ParticleSimulationReplay::Evaluate(ECSWorld& world, ParticleInstanceState& 
 		ResetParticleSimulation(instance, seed_, oneShot_);
 	}
 	if (instance.emitter.gpu) instance.emitter.gpu->suppressFeedback = suppressFeedback;
-	if (time_ == time && initialized_) return;
+	if (time_ == time && initialized_) return false;
+	bool finished = false;
 	const uint64_t desiredTick = static_cast<uint64_t>(std::floor(time / kFixedDelta + 0.000001));
 	const double remainder = (std::max)(0.0, time - desiredTick * kFixedDelta);
 	if (initialized_ && (partial_ || desiredTick < tick_)) Restore(instance, desiredTick);
@@ -52,7 +53,7 @@ void ParticleSimulationReplay::Evaluate(ECSWorld& world, ParticleInstanceState& 
 	const auto update = [&](double sampleTime, float delta, uint64_t sequence, bool feedback) {
 		Matrix4x4 transform;
 		if (!sampleTransform(sampleTime, transform)) throw std::invalid_argument("粒子の発生元の姿勢を取得できません");
-		updater_.UpdateInstance(world, instance, settings, transform, parent, phaseParent,
+		finished = updater_.UpdateInstance(world, instance, settings, transform, parent, phaseParent,
 			delta, true, !instance.emissionStopped, false, target);
 		if (!instance.rejectedReason.empty()) throw std::invalid_argument(instance.rejectedReason);
 		if (instance.emitter.gpu) {
@@ -85,6 +86,7 @@ void ParticleSimulationReplay::Evaluate(ECSWorld& world, ParticleInstanceState& 
 	time_ = time;
 	feedbackTick_ = (std::max)(feedbackTick_, tick_);
 	TrimCheckpoints();
+	return finished;
 }
 
 uint64_t ParticleSimulationReplay::GetCheckpointMemoryBytes() const {

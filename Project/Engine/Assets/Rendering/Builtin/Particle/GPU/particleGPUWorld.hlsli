@@ -13,6 +13,8 @@ struct ParticleGPUVectorField {
 	float4x4 vectorToWorld;
 	uint4 grid;
 	float4 parameters;
+	uint shape;
+	uint3 padding;
 };
 struct ParticleGPUSplineSample { float4 positionDistance; float4 tangent; float4 normal; };
 struct ParticleGPUSplineRange { uint offset; uint count; float length; uint closed; };
@@ -55,8 +57,7 @@ StructuredBuffer<ParticleGPUSplineRange> gGPUSplineRanges : register(t7, space3)
 StructuredBuffer<ParticleGPUHeightmap> gGPUHeightmaps : register(t8, space3);
 StructuredBuffer<ParticleGPUCollisionNode> gGPUCollisionNodes : register(t9, space3);
 
-float3 ParticleForce(float3 radial, float3 axis, float4 parameters) {
-	float distance = length(radial);
+float3 ParticleForce(float3 radial, float distance, float3 axis, float4 parameters) {
 	if (distance >= parameters.y) return 0;
 	float attenuation = pow(saturate(1 - distance / max(parameters.y, 0.001f)), max(parameters.z, 0));
 	uint type = (uint) parameters.w;
@@ -74,11 +75,13 @@ void ParticleRunForceFields(inout ParticleAttributesGPU particle, ParticleGPUIns
 			float3 local = mul(float4(particle.positionAge.xyz, 1), field.worldToLocal).xyz;
 			float3 radial = ParticleNormalize(particle.positionAge.xyz - asfloat(field.metadata.yzw), 0);
 			// 距離は場のローカル境界で評価し、方向はワールド空間へ揃える
-			acceleration += ParticleForce(radial * length(local), field.axis.xyz, field.parameters);
+			float distance = field.axis.w == 0 ? length(local) : max(abs(local.x), max(abs(local.y), abs(local.z)));
+			acceleration += ParticleForce(radial, distance, field.axis.xyz, field.parameters);
 		}
 		acceleration *= instruction.parameter0.x;
 	} else {
-		acceleration = ParticleForce(particle.positionAge.xyz - instruction.parameter1.xyz,
+		float3 radial = particle.positionAge.xyz - instruction.parameter1.xyz;
+		acceleration = ParticleForce(radial, length(radial),
 			ParticleNormalize(instruction.parameter2.xyz, float3(0, 1, 0)), instruction.parameter0);
 	}
 	particle.velocityLifetime.xyz += acceleration * deltaTime;
@@ -109,6 +112,8 @@ void ParticleRunVectorFields(inout ParticleAttributesGPU particle, ParticleGPUIn
 		if ((asuint(field.parameters.w) & asuint(instruction.parameter3.w)) == 0) continue;
 		float3 uvw = mul(float4(particle.positionAge.xyz, 1), field.worldToGrid).xyz;
 		if (any(uvw < 0) || any(uvw > 1)) continue;
+		float3 centered = uvw * 2 - 1;
+		if (field.shape == 0 && dot(centered, centered) > 1) continue;
 		float3 local = ParticleSampleVectorField(field, uvw);
 		float3 target = ParticleNormalize(mul(float4(local, 0), field.vectorToWorld).xyz, 0) * length(local) *
 			field.parameters.x * instruction.parameter0.x;

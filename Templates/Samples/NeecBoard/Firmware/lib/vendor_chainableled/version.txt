@@ -1,0 +1,11 @@
+https://github.com/pjpmarques/ChainableLED/releases/tag/v1.3
+
+
+138,140c138,140
+<     constrain(hue, 0.0, 1.0);
+<     constrain(saturation, 0.0, 1.0);
+<     constrain(lightness, 0.0, 1.0);
+---
+>     hue = constrain(hue, 0.0, 1.0);
+>     saturation = constrain(saturation, 0.0, 1.0);
+>     lightness = constrain(lightness, 0.0, 1.0);

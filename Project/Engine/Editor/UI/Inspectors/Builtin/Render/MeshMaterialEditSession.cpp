@@ -142,6 +142,56 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 	return editResult;
 }
 
+bool Engine::MeshMaterialEditSession::AllowMixedEdit(const std::string& name) {
+
+	if (batchOverrideAllowed_.contains(name)) return true;
+	if (MyGUI::BeginPropertyRow(name.c_str())) {
+
+		const float spacing = ImGui::GetStyle().ItemSpacing.x;
+		const float buttonWidth = ImGui::CalcTextSize("上書きを許可").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+		const float dashWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - buttonWidth - spacing);
+		ImGui::BeginDisabled();
+		ImGui::Button((std::string("-##batchdash_") + name).c_str(), ImVec2(dashWidth, 0.0f));
+		ImGui::EndDisabled();
+		ImGui::SameLine();
+		if (ImGui::Button((std::string("上書きを許可##batch_") + name).c_str(), ImVec2(buttonWidth, 0.0f))) {
+			batchOverrideAllowed_.insert(name);
+		}
+		MyGUI::EndPropertyRow();
+	}
+	return false;
+}
+
+Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawGraphParameters(const EditorPanelContext& context,
+	std::span<SubMeshMaterial> subMeshes, std::span<const MaterialParameterID> exposed) {
+
+	ValueEditResult result{};
+	const auto& defaults = materialReflection_.GetMaterial().parameters;
+	auto& first = subMeshes.front().materialInstance;
+	for (const auto id : exposed) {
+		const auto records = defaults.GetRecords();
+		const auto record = std::ranges::lower_bound(records, id.value, {}, [](const auto& item) { return item.id.value; });
+		if (record == records.end() || record->id != id) continue;
+		const auto& [name, fallback] = record->namedValue;
+		const auto resolve = [&](const SubMeshMaterial& subMesh) -> const MaterialParameterValue& {
+			const auto* value = subMesh.materialInstance.Find(id);
+			return value && value->value.index() == fallback.value.index() ? *value : fallback;
+		};
+		const auto& common = resolve(subMeshes.front());
+		if (std::ranges::any_of(subMeshes.subspan(1), [&](const auto& item) {
+			return !ParamValueEqual(common, resolve(item));
+		}) && !AllowMixedEdit(name)) continue;
+
+		const auto edit = MaterialParameterEditor::DrawGraphOverrides(first, defaults, std::span(&id, 1),
+			context.editorContext->assetDatabase);
+		if (edit.valueChanged) {
+			for (auto& item : subMeshes.subspan(1)) item.materialInstance.Set(id, name, record->semantic, *first.Find(id));
+		}
+		result.Merge(edit);
+	}
+	return result;
+}
+
 Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 	const EditorPanelContext& context, const MeshRendererComponent& draft, std::span<SubMeshMaterial> subMeshes) {
 
@@ -171,6 +221,9 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 
 	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(
 		context, commonMaterial, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
+	if (const auto* exposed = materialReflection_.GetGraphParameters()) {
+		return DrawGraphParameters(context, subMeshes, *exposed);
+	}
 	if (!reflection) {
 		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return editResult;
@@ -201,27 +254,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 				break;
 			}
 		}
-		const bool allowed = batchOverrideAllowed_.count(var.name) != 0;
-
-		// 混在値は上書きを許可するまで編集を止める
-		if (mixed && !allowed) {
-
-			if (MyGUI::BeginPropertyRow(var.name.c_str())) {
-
-				const float spacing = ImGui::GetStyle().ItemSpacing.x;
-				const float buttonWidth = ImGui::CalcTextSize("上書きを許可").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-				const float dashWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x - buttonWidth - spacing);
-				ImGui::BeginDisabled();
-				ImGui::Button((std::string("-##batchdash_") + var.name).c_str(), ImVec2(dashWidth, 0.0f));
-				ImGui::EndDisabled();
-				ImGui::SameLine();
-				if (ImGui::Button((std::string("上書きを許可##batch_") + var.name).c_str(), ImVec2(buttonWidth, 0.0f))) {
-					batchOverrideAllowed_.insert(var.name);
-				}
-				MyGUI::EndPropertyRow();
-			}
-			return;
-		}
+		if (mixed && !AllowMixedEdit(var.name)) return;
 
 		// 編集値を全SubMeshへ適用する
 		if (MaterialParameterEditor::IsReflectedTextureParam(var, *reflection)) {
@@ -282,6 +315,11 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawParameters(
 
 	const ShaderReflectionInfo* reflection =
 		materialReflection_.EnsureReflection(context, materialID, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
+	if (const auto* exposed = materialReflection_.GetGraphParameters()) {
+		ImGui::SeparatorText("シェーダーパラメータ");
+		return MaterialParameterEditor::DrawGraphOverrides(subMesh.materialInstance, materialReflection_.GetMaterial().parameters,
+			*exposed, context.editorContext->assetDatabase);
+	}
 	if (!reflection) {
 		Engine::MyGUI::Text("マテリアルのパラメータを取得できません");
 		return editResult;

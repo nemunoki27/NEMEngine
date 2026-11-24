@@ -19,6 +19,11 @@
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
+#include <Engine/Core/Animation/Motion/MotionAnimationEvaluation.h>
+#include <Engine/Core/World/Components/Transform/SplineComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Editor/UI/Panels/Builtin/ViewportDecalGizmo.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
@@ -274,7 +279,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	requests_.DrawSceneSaveConflictPopup();
 }
 
-void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context) {
+void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context,
+	[[maybe_unused]] const ResolvedRenderView& view) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	if (!initialized_ || layoutState_.hidePanels || !layoutState_.showSceneView ||
@@ -293,8 +299,30 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		}
 	}
 
+	DrawLogicPlacementPreview3D(context, editorState_, view);
 	if (!editorState_.HasValidSelection(context.activeWorld)) {
 		return;
+	}
+
+	auto& world = *context.activeWorld;
+	const auto entity = editorState_.selectedEntity;
+	if (IsEntityActiveInHierarchy(world, entity)) {
+		auto* lines = LineRenderer::GetInstance()->Get3D();
+		const auto* spline = TryGetSpline(world, entity);
+		const auto* transform = world.TryGetComponent<TransformComponent>(entity);
+		if (spline && spline->drawDebug && !spline->is2D && transform) {
+			const auto points = BuildSplineSamples(*spline, transform->worldMatrix);
+			for (size_t i = 1; i < points.size(); ++i)
+				lines->DrawLine(points[i - 1].position, points[i].position, Color4::FromHex(0xffbe41ff), 2);
+		}
+		const auto* motion = TryGetMotionAnimation(world, entity);
+		if (editorState_.sceneViewPickDimension != SceneViewPickDimension::Type2D &&
+			motion && motion->settings.enabled && motion->settings.drawDebug) {
+			const auto points = GetMotionAnimationDebugPoints(world, entity);
+			for (size_t i = 1; i < points.size(); ++i)
+				lines->DrawLine(points[i - 1], points[i], Color4::FromHex(0x5ae68cff), 2);
+		}
+		ViewportDecalGizmo::Draw(world, entity, *lines);
 	}
 
 	// 選択中のSubMesh番号を解決する

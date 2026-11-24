@@ -97,6 +97,7 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	// Update前にライフサイクルを同期し、不要なビヘイビアをsweepする
 	session_.SynchronizeLifecycle(world, context, true);
+	ManagedScriptRuntime::GetInstance().TickFrame(3, context);
 
 	// コールバック中のScript追加で元の配列が変わっても反復を継続できるようにする
 	const std::vector<BehaviorParticipantCache::SyncParticipant> participants = session_.participantCache_.participants_;

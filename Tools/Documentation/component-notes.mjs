@@ -13,8 +13,8 @@ export const components = {
 
 	Transform: ['位置・回転・拡縮と親子関係を保持します。すべての通常Entityに付いています。', 'HierarchyでEntityを選び、Inspectorの移動・回転・拡縮を変更します。', '位置のワールド値とローカル値を区別します。親のScaleは子にも影響します。', 'scene'],
 	Spline: ['制御点を結んだ曲線です。Particleの経路や位置・接線のサンプリングに使います。', '次元と閉じる設定を選び、制御点を追加するかロジック配置で円・N角形・直線から生成します。位置はInspector、接線はSceneViewまたはC#で編集します。', 'ParticleのSplineMovementでこのGameObjectを参照します。Transformを動かすと経路の配置も変わります。', 'particles'],
-	ForceField: ['周囲のGPU Particleへ引力・斥力・回転などの力を与えます。', '範囲・強さ・方式を指定し、Particle側にForceField Moduleを追加します。', 'Particle側のLayerMaskとこのComponentのLayerを一致させます。', 'particles'],
-	VectorField: ['3Dの方向場に沿ってGPU Particleの速度を誘導します。', 'Field AssetまたはPresetを設定し、ParticleにVectorField Moduleを追加します。', '強さと追従度を上げすぎると元の初速を打ち消します。', 'particles'],
+	ForceField: ['範囲内のClothやGPU Particleに引力・斥力・渦・風を与えます。', '形状と「自身の衝突タイプ」を設定します。GPU ParticleではForceFieldモジュールの「Sceneの力場を使う」を有効にします。', 'Particle側のLayerMaskとこのComponentのLayerを一致させます。', 'particles'],
+	VectorField: ['範囲内のClothやGPU Particleに、風・渦・FGAで指定した流れを与えます。', '種類と「自身の衝突タイプ」を設定します。GPU ParticleではVectorFieldモジュールの「対象の衝突タイプ」を合わせます。', '強さと追従度を上げすぎると元の初速を打ち消します。', 'particles'],
 	HeightmapCollider: ['高さ画像をGPU Particleの地形衝突に使います。', '高さ画像と範囲を指定し、ParticleのCollisionでHeightmapを有効にします。', '通常のRigidbody用Colliderとは用途が異なります。画像とTransformの範囲を合わせます。', 'particles'],
 	AudioSource: ['音声Assetを再生します。ループ・音量・距離減衰を制御できます。', 'Audio Clipを設定し、必要ならPlay On Awakeを有効にします。', '3D再生にはAudioListenerが必要です。Editor Pauseと音声側のPauseを区別します。', 'audio'],
 	AudioListener: ['3D音響を聞く位置と向きを指定します。', '操作CameraなどのEntityへ追加します。', '同時に有効なListenerを複数置く運用は避け、使用する1つを有効にします。', 'audio'],

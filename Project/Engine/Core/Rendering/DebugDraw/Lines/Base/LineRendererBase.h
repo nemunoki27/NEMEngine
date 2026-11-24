@@ -22,6 +22,7 @@
 #include <memory>
 #include <array>
 #include <vector>
+#include <type_traits>
 
 namespace Engine {
 
@@ -70,12 +71,12 @@ namespace Engine {
 		// ライン最大数
 		uint32_t GetMaxLineCount() const { return kMaxLineCount_; }
 		// 現在積まれているライン数
-		uint32_t GetCurrentLineCount() const { return static_cast<uint32_t>(vertices_.size() / 2); }
+		uint32_t GetCurrentLineCount() const { return static_cast<uint32_t>((vertices_.size() + occludedVertices_.size()) / 2); }
 
-		// 以降のDrawLineを深度オクルージョン対象バッチへ積むかどうか、衝突形状などメッシュに隠したい線に使う
-		void SetOccludedMode(bool enable) { occludedMode_ = enable; }
 		// 深度オクルージョン用のシーン深度を設定する、次のRenderSceneViewでだけ使い切る
 		void SetOcclusionDepth(DepthTexture2D* depth) { occlusionDepth_ = depth; }
+	protected:
+		bool occludedMode_ = std::is_same_v<T, Vector3>;
 	private:
 		//============================================================================
 		//	private Methods
@@ -122,6 +123,7 @@ namespace Engine {
 		std::unique_ptr<PipelineState> pipeline_{};
 		// 深度オクルージョン用パイプライン、シーン深度でテストし書き込みはしない
 		std::unique_ptr<PipelineState> occludedPipeline_{};
+		std::unique_ptr<PipelineState> hiddenPipeline_{};
 
 		// ラインパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache lineBindCache_{};
@@ -137,8 +139,6 @@ namespace Engine {
 		std::vector<LineVertex> vertices_{};
 		// 深度オクルージョン対象のラインの頂点情報、メッシュに隠れる線
 		std::vector<LineVertex> occludedVertices_{};
-		// 現在のDrawLineをどちらのバッチへ積むか
-		bool occludedMode_ = false;
 		// 深度オクルージョン用のシーン深度、非所有でフレームごとに設定される
 		DepthTexture2D* occlusionDepth_ = nullptr;
 
@@ -209,16 +209,26 @@ namespace Engine {
 		desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+		if constexpr (std::is_same_v<T, Vector3>) {
+			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+			desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		}
+
 		// パイプラインの生成
 		bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(
 			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 		Assert::Call(created, "DebugLineRendererのPipeline作成に失敗しました");
 
-		// 深度オクルージョン用パイプライン、シーン深度でテストするが書き込みはしないので深度を壊さない
-		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-		bool occludedCreated = (occludedPipeline_ = PipelineStateBuilder::CreateGraphics(
-			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
-		Assert::Call(occludedCreated, "DebugLineRendererの遮蔽Pipeline作成に失敗しました");
+		if constexpr (std::is_same_v<T, Vector3>) {
+			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+			occludedPipeline_ = PipelineStateBuilder::CreateGraphics(
+				graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
+			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_GREATER;
+			desc.pixel.entry = "HiddenDebugLine";
+			hiddenPipeline_ = PipelineStateBuilder::CreateGraphics(
+				graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
+			Assert::Call(occludedPipeline_ && hiddenPipeline_, "3Dデバッグ線の深度Pipeline作成に失敗しました");
+		}
 
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
 		for (auto& resources : renderResources_) {
@@ -226,7 +236,7 @@ namespace Engine {
 		}
 
 		// 頂点配列の容量を最大頂点数に合わせる
-		vertices_.reserve(kMaxVertexCount_);
+		ActiveVertices().reserve(kMaxVertexCount_);
 	}
 
 	template<typename T>
@@ -234,7 +244,7 @@ namespace Engine {
 
 		vertices_.clear();
 		occludedVertices_.clear();
-		occludedMode_ = false;
+		occludedMode_ = std::is_same_v<T, Vector3>;
 		occlusionDepth_ = nullptr;
 	}
 
@@ -255,14 +265,11 @@ namespace Engine {
 			return;
 		}
 
-		// 通常のオーバーレイ線はサーフェスの深度に従う、基本は常に手前に描く
-		if (pipeline_) {
-			RenderLineBatch(graphicsCore, camera, surface, vertices_, *pipeline_, nullptr);
+		if (!occludedVertices_.empty()) {
+			auto& pipeline = occlusionDepth_ ? *occludedPipeline_ : *pipeline_;
+			RenderLineBatch(graphicsCore, camera, surface, occludedVertices_, pipeline, occlusionDepth_);
 		}
-		// 深度オクルージョン対象の線はシーン深度でテストしてメッシュに隠す
-		if (occludedPipeline_) {
-			RenderLineBatch(graphicsCore, camera, surface, occludedVertices_, *occludedPipeline_, occlusionDepth_);
-		}
+		RenderLineBatch(graphicsCore, camera, surface, vertices_, *pipeline_, nullptr);
 	}
 
 	template<typename T>
@@ -332,6 +339,15 @@ namespace Engine {
 
 		// 描画
 		commandList->DrawInstanced(static_cast<UINT>(batch.size()), 1, 0, 0);
+		if (occlusionDepth && hiddenPipeline_) {
+			commandList->SetGraphicsRootSignature(hiddenPipeline_->GetRootSignature());
+			commandList->SetPipelineState(hiddenPipeline_->GetGraphicsPipeline(BlendMode::Normal));
+			lineBindCache_.Sync(*hiddenPipeline_);
+			if (lineBindCache_.Has(lineCBVSlot_))
+				RootBindingCommand::SetGraphicsCBV(commandList, lineBindCache_.Get(lineCBVSlot_),
+					renderResource.passBuffer.GetResource()->GetGPUVirtualAddress());
+			commandList->DrawInstanced(static_cast<UINT>(batch.size()), 1, 0, 0);
+		}
 		batch.clear();
 	}
 

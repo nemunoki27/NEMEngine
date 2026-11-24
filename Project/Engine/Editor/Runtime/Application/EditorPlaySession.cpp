@@ -101,6 +101,7 @@ void Engine::EditorPlaySession::HandlePlayToggle() {
 void Engine::EditorPlaySession::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	ManagedScriptRuntime::GetInstance().TickFrame(4, systemContext_);
 	systemContext_.engineContext->GetRuntimeSettings()->EndPlay();
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();

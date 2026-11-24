@@ -7,6 +7,10 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Foundation/Math/Matrix4x4.h>
+
+#include <memory>
+#include <optional>
 
 namespace Engine {
 
@@ -21,6 +25,8 @@ namespace Engine {
 		float foldDepth = 0.0f;
 		float stretchCompliance = 0.000001f, shearCompliance = 0.00001f, bendCompliance = 0.001f;
 		float damping = 1.5f, gravityScale = 1.0f;
+		bool windEnabled = true, receiveSceneWind = false;
+		uint32_t windCollisionMask = UINT32_MAX;
 		Vector3 windDirection{1.0f, 0.1f, 0.5f};
 		float windStrength = 5.0f, gustStrength = 2.0f, gustFrequency = 0.8f;
 		float thickness = 0.015f;
@@ -33,7 +39,19 @@ namespace Engine {
 		float restLength, lambda;
 	};
 
+	class ClothGPUSolver;
+	struct ClothGPUEnvironment;
+	struct ClothGPUUpdate {
+		Matrix4x4 world, inverse;
+		std::shared_ptr<const ClothGPUEnvironment> environment;
+		uint32_t steps = 0;
+		double startTime = 0.0;
+	};
+
 	struct ClothRuntime {
+		std::shared_ptr<ClothGPUSolver> gpu;
+		std::optional<ClothGPUUpdate> pendingGPU;
+		bool gpuUnavailable = false;
 		PrimitiveMeshData mesh;
 		PrimitiveGeometryKey key;
 		std::vector<Vector3> rest, positions, previous, acceleration;

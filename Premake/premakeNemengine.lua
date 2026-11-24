@@ -241,6 +241,7 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersPopup.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpers.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Common/InspectorPresentation.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Common/EditorIconButton.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Common/InspectorCommonBindings.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Core/ComponentEditorRegistry.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.cpp"),

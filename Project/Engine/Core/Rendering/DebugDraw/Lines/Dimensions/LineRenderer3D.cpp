@@ -98,6 +98,8 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 		return;
 	}
 
+	occludedMode_ = false;
+
 	// ジョイントの親子関係を構築
 	std::vector<std::vector<int32_t>> children(skeleton.joints.size());
 	for (size_t i = 0; i < skeleton.joints.size(); ++i) {
@@ -142,6 +144,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 			DrawCone(base, bottom, top, length, rotation, Color4::Yellow(), kDivision, 1.0f);
 		}
 	}
+	occludedMode_ = true;
 }
 
 void Engine::LineRenderer3D::DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio,

@@ -4,6 +4,11 @@
 //	include
 //============================================================================
 #include "ClothCollision.h"
+#include <Engine/Core/Rendering/Primitive/ClothGPUEnvironment.h>
+#include <Engine/Core/Rendering/Primitive/ClothGPUSolver.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include "ClothWind.h"
+#include <Engine/Core/Rendering/Particle/ParticleFieldAssetCache.h>
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -13,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <optional>
 
 using namespace Engine;
 
@@ -87,14 +93,14 @@ namespace {
 	}
 
 	void Step(ClothRuntime& r, const ClothSettings& s, const Matrix4x4& matrix,
-		std::span<const CollisionShapeInstance> colliders) {
+		std::span<const CollisionShapeInstance> colliders, std::span<const ClothWind::WindField> fields) {
 
 		r.time += kStep;
 		const float phase = float(r.time * s.gustFrequency * 2.0 * std::numbers::pi);
 		const Vector3 direction = Vector3::NormalizeOr(s.windDirection, {});
 		std::fill(r.acceleration.begin(), r.acceleration.end(), Vector3(0, -9.81f * s.gravityScale, 0));
 		const auto& indices = r.mesh.indices;
-		for (size_t i = 0; i < indices.size(); i += 3) {
+		for (size_t i = 0; s.windEnabled && i < indices.size(); i += 3) {
 			const auto a = indices[i], b = indices[i + 1], c = indices[i + 2];
 			const Vector3 n = Vector3::NormalizeOr(Vector3::Cross(r.positions[b] - r.positions[a], r.positions[c] - r.positions[a]), {}, 1e-9f);
 			const float gust = std::sin(phase + r.rest[a].x * 2.3f + r.rest[a].y * 1.7f);
@@ -106,6 +112,15 @@ namespace {
 			r.acceleration[a] += force;
 			r.acceleration[b] += force;
 			r.acceleration[c] += force;
+		}
+
+		if (s.receiveSceneWind) {
+			for (const auto& field : fields) {
+				if (!(field.mask & s.windCollisionMask)) continue;
+				for (size_t i = 0; i < r.positions.size(); ++i) {
+					if (!r.pinned[i]) r.acceleration[i] += ClothWind::SampleForce(field, r.positions[i], (r.positions[i] - r.previous[i]) / kDt, kDt);
+				}
+			}
 		}
 
 		const float drag = std::exp(-s.damping * kDt);
@@ -168,12 +183,19 @@ namespace {
 	}
 }
 
+ClothSystem::ClothSystem() = default;
+ClothSystem::~ClothSystem() = default;
+
 void ClothSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	std::vector<ClothCollisionQuery::Collider> candidates;
 	std::vector<CollisionShapeInstance> colliders;
 	bool collected = false;
+	std::optional<std::vector<ClothWind::WindField>> wind;
 	uint32_t selectedMask = 0;
+	// 同じ更新で動く布は、場と衝突形状のスナップショットを共有する
+	auto environment = std::shared_ptr<ClothGPUEnvironment>{};
+	bool needsFields = false, needsColliders = false, usesWindAtlas = false;
 	world.ForEach<ClothComponent>([&](Entity owner, ClothComponent& component) {
 		auto* record = world.GetStorage().Get<ClothStorage>().TryGet(component.handle);
 		if (!record) return;
@@ -199,9 +221,34 @@ void ClothSystem::Update(ECSWorld& world, SystemContext& context) {
 			}
 			return;
 		}
+		usesWindAtlas |= context.graphicsPlatform && context.renderAssetLibrary && !r.gpuUnavailable && s.receiveSceneWind && s.windCollisionMask;
 		const double dt = editing ? context.unscaledDeltaTime : context.deltaTime;
 		r.accumulator += std::clamp(dt, 0.0, 0.1);
 		if (r.accumulator + 1e-9 < kStep && !rebuild) return;
+		if (context.graphicsPlatform && context.renderAssetLibrary && !r.gpuUnavailable) {
+			if (!environment) environment = std::make_shared<ClothGPUEnvironment>();
+			needsFields |= s.receiveSceneWind && s.windCollisionMask != 0;
+			needsColliders |= s.collisionMask != 0;
+			if (!r.pendingGPU) r.pendingGPU.emplace();
+			auto& pending = *r.pendingGPU;
+			if (pending.steps == 0) pending.startTime = r.time;
+			pending.world = transform.matrix;
+			pending.inverse = inverse;
+			pending.environment = environment;
+			const auto steps = static_cast<uint32_t>((r.accumulator + 1e-9) / kStep);
+			pending.steps += steps;
+			r.accumulator -= steps * kStep;
+			r.time += steps * kStep;
+			if (rebuild) {
+				Publish(r, renderer->plane, inverse);
+				// 固定辺から反対の端まで広がっても可視判定に含める
+				const float largest = (std::max)({std::abs(r.scale.x), std::abs(r.scale.y), std::abs(r.scale.z)});
+				const float smallest = (std::min)({std::abs(r.scale.x), std::abs(r.scale.y), std::abs(r.scale.z)});
+				r.boundsRadius *= 4.0f * largest / (std::max)(smallest, 1e-6f);
+				world.MarkRenderDataModified(owner);
+			}
+			return;
+		}
 		if (selectedMask != s.collisionMask) {
 			if (!collected) {
 				candidates = ClothCollisionQuery::Collect(world);
@@ -210,11 +257,35 @@ void ClothSystem::Update(ECSWorld& world, SystemContext& context) {
 			ClothCollisionQuery::Select(candidates, s.collisionMask, colliders);
 			selectedMask = s.collisionMask;
 		}
+		if (s.receiveSceneWind && s.windCollisionMask && !wind) wind = ClothWind::CollectWind(world, context.assetDatabase, fieldAssets_);
 		while (kStep <= r.accumulator + 1e-9) {
-			Step(r, s, transform.matrix, colliders);
+			Step(r, s, transform.matrix, colliders, wind ? std::span<const ClothWind::WindField>(*wind) : std::span<const ClothWind::WindField>());
 			r.accumulator -= kStep;
 		}
 		Publish(r, renderer->plane, inverse);
 		if (rebuild) world.MarkRenderDataModified(owner);
+	});
+	if (environment) environment->Collect(world, context.assetDatabase, fieldAssets_, windAtlas_, needsFields, needsColliders);
+	if (!usesWindAtlas) windAtlas_.reset();
+}
+
+void ClothSystem::DispatchGPU(ECSWorld& world, GraphicsCore& graphics, RenderAssetLibrary& assets, PipelineStateCache& pipelines) {
+
+	world.ForEach<ClothComponent>([&](Entity owner, ClothComponent& component) {
+		auto* record = world.GetStorage().Get<ClothStorage>().TryGet(component.handle);
+		if (!record || !record->runtime.pendingGPU) return;
+		auto& r = record->runtime;
+		auto update = std::move(*r.pendingGPU);
+		r.pendingGPU.reset();
+		const auto* renderer = world.TryGetComponentForBinding<PrimitiveRendererComponent>(owner);
+		if (!record->settings.enabled || !IsClothPlane(renderer) || !IsEntityActiveInHierarchy(world, owner)) return;
+		if (!r.gpu) r.gpu = std::make_shared<ClothGPUSolver>();
+		if (!r.gpu->Update(graphics, assets, pipelines, r, record->settings, renderer->plane, update.world,
+			update.inverse, update.steps, update.startTime, *update.environment)) {
+			r.gpu.reset();
+			r.gpuUnavailable = true;
+			Logger::Output(LogType::Engine, spdlog::level::warn, "ClothのGPU計算を初期化できないためCPUで更新します");
+		}
+		++r.revision;
 	});
 }

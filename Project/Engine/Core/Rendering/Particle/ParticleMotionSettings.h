@@ -8,6 +8,7 @@
 
 namespace Engine {
 
+	enum class ParticleFieldShape : uint32_t { Sphere, AABB, OBB };
 	enum class ParticleForceFieldType : uint32_t { Attraction, Repulsion, Vortex, Wind };
 	enum class ParticleVectorFieldPreset : uint32_t { Wind, Vortex, Asset };
 	enum class ParticleCollisionResponse : uint32_t { Bounce, Stop, Kill };

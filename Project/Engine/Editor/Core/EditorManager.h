@@ -153,7 +153,7 @@ namespace Engine {
 		void ExecuteSceneMeshPicking(
 			GraphicsCore& graphicsCore, const EditorContext& context, RenderPipelineRunner& renderPipeline);
 		// SceneView描画前に選択エンティティのデバッグラインを積む
-		void DrawSceneDebugObjects(const EditorContext& context);
+		void DrawSceneDebugObjects(const EditorContext& context, const ResolvedRenderView& view);
 
 		//--------- accessor -----------------------------------------------------
 

@@ -5,6 +5,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCircleEmitterShape.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
@@ -18,6 +22,25 @@
 //============================================================================
 //	ParticleEmitterDebugDraw classMethods
 //============================================================================
+void Engine::ParticleEmitterDebugDraw::DrawFieldBounds(ECSWorld& world) {
+
+	auto* renderer = LineRenderer::GetInstance()->Get3D();
+	if (!renderer) return;
+	const auto draw = [&]<class T>(const Color4& color) {
+		world.ForEach<T, TransformComponent>([&](Entity owner, const T& field, const TransformComponent& transform) {
+			if (!field.enabled || !field.drawDebug || !IsEntityActiveInHierarchy(world, owner)) return;
+			ParticleFieldBounds bounds;
+			if (!bounds.Build(field.shape, field.range, field.size, transform.worldMatrix)) return;
+			if (field.shape == ParticleFieldShape::Sphere)
+				renderer->DrawSphere(bounds.center, bounds.halfSize.x, color);
+			else
+				renderer->DrawOBB(bounds.center, bounds.halfSize, bounds.rotation, color);
+		});
+	};
+	draw.operator()<ForceFieldComponent>(Color4::FromHex(0xFFB448FF));
+	draw.operator()<VectorFieldComponent>(Color4::FromHex(0x40CFEFFF));
+}
+
 void Engine::ParticleEmitterDebugDraw::Draw(const ParticleEmitterSettings& settings,
 	const Matrix4x4& emitterWorld, bool is2D) {
 

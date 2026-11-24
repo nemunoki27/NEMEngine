@@ -213,17 +213,17 @@ Engine::InspectorCommonFields Engine::BindInspectorCommonFields(SpotLightCompone
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(ForceFieldComponent& value) {
 
-	return { .enabled = &value.enabled, .particleGroup = &value.layerMask };
+	return { .enabled = &value.enabled, .collisionTypes = &value.layerMask, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(VectorFieldComponent& value) {
 
-	return { .enabled = &value.enabled, .particleGroup = &value.layerMask };
+	return { .enabled = &value.enabled, .collisionTypes = &value.layerMask, .drawDebug = &value.drawDebug };
 }
 
 Engine::InspectorCommonFields Engine::BindInspectorCommonFields(HeightmapColliderComponent& value) {
 
-	return { .enabled = &value.enabled, .particleGroup = &value.layerMask };
+	return { .enabled = &value.enabled, .collisionTypes = &value.layerMask };
 }
 
 

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/EditorIconButton.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -166,7 +167,10 @@ void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, c
 		if (ImGui::Combo("##PreviewShape", &shape_, "球\0立方体\0平面\0")) Rebuild(context, material);
 		ImGui::SameLine();
 	}
-	if (ImGui::Button(playing_ ? "一時停止" : "再生")) playing_ = !playing_;
+	const char* action = playing_ ? "一時停止" : "再生";
+	const ImVec2 buttonSize(ImGui::CalcTextSize(action).x + 2.0f * ImGui::GetStyle().FramePadding.x, ImGui::GetFrameHeight());
+	if (EditorIconButton::Draw("MaterialPlay", playing_ ? EditorIconButton::Playback::Pause : EditorIconButton::Playback::Play,
+		action, playing_, buttonSize)) playing_ = !playing_;
 	ImGui::SameLine();
 	if (ImGui::Button("視点をリセット")) ResetView();
 

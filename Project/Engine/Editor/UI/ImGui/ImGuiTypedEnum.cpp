@@ -51,7 +51,7 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 		type.ends_with("RenderPhase") || type.ends_with("MaterialSurfaceMode") || type.ends_with("MaterialParameterSemantic") ||
 		type.ends_with("ShaderGraphSurfaceMode") || type.ends_with("ShaderGraphDomain") ||
 		type.ends_with("ShaderGraphTarget") || type.ends_with("MaterialCreateType") ||
-		type.ends_with("PrimitiveType") || type.ends_with("ParticleEmitterShape") ||
+		type.ends_with("PrimitiveType") || type.ends_with("ParticleEmitterShape") || type.ends_with("ParticleValueType") ||
 		type.ends_with("ColliderShapeType")) return name;
 	if (type.ends_with("PrimitiveRenderSpace") || type.ends_with("Dimension") ||
 		type.ends_with("SceneViewMode")) {
@@ -75,6 +75,14 @@ const char* Engine::ImGuiUtility::GetEnumDisplayName(std::string_view type, cons
 	if (type.ends_with("SceneViewCameraControlStyle") && std::string_view(name) == "Original") return "オリジナル";
 	if (type.ends_with("SceneViewCameraControlSource") && std::string_view(name) == "Disabled") return "使用しない";
 
+	if (type.ends_with("ParticleLifeEndMode")) {
+		const std::string_view value = name;
+		if (value == "Advance") return "次のフェーズに進む";
+		if (value == "Clamp") return "固定";
+		if (value == "Reset") return "初期化して再生";
+		if (value == "Kill") return "終了";
+		return name;
+	}
 	if (type.ends_with("ParticleForceFieldType")) {
 		if (std::string_view(name) == "Attraction") return "引力";
 		if (std::string_view(name) == "Repulsion") return "斥力";

@@ -123,7 +123,7 @@ void Engine::MeshRendererInspectorDrawer::ApplyPreview(
 	ECSWorld& world, const Entity& entity, const MeshRendererComponent& previewComponent) {
 
 	if (!world.IsAlive(entity) || !world.HasComponent<MeshRendererComponent>(entity)) {
-		return;
+		return; 
 	}
 
 	// サブメッシュ選択中も表示と描画レイヤーの共通項目を反映する

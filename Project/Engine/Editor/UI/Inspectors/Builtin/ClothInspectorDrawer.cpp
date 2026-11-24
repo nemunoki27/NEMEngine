@@ -62,10 +62,16 @@ void ClothInspectorDrawer::DrawFields(const EditorPanelContext& context, ECSWorl
 	field(MyGUI::DragFloat("重力倍率", s.gravityScale));
 
 	ImGui::SeparatorText("風");
+	field(MyGUI::CheckboxField("風を有効", s.windEnabled));
+	field(MyGUI::CheckboxField("周囲の風の影響を受ける", s.receiveSceneWind));
+	if (s.receiveSceneWind) field(DrawInspectorMask(context, "風の衝突レイヤー", s.windCollisionMask, InspectorMaskDomain::Collision));
+	ImGui::BeginDisabled(!s.windEnabled);
 	field(MyGUI::DragVector3("風向き", s.windDirection));
 	field(MyGUI::DragFloat("風の強さ", s.windStrength, {.minValue = 0.0f}));
 	field(MyGUI::DragFloat("突風の強さ", s.gustStrength, {.minValue = 0.0f}));
 	field(MyGUI::DragFloat("突風の速さ", s.gustFrequency, {.minValue = 0.0f}));
+
+	ImGui::EndDisabled();
 
 	ImGui::SeparatorText("衝突");
 	field(DrawInspectorMask(context, "衝突レイヤー", s.collisionMask, InspectorMaskDomain::Collision));

@@ -93,12 +93,12 @@ export const componentDetails = {
 	ForceField: [
 		both('種類・軸方向・強さ', 'type, axis, strength', 'Attractionは吸引、Repulsionは反発、Vortexは渦、Windは風です。軸方向と強さを指定し、Particle側へForceField Moduleを追加します。Rigidbodyへ直接力を加えるComponentではありません。'),
 		both('範囲・減衰', 'range, falloff', '力が届く範囲と端へ向かう弱まり方です。Transformで配置し、範囲外の粒子まで引き寄せる設定ではないことを確認します。'),
-		both('有効・対象Layer', 'enabled, layerMask', '有効なFieldのうち、Particleの対象マスクと一致するものだけを使います。描画の可視性とは別の選別です。'),
+		both('有効・対象Layer', 'enabled, layerMask', 'Particleの対象の衝突タイプ、またはClothの風の衝突レイヤーと一致すると、範囲内に作用します。'),
 	],
 	VectorField: [
 		both('種類・FGA', 'preset, field', 'Vortexは渦、Windは風、Assetは外部FGAの方向場です。Asset方式のときにFGA参照欄を使います。Particle側にはVectorField Moduleを追加します。'),
 		both('範囲・強さ・追従', 'size, intensity, tightness', '場の大きさ、流れの強さ、粒子速度を流れへ近づける度合いです。追従を強くすると元の発生初速度より方向場の動きが支配的になります。'),
-		both('有効・対象Layer', 'enabled, layerMask', '作用させるFieldをParticle側のマスクで選別します。CPUの剛体用の流体計算ではありません。'),
+		both('有効・対象Layer', 'enabled, layerMask', 'Particleの対象の衝突タイプ、またはClothの風の衝突レイヤーと一致すると、範囲内に作用します。'),
 	],
 	HeightmapCollider: [
 		both('高さ画像・範囲と高さ', 'heightmap, size', '画像から高さを得て、指定した大きさの地形としてGPU Particleと衝突させます。Transformで地形へ位置を合わせます。'),

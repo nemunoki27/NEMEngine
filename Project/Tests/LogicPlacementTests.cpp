@@ -316,12 +316,16 @@ namespace {
 			MyGUI::ObjectOrAssetReferenceField("配置オブジェクト", request.source.object, request.source.prefab, &world, nullptr, {AssetType::Prefab});
 			const auto layout = std::make_shared<LogicPlacementResult>(BuildLogicPlacement(request.settings));
 			SubmitLogicPlacementPreview(context, layout, Matrix4x4::MakeAffineMatrix(
-				{0.2f, 0.2f, 0.2f}, Quaternion::Identity(), {0, 0, 0.5f}), false);
+				{0.2f, 0.2f, 0.2f}, Quaternion::Identity(), {0, 0, 0.5f}), true);
 			auto* draw = ImGui::GetWindowDrawList();
 			const int32_t before = draw->VtxBuffer.Size;
 			DrawLogicPlacementPreview(context, {20, 20}, {400, 400});
 			if (draw->VtxBuffer.Size <= before) return false;
 			const int32_t drawn = draw->VtxBuffer.Size;
+			state.logicPlacementPreviews[0].is2D = false;
+			DrawLogicPlacementPreview(context, {20, 20}, {400, 400});
+			if (draw->VtxBuffer.Size != drawn) return false;
+			state.logicPlacementPreviews[0].is2D = true;
 			editor.activeWorld = &other;
 			DrawLogicPlacementPreview(context, {20, 20}, {400, 400});
 			editor.activeWorld = &world;
@@ -331,7 +335,7 @@ namespace {
 			auto clipped = std::make_shared<LogicPlacementResult>();
 			clipped->points.push_back({{0, 0, -1}, {}});
 			clipped->lines.push_back({{-0.5f, 0, -1}, {0.5f, 0, 0.5f}});
-			SubmitLogicPlacementPreview(context, clipped, Matrix4x4::Identity(), false);
+			SubmitLogicPlacementPreview(context, clipped, Matrix4x4::Identity(), true);
 			DrawLogicPlacementPreview(context, {20, 20}, {400, 400});
 			if (draw->VtxBuffer.Size <= drawn) return false;
 			ImGui::End();

@@ -56,6 +56,7 @@ namespace Engine {
 		Restart,
 	};
 
+	class ParticleSimulationReplay;
 	struct ParticleSystemDefinition;
 	struct ParticleGPUState;
 
@@ -106,6 +107,9 @@ namespace Engine {
 		bool paused = false;
 		bool stopped = true;
 		bool stopActionPending = false;
+		double previewTime = 0.0;
+		int previewStep = 0;
+		std::shared_ptr<ParticleSimulationReplay> previewReplay;
 		ParticleInstanceState instance{};
 		std::vector<ParticleSystemCommand> commands{};
 	};

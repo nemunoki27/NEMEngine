@@ -14,22 +14,22 @@ namespace Engine {
 
 	enum class InspectorFieldID {
 
-		Enabled, Visible, DisplayLayer, CameraLayer, ReceiverLayer, ParticleGroup,
+		Enabled, Visible, DisplayLayer, CameraLayer, ReceiverLayer, CollisionTypes,
 		SortLayer, DrawOrder, BlendMode, RenderQueue, PlayOnStart, PlayInEditMode,
 		EditorPreview, UnscaledTime, Loop, PlaybackSpeed, Restitution, Friction,
 		AllowTopple, AlphaThreshold, PlaybackMode, Duration, StartDelay, PlaybackState, AxisAngle, Once, PingPong, DrawDebug
 	};
 
-	enum class InspectorPlaybackAction { None, Play, Pause, Resume, Stop, Reset, EmitOnce, Clear };
+	enum class InspectorPlaybackAction { None, Play, Pause, Resume, Stop, Reset, EmitOnce, Clear, PreviousFrame, NextFrame };
 
 	// 操作の意味は呼び出し側で適用し、並びと幅だけを共通化する
 	InspectorPlaybackAction DrawInspectorPlaybackControls(bool enabled, bool timer = false,
-		std::span<const InspectorPlaybackAction> actions = {});
+		std::span<const InspectorPlaybackAction> actions = {}, bool frameStepEnabled = true);
 	const char* GetInspectorPlaybackState(bool playing, bool paused, bool finished = false, bool timer = false);
 	// 往復再生を持たないコンポーネントの繰り返しを編集する
 	ValueEditResult DrawInspectorLoopField(bool& loop);
 
-	enum class InspectorMaskDomain { Rendering, Particle, Collision };
+	enum class InspectorMaskDomain { Rendering, Collision };
 
 	// 共通項目だけをドラフトへ接続する
 	struct InspectorCommonFields {
@@ -39,7 +39,7 @@ namespace Engine {
 		uint32_t* displayLayer = nullptr;
 		int32_t* cameraLayer = nullptr;
 		uint32_t* receiverLayer = nullptr;
-		uint32_t* particleGroup = nullptr;
+		uint32_t* collisionTypes = nullptr;
 		bool* drawDebug = nullptr;
 	};
 

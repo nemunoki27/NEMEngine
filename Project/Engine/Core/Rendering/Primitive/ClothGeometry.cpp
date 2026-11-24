@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "PrimitiveGPUBuilder.h"
+#include "ClothGPUSolver.h"
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
@@ -23,6 +24,7 @@ namespace Engine {
 		SRVDescriptor& descriptors;
 		std::array<Slot, kGraphicsFrameContextCount> slots;
 		std::shared_ptr<const ECSWorldLifetime> lifetime;
+		std::weak_ptr<ClothGPUSolver> solver;
 		std::vector<MeshVertex> staging;
 		uint32_t generation = 0;
 		uint32_t index = 0;
@@ -40,13 +42,20 @@ namespace Engine {
 
 ID3D12Resource* Engine::PrimitiveGeometry::GetVertexResource() const {
 
-	if (clothVertices) return clothVertices->slots[GraphicsFrameState::GetCurrentIndex()].vertices.GetResource();
+	if (clothVertices) {
+		if (const auto solver = clothVertices->solver.lock()) return solver->GetVertexResource();
+		return clothVertices->slots[GraphicsFrameState::GetCurrentIndex()].vertices.GetResource();
+	}
 	return vertexBuffer.buffer ? vertexBuffer.buffer->GetResource() : nullptr;
 }
 
 uint32_t Engine::PrimitiveGeometry::GetVertexDescriptorIndex() const {
 
-	return clothVertices ? clothVertices->slots[GraphicsFrameState::GetCurrentIndex()].descriptor : vertexBuffer.srvIndex;
+	if (clothVertices) {
+		if (const auto solver = clothVertices->solver.lock()) return solver->GetVertexDescriptorIndex();
+		return clothVertices->slots[GraphicsFrameState::GetCurrentIndex()].descriptor;
+	}
+	return vertexBuffer.srvIndex;
 }
 
 const Engine::ClothRuntime* Engine::FindClothGeometry(const PrimitiveRendererComponent& renderer, const ECSWorld* world, Entity owner) {
@@ -80,6 +89,21 @@ Engine::PrimitiveGeometry* Engine::PrimitiveGeometryManager::Resolve(GraphicsCor
 	}
 
 	auto& buffers = *geometry.clothVertices;
+	if (cloth->gpu && cloth->gpu->GetVertexResource()) {
+		if (buffers.solver.lock() != cloth->gpu) {
+			buffers.solver = cloth->gpu;
+			buffers.staging.clear();
+			for (auto& slot : buffers.slots) slot.revision = UINT64_MAX;
+			geometry.blasBuilt = false;
+		}
+		if (buffers.revision != cloth->revision) geometry.blasBuilt = false;
+		buffers.revision = cloth->revision;
+		geometry.boundsCenter = cloth->boundsCenter;
+		geometry.boundsRadius = cloth->boundsRadius;
+		geometry.lastUsedFrame = frameIndex_;
+		return &geometry;
+	}
+	buffers.solver.reset();
 	if (buffers.staging.empty() || buffers.revision != cloth->revision) {
 		PrimitiveGPUBuilder::ConvertVertices(mesh, buffers.staging, geometry.planarUVBounds);
 		geometry.boundsCenter = cloth->boundsCenter;

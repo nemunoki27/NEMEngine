@@ -127,6 +127,14 @@ try {
         }
     }
     Copy-PackageDirectory $templates (Join-Path $packageRoot 'ProjectTemplates')
+    $boardSample = Join-Path $engineRepository 'Templates/Samples/NeecBoard'
+    $boardTarget = Join-Path $packageRoot 'Samples/NeecBoard'
+    foreach ($directory in 'GameAssets', 'Firmware/src', 'Firmware/lib') {
+        Copy-PackageDirectory (Join-Path $boardSample $directory) (Join-Path $boardTarget $directory)
+    }
+    foreach ($file in 'README.md', 'Firmware/platformio.ini') {
+        Copy-RequiredFile (Join-Path $boardSample $file) (Join-Path $boardTarget $file)
+    }
     Copy-PackageDirectory (Join-Path $engineRepository 'Tools/ProductBuild') (Join-Path $packageRoot 'Tools/ProductBuild')
     Copy-RequiredFile (Join-Path $engineRepository 'Tools/BuildGame.ps1') (Join-Path $packageRoot 'Tools/BuildGame.ps1')
     Copy-RequiredFile (Join-Path $PSScriptRoot 'NEM.GameScripts.targets') (Join-Path $packageRoot 'Managed/Build/NEM.GameScripts.targets')

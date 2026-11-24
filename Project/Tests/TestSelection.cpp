@@ -477,7 +477,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--cloth-gpu") {
-		return RunTest("TestClothGeometryGPU", TestClothGeometryGPU) ? 0 : 27;
+		return RunTest("TestClothGeometryGPU", TestClothGeometryGPU) && RunTest("TestClothEnvironmentGPU", TestClothEnvironmentGPU) &&
+			RunTest("TestClothSimulationGPU", TestClothSimulationGPU) ? 0 : 27;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--materials") {
 

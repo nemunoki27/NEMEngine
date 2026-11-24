@@ -323,6 +323,46 @@ namespace {
 	}
 
 	// 読み取り専用表示のコピーとIDと保存値の不変性を確認する
+	bool TestPlaybackButtons() {
+
+		using namespace Engine;
+		using Action = InspectorPlaybackAction;
+		constexpr Action actions[]{Action::PreviousFrame, Action::Play, Action::NextFrame, Action::EmitOnce, Action::Pause, Action::Stop, Action::Clear};
+		constexpr const char* labels[]{"前のフレーム", "再生", "次のフレーム", "単発再生", "一時停止", "停止", "消去"};
+		auto* previous = ImGui::GetCurrentContext();
+		auto* gui = ImGui::CreateContext();
+		ScopedCleanup cleanup([=]() noexcept { ImGui::DestroyContext(gui); ImGui::SetCurrentContext(previous); });
+		auto& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
+		io.DisplaySize = {600, 200};
+		unsigned char* pixels;
+		int width, height;
+		io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+		ImVec2 start{};
+		float buttonWidth = 0;
+		for (int frame = 0; frame <= 3 * static_cast<int>(std::size(actions)); ++frame) {
+			const int button = (frame ? frame - 1 : 0) / 3;
+			if (frame) io.AddMousePosEvent(start.x + buttonWidth * 0.5f + button *
+				(buttonWidth + ImGui::GetStyle().ItemSpacing.x), start.y + ImGui::GetFrameHeight() * 0.5f);
+			if (frame % 3 == 2) io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+			if (frame && frame % 3 == 0) io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			ImGui::NewFrame();
+			ImGui::SetNextWindowPos({0, 0});
+			ImGui::SetNextWindowSize({550, 150});
+			ImGui::Begin("PlaybackButtons", nullptr, ImGuiWindowFlags_NoTitleBar);
+			start = ImGui::GetCursorScreenPos();
+			buttonWidth = MyGUI::CalcEqualItemWidth(static_cast<int>(std::size(actions)));
+			ImGui::LogToBuffer();
+			const auto action = DrawInspectorPlaybackControls(true, false, actions);
+			const bool tooltip = !frame || std::string_view(gui->LogBuffer.c_str()).find(labels[button]) != std::string_view::npos;
+			ImGui::LogFinish();
+			ImGui::End();
+			ImGui::Render();
+			if (!tooltip || action != (frame && frame % 3 == 0 ? actions[button] : Action::None)) return false;
+		}
+		return true;
+	}
+
 	bool TestReadOnlyFields() {
 
 		using namespace Engine;
@@ -439,7 +479,8 @@ bool NEMTests::TestInspectorPresentation() {
 		std::cerr << "Inspector: object or asset reference failed\n";
 		return false;
 	}
-	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields() || !TestColorEditCompletion()) return false;
+	if (!TestRemovedComponentEditSession() || !TestSubMeshSelection() || !TestReadOnlyFields() ||
+		!TestPlaybackButtons() || !TestColorEditCompletion()) return false;
 	if (std::string_view(GetInspectorPlaybackState(true, false)) != "再生中" ||
 		std::string_view(GetInspectorPlaybackState(true, true)) != "一時停止" ||
 		std::string_view(GetInspectorPlaybackState(false, false, true)) != "完了" ||
@@ -495,7 +536,7 @@ bool NEMTests::TestInspectorPresentation() {
 	const auto cameraFields = BindInspectorCommonFields(camera);
 	if (skyFields.enabled || skyFields.visible != &sky.visible || skyFields.displayLayer != &sky.renderingLayerMask ||
 		particleFields.enabled != &particle.enabled || particleFields.visible != &particle.visible ||
-		fieldFields.particleGroup != &field.layerMask || fieldFields.displayLayer || jointFields.enabled != &joint.enabled ||
+		fieldFields.collisionTypes != &field.layerMask || fieldFields.displayLayer || jointFields.enabled != &joint.enabled ||
 		cameraFields.cameraLayer != &camera.common.cullingMask || cameraFields.enabled != &camera.common.enabled) return false;
 
 	ComponentEditorRegistry registry;
@@ -524,6 +565,7 @@ bool NEMTests::TestInspectorPresentation() {
 		if (std::string_view(ImGuiUtility::GetEnumDisplayName("EasingType", name)) != name) return false;
 	}
 	for (const auto& [type, name] : std::array{
+		std::pair{"ParticleValueType", "Constant"}, std::pair{"ParticleValueType", "Random"},
 		std::pair{"TextCharAnimationRepeat", "Once"}, std::pair{"TextCharAnimationRepeat", "LoopText"},
 		std::pair{"TextCharAnimationRepeat", "LoopCharacters"}, std::pair{"ShaderGraphDomain", "Surface"}, std::pair{"ShaderGraphDomain", "PostProcess"},
 		std::pair{"ShaderGraphDomain", "RayTracingEffect"}, std::pair{"ShaderGraphTarget", "Mesh"},
@@ -532,6 +574,11 @@ bool NEMTests::TestInspectorPresentation() {
 		std::pair{"ShaderGraphTarget", "Particle"}, std::pair{"ShaderGraphTarget", "Trail"},
 		std::pair{"ShaderGraphSurfaceMode", "Opaque"}, std::pair{"ShaderGraphSurfaceMode", "Transparent"}}) {
 		if (std::string_view(ImGuiUtility::GetEnumDisplayName(type, name)) != name) return false;
+	}
+	for (const auto& [name, expected] : std::array{
+		std::pair{"Advance", "次のフェーズに進む"}, std::pair{"Clamp", "固定"},
+		std::pair{"Reset", "初期化して再生"}, std::pair{"Kill", "終了"}}) {
+		if (std::string_view(ImGuiUtility::GetEnumDisplayName("ParticleLifeEndMode", name)) != expected) return false;
 	}
 	for (const auto& [name, expected] : std::array{
 		std::pair{"Inherit", "Inherit"}, std::pair{"TwoDimensional", "2D"}, std::pair{"ThreeDimensional", "3D"}}) {
@@ -570,7 +617,7 @@ bool NEMTests::TestInspectorPresentation() {
 		const bool indentationRestored = ImGui::GetCursorPosX() == indent;
 		DrawInspectorCommonFields(context, fieldFields);
 		DrawInspectorMask(context, "Rendering", mask, InspectorMaskDomain::Rendering);
-		DrawInspectorMask(context, "Particle", mask, InspectorMaskDomain::Particle);
+		DrawInspectorMask(context, "Particle", mask, InspectorMaskDomain::Collision);
 		DrawInspectorMask(context, "Collision", mask, InspectorMaskDomain::Collision);
 		SceneEntityReferenceFields::Draw("Missing", world, owner, missing);
 		SceneEntityReferenceFields::DrawLocal("Local", world, missingLocal);

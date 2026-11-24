@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/EditorIconButton.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
@@ -16,7 +17,7 @@ namespace {
 	struct FieldDefinition { const char* key; const char* label; };
 	constexpr std::array<FieldDefinition, 28> kFields{{
 		FieldDefinition{"Enabled", "有効"}, {"Visible", "表示"}, {"DisplayLayer", "表示レイヤー"},
-		{"CameraLayer", "描画対象レイヤー"}, {"ReceiverLayer", "受け取り先レイヤー"}, {"ParticleGroup", "作用グループ"},
+		{"CameraLayer", "描画対象レイヤー"}, {"ReceiverLayer", "受け取り先レイヤー"}, {"CollisionTypes", "自身の衝突タイプ"},
 		{"SortLayer", "ソートレイヤー"}, {"DrawOrder", "描画順"}, {"BlendMode", "ブレンドモード"}, {"RenderQueue", "描画キュー"},
 		{"PlayOnStart", "開始時に再生"}, {"PlayInEditMode", "編集中も再生"}, {"EditorPreview", "編集中にプレビュー"},
 		{"UnscaledTime", "TimeScaleの影響を受けない"}, {"Loop", "ループ再生"}, {"PlaybackSpeed", "再生速度"},
@@ -32,12 +33,14 @@ namespace {
 }
 
 Engine::InspectorPlaybackAction Engine::DrawInspectorPlaybackControls(bool enabled, bool timer,
-	std::span<const InspectorPlaybackAction> actions) {
+	std::span<const InspectorPlaybackAction> actions, bool frameStepEnabled) {
 
 	constexpr InspectorPlaybackAction defaults[]{InspectorPlaybackAction::Play, InspectorPlaybackAction::Pause,
 		InspectorPlaybackAction::Resume, InspectorPlaybackAction::Stop, InspectorPlaybackAction::Reset};
 	if (actions.empty()) actions = defaults;
-	constexpr const char* labels[]{"", "再生", "一時停止", "再開", "停止", "リセット", "単発再生", "消去"};
+	constexpr const char* labels[]{"", "再生", "一時停止", "再開", "停止", "リセット", "単発再生", "消去", "前のフレーム", "次のフレーム"};
+	using namespace EditorIconButton::Playback;
+	constexpr const char* icons[]{"", Play, Pause, Resume, Stop, Reset, EmitOnce, Clear, Previous, Next};
 	const float width = MyGUI::CalcEqualItemWidth(static_cast<int>(actions.size()));
 	auto result = InspectorPlaybackAction::None;
 	ImGui::BeginDisabled(!enabled);
@@ -45,7 +48,10 @@ Engine::InspectorPlaybackAction Engine::DrawInspectorPlaybackControls(bool enabl
 		if (index) ImGui::SameLine();
 		const auto action = actions[index];
 		const char* label = timer && action == InspectorPlaybackAction::Play ? "開始" : labels[static_cast<size_t>(action)];
-		if (ImGui::Button(label, ImVec2(width, 0))) result = action;
+		const bool stepping = action == InspectorPlaybackAction::PreviousFrame || action == InspectorPlaybackAction::NextFrame;
+		ImGui::BeginDisabled(stepping && !frameStepEnabled);
+		if (EditorIconButton::Draw(label, icons[static_cast<size_t>(action)], label, false, ImVec2(width, ImGui::GetFrameHeight()))) result = action;
+		ImGui::EndDisabled();
 	}
 	ImGui::EndDisabled();
 	return result;
@@ -114,10 +120,15 @@ Engine::ValueEditResult Engine::DrawInspectorMask(const EditorPanelContext& cont
 	const uint32_t all = domain == InspectorMaskDomain::Rendering ? kRenderingLayerMaskBits : UINT32_MAX;
 	const uint32_t defined = domain == InspectorMaskDomain::Rendering && context.renderingLayerSettings ?
 		context.renderingLayerSettings->GetDefinedMask() : all;
+	const auto& types = CollisionSettings::GetInstance().GetTypes();
 	const uint32_t selected = value & defined;
 	std::string preview = selected == 0 ? "なし" : selected == defined ? "すべて" : std::to_string(std::popcount(selected)) + "個選択";
 	if (domain == InspectorMaskDomain::Rendering && std::popcount(selected) == 1 && context.renderingLayerSettings)
 		preview = context.renderingLayerSettings->GetNames()[std::countr_zero(selected)];
+	if (domain == InspectorMaskDomain::Collision && std::popcount(selected) == 1) {
+		const auto index = static_cast<size_t>(std::countr_zero(selected));
+		if (index < types.size()) preview = types[index].name;
+	}
 	if (ImGui::BeginCombo("##Mask", preview.c_str())) {
 		if (ImGui::Selectable("すべて", defined != 0 && selected == defined)) { value = all; result.valueChanged = true; }
 		if (ImGui::Selectable("なし", value == 0)) { value = 0; result.valueChanged = true; }
@@ -128,10 +139,10 @@ Engine::ValueEditResult Engine::DrawInspectorMask(const EditorPanelContext& cont
 				if (!context.renderingLayerSettings || index >= ProjectRenderingLayerSettings::kLayerCount) continue;
 				name = context.renderingLayerSettings->GetNames()[index];
 				if (name.empty()) continue;
-			} else if (domain == InspectorMaskDomain::Collision) {
-				const auto& types = CollisionSettings::GetInstance().GetTypes();
-				name = index < types.size() ? types[index].name : "未定義 " + std::to_string(index);
-			} else name = "グループ " + std::to_string(index);
+			} else {
+				if (index >= types.size()) continue;
+				name = types[index].name;
+			}
 			ImGui::PushID(static_cast<int>(index));
 			result.valueChanged |= ImGui::CheckboxFlags(name.c_str(), &value, uint32_t(1) << index);
 			ImGui::PopID();
@@ -175,7 +186,7 @@ Engine::ValueEditResult Engine::DrawInspectorCommonFields(const EditorPanelConte
 		return edit;
 	});
 	mask(InspectorFieldID::ReceiverLayer, fields.receiverLayer, InspectorMaskDomain::Rendering);
-	mask(InspectorFieldID::ParticleGroup, fields.particleGroup, InspectorMaskDomain::Particle);
+	mask(InspectorFieldID::CollisionTypes, fields.collisionTypes, InspectorMaskDomain::Collision);
 	return result;
 }
 

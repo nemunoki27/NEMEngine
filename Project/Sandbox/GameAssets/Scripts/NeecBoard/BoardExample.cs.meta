@@ -1,0 +1,16 @@
+{
+  "guid": "027c2ba9b68c521e27c2ded74043f8d0",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "NeecSample.BoardExample",
+      "scriptTypeId": "31e7d5e0-933d-45ec-be8d-11f96701dcb6",
+      "formerNames": [],
+      "fields": []
+    }
+  ]
+}

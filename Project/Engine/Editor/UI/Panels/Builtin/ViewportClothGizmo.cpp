@@ -20,13 +20,13 @@ void Engine::ViewportClothGizmo::Draw(const EditorPanelContext& context, ImVec2 
 	const auto& runtime = cloth->runtime;
 	const auto* transform = world->TryGetComponent<TransformComponent>(owner);
 	const auto* camera = context.sceneRenderView->FindCamera(RenderCameraDomain::Perspective);
-	if (!transform || !camera || !camera->valid || runtime.pinned.size() != runtime.mesh.vertices.size()) return;
+	if (!transform || !camera || !camera->valid || runtime.pinned.size() != runtime.rest.size()) return;
 	const Matrix4x4 matrix = transform->worldMatrix * camera->matrices.viewProjectionMatrix;
 	auto* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
 	for (size_t i = 0; i < runtime.pinned.size(); ++i) {
 		if (!runtime.pinned[i]) continue;
-		const auto& point = runtime.mesh.vertices[i].position;
+		const auto& point = runtime.rest[i];
 		const float w = point.x * matrix.m[0][3] + point.y * matrix.m[1][3] + point.z * matrix.m[2][3] + matrix.m[3][3];
 		if (w <= 1.0e-6f) continue;
 		const auto ndc = Vector3::Transform(point, matrix);

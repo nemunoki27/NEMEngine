@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/Common/EditorIconButton.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -95,11 +96,13 @@ void Engine::AudioSourceInspectorDrawer::DrawFields(const EditorPanelContext& co
 		const AssetDatabase* database = context.editorContext->assetDatabase;
 		const std::filesystem::path fullPath = database->ResolveFullPath(draft.clip);
 
-		if (ImGui::Button("プレビュー再生", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		if (EditorIconButton::Draw("AudioPlay", EditorIconButton::Playback::Play, "プレビュー再生", false,
+			ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
 
 			preview_.Play(fullPath, draft.loop, draft.volume, draft.pitch);
 		}
-		if (ImGui::Button("プレビュー停止", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		if (EditorIconButton::Draw("AudioStop", EditorIconButton::Playback::Stop, "プレビュー停止", false,
+			ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()))) {
 
 			preview_.Stop();
 		}
