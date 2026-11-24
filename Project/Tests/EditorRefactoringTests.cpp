@@ -6,7 +6,6 @@
 #include "EditorCloneCommandTests.h"
 #include "HierarchyCommandContractTests.h"
 #include "CurveEditorContractTests.h"
-#include "ShaderGraphScenePreviewTests.h"
 #include "EditorAssetWorkflowTests.h"
 
 //============================================================================
@@ -488,8 +487,7 @@ bool TestEditorContracts() {
 		!NEMTests::TestTransformPreviewOwnership() ||
 		!NEMTests::TestBulkDeleteRecovery() || !NEMTests::TestBulkCloneRecovery() || !NEMTests::TestHierarchyCommandContracts() ||
 		!TestSceneSaveRevision() || !TestSceneSaveConflictSelection() ||
-		!TestLayoutRoundTrip() || !TestProjectSettingsOwnership() || !NEMTests::TestCurveEditorContracts() ||
-		!NEMTests::TestShaderGraphScenePreview()) {
+		!TestLayoutRoundTrip() || !TestProjectSettingsOwnership() || !NEMTests::TestCurveEditorContracts()) {
 		std::cerr << "Editor state contract failed\n";
 		return false;
 	}

@@ -1,47 +1,23 @@
 #pragma once
 
+#include <Engine/Editor/UI/Panels/Builtin/InspectorMaterialPreview.h>
+
 namespace Engine {
-
 	class ShaderGraphEditSession;
-	class ShaderGraphScenePreview;
-	struct EditorToolContext;
 
-	//============================================================================
-	//	ShaderGraphPreviewController class
-	//	Sceneプレビューの対象選択と自動コンパイルを管理する
-	//============================================================================
+	// グラフの最終出力をキャンバス右下に表示する
 	class ShaderGraphPreviewController {
 	public:
-		//========================================================================
-		//	public Methods
-		//========================================================================
-
-		ShaderGraphPreviewController(ShaderGraphEditSession& session, ShaderGraphScenePreview& preview);
-
-		// Scene上のプレビュー対象を選択する
-		void DrawSettings(const EditorToolContext& context);
-		// 入力の確定を待って未保存Graphをコンパイルする
-		void Update(const EditorToolContext& context);
-		// 適用前のMaterialとコンパイル待機を復元する
-		void Restore();
-		// 復元済みの対象とコンパイル待機を解除する
-		void ResetTarget();
+		explicit ShaderGraphPreviewController(ShaderGraphEditSession& session);
+		void Draw(const EditorToolContext& context, ImVec2 origin, ImVec2 canvasSize);
 
 	private:
-		//========================================================================
-		//	private Methods
-		//========================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		ShaderGraphEditSession& editSession_;
-		ShaderGraphScenePreview& scenePreview_;
-		// 入力確定後のコンパイル予定時刻
-		double compileDeadline_ = 0.0;
-
-		//--------- functions ----------------------------------------------------
-
-		// コンパイル済みMaterialをSceneへ反映する
-		bool Apply(const EditorToolContext& context);
+		ShaderGraphEditSession& session_;
+		InspectorMaterialPreview preview_;
+		AssetID graph_{};
+		uint64_t revision_ = 0;
+		double deadline_ = 0.0;
+		bool failed_ = false;
+		bool animated_ = false;
 	};
-} // Engine
+}

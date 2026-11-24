@@ -31,6 +31,7 @@ void Engine::ShaderGraphCanvasContext::EnsureCreated() {
 	// Graphの保存位置を使うCanvasを作成する
 	ed::Config config{};
 	config.SettingsFile = nullptr;
+	config.CanvasSizeMode = ed::CanvasSizeMode::CenterOnly;
 	nodeEditor_ = ed::CreateEditor(&config);
 	restoreNodePositions_ = true;
 }

@@ -18,6 +18,36 @@ namespace {
 
 	namespace ed = ax::NodeEditor;
 
+	bool DrawVerticalTab(const char* label, float width, bool selected) {
+
+		const ImVec2 text = ImGui::CalcTextSize(label);
+		const float padding = ImGui::GetStyle().FramePadding.x;
+		const bool pressed = ImGui::InvisibleButton(label, ImVec2(width, text.x + padding * 2.0f), ImGuiButtonFlags_EnableNav);
+		if (!ImGui::IsItemVisible()) {
+			return pressed;
+		}
+		ImDrawList* draw = ImGui::GetWindowDrawList();
+		const ImVec2 start = ImGui::GetItemRectMin();
+		const ImVec2 end = ImGui::GetItemRectMax();
+		const ImGuiCol color = selected ? ImGuiCol_TabSelected : ImGui::IsItemHovered() ? ImGuiCol_TabHovered : ImGuiCol_Tab;
+		draw->AddRectFilled(start, end, ImGui::GetColorU32(color));
+		if (selected) {
+			draw->AddRectFilled(start, ImVec2(start.x + 2.0f, end.y), ImGui::GetColorU32(ImGuiCol_TabSelectedOverline));
+		}
+
+		// ラベルの頂点だけを右回りに90度回転する
+		const int first = draw->VtxBuffer.Size;
+		ImGui::GetFont()->RenderText(draw, ImGui::GetFontSize(), ImVec2(), ImGui::GetColorU32(ImGuiCol_Text),
+			ImVec4(-width, -width, text.x + width, text.y + width), label, nullptr);
+		const ImVec2 origin(start.x + (width + text.y) * 0.5f, start.y + padding);
+		for (int i = first; i < draw->VtxBuffer.Size; ++i) {
+			ImVec2& point = draw->VtxBuffer[i].pos;
+			point = ImVec2(origin.x - point.y, origin.y + point.x);
+		}
+		return pressed;
+	}
+
+
 }
 
 //============================================================================
@@ -29,7 +59,7 @@ Engine::ShaderGraphEditorTool::ShaderGraphEditorTool()
 	  groupEditor_(editSession_, appearanceEditor_.GetSettings()),
 	  canvasMenu_(editSession_, canvas_, groupEditor_, nodeTransfer_),
 	  canvasView_(editSession_, canvas_, appearanceEditor_, nodePreviews_, nodeDrawer_, groupEditor_, canvasMenu_),
-	previewController_(editSession_, scenePreview_), settingsEditor_(editSession_, previewController_) {
+	previewController_(editSession_), settingsEditor_(editSession_) {
 
 	// ノード画像の描画状態を初期化する
 	nodePreviews_.Init();
@@ -37,19 +67,9 @@ Engine::ShaderGraphEditorTool::ShaderGraphEditorTool()
 
 Engine::ShaderGraphEditorTool::~ShaderGraphEditorTool() {
 
-	// Sceneの一時的なMaterialを戻す
-	EndScenePreview();
-
 	// 描画資源を回収へ渡して編集画面を解除する
 	nodePreviews_.ClearNodePreviews();
 	ResetNodeEditor();
-}
-
-void Engine::ShaderGraphEditorTool::EndScenePreview() {
-
-	// 一時的な差替えを保存先と次のWorldへ持ち越さない
-	previewController_.Restore();
-	previewController_.ResetTarget();
 }
 
 void Engine::ShaderGraphEditorTool::OpenEditorTool() {
@@ -75,11 +95,6 @@ void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& cont
 		DrawWindow(context);
 	}
 	DrawUnsavedPrompt(context);
-	if (!openWindow_) {
-		RestorePreviewMaterial();
-		return;
-	}
-	previewController_.Update(context);
 }
 
 void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context) {
@@ -101,19 +116,7 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 	toolbar_.Draw(context, editSession_, *this);
 	ImGui::Separator();
 
-	const float panelWidth = (std::min)(360.0f, ImGui::GetContentRegionAvail().x * 0.35f);
-	if (ImGui::BeginChild(
-			"ShaderGraphParameters", ImVec2(panelWidth, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
-
-		DrawParameterPanel(context);
-	}
-	ImGui::EndChild();
-	ImGui::SameLine();
-	if (ImGui::BeginChild("ShaderGraphCanvas", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
-
-		DrawGraph(context);
-	}
-	ImGui::EndChild();
+	DrawWorkspace(context);
 	if (editSession_.IsLoaded() && !ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 
 		CommitGraphHistory();
@@ -131,9 +134,7 @@ void Engine::ShaderGraphEditorTool::HandleWindowClose() {
 		openWindow_ = true;
 		requestWindowClose_ = true;
 		requestUnsavedPrompt_ = true;
-		return;
 	}
-	RestorePreviewMaterial();
 }
 
 bool Engine::ShaderGraphEditorTool::HasPendingEdits() const {
@@ -257,9 +258,7 @@ void Engine::ShaderGraphEditorTool::ImportGraphSettings(const EditorToolContext&
 
 	CaptureNodePositions();
 	editSession_.CaptureHistory();
-	RestorePreviewMaterial();
-	// 取り込み前のプレビュー対象と再生成待機を解除する
-	previewController_.ResetTarget();
+
 	nodePreviews_.ClearNodePreviews();
 	editSession_.Import(std::move(imported));
 	parameterEditor_.ResetSelection();
@@ -272,7 +271,6 @@ void Engine::ShaderGraphEditorTool::ImportGraphSettings(const EditorToolContext&
 
 bool Engine::ShaderGraphEditorTool::CreateGraph(const EditorToolContext& context) {
 
-	RestorePreviewMaterial();
 	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database) {
 		editSession_.GetStatusMessage() = "作成先を設定してください";
@@ -281,11 +279,6 @@ bool Engine::ShaderGraphEditorTool::CreateGraph(const EditorToolContext& context
 	const AssetID assetID =
 		ShaderGraphAssetAuthoring::Create(*database, toolbar_.GetCreationRequest(), editSession_.GetStatusMessage());
 	return assetID && LoadGraph(context, assetID);
-}
-
-void Engine::ShaderGraphEditorTool::RestorePreviewMaterial() {
-
-	previewController_.Restore();
 }
 
 void Engine::ShaderGraphEditorTool::CaptureNodePositions() {
@@ -360,7 +353,6 @@ void Engine::ShaderGraphEditorTool::CommitGraphHistory() {
 
 bool Engine::ShaderGraphEditorTool::LoadGraph(const EditorToolContext& context, AssetID assetID) {
 
-	RestorePreviewMaterial();
 	const bool loaded = editSession_.Load(context, assetID);
 	if (!loaded) {
 		if (!context.toolContext.assetDatabase || !assetID) {
@@ -382,7 +374,7 @@ void Engine::ShaderGraphEditorTool::RequestGraphSwitch(const EditorToolContext& 
 		return;
 	}
 	if (!editSession_.IsDirty()) {
-		RestorePreviewMaterial();
+
 		LoadGraph(context, assetID);
 		return;
 	}
@@ -395,7 +387,6 @@ void Engine::ShaderGraphEditorTool::RequestGraphSwitch(const EditorToolContext& 
 
 void Engine::ShaderGraphEditorTool::ApplyPendingTransition(const EditorToolContext& context) {
 
-	RestorePreviewMaterial();
 	if (requestAssetSwitch_) {
 		const AssetID assetID = requestedAsset_;
 		requestAssetSwitch_ = false;
@@ -426,23 +417,86 @@ bool Engine::ShaderGraphEditorTool::SaveAndCompile(const EditorToolContext& cont
 	return editSession_.SaveAndCompile(context, graphPath);
 }
 
-void Engine::ShaderGraphEditorTool::DrawParameterPanel(const EditorToolContext& context) {
+void Engine::ShaderGraphEditorTool::DrawWorkspace(const EditorToolContext& context) {
 
-	DrawAppearancePanel();
-	if (!editSession_.IsLoaded()) {
+	const bool loaded = editSession_.IsLoaded();
+	struct TabEntry {
+		SettingsTab tab;
+		const char* label;
+		bool visible;
+	};
+	const TabEntry entries[] = {
+		{SettingsTab::Appearance, "見た目設定", EditorSourceNavigation::IsEngineSourceProject()},
+		{SettingsTab::Graph, "グラフ設定", loaded},
+		{SettingsTab::Parameters, "パラメータ", loaded}, {SettingsTab::Keywords, "キーワード", loaded},
+		{SettingsTab::Selection, "選択ノード", loaded}, {SettingsTab::Diagnostics, "診断", loaded},
+	};
+
+	float tabsHeight = 0.0f;
+	const ImGuiStyle& style = ImGui::GetStyle();
+	for (const TabEntry& entry : entries) {
+		if (entry.visible) {
+			tabsHeight += ImGui::CalcTextSize(entry.label).x + style.FramePadding.x * 2.0f + style.ItemSpacing.y;
+		} else if (settingsTab_ == entry.tab) {
+			settingsTab_ = SettingsTab::None;
+		}
+	}
+	const ImVec2 available = ImGui::GetContentRegionAvail();
+	const float tabWidth = ImGui::GetFrameHeight();
+	const float railWidth = tabsHeight > 0.0f ? tabWidth +
+		(tabsHeight - style.ItemSpacing.y > available.y ? style.ScrollbarSize : 0.0f) : 0.0f;
+	const float workspace = (std::max)(1.0f, available.x - railWidth);
+	const float grip = style.GrabMinSize * 0.5f;
+	const float maxWidth = (std::max)(1.0f, workspace * 0.8f - grip);
+	const float minWidth = (std::min)(180.0f, maxWidth);
+	const float width = std::clamp(settingsWidth_, minWidth, maxWidth);
+	const bool open = settingsTab_ != SettingsTab::None;
+	const float canvasWidth = (std::max)(1.0f, workspace - (open ? width + grip : 0.0f));
+
+	if (ImGui::BeginChild("ShaderGraphCanvas", ImVec2(canvasWidth, 0.0f), ImGuiChildFlags_Borders)) {
+		const ImVec2 origin = ImGui::GetCursorScreenPos();
+		const ImVec2 size = ImGui::GetContentRegionAvail();
+		DrawGraph(context);
+		if (loaded) previewController_.Draw(context, origin, size);
+	}
+	ImGui::EndChild();
+	if (open) {
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::InvisibleButton("##SettingsWidth", ImVec2(grip, (std::max)(1.0f, available.y)));
+		if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+			ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+		}
+		if (ImGui::IsItemActive()) {
+			settingsWidth_ = std::clamp(width - ImGui::GetIO().MouseDelta.x, minWidth, maxWidth);
+		}
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::PushID(static_cast<int>(settingsTab_));
+		if (ImGui::BeginChild("ShaderGraphParameters", ImVec2(width, 0.0f), ImGuiChildFlags_Borders)) {
+			switch (settingsTab_) {
+			case SettingsTab::Appearance: DrawAppearancePanel(); break;
+			case SettingsTab::Graph: DrawGraphSettings(); break;
+			case SettingsTab::Parameters: parameterEditor_.Draw(context, editSession_); break;
+			case SettingsTab::Keywords: keywordEditor_.Draw(editSession_); break;
+			case SettingsTab::Selection: DrawSelectedNodeEditor(context); break;
+			case SettingsTab::Diagnostics: canvasView_.DrawDiagnostics(); break;
+			default: break;
+			}
+		}
+		ImGui::EndChild();
+		ImGui::PopID();
+	}
+	if (railWidth <= 0.0f) {
 		return;
 	}
-
-	DrawGraphSettings();
-
-	if (editSession_.GetDraft().domain == ShaderGraphDomain::Surface) {
-		previewController_.DrawSettings(context);
+	ImGui::SameLine(0.0f, 0.0f);
+	if (ImGui::BeginChild("ShaderGraphTabs", ImVec2(railWidth, 0.0f))) {
+		for (const TabEntry& entry : entries) {
+			if (entry.visible && DrawVerticalTab(entry.label, tabWidth, entry.tab == settingsTab_)) {
+				settingsTab_ = entry.tab == settingsTab_ ? SettingsTab::None : entry.tab;
+			}
+		}
 	}
-
-	parameterEditor_.Draw(context, editSession_);
-	keywordEditor_.Draw(editSession_);
-	DrawSelectedNodeEditor(context);
-	canvasView_.DrawDiagnostics();
+	ImGui::EndChild();
 }
 
 void Engine::ShaderGraphEditorTool::DrawSelectedNodeEditor(const EditorToolContext& context) {
@@ -459,14 +513,10 @@ void Engine::ShaderGraphEditorTool::DrawSelectedNodeEditor(const EditorToolConte
 
 void Engine::ShaderGraphEditorTool::DrawAppearancePanel() {
 
-	if (!EditorSourceNavigation::IsEngineSourceProject()) {
-		return;
-	}
 	// 解像度の変更が確定したときだけpreviewを作り直す
 	if (appearanceEditor_.Draw(editSession_.GetStatusMessage())) {
 		nodePreviews_.ClearNodePreviews();
 	}
-	ImGui::Separator();
 }
 
 bool Engine::ShaderGraphEditorTool::RequestGraphCreation(const EditorToolContext& context) {

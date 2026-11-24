@@ -369,23 +369,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		}
 
 		// TLASバッファをリソースレジストリに登録
-		if (context.raytracing.tlasResource) {
-
-			context.bufferRegistry.Register({.alias = "SceneTLAS",
-				.resource = context.raytracing.tlasResource,
-				.gpuAddress = context.raytracing.tlasResource->GetGPUVirtualAddress(),
-				.srvGPUHandle = {},
-				.uavGPUHandle = {},
-				.elementCount = context.raytracing.instanceCount,
-				.stride = 0});
-			context.bufferRegistry.Register({.alias = "gSceneTLAS",
-				.resource = context.raytracing.tlasResource,
-				.gpuAddress = context.raytracing.tlasResource->GetGPUVirtualAddress(),
-				.srvGPUHandle = {},
-				.uavGPUHandle = {},
-				.elementCount = context.raytracing.instanceCount,
-				.stride = 0});
-		}
+		RegisterSceneTLAS(context);
 
 		// 固定RenderPathを実行
 		renderPath_.Execute(graphicsCore, passBuckets_, context);

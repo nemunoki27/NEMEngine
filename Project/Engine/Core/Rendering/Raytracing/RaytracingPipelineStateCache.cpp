@@ -111,6 +111,20 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	return it->second.get();
 }
 
+Engine::RaytracingPipelineReadiness Engine::RaytracingPipelineStateCache::PrepareLatest(GraphicsPlatform& platform,
+	RenderAssetLibrary& assets, AssetID pipeline, AssetID shader, const PipelineStaticSamplerOverrideSet& samplers) {
+
+	const auto* state = GetOrCreate(platform, assets, pipeline, shader, &samplers);
+	const uint64_t samplerHash = HashPipelineStaticSamplerOverrides(&samplers);
+	if (state && state != FindFallback(pipeline, shader, samplerHash)) return RaytracingPipelineReadiness::Ready;
+	for (const auto& [key, build] : pendingBuilds_) {
+		if (key.pipelineAsset == pipeline && key.shaderOverrideAsset == shader && key.samplerHash == samplerHash) {
+			return RaytracingPipelineReadiness::Building;
+		}
+	}
+	return RaytracingPipelineReadiness::Failed;
+}
+
 Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetMaterialReflection(
 	GraphicsPlatform& platform, RenderAssetLibrary& assets, const PipelineStaticSamplerOverrideSet& samplers,
 	std::span<const RaytracingHitMaterial> materials, bool prepareScene, std::span<const RaytracingHitMaterial>& activeMaterials) {

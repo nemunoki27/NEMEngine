@@ -30,10 +30,6 @@ Engine::ShaderGraphAppearanceEditor::ShaderGraphAppearanceEditor() {
 
 bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 
-	if (!MyGUI::CollapsingHeader("見た目設定", false)) {
-		return false;
-	}
-
 	bool invalidatePreviews = false;
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("保存##Appearance", ImVec2(buttonWidth, 0.0f))) {

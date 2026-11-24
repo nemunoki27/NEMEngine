@@ -12,6 +12,8 @@
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
@@ -22,6 +24,35 @@
 #include <vector>
 
 namespace {
+
+	bool ValidatePreviewShader(Engine::DxShaderCompiler& compiler, const Engine::ShaderGraphAsset& graph,
+		const Engine::ShaderGraphArtifact& artifact, std::vector<Engine::ShaderGraphDiagnostic>& diagnostics, std::string& status) {
+
+		using namespace Engine;
+		const bool transparent = graph.target == ShaderGraphTarget::Particle || graph.target == ShaderGraphTarget::Trail ||
+			(IsShaderGraph3DTarget(graph.target) && graph.surfaceMode == ShaderGraphSurfaceMode::Transparent);
+		const ShaderAsset* shader = transparent ? &artifact.transparentShader : &artifact.opaqueShader;
+		if (graph.domain == ShaderGraphDomain::PostProcess) shader = &artifact.computeShader;
+		if (graph.domain == ShaderGraphDomain::RayTracingEffect) shader = &artifact.rayTracingShader;
+
+		for (const ShaderStageEntry& stage : shader->stages) {
+			const auto profile = Algorithm::ConvertString(stage.profile);
+			const auto entry = Algorithm::ConvertString(stage.entry);
+			const auto compiled = compiler.CompileShader(Algorithm::PathFromUTF8(stage.file).wstring(),
+				profile.c_str(), entry.c_str(), stage.stage);
+			if (compiled.IsValid()) continue;
+
+			ShaderGraphStage graphStage = ShaderGraphStage::Fragment;
+			if (stage.stage == ShaderStage::VS || stage.stage == ShaderStage::MS) graphStage = ShaderGraphStage::Vertex;
+			if (stage.stage == ShaderStage::CS) graphStage = ShaderGraphStage::Compute;
+			if (stage.stage == ShaderStage::Lib) graphStage = ShaderGraphStage::RayGeneration;
+			status = "プレビューのシェーダーをコンパイルできませんでした: " + stage.profile;
+			diagnostics.push_back({.stage = graphStage, .node = graphStage == ShaderGraphStage::Vertex ? graph.vertexOutputNode : graph.outputNode,
+				.message = compiled.diagnostics.empty() ? status : compiled.diagnostics});
+			return false;
+		}
+		return true;
+	}
 
 	// 保存先と選択中のGraphを照合する
 	bool PrepareGraphDocument(Engine::AssetDatabase& database, const std::filesystem::path& path, Engine::AssetID expectedID,
@@ -50,8 +81,32 @@ namespace {
 			return;
 		}
 
+		Engine::RenderPipelineRunner& renderPipeline = *context.panelContext->renderPipeline;
+		Engine::RenderAssetLibrary& library = renderPipeline.GetRenderAssetLibrary();
+		library.Init(context.toolContext.assetDatabase);
+		renderPipeline.ReloadMaterial(material.guid);
+		if (artifact.opaqueShaderID) {
+			renderPipeline.ReloadShader(artifact.opaqueShaderID);
+		}
+		if (artifact.transparentShaderID) {
+			renderPipeline.ReloadShader(artifact.transparentShaderID);
+		}
+		if (artifact.depthShaderID) {
+			renderPipeline.ReloadShader(artifact.depthShaderID);
+		}
+		if (artifact.pickingShaderID) {
+			renderPipeline.ReloadShader(artifact.pickingShaderID);
+		}
+		if (artifact.outlineShaderID) {
+			renderPipeline.ReloadShader(artifact.outlineShaderID);
+		}
+		if (artifact.computeShaderID) {
+			renderPipeline.ReloadShader(artifact.computeShaderID);
+		}
+		if (artifact.rayTracingShaderID) {
+			renderPipeline.ReloadShader(artifact.rayTracingShaderID);
+		}
 		if (artifact.particleGPUShaderID) context.panelContext->renderPipeline->ReloadShader(artifact.particleGPUShaderID);
-		Engine::RenderAssetLibrary& library = context.panelContext->renderPipeline->GetRenderAssetLibrary();
 		library.RegisterDerivedShader(std::move(artifact.opaqueShader));
 		library.RegisterDerivedShader(std::move(artifact.transparentShader));
 		library.RegisterDerivedShader(std::move(artifact.particleGPUShader));
@@ -169,29 +224,6 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 
 	if (context.panelContext && context.panelContext->renderPipeline) {
 
-		RenderPipelineRunner& renderPipeline = *context.panelContext->renderPipeline;
-		renderPipeline.ReloadMaterial(materialID);
-		if (artifact.opaqueShaderID) {
-			renderPipeline.ReloadShader(artifact.opaqueShaderID);
-		}
-		if (artifact.transparentShaderID) {
-			renderPipeline.ReloadShader(artifact.transparentShaderID);
-		}
-		if (artifact.depthShaderID) {
-			renderPipeline.ReloadShader(artifact.depthShaderID);
-		}
-		if (artifact.pickingShaderID) {
-			renderPipeline.ReloadShader(artifact.pickingShaderID);
-		}
-		if (artifact.outlineShaderID) {
-			renderPipeline.ReloadShader(artifact.outlineShaderID);
-		}
-		if (artifact.computeShaderID) {
-			renderPipeline.ReloadShader(artifact.computeShaderID);
-		}
-		if (artifact.rayTracingShaderID) {
-			renderPipeline.ReloadShader(artifact.rayTracingShaderID);
-		}
 		material.guid = materialID;
 		ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
 		PublishShaderGraphArtifact(context, std::move(artifact), std::move(material));
@@ -203,12 +235,26 @@ bool Engine::ShaderGraphPublication::CompileAndPublishPreview(const EditorToolCo
 	const ShaderGraphAsset& graph, AssetID assetID, AssetID& materialID, std::vector<ShaderGraphDiagnostic>& diagnostics,
 	std::string& status) {
 
-	const AssetID previewGraphID = ShaderGraphArtifactCache::MakeDerivedID(assetID, 0x5052455649455747ull);
+	// 編集中のHLSLが失敗しても、表示中のパスが参照する生成ソースは残す
+	const AssetID first = ShaderGraphArtifactCache::MakeDerivedID(assetID, 0x5052455649455747ull);
+	AssetID previewGraphID = first;
+	if (materialID && context.panelContext && context.panelContext->renderPipeline) {
+		auto& library = context.panelContext->renderPipeline->GetRenderAssetLibrary();
+		const MaterialAsset* current = library.LoadMaterial(materialID);
+		if (current && current->shaderGraph == first) {
+			previewGraphID = ShaderGraphArtifactCache::MakeDerivedID(assetID, 0x5052455649455748ull);
+		}
+	}
 	ShaderGraphArtifact artifact{};
 	if (!ShaderGraphArtifactCache::Compile(graph, previewGraphID, artifact, &database, &diagnostics)) {
 
 		status = diagnostics.empty() ? "プレビューを生成できませんでした" : diagnostics.front().message;
 		return false;
+	}
+
+	if (context.panelContext && context.panelContext->graphicsCore) {
+		auto* compiler = context.panelContext->graphicsCore->GetDXObject().GetDxShaderCompiler();
+		if (compiler && !ValidatePreviewShader(*compiler, graph, artifact, diagnostics, status)) return false;
 	}
 
 	MaterialAsset material = ShaderGraphArtifactCache::CreateMaterial(graph, previewGraphID);

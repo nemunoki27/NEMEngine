@@ -4,6 +4,12 @@
 //	include
 //============================================================================
 #include "RenderPipelineUtility.h"
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveRenderBackend.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -41,6 +47,50 @@ uint64_t RenderPipelineRunner::PreparePreviewMeshes(GraphicsCore& graphicsCore, 
 	return previewResources_.previewMeshBackend_->GetMeshResourceRevision();
 }
 
+RaytracingPipelineReadiness RenderPipelineRunner::PrepareRaytracingPreview(GraphicsCore& graphicsCore, const MaterialAsset& material) {
+
+	const auto* pass = FindPass(material, MaterialPassKind::RayTracing);
+	if (!pass) return RaytracingPipelineReadiness::Failed;
+	PipelineStaticSamplerOverrideSet samplers{};
+	samplers.fillMissingSamplers = true;
+	return raytracingPipelineStateCache_.PrepareLatest(graphicsCore.GetDXObject(), renderAssetLibrary_, pass->pipeline, pass->shaderOverride, samplers);
+}
+
+bool RenderPipelineRunner::DrawPreviewEffect(GraphicsCore& graphicsCore, SceneExecutionContext& context, AssetID materialID) {
+
+	auto* output = context.defaultSurface->GetColorTexture(0);
+	const MaterialAsset* material = renderAssetLibrary_.LoadMaterial(materialID);
+	if (!material || !context.systemContext || !output || !output->GetUAVGPUHandle().ptr) return false;
+
+	std::unordered_map<std::string, std::string> inputs;
+	RenderFeatureResourceUtility::ApplyDefaultSceneInputs(inputs);
+	inputs[PostProcessBindingNames::kSourceColor] = RenderTargetNames::kSceneColorFinal;
+	inputs[ShaderGraphBindingNames::kSceneColor] = RenderTargetNames::kSceneColorFinal;
+	if (material->domain == MaterialDomain::Compute) {
+		PostProcessExecutionDesc desc{};
+		desc.material = materialID;
+		desc.passKind = MaterialPassKind::PostProcess;
+		desc.source.colors = {"SceneFinal"};
+		desc.dest.colors = {"View"};
+		desc.extraSources = std::move(inputs);
+		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
+		return postProcessExecutor_.Execute(graphicsCore, {}, context, renderAssetLibrary_, pipelineStateCache_, desc);
+	}
+	if (material->domain != MaterialDomain::RayTracing || !graphicsCore.GetDXObject().ShouldUseDispatchRays()) return false;
+
+	if (!context.raytracing.tlasResource || !context.raytracing.materialTexturesReady) return false;
+	RenderFeaturePassSettings pass{};
+	pass.name = "ShaderGraphPreview";
+	pass.material = materialID;
+	pass.type = RenderFeaturePassType::RayTracing;
+	pass.materialPass = MaterialPassKind::RayTracing;
+	RayTracingExecutionResources resources{};
+	resources.inputs = std::move(inputs);
+	resources.dispatchTarget = output;
+	resources.outputs[PostProcessBindingNames::kDestColor] = output;
+	return rayTracingExecutor_.Execute(graphicsCore, context, renderAssetLibrary_, raytracingPipelineStateCache_, pass, resources, nullptr);
+}
+
 bool RenderPipelineRunner::RenderEntityPreview(
 	GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request) {
 
@@ -53,7 +103,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	renderAssetLibrary_.Init(request.assetDatabase);
 	previewResources_.BeginFrame(graphicsCore);
 	auto& preparation = previewResources_.previewScenePreparation_;
-	preparation.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, request.materialPreview ? &assetReloadService_ : nullptr);
+	const bool materialPreview = request.kind != EntityPreviewKind::Model;
+	preparation.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, materialPreview ? &assetReloadService_ : nullptr);
 
 	RenderViewRequest viewRequest{};
 	viewRequest.kind = RenderViewKind::Scene;
@@ -127,8 +178,13 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			preparation.renderBatch_, previewResources_.previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 	}
 
-	if (request.materialPreview) {
-		auto& targets = previewResources_.materialTargets_;
+	if (materialPreview) {
+		auto& view = request.kind == EntityPreviewKind::ShaderGraph ? previewResources_.graphView_ : previewResources_.materialView_;
+		if (!view) {
+			view = std::make_unique<RenderPreviewResources::MaterialView>();
+			view->color.BeginFrame();
+		}
+		auto& targets = view->targets;
 		const bool firstPreview = !targets.IsValid();
 		targets.Resize(graphicsCore, previewView.width, previewView.height);
 		if (!targets.IsValid()) return false;
@@ -139,9 +195,9 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			deps.assetLibrary = &renderAssetLibrary_;
 			deps.pipelineCache = &pipelineStateCache_;
 			deps.materialResolver = &materialResolver_;
-			deps.colorPipelineProcessor = &previewResources_.materialColor_;
+			deps.colorPipelineProcessor = &view->color;
 			deps.dispatcher = &batchDispatcher_;
-			previewResources_.materialPath_.Initialize(deps, true);
+			view->path.Initialize(deps, true);
 		}
 		previewView.historyWorldRevision = UINT64_MAX;
 		context.resources = &targets;
@@ -149,11 +205,27 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		context.postProcessCamera = previewView.perspective;
 		context.postProcessCamera.postProcessEnabled = false;
 		context.disableMeshCulling = true;
+		const MaterialAsset* effect = request.materialPreviewEffect ? renderAssetLibrary_.LoadMaterial(request.materialPreviewEffect) : nullptr;
+		if (effect && effect->domain == MaterialDomain::RayTracing && graphicsCore.GetDXObject().ShouldUseDispatchRays()) {
+			// DecalPassが命中面の投影候補を準備できるよう、先にTLASを構築する
+			auto& scene = previewResources_.effectScene_;
+			auto& rayView = previewResources_.effectView_;
+			auto* primitives = static_cast<PrimitiveRenderBackend*>(previewResources_.previewBackendRegistry_.Find(RenderBackendID::Primitive));
+			scene.BeginFrame(graphicsCore);
+			scene.BuildForScene(graphicsCore, *context.assetDatabase, renderAssetLibrary_, materialResolver_,
+				meshBackend, primitives ? &primitives->GetGeometryManager() : nullptr, preparation.renderBatch_, context);
+			RegisterSceneTLAS(context);
+			rayView.Init(graphicsCore);
+			rayView.Upload(previewView, {}, context.postProcessCamera.surfaceSettings);
+			rayView.RegisterTo(context.bufferRegistry);
+			context.raytracingViewConstants = &rayView.GetData();
+		}
 		RegisterSceneMaterialInputs(context);
-		previewResources_.materialPath_.Execute(graphicsCore, passBuckets, context);
+		view->path.Execute(graphicsCore, passBuckets, context);
+		const bool rendered = !request.materialPreviewEffect || DrawPreviewEffect(graphicsCore, context, request.materialPreviewEffect);
 		request.surface->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
 		previewTargetRegistry.EndFrame();
-		return true;
+		return rendered;
 	}
 
 	// プレビュー:クリア→全フェーズを描画サーフェスへ直接描画

@@ -51,6 +51,7 @@ namespace Engine {
 		AssetID GetPreviewMaterialID() const { return previewMaterial_; }
 		bool IsLoaded() const { return graphLoaded_; }
 		bool IsDirty() const { return graphDirty_; }
+		uint64_t GetPreviewRevision() const { return previewRevision_; }
 		bool NeedsCompile() const { return previewCompileDirty_; }
 		bool CanUndo() const { return history_.CanUndo(); }
 		bool CanRedo() const { return history_.CanRedo(); }
@@ -70,6 +71,7 @@ namespace Engine {
 		bool graphLoaded_ = false;
 		bool graphDirty_ = false;
 		bool previewCompileDirty_ = false;
+		uint64_t previewRevision_ = 0;
 		std::string compiledGraphState_{};
 		std::vector<ShaderGraphDiagnostic> latestDiagnostics_{};
 		std::string statusMessage_{};

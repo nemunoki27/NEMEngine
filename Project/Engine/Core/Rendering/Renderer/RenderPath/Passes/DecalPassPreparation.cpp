@@ -26,9 +26,7 @@ namespace {
 void Engine::DecalPass::Prepare(GraphicsCore& graphicsCore, SceneExecutionContext& context, State& state) {
 
 	DecalCollector::Collect(graphicsCore, *deps_.assetLibrary, context, state.items);
-	const bool raytracingEnabled = !context.disableInlineRayTracing &&
-		graphicsCore.GetDXObject().GetFeatureController().ShouldUseDispatchRays() &&
-		context.postProcessCamera.surfaceSettings.reflectionEnabled;
+	const bool raytracingEnabled = context.raytracing.tlasResource && graphicsCore.GetDXObject().ShouldUseDispatchRays();
 	if (state.items.empty() && !raytracingEnabled) return;
 	state.gpuData.clear();
 	for (const auto& item : state.items) state.gpuData.push_back(item.gpu);

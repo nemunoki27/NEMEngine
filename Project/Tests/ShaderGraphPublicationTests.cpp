@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPublication.h>
+#include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditSession.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphAssetAuthoring.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
@@ -89,6 +90,27 @@ bool NEMTests::TestShaderGraphPublication() {
 	graph.name = "Changed";
 	const auto graphRevision = StorageFileUtility::FileRevision(graphPath);
 	const auto materialRevision = StorageFileUtility::FileRevision(materialPath);
+	{
+		// 未保存のプレビューは公開済みMaterialのGUIDとファイルを使用しない
+		ShaderGraphTestArtifacts previewArtifacts(ShaderGraphArtifactCache::MakeDerivedID(graphID, 0x5052455649455747ull));
+		ShaderGraphEditSession session;
+		if (!session.Load(context, graphID) || session.GetPreviewMaterialID() || !session.NeedsCompile() ||
+			!session.CompilePreview(context)) return false;
+		const AssetID previewID = session.GetPreviewMaterialID();
+		if (!previewID || previewID == originalMaterialID || session.NeedsCompile()) return false;
+
+		// 不正な編集でも前回の画像を保ち、次の編集まで同じ失敗を繰り返さない
+		const auto previous = session.GetDraft().nodes[1].kind;
+		session.GetDraft().nodes[1].kind = ShaderGraphNodeKind::SceneColor;
+		session.Commit();
+		if (!session.NeedsCompile() || session.CompilePreview(context) || session.NeedsCompile() ||
+			session.GetDiagnostics().empty() || session.GetPreviewMaterialID() != previewID) return false;
+		session.GetDraft().nodes[1].kind = previous;
+		session.Commit();
+		if (!session.NeedsCompile() || !session.CompilePreview(context) || !session.GetDiagnostics().empty() ||
+			session.GetPreviewMaterialID() != previewID || StorageFileUtility::FileRevision(graphPath) != graphRevision ||
+			StorageFileUtility::FileRevision(materialPath) != materialRevision) return false;
+	}
 	const auto contentRevision = database.GetContentRevision();
 	const auto lifetime = database.GetCacheLifetime();
 	{

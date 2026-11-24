@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include "ShaderGraphAppearanceEditor.h"
-#include "ShaderGraphScenePreview.h"
 #include "ShaderGraphPreviewController.h"
 #include "ShaderGraphSettingsEditor.h"
 #include "ShaderGraphNodePreviews.h"
@@ -44,8 +43,6 @@ namespace Engine {
 		~ShaderGraphEditorTool() override;
 
 		void OpenEditorTool() override;
-		// 保存とWorld切替の前に元のMaterialを戻す
-		void EndScenePreview() override;
 		void DrawEditorTool(const EditorToolContext& context) override;
 		bool HasPendingEdits() const override;
 		void RequestResolvePendingEdits() override;
@@ -86,6 +83,9 @@ namespace Engine {
 		ShaderGraphEditSession editSession_;
 		// 操作キーの受付状態
 		bool commandPanelFocused_ = false;
+		enum class SettingsTab { None, Appearance, Graph, Parameters, Keywords, Selection, Diagnostics };
+		SettingsTab settingsTab_ = SettingsTab::None;
+		float settingsWidth_ = 360.0f;
 		// 項目ごとの表示と入力状態
 		ShaderGraphParameterEditor parameterEditor_;
 		ShaderGraphKeywordEditor keywordEditor_;
@@ -99,8 +99,7 @@ namespace Engine {
 		ShaderGraphGroupEditor groupEditor_;
 		ShaderGraphCanvasMenu canvasMenu_;
 		ShaderGraphCanvasView canvasView_;
-		// シーン上のMaterialプレビュー
-		ShaderGraphScenePreview scenePreview_;
+		// 編集中のグラフの最終出力
 		ShaderGraphPreviewController previewController_;
 		ShaderGraphSettingsEditor settingsEditor_;
 
@@ -112,8 +111,8 @@ namespace Engine {
 		void HandleWindowClose();
 		// 未保存の編集を切替前に解決する
 		void DrawUnsavedPrompt(const EditorToolContext& context);
-		// 公開Parameterの一覧を表示する
-		void DrawParameterPanel(const EditorToolContext& context);
+		// キャンバスと右端の設定タブを表示する
+		void DrawWorkspace(const EditorToolContext& context);
 		// Node Editorの外観を編集する
 		void DrawAppearancePanel();
 		// GraphのNodeと接続を表示する
@@ -139,8 +138,6 @@ namespace Engine {
 		bool CreateGraph(const EditorToolContext& context);
 		// 位置を確定してGraphの保存とコンパイルを要求する
 		bool SaveAndCompile(const EditorToolContext& context) override;
-		// Sceneの元のMaterialを復元する
-		void RestorePreviewMaterial();
 		// Node Editorの位置をGraphへ取り込む
 		void CaptureNodePositions();
 		// Node Editorの表示状態を再作成する

@@ -403,6 +403,16 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	return context;
 }
 
+void Engine::RenderPipelineRunner::RegisterSceneTLAS(SceneExecutionContext& context) {
+
+	auto* tlas = context.raytracing.tlasResource;
+	if (!tlas) return;
+	for (const char* name : {"SceneTLAS", "gSceneTLAS"}) {
+		context.bufferRegistry.Register({.alias = name, .resource = tlas, .gpuAddress = tlas->GetGPUVirtualAddress(),
+			.elementCount = context.raytracing.instanceCount});
+	}
+}
+
 void Engine::RenderPipelineRunner::RegisterSceneMaterialInputs(SceneExecutionContext& context) {
 
 	auto& resources = *context.resources;

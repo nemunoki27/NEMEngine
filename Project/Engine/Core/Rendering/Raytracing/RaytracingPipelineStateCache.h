@@ -36,6 +36,8 @@ namespace Engine {
 	//	RaytracingPipelineStateCache class
 	//	レイトレーシングパイプラインステートのキャッシュを管理するクラス
 	//============================================================================
+	enum class RaytracingPipelineReadiness { Ready, Building, Failed };
+
 	class RaytracingPipelineStateCache {
 	public:
 		//============================================================================
@@ -50,6 +52,9 @@ namespace Engine {
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
 			AssetID shaderOverrideAssetID = {},
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
+
+		RaytracingPipelineReadiness PrepareLatest(GraphicsPlatform& platform, RenderAssetLibrary& assets,
+			AssetID pipeline, AssetID shader, const PipelineStaticSamplerOverrideSet& samplers);
 
 		// 共有のRayGenへ各Materialの命中Shaderを組み合わせる
 		RaytracingPipelineState* GetMaterialReflection(GraphicsPlatform& platform, RenderAssetLibrary& assets,

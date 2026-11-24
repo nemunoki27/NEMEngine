@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include "ShaderGraphEditSession.h"
-#include "ShaderGraphPreviewController.h"
 #include "ShaderGraphEnumWidget.h"
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
@@ -13,15 +12,11 @@
 using Engine::ShaderGraphWidgets::D3D12EnumCombo;
 
 Engine::ShaderGraphSettingsEditor::ShaderGraphSettingsEditor(
-	ShaderGraphEditSession& session, ShaderGraphPreviewController& preview)
-	: editSession_(session), previewController_(preview) {
+	ShaderGraphEditSession& session)
+	: editSession_(session) {
 }
 
 bool Engine::ShaderGraphSettingsEditor::Draw() {
-
-	if (!MyGUI::CollapsingHeader("グラフ設定", true)) {
-		return false;
-	}
 
 	// Graphの名前と精度を編集する
 	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphSettings");
@@ -36,8 +31,6 @@ bool Engine::ShaderGraphSettingsEditor::Draw() {
 	ShaderGraphTarget target = editSession_.GetDraft().target;
 	if (MyGUI::EnumCombo("描画対象", target).valueChanged) {
 
-		// 元のMaterialを復元してから描画対象を切り替える
-		previewController_.Restore();
 		targetChanged = editSession_.ChangeTarget(target);
 	}
 

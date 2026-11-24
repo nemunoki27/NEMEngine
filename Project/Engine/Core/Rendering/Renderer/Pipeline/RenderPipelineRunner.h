@@ -159,6 +159,8 @@ namespace Engine {
 		float screenSpaceOutlineMaskAlphaThreshold = 0.1f;
 	};
 
+	enum class EntityPreviewKind : uint8_t { Model, Material, ShaderGraph };
+
 	// エディタツール用のEntityプレビュー描画要求
 	struct EntityPreviewRenderRequest {
 
@@ -188,8 +190,8 @@ namespace Engine {
 		bool forceVertexMeshVariant = false;
 		// ProjectPanelの小さいモデル画像だけ縮小Textureを使う
 		bool useThumbnailTextures = false;
-		// 独立したWorldを本描画と同じ材質で表示する
-		bool materialPreview = false;
+		EntityPreviewKind kind = EntityPreviewKind::Model;
+		AssetID materialPreviewEffect{};
 	};
 
 	//============================================================================
@@ -253,6 +255,7 @@ namespace Engine {
 			D3D12_GPU_DESCRIPTOR_HANDLE source, const RenderTarget& target,
 			const DisplayOutputSettings& output, float sourceWhiteNits);
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
+		RaytracingPipelineReadiness PrepareRaytracingPreview(GraphicsCore& graphicsCore, const MaterialAsset& material);
 		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
 		// プレビューMeshの読込結果を公開し、現在の世代を返す
 		uint64_t PreparePreviewMeshes(GraphicsCore& graphicsCore, AssetDatabase& database, std::span<const AssetID> assets);
@@ -392,6 +395,8 @@ namespace Engine {
 
 		// ShaderGraphと描画パスから参照するGBufferを登録する
 		static void RegisterSceneMaterialInputs(SceneExecutionContext& context);
+		static void RegisterSceneTLAS(SceneExecutionContext& context);
+		bool DrawPreviewEffect(GraphicsCore& graphicsCore, SceneExecutionContext& context, AssetID material);
 		// ビューの情報に応じたコンテキストを構築
 		SceneExecutionContext BuildViewExecutionContext(GraphicsCore& graphicsCore,
 			const RenderFrameRequest& request, const SceneInstance* sceneInstance,

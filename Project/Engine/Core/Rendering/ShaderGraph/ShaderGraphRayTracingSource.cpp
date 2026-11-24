@@ -144,6 +144,7 @@ namespace Engine::ShaderGraphStageSource {
 			*output, 0, ShaderGraphValueType::Float4, "gSourceColor.SampleLevel(gSampler, graphInput.uv, 0.0f)");
 
 		std::string source = "// Shader Graph generated RayTracing Feature\n"
+			"#define NEM_REFLECTION_CUSTOM_RAY_GENERATION\n"
 			"#define NEM_SHADER_GRAPH_EXPLICIT_LOD 1\n"
 			"#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n"
 			"#define gShaderGraphSceneColor gSourceColor\n"
@@ -167,7 +168,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tReflectionPayload payload = (ReflectionPayload)0;\n"
 			"\tTraceRay(gSceneTLAS, RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES, mask, 0, 1, 0, ray, payload);\n"
 			"\tShaderGraphRayResult result;\n"
-			"\tresult.color = payload.hit != 0u ? payload.color : EvaluateReflectionEnvironment(ray.Direction);\n"
+			"\tresult.color = payload.hit != 0u ? payload.color : EvaluateReflectionEnvironment(ray.Direction, 0.0f);\n"
 			"\tresult.hit = payload.hit != 0u ? 1.0f : 0.0f;\n"
 			"\tresult.distance = payload.hitDistance;\n"
 			"\tresult.position = payload.worldPosition;\n"

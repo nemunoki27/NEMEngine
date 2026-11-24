@@ -867,6 +867,7 @@ void ReflectionClosestHit(
 //============================================================================
 //	raygeneration
 //============================================================================
+#ifndef NEM_REFLECTION_CUSTOM_RAY_GENERATION
 void StoreReflectionTrace(uint2 pixel, float4 color, float hitDistance, float4 hitGeometry) {
 
 	gDestColor[pixel] = color;
@@ -1015,3 +1016,4 @@ void ReflectionRayGen() {
 		accumulatedHitDistance / float(acceptedSampleCount), hitSampleCount != 0u ?
 		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) : 0.0f.xxxx);
 }
+#endif

@@ -8,16 +8,11 @@
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphParameterDefaults.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
 #include <algorithm>
 #include <filesystem>
-#include <span>
 #include <utility>
 
 using namespace Engine::ShaderGraphPublication;
@@ -40,28 +35,6 @@ namespace {
 		return data.dump();
 	}
 
-	bool HasCurrentGraphDefaults(const Engine::MaterialAsset& material, const Engine::MaterialAsset& expected) {
-
-		if (material.shaderGraph != expected.shaderGraph) {
-			return false;
-		}
-		const std::span<const Engine::MaterialParameterRecord> records = material.parameters.GetRecords();
-		const std::span<const Engine::MaterialParameterRecord> expectedRecords = expected.parameters.GetRecords();
-		if (records.size() != expectedRecords.size()) {
-			return false;
-		}
-		for (size_t index = 0; index < records.size(); ++index) {
-			if (records[index].id != expectedRecords[index].id ||
-				records[index].namedValue.first != expectedRecords[index].namedValue.first ||
-				records[index].semantic != expectedRecords[index].semantic ||
-				Engine::SerializeMaterialParameterValue(records[index].namedValue.second) !=
-					Engine::SerializeMaterialParameterValue(expectedRecords[index].namedValue.second)) {
-
-				return false;
-			}
-		}
-		return true;
-	}
 }
 
 void Engine::ShaderGraphEditSession::RemoveNode(UUID nodeID) {
@@ -119,29 +92,16 @@ bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, Asse
 	}
 
 	selectedAsset_ = assetID;
-	const bool refreshed = ShaderGraphAssetReferences::RefreshSubGraphs(loaded, database);
+	ShaderGraphAssetReferences::RefreshSubGraphs(loaded, database);
 	graph_ = std::move(loaded);
 	history_.Reset(graph_);
 	referenceDatabase_ = database;
 	referenceStructureRevision_ = database->GetStructureRevision();
 	referenceContentRevision_ = database->GetContentRevision();
-	const std::filesystem::path materialPath =
-		path.parent_path() / Algorithm::PathFromUTF8(GraphFileStem(path) + ".material.json");
-	previewMaterial_ = std::filesystem::exists(materialPath)
-						   ? database->ImportOrGet(RuntimePaths::ToAssetPath(materialPath), AssetType::Material)
-						   : AssetID{};
-	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
-	previewCompileDirty_ = refreshed || !previewMaterial_;
-	if (previewMaterial_) {
-		MaterialAsset material{};
-		MaterialAsset expected = ShaderGraphArtifactCache::CreateMaterial(graph_, selectedAsset_);
-		if (FromJson(JsonAdapter::Load(materialPath, false), material)) {
-			ShaderGraphParameterDefaults::RestoreOverrides(graph_, material, expected);
-			previewCompileDirty_ |= !HasCurrentGraphDefaults(material, expected);
-		} else {
-			previewCompileDirty_ = true;
-		}
-	}
+	previewMaterial_ = {};
+	compiledGraphState_.clear();
+	previewCompileDirty_ = true;
+	++previewRevision_;
 	graphLoaded_ = true;
 	graphDirty_ = false;
 	latestDiagnostics_.clear();
@@ -167,13 +127,12 @@ std::filesystem::path Engine::ShaderGraphEditSession::ResolveCompilePath(const E
 bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& context, const std::filesystem::path& graphPath) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
+	AssetID savedMaterial{};
 	if (!ShaderGraphPublication::CompileAndPublish(
-			context, *database, graph_, selectedAsset_, graphPath, previewMaterial_, latestDiagnostics_, statusMessage_)) {
+			context, *database, graph_, selectedAsset_, graphPath, savedMaterial, latestDiagnostics_, statusMessage_)) {
 		return false;
 	}
 	graphDirty_ = false;
-	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
-	previewCompileDirty_ = false;
 	statusMessage_ = "コンパイルしました";
 	return true;
 }
@@ -181,14 +140,14 @@ bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& con
 bool Engine::ShaderGraphEditSession::CompilePreview(const EditorToolContext& context) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
+	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
+	previewCompileDirty_ = false;
 	if (!database || !selectedAsset_ ||
 		!ShaderGraphPublication::CompileAndPublishPreview(
 			context, *database, graph_, selectedAsset_, previewMaterial_, latestDiagnostics_, statusMessage_)) {
 
 		return false;
 	}
-	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
-	previewCompileDirty_ = false;
 	return true;
 }
 
@@ -213,6 +172,7 @@ void Engine::ShaderGraphEditSession::Import(ShaderGraphAsset imported) {
 	graph_ = std::move(imported);
 	history_.Commit(graph_);
 	graphDirty_ = true;
+	++previewRevision_;
 	previewCompileDirty_ = true;
 	compiledGraphState_.clear();
 	latestDiagnostics_.clear();
@@ -269,4 +229,5 @@ void Engine::ShaderGraphEditSession::UpdateCompileState() {
 
 	graphDirty_ = true;
 	previewCompileDirty_ = MakeShaderGraphCompileState(graph_) != compiledGraphState_;
+	if (previewCompileDirty_) ++previewRevision_;
 }

@@ -1,130 +1,77 @@
 #include "ShaderGraphPreviewController.h"
 
-//============================================================================
-//	include
-//============================================================================
 #include "ShaderGraphEditSession.h"
-#include "ShaderGraphScenePreview.h"
-#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAssetReferences.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSubGraphExpander.h>
 
-// c++
 #include <algorithm>
-// imgui
-#include <imgui.h>
 
-Engine::ShaderGraphPreviewController::ShaderGraphPreviewController(
-	ShaderGraphEditSession& session, ShaderGraphScenePreview& preview)
-	: editSession_(session), scenePreview_(preview) {
+namespace {
+
+	bool UsesTime(const Engine::ShaderGraphAsset& graph, const Engine::AssetDatabase* database) {
+
+		using namespace Engine;
+		const auto timeInput = [](const ShaderGraphNode& node) {
+			return node.kind == ShaderGraphNodeKind::Time || node.kind == ShaderGraphNodeKind::CustomFunction;
+		};
+		if (std::any_of(graph.nodes.begin(), graph.nodes.end(), timeInput)) return true;
+		if (std::none_of(graph.nodes.begin(), graph.nodes.end(), [](const ShaderGraphNode& node) {
+			return node.kind == ShaderGraphNodeKind::SubGraph;
+		})) return false;
+
+		ShaderGraphAsset expanded = graph;
+		std::vector<ShaderGraphDiagnostic> diagnostics;
+		const auto resolve = [database](AssetID asset, ShaderGraphAsset& child) {
+			return ShaderGraphAssetReferences::Load(asset, database, child);
+		};
+		return ShaderGraphSubGraphExpander::Expand(expanded, resolve, diagnostics) &&
+			std::any_of(expanded.nodes.begin(), expanded.nodes.end(), timeInput);
+	}
 }
 
-void Engine::ShaderGraphPreviewController::DrawSettings(const EditorToolContext& context) {
-
-	ImGui::SeparatorText("マテリアルプレビュー");
-
-	// Scene上のプレビュー対象を選択する
-	ECSWorld* world = context.GetWorld();
-	UUID nextEntity = scenePreview_.GetTargetEntityUUID();
-	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphMaterialPreview");
-	MyGUI::BeginPropertyRow("プレビューオブジェクト");
-	const float clearButtonWidth = 72.0f;
-	const float fieldWidth =
-		(std::max)(ImGui::GetContentRegionAvail().x - clearButtonWidth - ImGui::GetStyle().ItemSpacing.x, 1.0f);
-	const ValueEditResult result = MyGUI::EntityReferenceField("", nextEntity, world,
-		{
-			.useAutoPropertyRow = false,
-			.buttonSize = ImVec2(fieldWidth, ImGui::GetFrameHeight()),
-		});
-	ImGui::SameLine();
-	const bool hasPreviewEntity = scenePreview_.GetTargetEntityUUID() != UUID{};
-	ImGui::BeginDisabled(!hasPreviewEntity);
-	const bool clear = ImGui::Button("解除", ImVec2(clearButtonWidth, ImGui::GetFrameHeight()));
-	ImGui::EndDisabled();
-	MyGUI::EndPropertyRow();
-
-	if (clear) {
-		Restore();
-		scenePreview_.SetTargetEntityUUID({});
-		return;
-	}
-	if (!result.valueChanged || nextEntity == scenePreview_.GetTargetEntityUUID()) {
-
-		return;
-	}
-
-	// 元のMaterialを復元してから対象を切り替える
-	Restore();
-	scenePreview_.SetTargetEntityUUID(nextEntity);
-	if (!scenePreview_.GetTargetEntityUUID()) {
-		return;
-	}
-	if ((!editSession_.GetPreviewMaterialID() || editSession_.NeedsCompile()) && !editSession_.CompilePreview(context)) {
-
-		return;
-	}
-	Apply(context);
+Engine::ShaderGraphPreviewController::ShaderGraphPreviewController(ShaderGraphEditSession& session)
+	: session_(session) {
 }
 
-void Engine::ShaderGraphPreviewController::Update(const EditorToolContext& context) {
+void Engine::ShaderGraphPreviewController::Draw(const EditorToolContext& context, ImVec2 origin, ImVec2 canvasSize) {
 
-	// 外部のWorld切替と対象の削除を確認する
-	scenePreview_.SynchronizeWorld(context.GetWorld());
-
-	if (editSession_.GetDraft().domain != ShaderGraphDomain::Surface) {
-		compileDeadline_ = 0.0;
-		return;
-	}
-	if (!scenePreview_.GetTargetEntityUUID()) {
-		compileDeadline_ = 0.0;
-		return;
-	}
-	if (!editSession_.NeedsCompile()) {
-		compileDeadline_ = 0.0;
-		if (!scenePreview_.IsMaterialApplied()) {
-			Apply(context);
+	constexpr float margin = 8.0f;
+	const float width = (std::min)(canvasSize.x * 0.2f, canvasSize.y * 0.4f);
+	const ImVec2 size(width, width * 0.75f);
+	if (width < 1.0f || canvasSize.x < width + margin || canvasSize.y < size.y + margin || !context.panelContext) return;
+	const ImVec2 pos(origin.x + canvasSize.x - size.x - margin, origin.y + canvasSize.y - size.y - margin);
+	ImGui::SetCursorScreenPos(pos);
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+	if (ImGui::BeginChild("ShaderGraphOutputPreview", size, ImGuiChildFlags_None,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+		const auto& panel = *context.panelContext;
+		const bool switched = graph_ != session_.GetAssetID();
+		if (switched || revision_ != session_.GetPreviewRevision()) {
+			graph_ = session_.GetAssetID();
+			revision_ = session_.GetPreviewRevision();
+			deadline_ = ImGui::GetTime() + (switched ? 0.0 : 0.25);
+			if (switched) failed_ = false;
 		}
-		return;
+		if (panel.renderPipeline && session_.NeedsCompile() && ImGui::GetTime() >= deadline_) {
+			failed_ = !session_.CompilePreview(context);
+			if (!failed_) {
+				const auto& graph = session_.GetDraft();
+				animated_ = graph.domain == ShaderGraphDomain::Surface &&
+					(graph.target == ShaderGraphTarget::Particle || graph.target == ShaderGraphTarget::Trail);
+				animated_ |= UsesTime(graph, context.toolContext.assetDatabase);
+				preview_.Invalidate();
+			}
+		}
+		if (panel.renderPipeline && session_.GetPreviewMaterialID()) {
+			if (const auto* material = panel.renderPipeline->GetRenderAssetLibrary().LoadMaterial(session_.GetPreviewMaterialID())) {
+				preview_.DrawImage(panel, *material, size, animated_ && !failed_);
+			}
+		}
+		if (failed_) {
+			ImGui::GetWindowDrawList()->AddText(pos, ImGui::GetColorU32(ImGuiCol_Text), "更新失敗");
+		}
 	}
-	if (ImGui::IsAnyItemActive()) {
-		compileDeadline_ = 0.0;
-		return;
-	}
-
-	// 入力確定後のコンパイル時刻を決める
-	const double now = ImGui::GetTime();
-	if (compileDeadline_ <= 0.0) {
-		compileDeadline_ = now + 0.25;
-		return;
-	}
-	if (now < compileDeadline_) {
-		return;
-	}
-
-	// 成功したプレビューMaterialだけを反映する
-	compileDeadline_ = 0.0;
-	if (editSession_.CompilePreview(context)) {
-		Apply(context);
-	}
-}
-
-bool Engine::ShaderGraphPreviewController::Apply(const EditorToolContext& context) {
-
-	return scenePreview_.ApplyPreviewMaterial(
-		context, editSession_.GetDraft().target, editSession_.GetPreviewMaterialID(), editSession_.GetStatusMessage());
-}
-
-void Engine::ShaderGraphPreviewController::Restore() {
-
-	// Materialの復元に合わせて待機を解除する
-	const bool applied = scenePreview_.IsMaterialApplied();
-	scenePreview_.RestorePreviewMaterial();
-	if (applied) {
-		compileDeadline_ = 0.0;
-	}
-}
-
-void Engine::ShaderGraphPreviewController::ResetTarget() {
-
-	// 対象の切替へ古いコンパイル待機を持ち越さない
-	scenePreview_.SetTargetEntityUUID({});
-	compileDeadline_ = 0.0;
+	ImGui::EndChild();
+	ImGui::PopStyleColor();
 }

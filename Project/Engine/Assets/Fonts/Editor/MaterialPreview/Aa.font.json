@@ -1,0 +1,52 @@
+{
+  "name": "Material Preview Aa",
+  "atlasTexture": "89a7929bbe4344829347f360e4b72304",
+  "atlas": {
+    "type": "sdf",
+    "size": 80,
+    "distanceRange": 8,
+    "width": 128,
+    "height": 80,
+    "yOrigin": "top"
+  },
+  "metrics": {
+    "emSize": 1,
+    "lineHeight": 1,
+    "ascender": -0.85,
+    "descender": 0.15
+  },
+  "glyphs": [
+    {
+      "unicode": 65,
+      "advance": 0.71,
+      "planeBounds": {
+        "left": -0.045,
+        "top": -0.875,
+        "right": 0.755,
+        "bottom": 0.125
+      },
+      "atlasBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 64,
+        "bottom": 80
+      }
+    },
+    {
+      "unicode": 97,
+      "advance": 0.71,
+      "planeBounds": {
+        "left": -0.045,
+        "top": -0.875,
+        "right": 0.755,
+        "bottom": 0.125
+      },
+      "atlasBounds": {
+        "left": 64,
+        "top": 0,
+        "right": 128,
+        "bottom": 80
+      }
+    }
+  ]
+}

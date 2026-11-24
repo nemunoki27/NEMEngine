@@ -16,7 +16,7 @@ void Engine::EditorToolRenderResources::EndEditorToolFrame() {
 
 EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(const std::string& name,
 	const Vector2I& size, const Color4& clearColor, uint32_t colorCount,
-	bool withDepth, DXGI_FORMAT colorFormat) {
+	bool withDepth, DXGI_FORMAT colorFormat, bool colorUAV) {
 
 	if (EditorToolRenderTexture* texture = FindRenderTexture(name)) {
 		return texture;
@@ -34,7 +34,7 @@ EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(
 			requiredCount <= descriptor.GetMaxDescriptorCount() -
 				descriptor.GetUseDescriptorCount();
 	};
-	const uint32_t srvCount = colorCount + (withDepth ? 1u : 0u);
+	const uint32_t srvCount = colorCount * (colorUAV ? 2u : 1u) + (withDepth ? 1u : 0u);
 	if (!hasCapacity(currentGraphicsCore_->GetRTVDescriptor(), colorCount) ||
 		!hasCapacity(currentGraphicsCore_->GetSRVDescriptor(), srvCount) ||
 		(withDepth &&
@@ -61,7 +61,7 @@ EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(
 		const std::string colorName = i == 0 ? name + "_Color" :
 			name + "_Color" + std::to_string(i);
 		createDesc.colors.push_back(ColorAttachmentDesc{ .name = colorName,
-			.format = colorFormat,.clearColor = clearColor,.createUAV = false, });
+			.format = colorFormat,.clearColor = clearColor,.createUAV = colorUAV, });
 	}
 
 	if (withDepth) {

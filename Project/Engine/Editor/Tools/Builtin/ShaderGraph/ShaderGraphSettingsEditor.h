@@ -3,7 +3,6 @@
 namespace Engine {
 
 	class ShaderGraphEditSession;
-	class ShaderGraphPreviewController;
 	struct EditorToolContext;
 
 	//============================================================================
@@ -16,7 +15,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		ShaderGraphSettingsEditor(ShaderGraphEditSession& session, ShaderGraphPreviewController& preview);
+		explicit ShaderGraphSettingsEditor(ShaderGraphEditSession& session);
 
 		// 設定を表示して描画対象の変更を返す
 		bool Draw();
@@ -29,6 +28,5 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ShaderGraphEditSession& editSession_;
-		ShaderGraphPreviewController& previewController_;
 	};
 } // Engine

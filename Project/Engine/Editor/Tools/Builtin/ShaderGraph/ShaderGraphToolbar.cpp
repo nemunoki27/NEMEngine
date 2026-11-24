@@ -11,27 +11,30 @@ void Engine::ShaderGraphToolbar::Draw(
 	const EditorToolContext& context, ShaderGraphEditSession& session, IShaderGraphToolbarActions& actions) {
 
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-	MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphToolbar");
-	AssetID selected = session.GetAssetID();
-	if (MyGUI::AssetReferenceField("グラフ", selected, assetDatabase, {AssetType::ShaderGraph}).valueChanged) {
+	if (MyGUI::CollapsingHeader("グラフ操作", true)) {
 
-		actions.RequestGraphSwitch(context, selected);
-	}
+		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphToolbar");
+		AssetID selected = session.GetAssetID();
+		if (MyGUI::AssetReferenceField("グラフ", selected, assetDatabase, {AssetType::ShaderGraph}).valueChanged) {
 
-	AssetID importSource{};
-	AssetEditSetting importSetting{};
-	importSetting.allowDelete = false;
-	ImGui::BeginDisabled(!session.IsLoaded());
-	if (MyGUI::AssetReferenceField(
-			"設定をインポート", importSource, assetDatabase, {AssetType::Material, AssetType::ShaderGraph}, importSetting)
-			.valueChanged) {
-		actions.ImportGraphSettings(context, importSource);
-	}
-	ImGui::EndDisabled();
+			actions.RequestGraphSwitch(context, selected);
+		}
 
-	MyGUI::EnumCombo("作成種類", creation_.domain);
-	if (creation_.domain == ShaderGraphDomain::Surface) {
-		MyGUI::EnumCombo("作成対象", creation_.target);
+		AssetID importSource{};
+		AssetEditSetting importSetting{};
+		importSetting.allowDelete = false;
+		ImGui::BeginDisabled(!session.IsLoaded());
+		if (MyGUI::AssetReferenceField(
+				"設定をインポート", importSource, assetDatabase, {AssetType::Material, AssetType::ShaderGraph}, importSetting)
+				.valueChanged) {
+			actions.ImportGraphSettings(context, importSource);
+		}
+		ImGui::EndDisabled();
+
+		MyGUI::EnumCombo("作成種類", creation_.domain);
+		if (creation_.domain == ShaderGraphDomain::Surface) {
+			MyGUI::EnumCombo("作成対象", creation_.target);
+		}
 	}
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("新規作成", ImVec2(buttonWidth, 0.0f))) {

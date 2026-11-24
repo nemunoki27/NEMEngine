@@ -150,7 +150,7 @@ bool NEMTests::TestMaterialPreviewGPU() {
 	request.rootEntity = subject;
 	request.assetDatabase = &database;
 	request.surface = &output;
-	request.materialPreview = true;
+	request.kind = EntityPreviewKind::ShaderGraph;
 	request.systemContext = &system;
 	request.camera.transform3D.pos = {0, 0, -4};
 	request.camera.perspectiveFovY = 38.0f;

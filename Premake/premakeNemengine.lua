@@ -200,7 +200,6 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPublication.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewFingerprint.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphPreviewDependencies.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphScenePreview.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphAssetAuthoring.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphCanvasContext.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphCanvasID.cpp"),

@@ -8,6 +8,8 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Particle/ParticleGPUFeedbackWorld.h>
 #include "RenderScenePreparation.h"
+#include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingViewBufferSet.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
@@ -43,8 +45,16 @@ namespace Engine {
 		MeshRenderBackend* previewMeshBackend_ = nullptr;
 		// 本描画の抽出結果と前回行列を上書きしない
 		RenderScenePreparation previewScenePreparation_;
-		DeferredRenderPath materialPath_;
-		RenderPathResources materialTargets_;
-		ColorPipelineProcessor materialColor_;
+		// 寸法の異なるInspectorとGraphの中間描画先を分ける
+		struct MaterialView {
+			DeferredRenderPath path;
+			RenderPathResources targets;
+			ColorPipelineProcessor color;
+			~MaterialView();
+		};
+		std::unique_ptr<MaterialView> materialView_;
+		std::unique_ptr<MaterialView> graphView_;
+		RaytracingSceneBuilder effectScene_;
+		RaytracingViewBufferSet effectView_;
 	};
 }

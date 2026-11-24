@@ -8,9 +8,11 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/TrailRendererComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
@@ -36,13 +38,21 @@ namespace {
 			material.usage == Engine::MaterialUsage::Text;
 	}
 
-	Engine::AssetID FindFont(const Engine::AssetDatabase& database) {
+	constexpr Engine::AssetID kPreviewFont{0x9422a58504c749af, 0x8109eaa8cb648c42};
 
-		const Engine::AssetMeta* first = nullptr;
-		for (const auto& [id, meta] : database.GetAssets()) {
-			if (meta.type == Engine::AssetType::Font && (!first || meta.assetPath < first->assetPath)) first = &meta;
-		}
-		return first ? first->guid : Engine::AssetID{};
+	bool IsTrailMaterial(const Engine::MaterialAsset& material) {
+
+		const auto* pass = FindPass(material, Engine::MaterialPassKind::Transparent);
+		return material.usage == Engine::MaterialUsage::Particle && pass &&
+			pass->preferredVariant == Engine::PipelineVariantKind::GraphicsMesh;
+	}
+
+	void SamplePreviewTrail(Engine::TrailRendererRecord& trail, float deltaTime) {
+
+		AgeTrail(trail, deltaTime);
+		const float angle = static_cast<float>(trail.runtime.time) * 2.8f;
+		const Engine::Vector3 point{1.05f * std::cos(angle), 0.58f * std::sin(angle), 0.3f * std::sin(2.0f * angle)};
+		AppendTrailSample(trail, point, point, {0.0f, 0.0f, 1.0f});
 	}
 }
 
@@ -50,6 +60,8 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 
 	world_ = std::make_unique<ECSWorld>();
 	missingFont_ = false;
+	effectSubject_ = Entity::Null();
+	trailSubject_ = IsTrailMaterial(material);
 	root_ = world_->CreateEntity(UUID::New());
 	world_->AddComponent<TransformComponent>(root_);
 	HierarchySystem hierarchy;
@@ -74,10 +86,45 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 		auto& decal = world_->AddComponent<DecalProjectorComponent>(projector);
 		decal.material = material.guid;
 		decal.size = {2.0f, 2.0f, 0.4f};
+	} else if (trailSubject_) {
+		effectSubject_ = subject;
+		world_->AddComponent<TrailRendererComponent>(subject);
+		TrailRendererSettings settings{};
+		settings.material = material.guid;
+		settings.lifetime = 0.85f;
+		settings.width = 0.36f;
+		settings.minVertexDistance = 0.018f;
+		SetTrailRendererSettings(*world_, subject, settings);
+		if (auto* trail = TryGetTrailRenderer(*world_, subject)) {
+			for (int i = 0; i < 48; ++i) SamplePreviewTrail(*trail, 1.0f / 60.0f);
+		}
+	} else if (material.usage == MaterialUsage::Particle) {
+		effectSubject_ = subject;
+		auto& component = world_->AddComponent<ParticleSystemComponent>(subject);
+		component.useAutoRandomSeed = false;
+		component.randomSeed = 173u;
+		auto settings = MakeDefaultParticleSystemSettings();
+		settings.material = material.guid;
+		settings.blendMode = material.renderState.blendMode;
+		settings.emitter.shape = ParticleEmitterShape::Sphere;
+		settings.emitter.sphere.radius = 0.35f;
+		settings.emitter.speed = ParticleValue<float>{0.65f};
+		settings.emitter.emitInterval = 0.09f;
+		settings.emitter.emitCount = ParticleValue<uint32_t>{1u};
+		settings.emitter.maxParticles = 24;
+		settings.plane.size = Vector2::AnyInit(0.5f);
+		settings.phases.front().modules.clear();
+		settings.phases.front().lifetime = ParticleValue<float>{1.2f};
+		SetParticleSystemSettings(*world_, subject, settings);
+		SystemContext warmup{};
+		warmup.world = world_.get();
+		warmup.mode = WorldMode::Play;
+		warmup.deltaTime = warmup.unscaledDeltaTime = 1.0f / 60.0f;
+		for (int i = 0; i < 60; ++i) particles_.Update(*world_, warmup);
 	} else if (material.usage == MaterialUsage::Text) {
 		auto& text = world_->AddComponent<TextRendererComponent>(subject);
-		text.font = FindFont(*context.editorContext->assetDatabase);
-		missingFont_ = !text.font;
+		text.font = kPreviewFont;
+		missingFont_ = !context.editorContext->assetDatabase->Find(kPreviewFont);
 		text.material = material.guid;
 		text.text = "Aa";
 		text.fontSize = 120.0f;
@@ -92,12 +139,18 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 		mesh.material = material.guid;
 	} else {
 		auto& primitive = world_->AddComponent<PrimitiveRendererComponent>(subject);
-		primitive.material = material.guid;
+		if (material.domain == MaterialDomain::Surface || flat) primitive.material = material.guid;
 		primitive.type = flat || shape_ == 2 ? PrimitiveType::Plane : shape_ == 0 ? PrimitiveType::Sphere : PrimitiveType::Cube;
 		primitive.renderSpace = flat ? PrimitiveRenderSpace::Screen2D : PrimitiveRenderSpace::World3D;
 		primitive.plane.size = Vector2::AnyInit(flat ? 208.0f : 2.0f);
 		primitive.cube.size = Vector3::AnyInit(1.44f);
-		if (flat) primitive.queue = RenderPhase::ScreenUI;
+		if (flat) {
+			primitive.queue = RenderPhase::ScreenUI;
+			// XY平面の表とUVの上端を正射影カメラに合わせる
+			auto& transform = world_->GetComponent<TransformComponent>(subject);
+			transform.localRotation = Quaternion::FromEulerDegrees({180.0f, 0.0f, 0.0f});
+			transform.worldMatrix = MakeLocalMatrix(transform);
+		}
 	}
 
 	// 背景の縦縞と床の境目で透過と屈折を比較する
@@ -123,6 +176,19 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 	rendered_ = false;
 }
 
+void Engine::InspectorMaterialPreview::UpdateEffectSubject(SystemContext& system, const MaterialAsset& material) {
+
+	if (material.usage != MaterialUsage::Particle || system.deltaTime <= 0.0f) return;
+	if (trailSubject_) {
+		if (auto* trail = TryGetTrailRenderer(*world_, effectSubject_)) {
+			SamplePreviewTrail(*trail, system.deltaTime);
+		}
+	} else {
+		system.mode = WorldMode::Play;
+		particles_.Update(*world_, system);
+	}
+}
+
 void Engine::InspectorMaterialPreview::ResetView() {
 
 	yaw_ = 0.0f;
@@ -133,16 +199,32 @@ void Engine::InspectorMaterialPreview::ResetView() {
 
 void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, const MaterialAsset& material) {
 
-	if (!MyGUI::CollapsingHeader("プレビュー", true)) return;
+	if (MyGUI::CollapsingHeader("プレビュー", true)) DrawImage(context, material, {}, false);
+}
+
+void Engine::InspectorMaterialPreview::DrawImage(const EditorPanelContext& context, const MaterialAsset& material,
+	ImVec2 size, bool animate) {
+
+	const bool embedded = size.x > 0.0f;
 	if (!context.graphicsCore || !context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) return;
-	if (material.domain == MaterialDomain::Fullscreen || material.domain == MaterialDomain::Compute ||
-		material.domain == MaterialDomain::RayTracing || material.usage == MaterialUsage::Line || material.usage == MaterialUsage::Particle) {
+	const bool effect = material.domain == MaterialDomain::Fullscreen || material.domain == MaterialDomain::Compute ||
+		material.domain == MaterialDomain::RayTracing;
+	if (material.domain == MaterialDomain::RayTracing && !context.graphicsCore->GetDXObject().ShouldUseDispatchRays()) {
+		const auto& support = context.graphicsCore->GetDXObject().GetFeatureController().GetSupport();
+		ImGui::TextWrapped("%s", support.SupportsDispatchRaysPath()
+			? "グラフィック設定の「マテリアル反射パス」を有効にしてください"
+			: "このGPUはDXRに対応していません");
+		return;
+	}
+	if ((!embedded && (effect || material.usage == MaterialUsage::Particle)) || material.usage == MaterialUsage::Line) {
 		ImGui::TextDisabled("この描画対象はマテリアルプレビューに対応していません");
 		return;
 	}
 
 	auto& database = *context.editorContext->assetDatabase;
-	if (materialID_ != material.guid || domain_ != material.domain || usage_ != material.usage) {
+	if (materialID_ != material.guid || domain_ != material.domain || usage_ != material.usage ||
+		trailSubject_ != IsTrailMaterial(material)) {
+		if (materialID_ != material.guid) hasImage_ = false;
 		materialID_ = material.guid;
 		domain_ = material.domain;
 		usage_ = material.usage;
@@ -159,23 +241,24 @@ void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, c
 
 	const bool flat = IsFlat(material);
 	if (missingFont_) {
-		ImGui::TextDisabled("文字のプレビューにはフォントアセットが必要です");
+		ImGui::TextDisabled("プレビュー用フォントを読み込めません");
 		return;
 	}
-	if (!flat && material.domain != MaterialDomain::Decal) {
-		ImGui::SetNextItemWidth(70.0f);
-		if (ImGui::Combo("##PreviewShape", &shape_, "球\0立方体\0平面\0")) Rebuild(context, material);
+	if (!embedded) {
+		if (!flat && material.domain != MaterialDomain::Decal) {
+			ImGui::SetNextItemWidth(70.0f);
+			if (ImGui::Combo("##PreviewShape", &shape_, "球\0立方体\0平面\0")) Rebuild(context, material);
+			ImGui::SameLine();
+		}
+		const char* action = playing_ ? "一時停止" : "再生";
+		const ImVec2 buttonSize(ImGui::CalcTextSize(action).x + 2.0f * ImGui::GetStyle().FramePadding.x, ImGui::GetFrameHeight());
+		if (EditorIconButton::Draw("MaterialPlay", playing_ ? EditorIconButton::Playback::Pause : EditorIconButton::Playback::Play,
+			action, playing_, buttonSize)) playing_ = !playing_;
 		ImGui::SameLine();
+		if (ImGui::Button("視点をリセット")) ResetView();
+		const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
+		size = {width, width * kHeight / kWidth};
 	}
-	const char* action = playing_ ? "一時停止" : "再生";
-	const ImVec2 buttonSize(ImGui::CalcTextSize(action).x + 2.0f * ImGui::GetStyle().FramePadding.x, ImGui::GetFrameHeight());
-	if (EditorIconButton::Draw("MaterialPlay", playing_ ? EditorIconButton::Playback::Pause : EditorIconButton::Playback::Play,
-		action, playing_, buttonSize)) playing_ = !playing_;
-	ImGui::SameLine();
-	if (ImGui::Button("視点をリセット")) ResetView();
-
-	const float width = (std::max)(ImGui::GetContentRegionAvail().x, 1.0f);
-	const ImVec2 size(width, width * kHeight / kWidth);
 	const ImVec2 pos = ImGui::GetCursorScreenPos();
 	ImGui::InvisibleButton("##MaterialPreview", size);
 	ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
@@ -193,36 +276,64 @@ void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, c
 	EditorToolContext tool{};
 	tool.panelContext = &context;
 	resources_.BeginEditorToolFrame(tool);
-	auto* output = resources_.CreateRenderTexture("InspectorMaterialPreview", {kWidth, kHeight}, Color4::Black(),
-		1, true, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	const Vector2I desired = embedded ? Vector2I{(std::max)(1, static_cast<int>(std::round(size.x))),
+		(std::max)(1, static_cast<int>(std::round(size.y)))} : Vector2I{kWidth, kHeight};
+	if (pendingSize_ != desired) {
+		pendingSize_ = desired;
+		resizeDeadline_ = ImGui::GetTime() + 0.25;
+	}
+	const char* name = embedded ? "ShaderGraphOutput" : "InspectorMaterialPreview";
+	auto* output = resources_.FindRenderTexture(name);
+	if (embedded && material.domain == MaterialDomain::RayTracing && (!rendered_ || animate)) {
+		const auto readiness = context.renderPipeline->PrepareRaytracingPreview(*context.graphicsCore, material);
+		if (readiness != RaytracingPipelineReadiness::Ready) {
+			auto* draw = ImGui::GetWindowDrawList();
+			if (output && hasImage_) draw->AddImage(output->GetImTextureID(), pos, ImVec2(pos.x + size.x, pos.y + size.y));
+			draw->AddText(pos, ImGui::GetColorU32(ImGuiCol_Text), readiness == RaytracingPipelineReadiness::Building ? "更新中…" : "更新失敗");
+			resources_.EndEditorToolFrame();
+			return;
+		}
+	}
+	if (output && output->size != desired && ImGui::GetTime() >= resizeDeadline_) {
+		resources_.DestroyRenderTexture(name);
+		output = nullptr;
+	}
+	if (!output) {
+		output = resources_.CreateRenderTexture(name, desired, Color4::Black(), 1, true, DXGI_FORMAT_R16G16B16A16_FLOAT, embedded);
+		rendered_ = false;
+		hasImage_ = false;
+	}
 	if (output) {
 		const auto revision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
-		if (!rendered_ || playing_ || revision != textureRevision_ || size.x != displaySize_.x) {
+		const bool advancing = embedded ? animate : playing_;
+		if (!rendered_ || advancing || revision != textureRevision_) {
 			SystemContext system{};
 			system.world = world_.get();
 			system.assetDatabase = &database;
 			system.renderAssetLibrary = &context.renderPipeline->GetRenderAssetLibrary();
-			system.deltaTime = system.smoothDeltaTime = system.unscaledDeltaTime = playing_ ? io.DeltaTime : 0.0f;
+			system.deltaTime = system.smoothDeltaTime = system.unscaledDeltaTime = advancing ? io.DeltaTime : 0.0f;
 			time_ += system.deltaTime;
 			system.time = system.unscaledTime = time_;
+			UpdateEffectSubject(system, material);
 			EntityPreviewRenderRequest request{};
 			request.world = world_.get();
 			request.rootEntity = root_;
 			request.surface = output->GetRenderTarget();
 			request.systemContext = &system;
 			request.assetDatabase = &database;
-			request.materialPreview = true;
+			request.kind = embedded ? EntityPreviewKind::ShaderGraph : EntityPreviewKind::Material;
+			if (effect) request.materialPreviewEffect = material.guid;
 			auto& camera = request.camera;
 			camera.enableOrthographic = flat;
-			camera.orthographicZoom = 4.3f / distance_;
-			camera.transform2D.pos = {-0.5f * kWidth / camera.orthographicZoom, -0.5f * kHeight / camera.orthographicZoom, 0.0f};
+			camera.orthographicZoom = 4.3f / distance_ * static_cast<float>(output->size.y) / kHeight;
+			camera.transform2D.pos = {-0.5f * output->size.x / camera.orthographicZoom, -0.5f * output->size.y / camera.orthographicZoom, 0.0f};
 			camera.perspectiveFovY = 36.0f;
 			camera.transform3D.rotation = {pitch_, yaw_, 0.0f};
 			const auto rotation = Matrix4x4::MakeRotateMatrix(camera.transform3D.rotation);
 			camera.transform3D.pos = Vector3(rotation.m[2][0], rotation.m[2][1], rotation.m[2][2]) * -distance_;
 			rendered_ = context.renderPipeline->RenderEntityPreview(*context.graphicsCore, request);
+			hasImage_ = rendered_;
 			textureRevision_ = revision;
-			displaySize_ = size;
 		}
 		if (rendered_) {
 			ImGui::GetWindowDrawList()->AddImage(output->GetImTextureID(), pos, ImVec2(pos.x + size.x, pos.y + size.y));

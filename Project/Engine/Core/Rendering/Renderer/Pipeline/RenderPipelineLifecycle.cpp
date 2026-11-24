@@ -131,9 +131,10 @@ void RenderPipelineRunner::Finalize() {
 	previewResources_.previewScenePreparation_.frameLightBatch_.Clear();
 
 	renderPath_.Finalize();
-	previewResources_.materialPath_.Finalize();
-	previewResources_.materialTargets_.Destroy();
-	previewResources_.materialColor_.Release();
+	previewResources_.materialView_.reset();
+	previewResources_.graphView_.reset();
+	previewResources_.effectView_.Release();
+	previewResources_.effectScene_.Finalize();
 	backendRegistry_.Clear();
 	previewResources_.previewBackendRegistry_.Clear();
 	meshBackend_ = nullptr;

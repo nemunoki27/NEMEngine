@@ -27,7 +27,7 @@ namespace Engine {
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
 			const Vector2I& size, const Color4& clearColor = Color4::Black(),
 			uint32_t colorCount = 1, bool withDepth = true,
-			DXGI_FORMAT colorFormat = DXGI_FORMAT_R32G32B32A32_FLOAT);
+			DXGI_FORMAT colorFormat = DXGI_FORMAT_R32G32B32A32_FLOAT, bool colorUAV = false);
 
 		// 作成済みRenderTextureを名前で取得する
 		EditorToolRenderTexture* FindRenderTexture(const std::string& name);
