@@ -7,6 +7,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Entity/ReparentEntitiesCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -86,9 +87,9 @@ void Engine::HierarchyEntityTree::DrawActiveToggleIcon(const EditorPanelContext&
 	if (textureID != ImTextureID{}) {
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.24f, 0.28f, 0.75f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.30f, 0.34f, 0.40f, 0.95f));
+		ImGui::PushStyleColor(ImGuiCol_Button, Engine::EditorPalette::Get("Panels.Hierarchy.eye"));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Engine::EditorPalette::Get("Panels.Hierarchy.eyeHover"));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, Engine::EditorPalette::Get("Panels.Hierarchy.eyePress"));
 		toggled = ImGui::ImageButton("##ActiveEye", textureID, buttonSize);
 		ImGui::PopStyleColor(3);
 		ImGui::PopStyleVar();
@@ -184,8 +185,7 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 	// 行を交互に塗り、深い階層でも横方向を追いやすくする
 	if ((visibleEntityRowIndex_++ & 1u) != 0u) {
 
-		ImVec4 rowColor = ImGui::GetStyleColorVec4(ImGuiCol_Header);
-		rowColor.w = 0.10f;
+		const ImVec4 rowColor = Engine::EditorPalette::Get("Panels.Hierarchy.alternateRow");
 		const ImVec2 windowPosition = ImGui::GetWindowPos();
 		const ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
 		const ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
@@ -225,13 +225,13 @@ void Engine::HierarchyEntityTree::DrawEntityNode(
 	}
 	bool pushedTextColor = false;
 	if (isBrokenPrefab) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.error"));
 		pushedTextColor = true;
 	} else if (!activeInHierarchy) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 		pushedTextColor = true;
 	} else if (isPrefabInstance) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.80f, 1.0f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.Hierarchy.prefab"));
 		pushedTextColor = true;
 	}
 

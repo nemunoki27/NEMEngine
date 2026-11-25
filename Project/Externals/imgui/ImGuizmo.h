@@ -113,6 +113,13 @@ void EditTransform(const Camera& camera, matrix_t& matrix)
 
 namespace ImGuizmo
 {
+   struct ManipulatorColors
+   {
+      ImU32 axis[3], plane[3];
+      ImU32 selected, disabled, guide, center, sectorFill, sectorBorder, text, textShadow, hatch, scaleOrigin;
+   };
+   IMGUI_API void SetManipulatorColors(const ManipulatorColors& colors);
+
    // call inside your own window and before Manipulate() in order to draw gizmo to that window.
    // Or pass a specific ImDrawList to draw to (e.g. ImGui::GetForegroundDrawList()).
    IMGUI_API void SetDrawlist(ImDrawList* drawlist = nullptr);

@@ -1,4 +1,5 @@
 #include "EditorLayoutMenuSession.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 
 //============================================================================
 //	include
@@ -18,6 +19,8 @@ void Engine::EditorLayoutMenuSession::DrawMenu(const EditorPanelContext& context
 	}
 
 	ImGui::SetWindowFontScale(0.8f);
+	if (ImGui::MenuItem("配色設定")) colorSettingsOpen_ = true;
+	ImGui::Separator();
 	// 保存名の入力を開始
 	if (ImGui::MenuItem("現在のレイアウトを保存")) {
 
@@ -64,6 +67,7 @@ void Engine::EditorLayoutMenuSession::DrawMenu(const EditorPanelContext& context
 
 void Engine::EditorLayoutMenuSession::DrawPopup(const EditorPanelContext& context) {
 
+	EditorPalette::DrawSettings(colorSettingsOpen_);
 	constexpr const char* popupName = "エディターレイアウトの保存";
 	// メニュー終了後に保存画面を開く
 	if (requestOpenLayoutSavePopup_) {

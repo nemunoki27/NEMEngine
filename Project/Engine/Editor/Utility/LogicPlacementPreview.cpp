@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -36,7 +37,7 @@ void Engine::DrawLogicPlacementPreview3D(const EditorContext& context, const Edi
 	auto* renderer = LineRenderer::GetInstance()->Get3D();
 	for (const auto& preview : state.logicPlacementPreviews) {
 		if (preview.is2D || !IsVisible(preview, context, state)) continue;
-		const Color4 color = Color4::FromHex(preview.owner ? 0xffbe41ff : 0x41d2f0ff);
+		const Color4 color = EditorGuideColors::Linear(preview.owner ? "Guides.placementOwner" : "Guides.placement");
 		for (const auto& line : preview.layout->lines)
 			renderer->DrawLine(Vector3::Transform(line.from, preview.transform), Vector3::Transform(line.to, preview.transform), color, 1.5f);
 		for (const auto& point : preview.layout->points) {
@@ -87,7 +88,7 @@ void Engine::DrawLogicPlacementPreview(const EditorPanelContext& context, ImVec2
 				imagePosition.y + (0.5f - ndc.y * 0.5f) * imageSize.y};
 			return true;
 		};
-		const ImU32 color = preview.owner ? IM_COL32(255, 190, 65, 255) : IM_COL32(65, 210, 240, 255);
+		const ImU32 color = EditorPalette::U32(preview.owner ? "Guides.placementOwner" : "Guides.placement");
 		const auto clipLine = [&](Vector3& a, Vector3& b) {
 			for (int32_t plane = 0; plane < 3; ++plane) {
 				const auto distance = [&](Vector3 point) {

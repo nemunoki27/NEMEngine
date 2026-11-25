@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderGraphNodePreviewUtility.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 
 // c++
 #include <algorithm>
@@ -52,7 +53,7 @@ void Engine::ShaderGraphNodePreviews::DrawNodePreview(
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	if (textureID) {
 		constexpr float checkerSize = 8.0f;
-		const ImU32 checkerColors[2]{IM_COL32(58, 58, 58, 255), IM_COL32(92, 92, 92, 255)};
+		const ImU32 checkerColors[2]{EditorPalette::U32("Panels.Checker.Dark"), EditorPalette::U32("Panels.Checker.Light")};
 		for (float y = imageMinimum.y; y < imageMaximum.y; y += checkerSize) {
 			for (float x = imageMinimum.x; x < imageMaximum.x; x += checkerSize) {
 				const int32_t column = static_cast<int32_t>((x - imageMinimum.x) / checkerSize);
@@ -65,7 +66,7 @@ void Engine::ShaderGraphNodePreviews::DrawNodePreview(
 		ImGui::Image(textureID, ImVec2(displaySize, displaySize),
 			ImVec2(preview->uvMinimum.x, preview->uvMinimum.y), ImVec2(preview->uvMaximum.x, preview->uvMaximum.y));
 	} else {
-		drawList->AddRectFilled(imageMinimum, imageMaximum, IM_COL32(25, 25, 25, 255));
+		drawList->AddRectFilled(imageMinimum, imageMaximum, EditorPalette::U32("Graph.previewBackground"));
 		ImGui::InvisibleButton("##NodePreviewStatus", ImVec2(displaySize, displaySize));
 		const char* message = preview && !preview->diagnostic.empty() ? "プレビューエラー" : "プレビューを準備中";
 		const float textWidth = (std::max)(1.0f, displaySize - 8.0f);

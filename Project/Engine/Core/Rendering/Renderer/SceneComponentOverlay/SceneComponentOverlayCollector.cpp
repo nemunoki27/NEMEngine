@@ -183,8 +183,10 @@ namespace {
 		}
 
 		item.spriteRotationRadians = spriteRotationRadians;
-		item.color = Engine::Color4(lightColor.r, lightColor.g, lightColor.b,
-			lightColor.a * (enabled ? 1.0f : settings.disabledAlpha));
+		item.color = lightColor;
+		if (!enabled) {
+			item.color *= settings.disabledTint;
+		}
 		item.enabled = enabled;
 		item.stableOrder = stableOrder++;
 		outItems.emplace_back(item);
@@ -220,7 +222,10 @@ namespace {
 			entity, position, projection, *registration, settings, size, overlapCounts);
 		item.kind = Engine::SceneComponentOverlayKind::CameraIcon;
 		item.componentKind = Engine::SceneComponentOverlayComponentKind::PerspectiveCamera;
-		item.color = Engine::Color4(1.0f, 1.0f, 1.0f, cameraComponent.common.enabled ? 1.0f : settings.disabledAlpha);
+		item.color = settings.cameraColor;
+		if (!cameraComponent.common.enabled) {
+			item.color *= settings.disabledTint;
+		}
 		item.enabled = cameraComponent.common.enabled;
 		item.stableOrder = stableOrder++;
 		outItems.emplace_back(item);

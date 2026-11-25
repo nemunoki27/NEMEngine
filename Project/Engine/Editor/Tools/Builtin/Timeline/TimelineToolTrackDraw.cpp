@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Editor/UI/Common/EditorIconButton.h>
 
@@ -89,7 +90,7 @@ void TimelineTool::DrawTrackRow(const EditorToolContext& context, TimelineTrack&
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	if (property) {
 		ImGui::BeginDisabled(track.locked || context.IsPlaying());
-		if (IsTrackRecording(track.id)) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.25f, 1.0f));
+		if (IsTrackRecording(track.id)) ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.Timeline.record"));
 		const bool recording = EditorIconButton::Draw("Record", "\xef\x84\x91", "現在位置へキーを記録", IsTrackRecording(track.id), button);
 		if (IsTrackRecording(track.id)) ImGui::PopStyleColor();
 		if (recording) ToggleTrackRecording(context, track.id);

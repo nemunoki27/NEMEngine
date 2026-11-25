@@ -1,4 +1,5 @@
 #include "ImGuiCurveEditorInternal.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 
 //============================================================================
 //	include
@@ -83,7 +84,7 @@ namespace Engine::CurveEditorUtility {
 
 		if (IsColorChannelSet(channels)) {
 			bool rgbVisible = state.IsChannelVisible(0);
-			if (DrawToolbarCheckbox("RGB", rgbVisible, ImVec4(1.0f, 1.0f, 1.0f, 1.0f))) {
+			if (DrawToolbarCheckbox("RGB", rgbVisible, Engine::EditorPalette::Get("Panels.Curve.rgb"))) {
 				state.SetChannelVisible(0, rgbVisible);
 				state.SetChannelVisible(1, rgbVisible);
 				state.SetChannelVisible(2, rgbVisible);
@@ -93,8 +94,7 @@ namespace Engine::CurveEditorUtility {
 				bool alphaVisible = state.IsChannelVisible(3);
 				const Engine::CurveChannel& alphaChannel = channels[3];
 				if (DrawToolbarCheckbox("A", alphaVisible,
-						ImVec4(alphaChannel.displayColor.r, alphaChannel.displayColor.g, alphaChannel.displayColor.b,
-							alphaChannel.displayColor.a))) {
+						ChannelColor(alphaChannel.name))) {
 					state.SetChannelVisible(3, alphaVisible);
 				}
 			}
@@ -109,8 +109,7 @@ namespace Engine::CurveEditorUtility {
 				const Engine::CurveChannel& channel = channels[i];
 				bool visible = state.IsChannelVisible(i);
 				if (DrawToolbarCheckbox(channel.name.c_str(), visible,
-						ImVec4(
-							channel.displayColor.r, channel.displayColor.g, channel.displayColor.b, channel.displayColor.a))) {
+						ChannelColor(channel.name))) {
 					state.SetChannelVisible(i, visible);
 				}
 			}
@@ -124,7 +123,7 @@ namespace Engine::CurveEditorUtility {
 			const Engine::CurveChannel& channel = channels[i];
 			bool visible = state.IsChannelVisible(i);
 			if (DrawToolbarCheckbox(channel.name.c_str(), visible,
-					ImVec4(channel.displayColor.r, channel.displayColor.g, channel.displayColor.b, channel.displayColor.a))) {
+					ChannelColor(channel.name))) {
 				state.SetChannelVisible(i, visible);
 			}
 		}
@@ -157,9 +156,9 @@ namespace Engine::CurveEditorUtility {
 		bool& outValueChanged, bool& outEditFinished, bool& outUIBlocking) {
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 2.0f));
-		ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(20, 20, 20, 255));
-		ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, IM_COL32(40, 40, 40, 255));
-		ImGui::PushStyleColor(ImGuiCol_FrameBgActive, IM_COL32(20, 20, 20, 255));
+		ImGui::PushStyleColor(ImGuiCol_FrameBg, Engine::EditorPalette::U32("Panels.Curve.rangeInput"));
+		ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, Engine::EditorPalette::U32("Panels.Curve.rangeInputHover"));
+		ImGui::PushStyleColor(ImGuiCol_FrameBgActive, Engine::EditorPalette::U32("Panels.Curve.rangeInput"));
 
 		const float topWidth = (std::max)(36.0f, topCornerRect.GetWidth() - 8.0f);
 		const ImVec2 topPos(topCornerRect.Min.x + 4.0f, topCornerRect.Min.y + 2.0f);

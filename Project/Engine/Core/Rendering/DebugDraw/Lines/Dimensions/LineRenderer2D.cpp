@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/DebugDraw/SceneViewGuideColors.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 
@@ -87,9 +88,9 @@ void Engine::LineRenderer2D::DrawLineImpl([[maybe_unused]] GraphicsCore& graphic
 	constexpr float kDefaultGridCellSize = 64.0f;
 	// DrawGridで指定があればそのセル幅、無ければ既定値を使う
 	const float baseGridCellSize = gridCellSize_ > 0.0f ? gridCellSize_ : kDefaultGridCellSize;
+	const Color4& gridColor = SceneViewGuideColors::Get().grid2D;
 	constexpr float kGridLineThickness = 1.0f;
 	constexpr float kGridCenterLineThickness = 2.4f;
-	const Color4 kGridColor = Color4::White(0.32f);
 
 	// Camera行列から画面に映る範囲を取得
 	const Matrix4x4 invViewProjection = camera->matrices.inverseProjectionMatrix * camera->matrices.inverseViewMatrix;
@@ -119,13 +120,13 @@ void Engine::LineRenderer2D::DrawLineImpl([[maybe_unused]] GraphicsCore& graphic
 	for (float x = left; x <= right; x += gridCellSize) {
 
 		const float thickness = std::abs(x) < 0.001f ? kGridCenterLineThickness : kGridLineThickness;
-		DrawLine(Vector2(x, top), Vector2(x, bottom), kGridColor, thickness);
+		DrawLine(Vector2(x, top), Vector2(x, bottom), gridColor, thickness);
 	}
 	// 横線
 	for (float y = top; y <= bottom; y += gridCellSize) {
 
 		const float thickness = std::abs(y) < 0.001f ? kGridCenterLineThickness : kGridLineThickness;
-		DrawLine(Vector2(left, y), Vector2(right, y), kGridColor, thickness);
+		DrawLine(Vector2(left, y), Vector2(right, y), gridColor, thickness);
 	}
 
 	gridDrawCount_ = 0;

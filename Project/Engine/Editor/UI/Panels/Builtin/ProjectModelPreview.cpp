@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -21,7 +22,7 @@ namespace {
 
 	constexpr size_t kCacheCapacity = 64;
 	constexpr int32_t kThumbnailSize = 192;
-	const Engine::Color4 kClearColor(0.04f, 0.06f, 0.16f, 1.0f);
+
 
 	// 公開済みMeshの境界球へCameraを合わせる
 	Engine::ManualRenderCameraState MakeCamera(const Engine::MeshGPUResource& mesh) {
@@ -135,6 +136,11 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 	toolContext.panelContext = &context;
 	toolContext.toolContext.assetDatabase = &database;
 	resources_.BeginEditorToolFrame(toolContext);
+	const Color4 background = EditorPalette::RGBA("Panels.Model.projectBackground");
+	if (thumbnailBackground_ != background) {
+		thumbnailBackground_ = background;
+		for (auto& item : entries_) item.second.rendered = false;
+	}
 	const uint64_t textureRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
 	textureQuietFrames_ = observedTextureRevision_ == textureRevision ? (std::min)(textureQuietFrames_ + 1, 8u) : 0;
 	observedTextureRevision_ = textureRevision;
@@ -166,10 +172,11 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 				}
 			}
 		}
-		auto* texture = resources_.CreateRenderTexture(MakeTextureName(asset), Vector2I(kThumbnailSize, kThumbnailSize), kClearColor, 3);
+		auto* texture = resources_.CreateRenderTexture(MakeTextureName(asset), Vector2I(kThumbnailSize, kThumbnailSize), background, 3);
 		if (!texture) {
 			continue;
 		}
+		texture->clearColor = background;
 		bool rendered = false;
 		resources_.RenderToTexture(*texture, [&](EditorToolRenderContext& renderContext) {
 			EntityPreviewRenderRequest request{};
@@ -179,9 +186,9 @@ void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext&
 			request.rootEntity = entry.entity;
 			request.surface = texture->GetRenderTarget();
 			request.camera = MakeCamera(*mesh);
-			request.clearColor = kClearColor;
+			request.clearColor = background;
 			rendered = context.renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
-		}, kClearColor);
+		}, background);
 		entry.rendered = rendered;
 		entry.meshGeneration = mesh->reloadGeneration;
 		entry.textureRevision = textureRevision;

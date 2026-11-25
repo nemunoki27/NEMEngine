@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Common/EditorIconButton.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -171,7 +172,7 @@ void AnimationClipTool::DrawClipAssetUI(const EditorToolContext& context) {
 		DrawAssetActions(context);
 
 		if (!session_.GetClipErrorText().empty()) {
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.error"));
 			ImGui::TextWrapped("%s", session_.GetClipErrorText().c_str());
 			ImGui::PopStyleColor();
 		}

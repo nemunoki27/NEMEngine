@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Animation/Clips/AnimationChannelUtility.h>
 
 // c++
@@ -22,8 +23,8 @@ namespace Engine::CurveEditorUtility {
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-		const ImU32 backgroundColor = IM_COL32(5, 5, 5, 255);
-		const ImU32 minorColor = IM_COL32(38, 38, 42, 180);
+		const ImU32 backgroundColor = Engine::EditorPalette::U32("Panels.Curve.background");
+		const ImU32 minorColor = Engine::EditorPalette::U32("Panels.Curve.grid");
 
 		drawList->AddRectFilled(rect.Min, rect.Max, backgroundColor);
 
@@ -49,14 +50,14 @@ namespace Engine::CurveEditorUtility {
 		if (0.0f >= state.visibleTimeMin && 0.0f <= state.visibleTimeMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, 0.0f, state.visibleValueMin);
 			const ImVec2 p1 = WorldToScreen(rect, state, 0.0f, state.visibleValueMax);
-			drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), kCurveAxisColor, 2.0f);
+			drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), Engine::EditorPalette::U32("Panels.Curve.zeroAxis"), 2.0f);
 		}
 
 		// 値0の軸線を描く
 		if (0.0f >= state.visibleValueMin && 0.0f <= state.visibleValueMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, state.visibleTimeMin, 0.0f);
 			const ImVec2 p1 = WorldToScreen(rect, state, state.visibleTimeMax, 0.0f);
-			drawList->AddLine(ImVec2(rect.Min.x, p0.y), ImVec2(rect.Max.x, p1.y), kCurveAxisColor, 2.0f);
+			drawList->AddLine(ImVec2(rect.Min.x, p0.y), ImVec2(rect.Max.x, p1.y), Engine::EditorPalette::U32("Panels.Curve.zeroAxis"), 2.0f);
 		}
 	}
 
@@ -64,11 +65,11 @@ namespace Engine::CurveEditorUtility {
 	void DrawTimeRuler(const ImRect& rect, const Engine::CurveEditorState& state) {
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		drawList->AddRectFilled(rect.Min, rect.Max, IM_COL32(8, 8, 8, 255));
-		drawList->AddRect(rect.Min, rect.Max, IM_COL32(80, 80, 80, 255));
+		drawList->AddRectFilled(rect.Min, rect.Max, Engine::EditorPalette::U32("Panels.Curve.ruler"));
+		drawList->AddRect(rect.Min, rect.Max, Engine::EditorPalette::U32("Panels.Curve.rulerBorder"));
 
-		const ImU32 textColor = IM_COL32(210, 210, 210, 255);
-		const ImU32 tickColor = IM_COL32(110, 110, 116, 255);
+		const ImU32 textColor = Engine::EditorPalette::U32("Panels.Curve.rulerText");
+		const ImU32 tickColor = Engine::EditorPalette::U32("Panels.Curve.tick");
 
 		const float timeStep = (std::max)(0.0001f, state.gridTimeStep);
 		const CurveGridRange timeRange = BuildGridRange((std::max)(0.0f, state.visibleTimeMin), state.visibleTimeMax, timeStep);
@@ -94,11 +95,11 @@ namespace Engine::CurveEditorUtility {
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->PushClipRect(rect.Min, rect.Max, true);
 
-		drawList->AddRectFilled(rect.Min, rect.Max, IM_COL32(8, 8, 8, 255));
-		drawList->AddRect(rect.Min, rect.Max, IM_COL32(80, 80, 80, 255));
+		drawList->AddRectFilled(rect.Min, rect.Max, Engine::EditorPalette::U32("Panels.Curve.ruler"));
+		drawList->AddRect(rect.Min, rect.Max, Engine::EditorPalette::U32("Panels.Curve.rulerBorder"));
 
-		const ImU32 textColor = IM_COL32(210, 210, 210, 255);
-		const ImU32 tickColor = IM_COL32(110, 110, 116, 255);
+		const ImU32 textColor = Engine::EditorPalette::U32("Panels.Curve.rulerText");
+		const ImU32 tickColor = Engine::EditorPalette::U32("Panels.Curve.tick");
 
 		const float valueStep = (std::max)(0.0001f, state.gridValueStep);
 		const CurveGridRange valueRange = BuildGridRange(state.visibleValueMin, state.visibleValueMax, valueStep);
@@ -138,7 +139,7 @@ namespace Engine::CurveEditorUtility {
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->PushClipRect(rect.Min, rect.Max, true);
 
-		const ImU32 color = ToImU32(channel.displayColor);
+		const ImU32 color = ImGui::ColorConvertFloat4ToU32(ChannelColor(channel.name));
 		const int sampleCount = (std::max)(16, static_cast<int>(rect.GetWidth() / 4.0f));
 		ImVec2 prev{};
 		bool hasPrev = false;
@@ -199,6 +200,10 @@ namespace Engine::CurveEditorUtility {
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->PushClipRect(rect.Min, rect.Max, true);
 
+		const ImU32 selectedKey = EditorPalette::U32("Panels.Curve.selectedKey");
+		const ImU32 keyBorder = EditorPalette::U32("Panels.Curve.keyBorder");
+		const ImU32 colorKeyBorder = EditorPalette::U32("Panels.Curve.colorKeyBorder");
+
 		if (IsColorCurveSet(channels)) {
 			if (state.IsChannelVisible(0)) {
 				const size_t rgbKeyCount = Engine::AnimationChannelUtility::GetSharedKeyCount(channels.first(3));
@@ -212,18 +217,18 @@ namespace Engine::CurveEditorUtility {
 					drawList->AddRectFilled(
 						ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius), ToImU32(color), 2.0f);
 					drawList->AddRect(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
-						selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(18, 18, 18, 255), 2.0f, 0, 1.5f);
+						selected ? selectedKey : colorKeyBorder, 2.0f, 0, 1.5f);
 				}
 			}
 			if (HasAlphaChannel(channels) && state.IsChannelVisible(3)) {
 				const Engine::CurveChannel& channel = channels[3];
-				const ImU32 color = ToImU32(channel.displayColor);
+				const ImU32 color = ImGui::ColorConvertFloat4ToU32(ChannelColor(channel.name));
 				for (uint32_t keyIndex = 0; keyIndex < channel.keys.size(); ++keyIndex) {
 					const Engine::CurveKey& key = channel.keys[keyIndex];
 					const ImVec2 pos = WorldToScreen(rect, state, key.time, key.value);
 					const bool selected = IsKeySelected(state, 3, keyIndex);
-					const ImU32 fillColor = selected ? IM_COL32(255, 255, 255, 255) : color;
-					const ImU32 borderColor = selected ? color : IM_COL32(12, 12, 12, 255);
+					const ImU32 fillColor = selected ? selectedKey : color;
+					const ImU32 borderColor = selected ? color : keyBorder;
 					drawList->AddCircleFilled(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, fillColor, 12);
 					drawList->AddCircle(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, borderColor, 12, 1.5f);
 				}
@@ -243,18 +248,18 @@ namespace Engine::CurveEditorUtility {
 					drawList->AddRectFilled(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
 						GetAxisColor(axisKey), 2.0f);
 					drawList->AddRect(ImVec2(pos.x - radius, pos.y - radius), ImVec2(pos.x + radius, pos.y + radius),
-						selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(18, 18, 18, 255), 2.0f, 0, 1.5f);
+						selected ? selectedKey : colorKeyBorder, 2.0f, 0, 1.5f);
 				}
 			}
 			if (state.IsChannelVisible(1)) {
 				const Engine::CurveChannel& channel = channels[1];
-				const ImU32 color = ToImU32(channel.displayColor);
+				const ImU32 color = ImGui::ColorConvertFloat4ToU32(ChannelColor(channel.name));
 				for (uint32_t keyIndex = 0; keyIndex < channel.keys.size(); ++keyIndex) {
 					const Engine::CurveKey& key = channel.keys[keyIndex];
 					const ImVec2 pos = WorldToScreen(rect, state, key.time, key.value);
 					const bool selected = IsKeySelected(state, 1, keyIndex);
-					const ImU32 fillColor = selected ? IM_COL32(255, 255, 255, 255) : color;
-					const ImU32 borderColor = selected ? color : IM_COL32(12, 12, 12, 255);
+					const ImU32 fillColor = selected ? selectedKey : color;
+					const ImU32 borderColor = selected ? color : keyBorder;
 					drawList->AddCircleFilled(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, fillColor, 12);
 					drawList->AddCircle(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, borderColor, 12, 1.5f);
 				}
@@ -269,14 +274,14 @@ namespace Engine::CurveEditorUtility {
 			}
 
 			const Engine::CurveChannel& channel = channels[channelIndex];
-			const ImU32 color = ToImU32(channel.displayColor);
+			const ImU32 color = ImGui::ColorConvertFloat4ToU32(ChannelColor(channel.name));
 
 			for (uint32_t keyIndex = 0; keyIndex < channel.keys.size(); ++keyIndex) {
 				const Engine::CurveKey& key = channel.keys[keyIndex];
 				const ImVec2 pos = WorldToScreen(rect, state, key.time, key.value);
 				const bool selected = IsKeySelected(state, channelIndex, keyIndex);
-				const ImU32 fillColor = selected ? IM_COL32(255, 255, 255, 255) : color;
-				const ImU32 borderColor = selected ? color : IM_COL32(12, 12, 12, 255);
+				const ImU32 fillColor = selected ? selectedKey : color;
+				const ImU32 borderColor = selected ? color : keyBorder;
 				drawList->AddCircleFilled(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, fillColor, 12);
 				drawList->AddCircle(pos, selected ? kCurveKeyRadius + 1.5f : kCurveKeyRadius, borderColor, 12, 1.5f);
 			}
@@ -297,7 +302,7 @@ namespace Engine::CurveEditorUtility {
 
 		const ImVec2 p0 = WorldToScreen(rect, state, state.currentTime, state.visibleValueMin);
 		const ImVec2 p1 = WorldToScreen(rect, state, state.currentTime, state.visibleValueMax);
-		drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), IM_COL32(255, 210, 80, 255), 2.0f);
+		drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), Engine::EditorPalette::U32("Panels.Curve.playhead"), 2.0f);
 
 		drawList->PopClipRect();
 	}

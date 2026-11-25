@@ -1,4 +1,5 @@
 #include "TimelineTool.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include "TimelineAppearance.h"
 #include "TimelineEditorFields.h"
 
@@ -25,7 +26,11 @@ void TimelineTool::DrawClip(const EditorToolContext& context, TimelineTrack& tra
 	clipRects_.push_back({{track.id, clip.id}, ImVec4(lo.x, lo.y, hi.x, hi.y)});
 	ImDrawList* draw = ImGui::GetWindowDrawList();
 	ImU32 accent = TimelineEditorFields::TrackColor(track.kind);
-	if (track.muted || !clip.enabled) accent = (accent & 0x00ffffffu) | 0x70000000u;
+	if (track.muted || !clip.enabled) {
+		const ImVec4 tint = EditorPalette::Get("Panels.Timeline.muteTint");
+		const ImVec4 base = ImGui::ColorConvertU32ToFloat4(accent);
+		accent = ImGui::ColorConvertFloat4ToU32(ImVec4(base.x * tint.x, base.y * tint.y, base.z * tint.z, base.w * tint.w));
+	}
 	const bool selected = IsSelected(track.id, clip.id);
 	if (marker) {
 		const float y = origin.y + rowHeight * 0.5f;
@@ -38,12 +43,12 @@ void TimelineTool::DrawClip(const EditorToolContext& context, TimelineTrack& tra
 		draw->AddRectFilled(ImVec2(lo.x, hi.y - 3), hi, accent);
 		if (clip.blendIn > 0.0) {
 			const float end = left + static_cast<float>((std::min)(clip.blendIn, clip.duration) * pixelsPerSecond_);
-			draw->AddTriangleFilled(lo, ImVec2(end, lo.y), ImVec2(lo.x, hi.y), IM_COL32(0, 0, 0, 100));
+			draw->AddTriangleFilled(lo, ImVec2(end, lo.y), ImVec2(lo.x, hi.y), Engine::EditorPalette::U32("Panels.Timeline.clipBlend"));
 			draw->AddLine(ImVec2(lo.x, hi.y), ImVec2(end, lo.y), GetColor(Color::Blend));
 		}
 		if (clip.blendOut > 0.0) {
 			const float begin = right - static_cast<float>((std::min)(clip.blendOut, clip.duration) * pixelsPerSecond_);
-			draw->AddTriangleFilled(ImVec2(begin, lo.y), ImVec2(hi.x, lo.y), hi, IM_COL32(0, 0, 0, 100));
+			draw->AddTriangleFilled(ImVec2(begin, lo.y), ImVec2(hi.x, lo.y), hi, Engine::EditorPalette::U32("Panels.Timeline.clipBlend"));
 			draw->AddLine(ImVec2(begin, lo.y), hi, GetColor(Color::Blend));
 		}
 		if (selected) draw->AddRect(lo, hi, GetColor(Color::Selection));

@@ -1,0 +1,1042 @@
+{
+  "Panels.warning": {
+    "label": "警告",
+    "group": "状態・診断",
+    "value": [
+      0.95,
+      0.8,
+      0.25,
+      1
+    ]
+  },
+  "Panels.error": {
+    "label": "エラー・参照切れ",
+    "group": "状態・診断",
+    "value": [
+      0.95,
+      0.35,
+      0.35,
+      1
+    ]
+  },
+  "Panels.success": {
+    "label": "成功",
+    "group": "状態・診断",
+    "value": [
+      0.35,
+      0.85,
+      0.45,
+      1
+    ]
+  },
+  "Panels.Icon.selected": {
+    "label": "アイコンボタン・選択中",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.05,
+      0.18,
+      0.45,
+      1
+    ]
+  },
+  "Panels.Icon.selectedHover": {
+    "label": "選択したアイコンのホバー",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.07,
+      0.24,
+      0.58,
+      1
+    ]
+  },
+  "Panels.Icon.selectedPress": {
+    "label": "選択したアイコンの押下",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.1,
+      0.32,
+      0.74,
+      1
+    ]
+  },
+  "Panels.Icon.normal": {
+    "label": "アイコンボタン・通常",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.04,
+      0.04,
+      0.04,
+      0.95
+    ]
+  },
+  "Panels.Icon.hover": {
+    "label": "アイコンボタンのホバー",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.08,
+      0.08,
+      0.08,
+      0.98
+    ]
+  },
+  "Panels.Icon.press": {
+    "label": "アイコンボタンの押下",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.02,
+      0.02,
+      0.02,
+      1
+    ]
+  },
+  "Panels.Icon.tint": {
+    "label": "ボタンのアイコン",
+    "group": "パネル・ツールバー",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Panels.Viewport.toolbar": {
+    "label": "SceneViewの操作バー",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.025,
+      0.025,
+      0.025,
+      1
+    ]
+  },
+  "Panels.Project.iconBackground": {
+    "label": "アセットアイコンの背景",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.06,
+      0.06,
+      0.06,
+      1
+    ]
+  },
+  "Panels.Checker.Dark": {
+    "label": "透過背景の市松模様・暗色",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.24313725,
+      0.24313725,
+      0.24313725,
+      1
+    ]
+  },
+  "Panels.Checker.Light": {
+    "label": "透過背景の市松模様・明色",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.36862745,
+      0.36862745,
+      0.36862745,
+      1
+    ]
+  },
+  "Panels.Hierarchy.eye": {
+    "label": "Hierarchyの目ボタン・通常",
+    "group": "パネル・ツールバー",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Panels.Hierarchy.eyeHover": {
+    "label": "目ボタンのホバー",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.22,
+      0.24,
+      0.28,
+      0.75
+    ]
+  },
+  "Panels.Hierarchy.eyePress": {
+    "label": "目ボタンの押下",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.3,
+      0.34,
+      0.4,
+      0.95
+    ]
+  },
+  "Panels.Hierarchy.prefab": {
+    "label": "Prefabインスタンス名",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.45,
+      0.8,
+      1,
+      1
+    ]
+  },
+  "Panels.Inspector.prefab": {
+    "label": "InspectorのPrefabボタン",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.05,
+      0.05,
+      0.95,
+      1
+    ]
+  },
+  "Panels.Measurement.shadow": {
+    "label": "計測テキストの影",
+    "group": "SceneView・編集ガイド",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "Panels.Measurement.text": {
+    "label": "FPS・DeltaTime",
+    "group": "SceneView・編集ガイド",
+    "value": [
+      0,
+      1,
+      0,
+      1
+    ]
+  },
+  "Panels.Field.red": {
+    "label": "数値入力のR・X",
+    "group": "パネル・ツールバー",
+    "value": [
+      1,
+      0.26,
+      0.2,
+      1
+    ]
+  },
+  "Panels.Field.green": {
+    "label": "数値入力のG・Z",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.2,
+      1,
+      0.25,
+      1
+    ]
+  },
+  "Panels.Field.blue": {
+    "label": "数値入力のB・Y",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.2,
+      0.45,
+      1,
+      1
+    ]
+  },
+  "Panels.Field.alpha": {
+    "label": "数値入力のA・W",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.9,
+      0.78,
+      0.2,
+      1
+    ]
+  },
+  "Panels.Field.copyX": {
+    "label": "数値表示のX",
+    "group": "パネル・ツールバー",
+    "value": [
+      1,
+      0.1,
+      0.1,
+      1
+    ]
+  },
+  "Panels.Field.copyY": {
+    "label": "数値表示のY",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.1,
+      0.3,
+      1,
+      1
+    ]
+  },
+  "Panels.Field.copyZ": {
+    "label": "数値表示のZ",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.1,
+      1,
+      0.3,
+      1
+    ]
+  },
+  "Panels.Field.other": {
+    "label": "その他の数値項目",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.7,
+      0.7,
+      0.7,
+      1
+    ]
+  },
+  "Panels.Curve.selectionFill": {
+    "label": "範囲選択の内側",
+    "group": "カーブ",
+    "value": [
+      0.31372549,
+      0.54901961,
+      1,
+      0.16470588
+    ]
+  },
+  "Panels.Curve.selectionBorder": {
+    "label": "範囲選択の枠",
+    "group": "カーブ",
+    "value": [
+      0.39215686,
+      0.64705882,
+      1,
+      0.70588235
+    ]
+  },
+  "Panels.Curve.axisX": {
+    "label": "回転軸キーのX",
+    "group": "カーブ",
+    "value": [
+      1,
+      0.31372549,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Curve.axisY": {
+    "label": "回転軸キーのY",
+    "group": "カーブ",
+    "value": [
+      0.31372549,
+      1,
+      0.39215686,
+      1
+    ]
+  },
+  "Panels.Curve.axisZ": {
+    "label": "回転軸キーのZ",
+    "group": "カーブ",
+    "value": [
+      0.35294118,
+      0.56862745,
+      1,
+      1
+    ]
+  },
+  "Panels.Curve.multiAxis": {
+    "label": "複数の回転軸",
+    "group": "カーブ",
+    "value": [
+      0.96078431,
+      0.8627451,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Curve.background": {
+    "label": "カーブの背景",
+    "group": "カーブ",
+    "value": [
+      0.01960784,
+      0.01960784,
+      0.01960784,
+      1
+    ]
+  },
+  "Panels.Curve.grid": {
+    "label": "グリッド",
+    "group": "カーブ",
+    "value": [
+      0.14901961,
+      0.14901961,
+      0.16470588,
+      0.70588235
+    ]
+  },
+  "Panels.Curve.ruler": {
+    "label": "目盛りの背景",
+    "group": "カーブ",
+    "value": [
+      0.03137255,
+      0.03137255,
+      0.03137255,
+      1
+    ]
+  },
+  "Panels.Curve.rulerBorder": {
+    "label": "目盛りの枠",
+    "group": "カーブ",
+    "value": [
+      0.31372549,
+      0.31372549,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Curve.rulerText": {
+    "label": "目盛りの文字",
+    "group": "カーブ",
+    "value": [
+      0.82352941,
+      0.82352941,
+      0.82352941,
+      1
+    ]
+  },
+  "Panels.Curve.tick": {
+    "label": "目盛りの線",
+    "group": "カーブ",
+    "value": [
+      0.43137255,
+      0.43137255,
+      0.45490196,
+      1
+    ]
+  },
+  "Panels.Curve.selectedKey": {
+    "label": "選択キー",
+    "group": "カーブ",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Panels.Curve.colorKeyBorder": {
+    "label": "色キーの縁",
+    "group": "カーブ",
+    "value": [
+      0.07058824,
+      0.07058824,
+      0.07058824,
+      1
+    ]
+  },
+  "Panels.Curve.keyBorder": {
+    "label": "キーの縁",
+    "group": "カーブ",
+    "value": [
+      0.04705882,
+      0.04705882,
+      0.04705882,
+      1
+    ]
+  },
+  "Panels.Curve.playhead": {
+    "label": "現在位置",
+    "group": "カーブ",
+    "value": [
+      1,
+      0.82352941,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Curve.rangeInput": {
+    "label": "カーブの範囲入力",
+    "group": "カーブ",
+    "value": [
+      0.07843137,
+      0.07843137,
+      0.07843137,
+      1
+    ]
+  },
+  "Panels.Curve.rangeInputHover": {
+    "label": "カーブ範囲入力のホバー",
+    "group": "カーブ",
+    "value": [
+      0.15686275,
+      0.15686275,
+      0.15686275,
+      1
+    ]
+  },
+  "Panels.Curve.rgb": {
+    "label": "RGB切替の文字",
+    "group": "カーブ",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Panels.Timeline.clipBlend": {
+    "label": "クリップのブレンド領域",
+    "group": "タイムライン",
+    "value": [
+      0,
+      0,
+      0,
+      0.39215686
+    ]
+  },
+  "Panels.Timeline.pastEnd": {
+    "label": "終了時刻以降の背景",
+    "group": "タイムライン",
+    "value": [
+      0,
+      0,
+      0,
+      0.33333333
+    ]
+  },
+  "Panels.Timeline.record": {
+    "label": "録画中",
+    "group": "タイムライン",
+    "value": [
+      1,
+      0.3,
+      0.25,
+      1
+    ]
+  },
+  "Panels.Hierarchy.alternateRow": {
+    "label": "Hierarchyの交互の行",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.050980392156862744,
+      0.050980392156862744,
+      0.050980392156862744,
+      0.1
+    ]
+  },
+  "Panels.headerText": {
+    "label": "タイトルタブの文字とアイコン",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.78431373,
+      0.78431373,
+      0.78431373,
+      1
+    ]
+  },
+  "Panels.Curve.zeroAxis": {
+    "label": "時間と値のゼロ軸",
+    "group": "カーブ",
+    "value": [
+      1,
+      0.82352941,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Timeline.Background": {
+    "label": "背景",
+    "group": "タイムライン",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      1
+    ]
+  },
+  "Panels.Timeline.Ruler": {
+    "label": "定規の背景",
+    "group": "タイムライン",
+    "value": [
+      0.01960784,
+      0.01960784,
+      0.01960784,
+      1
+    ]
+  },
+  "Panels.Timeline.Track": {
+    "label": "トラック",
+    "group": "タイムライン",
+    "value": [
+      0.02352941,
+      0.02352941,
+      0.02352941,
+      1
+    ]
+  },
+  "Panels.Timeline.SelectedTrack": {
+    "label": "選択トラック",
+    "group": "タイムライン",
+    "value": [
+      0.05490196,
+      0.05490196,
+      0.05490196,
+      1
+    ]
+  },
+  "Panels.Timeline.Clip": {
+    "label": "クリップ",
+    "group": "タイムライン",
+    "value": [
+      0.03921569,
+      0.03921569,
+      0.03921569,
+      1
+    ]
+  },
+  "Panels.Timeline.ActiveClip": {
+    "label": "アクティブクリップ",
+    "group": "タイムライン",
+    "value": [
+      0.06666667,
+      0.06666667,
+      0.06666667,
+      1
+    ]
+  },
+  "Panels.Timeline.SelectedClip": {
+    "label": "選択クリップ",
+    "group": "タイムライン",
+    "value": [
+      0.09411765,
+      0.10196078,
+      0.11372549,
+      1
+    ]
+  },
+  "Panels.Timeline.Grid": {
+    "label": "主グリッド",
+    "group": "タイムライン",
+    "value": [
+      0.24313725,
+      0.24313725,
+      0.24313725,
+      1
+    ]
+  },
+  "Panels.Timeline.MinorGrid": {
+    "label": "副グリッド",
+    "group": "タイムライン",
+    "value": [
+      0.09411765,
+      0.09411765,
+      0.09411765,
+      1
+    ]
+  },
+  "Panels.Timeline.Divider": {
+    "label": "境界線",
+    "group": "タイムライン",
+    "value": [
+      0.33333333,
+      0.33333333,
+      0.33333333,
+      1
+    ]
+  },
+  "Panels.Timeline.Text": {
+    "label": "文字",
+    "group": "タイムライン",
+    "value": [
+      0.88235294,
+      0.88235294,
+      0.88235294,
+      1
+    ]
+  },
+  "Panels.Timeline.MutedText": {
+    "label": "ミュート時の文字",
+    "group": "タイムライン",
+    "value": [
+      0.41176471,
+      0.41176471,
+      0.41176471,
+      1
+    ]
+  },
+  "Panels.Timeline.Playhead": {
+    "label": "再生ヘッド",
+    "group": "タイムライン",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Panels.Timeline.Selection": {
+    "label": "選択枠",
+    "group": "タイムライン",
+    "value": [
+      0.94117647,
+      0.94117647,
+      0.94117647,
+      1
+    ]
+  },
+  "Panels.Timeline.Blend": {
+    "label": "ブレンド線",
+    "group": "タイムライン",
+    "value": [
+      0.56862745,
+      0.56862745,
+      0.56862745,
+      1
+    ]
+  },
+  "Panels.Timeline.Accent": {
+    "label": "強調色",
+    "group": "タイムライン",
+    "value": [
+      0.05098039,
+      0.18039216,
+      0.45098039,
+      1
+    ]
+  },
+  "Panels.Timeline.Range": {
+    "label": "再生範囲",
+    "group": "タイムライン",
+    "value": [
+      0.05098039,
+      0.18039216,
+      0.45098039,
+      0.17647059
+    ]
+  },
+  "Panels.Timeline.SelectionFill": {
+    "label": "範囲選択",
+    "group": "タイムライン",
+    "value": [
+      0.05098039,
+      0.18039216,
+      0.45098039,
+      0.25490196
+    ]
+  },
+  "Panels.Timeline.Zoom": {
+    "label": "ズームバー",
+    "group": "タイムライン",
+    "value": [
+      0.10980392,
+      0.10980392,
+      0.10980392,
+      1
+    ]
+  },
+  "Panels.Track.Group": {
+    "label": "トラック・グループ",
+    "group": "タイムライン",
+    "value": [
+      0.1372549,
+      0.14509804,
+      0.16470588,
+      1
+    ]
+  },
+  "Panels.Track.SkinnedAnimation": {
+    "label": "トラック・骨アニメーション",
+    "group": "タイムライン",
+    "value": [
+      0.18431373,
+      0.09803922,
+      0.35686275,
+      1
+    ]
+  },
+  "Panels.Track.Motion": {
+    "label": "トラック・移動・回転",
+    "group": "タイムライン",
+    "value": [
+      0.07058824,
+      0.23529412,
+      0.13333333,
+      1
+    ]
+  },
+  "Panels.Track.Particle": {
+    "label": "トラック・パーティクル",
+    "group": "タイムライン",
+    "value": [
+      0.05882353,
+      0.20784314,
+      0.3254902,
+      1
+    ]
+  },
+  "Panels.Track.Prefab": {
+    "label": "トラック・Prefab発生",
+    "group": "タイムライン",
+    "value": [
+      0.04705882,
+      0.25490196,
+      0.27843137,
+      1
+    ]
+  },
+  "Panels.Track.Hitbox": {
+    "label": "トラック・衝突判定",
+    "group": "タイムライン",
+    "value": [
+      0.31372549,
+      0.07843137,
+      0.09019608,
+      1
+    ]
+  },
+  "Panels.Track.Camera": {
+    "label": "トラック・カメラ",
+    "group": "タイムライン",
+    "value": [
+      0.07843137,
+      0.16862745,
+      0.32156863,
+      1
+    ]
+  },
+  "Panels.Track.Audio": {
+    "label": "トラック・音声",
+    "group": "タイムライン",
+    "value": [
+      0.29803922,
+      0.20784314,
+      0.06666667,
+      1
+    ]
+  },
+  "Panels.Track.Property": {
+    "label": "トラック・プロパティ",
+    "group": "タイムライン",
+    "value": [
+      0.16862745,
+      0.11764706,
+      0.31372549,
+      1
+    ]
+  },
+  "Panels.Track.Activation": {
+    "label": "トラック・有効状態",
+    "group": "タイムライン",
+    "value": [
+      0.10980392,
+      0.24313725,
+      0.16862745,
+      1
+    ]
+  },
+  "Panels.Track.TimeScale": {
+    "label": "トラック・時間倍率",
+    "group": "タイムライン",
+    "value": [
+      0.28627451,
+      0.1372549,
+      0.07058824,
+      1
+    ]
+  },
+  "Panels.Track.Event": {
+    "label": "トラック・イベント",
+    "group": "タイムライン",
+    "value": [
+      0.28627451,
+      0.15294118,
+      0.06666667,
+      1
+    ]
+  },
+  "Panels.Track.Window": {
+    "label": "トラック・受付区間",
+    "group": "タイムライン",
+    "value": [
+      0.23529412,
+      0.13333333,
+      0.28627451,
+      1
+    ]
+  },
+  "Panels.Track.SubTimeline": {
+    "label": "トラック・子タイムライン",
+    "group": "タイムライン",
+    "value": [
+      0.09803922,
+      0.19607843,
+      0.25098039,
+      1
+    ]
+  },
+  "Panels.Track.Script": {
+    "label": "トラック・C#独自クリップ",
+    "group": "タイムライン",
+    "value": [
+      0.15686275,
+      0.19215686,
+      0.25490196,
+      1
+    ]
+  },
+  "Panels.Track.Trail": {
+    "label": "トラック・トレイル",
+    "group": "タイムライン",
+    "value": [
+      0.07843137,
+      0.25490196,
+      0.29411765,
+      1
+    ]
+  },
+  "Panels.Track.Beam": {
+    "label": "トラック・ビーム",
+    "group": "タイムライン",
+    "value": [
+      0.22352941,
+      0.12941176,
+      0.34901961,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.X": {
+    "label": "カーブチャンネル・X",
+    "group": "カーブ",
+    "value": [
+      1,
+      0,
+      0,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.Y": {
+    "label": "カーブチャンネル・Y",
+    "group": "カーブ",
+    "value": [
+      0.2,
+      0.45,
+      1,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.Z": {
+    "label": "カーブチャンネル・Z",
+    "group": "カーブ",
+    "value": [
+      0,
+      1,
+      0,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.R": {
+    "label": "カーブチャンネル・R",
+    "group": "カーブ",
+    "value": [
+      1,
+      0,
+      0,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.G": {
+    "label": "カーブチャンネル・G",
+    "group": "カーブ",
+    "value": [
+      0,
+      1,
+      0,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.B": {
+    "label": "カーブチャンネル・B",
+    "group": "カーブ",
+    "value": [
+      0,
+      0,
+      1,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.W": {
+    "label": "カーブチャンネル・W",
+    "group": "カーブ",
+    "value": [
+      0.85,
+      0.85,
+      0.85,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.A": {
+    "label": "カーブチャンネル・A",
+    "group": "カーブ",
+    "value": [
+      0.85,
+      0.85,
+      0.85,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.Axis": {
+    "label": "カーブチャンネル・回転軸",
+    "group": "カーブ",
+    "value": [
+      0.95,
+      0.85,
+      0.2,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.Angle": {
+    "label": "カーブチャンネル・角度",
+    "group": "カーブ",
+    "value": [
+      0.25,
+      0.65,
+      1,
+      1
+    ]
+  },
+  "Panels.Curve.Channel.Value": {
+    "label": "カーブチャンネル・値",
+    "group": "カーブ",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Panels.Timeline.muteTint": {
+    "label": "ミュート・無効クリップの乗算色",
+    "group": "タイムライン",
+    "value": [
+      1,
+      1,
+      1,
+      0.43921569
+    ]
+  },
+  "Panels.Model.inspectorBackground": {
+    "label": "Inspectorのモデルプレビュー背景",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.1,
+      0.11,
+      0.13,
+      1
+    ]
+  },
+  "Panels.Model.projectBackground": {
+    "label": "Projectのモデルプレビュー背景",
+    "group": "パネル・ツールバー",
+    "value": [
+      0.04,
+      0.06,
+      0.16,
+      1
+    ]
+  }
+}

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -24,7 +25,7 @@ namespace {
 	// Triggerは黄色、通常形状はシアンで表示する
 	Engine::Color4 GetShapeColor(const Engine::CollisionShapeInstance& shape) {
 
-		return shape.trigger ? Engine::Color4::Yellow(1.0f) : Engine::Color4::Cyan(1.0f);
+		return shape.trigger ? Engine::EditorGuideColors::Linear("Guides.trigger") : Engine::EditorGuideColors::Linear("Guides.collision");
 	}
 
 	// Circle2DをXY平面に描画する
@@ -169,11 +170,10 @@ namespace {
 		renderer->DrawOBB(shape.center, halfExtents, rotation, color, thickness);
 	}
 
-	// 形状タイプごとの描画関数へ振り分ける、collidingなら衝突中として赤で描く
+	// 衝突状態と形状ごとのガイドを描く
 	void DrawCollisionShape(const Engine::CollisionShapeInstance& shape, bool colliding) {
 
-		// 衝突中は形状種別に関わらず赤、それ以外はTrigger黄/通常シアン
-		const Engine::Color4 color = colliding ? Engine::Color4::Red(1.0f) : GetShapeColor(shape);
+		const Engine::Color4 color = colliding ? Engine::EditorGuideColors::Linear("Guides.overlap") : GetShapeColor(shape);
 		const float thickness = 2.0f;
 		switch (shape.type) {
 		case Engine::ColliderShapeType::Circle2D:

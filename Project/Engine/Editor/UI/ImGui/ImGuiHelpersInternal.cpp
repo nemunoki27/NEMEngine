@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -69,23 +70,23 @@ namespace Engine {
 		const bool copyable = palette == AxisLabelPalette::Copyable;
 		switch (axis) {
 		case 'R':
-			return {"R", ImVec4(1.0f, 0.26f, 0.20f, 1.0f)};
+			return {"R", Engine::EditorPalette::Get("Panels.Field.red")};
 		case 'G':
-			return {"G", ImVec4(0.20f, 1.0f, 0.25f, 1.0f)};
+			return {"G", Engine::EditorPalette::Get("Panels.Field.green")};
 		case 'B':
-			return {"B", ImVec4(0.20f, 0.45f, 1.0f, 1.0f)};
+			return {"B", Engine::EditorPalette::Get("Panels.Field.blue")};
 		case 'A':
-			return {"A", ImVec4(0.90f, 0.78f, 0.20f, 1.0f)};
+			return {"A", Engine::EditorPalette::Get("Panels.Field.alpha")};
 		case 'X':
-			return {"X", copyable ? ImVec4(1.0f, 0.1f, 0.1f, 1.0f) : ImVec4(1.0f, 0.26f, 0.20f, 1.0f)};
+			return {"X", copyable ? Engine::EditorPalette::Get("Panels.Field.copyX") : Engine::EditorPalette::Get("Panels.Field.red")};
 		case 'Y':
-			return {"Y", copyable ? ImVec4(0.1f, 0.3f, 1.0f, 1.0f) : ImVec4(0.20f, 0.45f, 1.0f, 1.0f)};
+			return {"Y", copyable ? Engine::EditorPalette::Get("Panels.Field.copyY") : Engine::EditorPalette::Get("Panels.Field.blue")};
 		case 'Z':
-			return {"Z", copyable ? ImVec4(0.1f, 1.0f, 0.3f, 1.0f) : ImVec4(0.20f, 1.0f, 0.25f, 1.0f)};
+			return {"Z", copyable ? Engine::EditorPalette::Get("Panels.Field.copyZ") : Engine::EditorPalette::Get("Panels.Field.green")};
 		case 'W':
-			return {"W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f)};
+			return {"W", Engine::EditorPalette::Get("Panels.Field.alpha")};
 		default:
-			return {"", ImVec4(0.70f, 0.70f, 0.70f, 1.0f)};
+			return {"", Engine::EditorPalette::Get("Panels.Field.other")};
 		}
 	}
 

@@ -14,6 +14,7 @@
 #include "ShaderGraphEditOperations.h"
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 // c++
@@ -23,7 +24,6 @@
 #include <imgui_node_editor.h>
 
 using namespace Engine::ShaderGraphCanvasID;
-using namespace Engine::ShaderGraphAppearance;
 
 namespace {
 
@@ -58,15 +58,15 @@ std::vector<Engine::ShaderGraphCanvasCommand> Engine::ShaderGraphCanvasView::Dra
 	for (ShaderGraphGroup& group : editSession_.GetDraft().groups) {
 		groupEditor_.DrawGroup(group);
 	}
+	const ImVec4 linkColor = EditorPalette::Get("Graph.link");
 	for (const ShaderGraphLink& link : editSession_.GetDraft().links) {
 		ed::Link(ed::LinkId(ToNodeEditorID(link.id)), ed::PinId(MakePinID(link.outputNode, false, link.outputSlot)),
-			ed::PinId(MakePinID(link.inputNode, true, link.inputSlot)), ToImVec4(appearanceEditor_.GetSettings().link),
+			ed::PinId(MakePinID(link.inputNode, true, link.inputSlot)), linkColor,
 			appearanceEditor_.GetSettings().linkThickness);
 	}
 
 	canvas_.RestorePositions(editSession_.GetDraft());
 
-	const ImVec4 linkColor = ToImVec4(appearanceEditor_.GetSettings().link);
 	if (ed::BeginCreate(linkColor, appearanceEditor_.GetSettings().linkThickness)) {
 
 		ed::PinId firstPin{};
@@ -96,7 +96,7 @@ std::vector<Engine::ShaderGraphCanvasCommand> Engine::ShaderGraphCanvasView::Dra
 					editSession_.MarkDirty();
 				}
 			} else {
-				ed::RejectNewItem(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), appearanceEditor_.GetSettings().linkThickness);
+				ed::RejectNewItem(EditorPalette::Get("Graph.rejectedLink"), appearanceEditor_.GetSettings().linkThickness);
 			}
 		}
 	}

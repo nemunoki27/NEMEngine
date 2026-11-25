@@ -1,9 +1,14 @@
 #include "EditorWindowTests.h"
+#include "TestFixtures.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
+#include <Engine/Editor/Utility/EditorSourceNavigation.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Editor/UI/ImGui/ImGuiAppearance.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpersInternal.h>
 #include <Engine/Editor/UI/Panels/Builtin/ViewportOrientationGizmo.h>
@@ -214,6 +219,66 @@ namespace {
 		}
 		return true;
 	}
+}
+
+// 実際の配布カタログを複製して、別ユーザーと別バージョンから読み込む
+bool NEMTests::TestEditorPalette() {
+
+	using namespace Engine;
+	using Json = nlohmann::json;
+	TestDirectory directory("EditorPalette");
+	const auto shipped = RuntimePaths::GetEngineAssetPath("Config/EditorPalette");
+	const auto first = directory.GetPath() / "Editor1/Config/EditorPalette";
+	const auto second = directory.GetPath() / "Editor2/Config/EditorPalette";
+	const auto user = directory.GetPath() / "Profile1/NEMEngine/Editor/ColorOverrides.json";
+	const auto newUser = directory.GetPath() / "Profile2/NEMEngine/Editor/ColorOverrides.json";
+	std::filesystem::create_directories(first);
+	std::filesystem::create_directories(second);
+	for (const auto& file : std::filesystem::directory_iterator(shipped)) {
+		if (file.path().extension() != ".json") continue;
+		std::filesystem::copy_file(file.path(), first / file.path().filename());
+		std::filesystem::copy_file(file.path(), second / file.path().filename());
+	}
+
+	const char* color = "Graph.canvasBackground";
+	const char* grid = "Graph.grid";
+	const char* radius = "Style.FrameRounding";
+	const Json blue = Json::array({0.0f, 0.0f, 1.0f, 1.0f});
+	const Json red = Json::array({1.0f, 0.0f, 0.0f, 1.0f});
+	const Json green = Json::array({0.0f, 1.0f, 0.0f, 1.0f});
+	if (!JsonFile::Save(first / "EngineDefaults.json", Json{{color, blue}, {radius, 2.0f}}) ||
+		!EditorPalette::Load(first, user) || EditorPalette::U32(color) != IM_COL32(0, 0, 255, 255) ||
+		EditorPalette::Get(radius).x != 2.0f || std::filesystem::exists(user)) return false;
+
+	const auto revision = EditorPalette::Revision();
+	EditorPalette::Set(color, ImVec4(1, 0, 0, 1));
+	EditorPalette::Set(radius, ImVec4(4, 0, 0, 0));
+	ImGuiStyle style;
+	EditorPalette::Apply(style, false);
+	if (style.FrameRounding != 4.0f || EditorPalette::Revision() == revision || !EditorPalette::SaveUser()) return false;
+	Json saved;
+	if (!JsonFile::TryLoad(user, saved) || saved != Json{{color, red}, {radius, 4.0f}}) return false;
+
+	// 新版の項目と不正な色が混在しても、正常な個人設定を適用する
+	const Json future = Json::object({{"format", 2}});
+	saved["Future.Color"] = future;
+	saved[grid] = Json::array({0, 0, 0, 7});
+	if (!JsonFile::Save(user, saved) || !JsonFile::Save(second / "EngineDefaults.json", Json{{grid, green}, {radius, 7.0f}}) ||
+		!EditorPalette::Load(second, user) || EditorPalette::U32(color) != IM_COL32(255, 0, 0, 255) ||
+		EditorPalette::Get(radius).x != 4.0f || EditorPalette::U32(grid) != IM_COL32(0, 255, 0, 255)) return false;
+	EditorPalette::Set(radius, ImVec4(7, 0, 0, 0));
+	if (!EditorPalette::SaveUser() || !JsonFile::TryLoad(user, saved) || saved.contains(radius) ||
+		saved.at("Future.Color") != future || saved.at(color) != red) return false;
+
+	// 開発版だけが配布用既定を書き込み、新規ユーザーはその色で開始する
+	if (EditorSourceNavigation::IsEngineSourceProject()) {
+		if (!EditorPalette::SaveDefaults() || !EditorPalette::Load(second, newUser) ||
+			EditorPalette::U32(color) != IM_COL32(255, 0, 0, 255) || EditorPalette::Get(radius).x != 7.0f ||
+			std::filesystem::exists(newUser)) return false;
+	} else if (EditorPalette::SaveDefaults()) {
+		return false;
+	}
+	return true;
 }
 
 bool NEMTests::TestEditorWindows() {

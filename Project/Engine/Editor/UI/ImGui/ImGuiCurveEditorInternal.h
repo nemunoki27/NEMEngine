@@ -9,6 +9,7 @@
 
 namespace Engine::CurveEditorUtility {
 
+	ImVec4 ChannelColor(std::string_view name);
 	bool DrawInterpolationCombo(const char* label, CurveInterpolationMode& interpolation, bool quaternion);
 
 	// 目盛りを加算誤差なく列挙するための範囲
@@ -36,8 +37,6 @@ namespace Engine::CurveEditorUtility {
 	// ルーラー領域
 	inline constexpr float kCurveTopRulerHeight = 22.0f;
 	inline constexpr float kCurveLeftRulerWidth = 52.0f;
-	// 軸線色
-	inline constexpr ImU32 kCurveAxisColor = IM_COL32(255, 210, 80, 255);
 
 	// 表示開始時刻を負にしない
 	float ClampVisibleTimeMin(float v);

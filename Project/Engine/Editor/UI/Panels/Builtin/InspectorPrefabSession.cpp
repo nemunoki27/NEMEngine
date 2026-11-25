@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -121,7 +122,7 @@ void Engine::InspectorPrefabSession::Draw(const EditorPanelContext& context, ECS
 		auto button = [&](const char* label, int value, bool enabled) {
 			const bool active = (choice == value);
 			if (active) {
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.05f, 0.95f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_Button, Engine::EditorPalette::Get("Panels.Inspector.prefab"));
 			}
 			if (!enabled) {
 				ImGui::BeginDisabled();

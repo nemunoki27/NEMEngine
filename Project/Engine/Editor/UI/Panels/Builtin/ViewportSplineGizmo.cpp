@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
@@ -69,6 +70,10 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 		return true;
 	};
 	auto* draw = ImGui::GetWindowDrawList();
+	const ImU32 splineColor = EditorPalette::U32("Guides.spline");
+	const ImU32 splinePointColor = EditorPalette::U32("Guides.splinePoint");
+	const ImU32 splineTangentColor = EditorPalette::U32("Guides.splineTangent");
+	const ImU32 splineTangentLineColor = EditorPalette::U32("Guides.splineTangentLine");
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
 	if (data->is2D) {
 		const auto samples = BuildSplineSamples(*data, Matrix4x4::Identity());
@@ -76,7 +81,7 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 			ImVec2 a, b;
 			float depth;
 			if (project(samples[i - 1].position, a, depth) && project(samples[i].position, b, depth))
-				draw->AddLine(a, b, IM_COL32(255, 190, 65, 255), 2);
+				draw->AddLine(a, b, splineColor, 2);
 		}
 	}
 	const auto mouse = ImGui::GetMousePos();
@@ -93,14 +98,14 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 		for (uint32_t part = 0; part < 3; ++part) {
 			visible[part] = project(handles[part], pixels[part], depths[part]);
 			if (!visible[part]) continue;
-			draw->AddCircleFilled(pixels[part], part == 0 ? 5.0f : 4.0f, part == 0 ? IM_COL32(255, 210, 65, 255) : IM_COL32(90, 210, 255, 255));
+			draw->AddCircleFilled(pixels[part], part == 0 ? 5.0f : 4.0f, part == 0 ? splinePointColor : splineTangentColor);
 			const float dx = mouse.x - pixels[part].x;
 			const float dy = mouse.y - pixels[part].y;
 			const float distance = dx * dx + dy * dy;
 			if (distance < bestDistance) { bestDistance = distance; hoverPoint = static_cast<int32_t>(i); hoverPart = part; hoverDepth = depths[part]; }
 		}
 		for (uint32_t part = 1; part < 3; ++part) if (visible[0] && visible[part])
-			draw->AddLine(pixels[0], pixels[part], IM_COL32(90, 210, 255, 180), 1);
+			draw->AddLine(pixels[0], pixels[part], splineTangentLineColor, 1);
 	}
 	draw->PopClipRect();
 	if (!canEdit) return false;

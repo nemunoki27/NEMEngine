@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/DebugDraw/SceneViewGuideColors.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayState.h>
@@ -25,6 +26,9 @@ void Engine::EditorOverlayPass::Execute([[maybe_unused]] GraphicsCore& graphicsC
 	}
 
 	// 表示すべきコンポーネントアイコンを集め、1件も無ければstateを片付ける
+	const auto& colors = SceneViewGuideColors::Get();
+	settings_.cameraColor = colors.cameraIcon;
+	settings_.disabledTint = colors.disabledIconTint;
 	collector_.Collect(*context.world, *context.view, registry_, settings_, items_);
 	if (items_.empty()) {
 		SceneComponentOverlayState::GetInstance().Clear();

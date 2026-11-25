@@ -1,4 +1,5 @@
 #include "InspectorModelPreview.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 
 //============================================================================
@@ -116,10 +117,15 @@ void Engine::InspectorModelPreview::DrawMeshAssetInspector(const EditorPanelCont
 	editorToolContext.toolContext = toolContext;
 
 	resources_.BeginEditorToolFrame(editorToolContext);
+	const Color4 background = EditorPalette::RGBA("Panels.Model.inspectorBackground");
 	EditorToolRenderTexture* preview = resources_.CreateRenderTexture("InspectorModelAssetPreview",
-		kModelPreviewSize_, kModelPreviewColor_, kModelPreviewColorTargetCount_);
+		kModelPreviewSize_, background, kModelPreviewColorTargetCount_);
 	if (preview) {
 
+		if (preview->clearColor != background) {
+			preview->clearColor = background;
+			modelPreviewRendered_ = false;
+		}
 		RenderModelAssetPreview(editorToolContext, *preview);
 		// 画像上のホイールはPreviewだけが消費する
 		ImGui::GetWindowDrawList()->AddImage(preview->GetImTextureID(), modelPreviewImagePos_,

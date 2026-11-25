@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/ImGui/EditorWindowPresentation.h>
 
 // c++
@@ -10,10 +11,10 @@
 
 Engine::EditorIconButton::Colors Engine::EditorIconButton::GetColors(bool selected) {
 
-	return selected ? Colors{ImVec4(0.05f, 0.18f, 0.45f, 1.0f), ImVec4(0.07f, 0.24f, 0.58f, 1.0f),
-		ImVec4(0.10f, 0.32f, 0.74f, 1.0f)} :
-		Colors{ImVec4(0.04f, 0.04f, 0.04f, 0.95f), ImVec4(0.08f, 0.08f, 0.08f, 0.98f),
-		ImVec4(0.02f, 0.02f, 0.02f, 1.0f)};
+	return selected ? Colors{Engine::EditorPalette::Get("Panels.Icon.selected"), Engine::EditorPalette::Get("Panels.Icon.selectedHover"),
+		Engine::EditorPalette::Get("Panels.Icon.selectedPress")} :
+		Colors{Engine::EditorPalette::Get("Panels.Icon.normal"), Engine::EditorPalette::Get("Panels.Icon.hover"),
+		Engine::EditorPalette::Get("Panels.Icon.press")};
 }
 
 void Engine::EditorIconButton::PushColors(bool selected) {
@@ -66,6 +67,6 @@ bool Engine::EditorIconButton::DrawImage(const char* id, ImTextureID texture, co
 	const ImVec2 center((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f);
 	ImGui::GetWindowDrawList()->AddImage(texture, ImVec2(center.x - side * 0.5f, center.y - side * 0.5f),
 		ImVec2(center.x + side * 0.5f, center.y + side * 0.5f), ImVec2(0, 0), ImVec2(1, 1),
-		ImGui::GetColorU32(ImVec4(1, 1, 1, 1)));
+		ImGui::GetColorU32(Engine::EditorPalette::Get("Panels.Icon.tint")));
 	return result;
 }

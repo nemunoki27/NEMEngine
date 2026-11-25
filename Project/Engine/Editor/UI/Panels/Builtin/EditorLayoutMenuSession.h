@@ -35,5 +35,6 @@ namespace Engine {
 		std::string layoutSaveError_;
 		// 保存Popupの開始要求
 		bool requestOpenLayoutSavePopup_ = false;
+		bool colorSettingsOpen_ = false;
 	};
 } // Engine

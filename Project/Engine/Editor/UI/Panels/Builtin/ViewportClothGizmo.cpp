@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -23,6 +24,7 @@ void Engine::ViewportClothGizmo::Draw(const EditorPanelContext& context, ImVec2 
 	if (!transform || !camera || !camera->valid || runtime.pinned.size() != runtime.rest.size()) return;
 	const Matrix4x4 matrix = transform->worldMatrix * camera->matrices.viewProjectionMatrix;
 	auto* draw = ImGui::GetWindowDrawList();
+	const ImU32 clothPinColor = EditorPalette::U32("Guides.clothPin");
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
 	for (size_t i = 0; i < runtime.pinned.size(); ++i) {
 		if (!runtime.pinned[i]) continue;
@@ -33,7 +35,7 @@ void Engine::ViewportClothGizmo::Draw(const EditorPanelContext& context, ImVec2 
 		if (ndc.z < 0 || 1 < ndc.z) continue;
 		const ImVec2 pixel(imagePosition.x + (0.5f + ndc.x * 0.5f) * imageSize.x,
 			imagePosition.y + (0.5f - ndc.y * 0.5f) * imageSize.y);
-		draw->AddCircleFilled(pixel, 3.0f, IM_COL32(255, 196, 64, 255));
+		draw->AddCircleFilled(pixel, 3.0f, clothPinColor);
 	}
 	draw->PopClipRect();
 }

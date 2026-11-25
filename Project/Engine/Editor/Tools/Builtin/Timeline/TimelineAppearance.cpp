@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Common/EditorIconButton.h>
 
 // c++
@@ -12,14 +13,14 @@ using namespace Engine;
 
 namespace {
 
-	constexpr std::array<ImU32, static_cast<size_t>(TimelineAppearance::Color::Count)> kColors{
-		IM_COL32(2, 2, 2, 255), IM_COL32(5, 5, 5, 255), IM_COL32(6, 6, 6, 255),
-		IM_COL32(14, 14, 14, 255), IM_COL32(10, 10, 10, 255), IM_COL32(17, 17, 17, 255),
-		IM_COL32(24, 26, 29, 255), IM_COL32(62, 62, 62, 255), IM_COL32(24, 24, 24, 255),
-		IM_COL32(85, 85, 85, 255), IM_COL32(225, 225, 225, 255), IM_COL32(105, 105, 105, 255),
-		IM_COL32(255, 255, 255, 255), IM_COL32(240, 240, 240, 255), IM_COL32(145, 145, 145, 255),
-		IM_COL32(13, 46, 115, 255), IM_COL32(13, 46, 115, 45), IM_COL32(13, 46, 115, 65),
-		IM_COL32(28, 28, 28, 255)
+	constexpr std::array<const char*, static_cast<size_t>(TimelineAppearance::Color::Count)> kColors{
+		"Panels.Timeline.Background", "Panels.Timeline.Ruler", "Panels.Timeline.Track",
+		"Panels.Timeline.SelectedTrack", "Panels.Timeline.Clip", "Panels.Timeline.ActiveClip",
+		"Panels.Timeline.SelectedClip", "Panels.Timeline.Grid", "Panels.Timeline.MinorGrid",
+		"Panels.Timeline.Divider", "Panels.Timeline.Text", "Panels.Timeline.MutedText",
+		"Panels.Timeline.Playhead", "Panels.Timeline.Selection", "Panels.Timeline.Blend",
+		"Panels.Timeline.Accent", "Panels.Timeline.Range", "Panels.Timeline.SelectionFill",
+		"Panels.Timeline.Zoom"
 	};
 	constexpr ImGuiCol kStyleColors[]{ImGuiCol_Text, ImGuiCol_WindowBg, ImGuiCol_ChildBg,
 		ImGuiCol_PopupBg, ImGuiCol_FrameBg, ImGuiCol_FrameBgHovered, ImGuiCol_FrameBgActive,
@@ -29,7 +30,7 @@ namespace {
 
 ImU32 TimelineAppearance::GetColor(Color color) {
 
-	return kColors[static_cast<size_t>(color)];
+	return Engine::EditorPalette::U32(kColors[static_cast<size_t>(color)]);
 }
 
 void TimelineAppearance::PushStyle() {

@@ -1,0 +1,786 @@
+{
+  "ImGui.Text": {
+    "label": "文字",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.49019608,
+      0.49019608,
+      0.49019608,
+      1
+    ]
+  },
+  "ImGui.TextDisabled": {
+    "label": "無効な文字",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.30588235,
+      0.30588235,
+      0.30588235,
+      0.6
+    ]
+  },
+  "ImGui.WindowBg": {
+    "label": "ウィンドウ背景",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.ChildBg": {
+    "label": "子ウィンドウ背景",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.PopupBg": {
+    "label": "ポップアップ背景",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      0.96078431
+    ]
+  },
+  "ImGui.Border": {
+    "label": "枠線",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0.10980392,
+      0.10980392,
+      0.10980392,
+      0.50980392
+    ]
+  },
+  "ImGui.BorderShadow": {
+    "label": "枠線の影",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "ImGui.FrameBg": {
+    "label": "入力欄",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.01960784,
+      0.01960784,
+      0.01960784,
+      1
+    ]
+  },
+  "ImGui.FrameBgHovered": {
+    "label": "入力欄・ホバー",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.03921569,
+      0.03921569,
+      0.03921569,
+      1
+    ]
+  },
+  "ImGui.FrameBgActive": {
+    "label": "入力欄・操作中",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0,
+      0.05098039,
+      0.33333333,
+      1
+    ]
+  },
+  "ImGui.TitleBg": {
+    "label": "タイトルバー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.TitleBgActive": {
+    "label": "アクティブなタイトルバー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      1
+    ]
+  },
+  "ImGui.TitleBgCollapsed": {
+    "label": "折り畳んだタイトルバー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.MenuBarBg": {
+    "label": "メニューバー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.01568627,
+      0.01568627,
+      0.01568627,
+      1
+    ]
+  },
+  "ImGui.ScrollbarBg": {
+    "label": "スクロールバー背景",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.ScrollbarGrab": {
+    "label": "スクロールつまみ",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.04705882,
+      0.04705882,
+      0.04705882,
+      1
+    ]
+  },
+  "ImGui.ScrollbarGrabHovered": {
+    "label": "スクロールつまみ・ホバー",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.07843137,
+      0.07843137,
+      0.07843137,
+      1
+    ]
+  },
+  "ImGui.ScrollbarGrabActive": {
+    "label": "スクロールつまみ・操作中",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.1254902,
+      0.1254902,
+      0.1254902,
+      1
+    ]
+  },
+  "ImGui.CheckMark": {
+    "label": "チェックマーク",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0,
+      0.15686275,
+      1,
+      1
+    ]
+  },
+  "ImGui.CheckboxSelectedBg": {
+    "label": "チェック時の背景",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.02745098,
+      0.02745098,
+      0.02745098,
+      1
+    ]
+  },
+  "ImGui.SliderGrab": {
+    "label": "スライダーつまみ",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.47058824,
+      0.47058824,
+      0.47058824,
+      0.58823529
+    ]
+  },
+  "ImGui.SliderGrabActive": {
+    "label": "スライダーつまみ・操作中",
+    "group": "基本UI・入力とスクロール",
+    "value": [
+      0.10196078,
+      0.32156863,
+      0.74509804,
+      1
+    ]
+  },
+  "ImGui.Button": {
+    "label": "ボタン",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0.02352941,
+      0.02352941,
+      0.02352941,
+      1
+    ]
+  },
+  "ImGui.ButtonHovered": {
+    "label": "ボタン・ホバー",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0,
+      0.05098039,
+      0.33333333,
+      1
+    ]
+  },
+  "ImGui.ButtonActive": {
+    "label": "ボタン・押下",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0,
+      0.02745098,
+      0.17647059,
+      1
+    ]
+  },
+  "ImGui.Header": {
+    "label": "見出し",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0.05098039,
+      0.05098039,
+      0.05098039,
+      1
+    ]
+  },
+  "ImGui.HeaderHovered": {
+    "label": "見出し・ホバー",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0,
+      0.05098039,
+      0.33333333,
+      1
+    ]
+  },
+  "ImGui.HeaderActive": {
+    "label": "見出し・選択",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0,
+      0.02745098,
+      0.17647059,
+      1
+    ]
+  },
+  "ImGui.Separator": {
+    "label": "区切り線",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0.10980392,
+      0.10980392,
+      0.10980392,
+      0.50980392
+    ]
+  },
+  "ImGui.SeparatorHovered": {
+    "label": "区切り線・ホバー",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0.07058824,
+      0.24313725,
+      0.58823529,
+      0.90196078
+    ]
+  },
+  "ImGui.SeparatorActive": {
+    "label": "区切り線・操作中",
+    "group": "基本UI・ボタンと見出し",
+    "value": [
+      0.10196078,
+      0.32156863,
+      0.74509804,
+      1
+    ]
+  },
+  "ImGui.ResizeGrip": {
+    "label": "サイズ変更グリップ",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0.04705882,
+      0.17647059,
+      0.45098039,
+      0.2745098
+    ]
+  },
+  "ImGui.ResizeGripHovered": {
+    "label": "サイズ変更・ホバー",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0.07058824,
+      0.24313725,
+      0.58823529,
+      0.56862745
+    ]
+  },
+  "ImGui.ResizeGripActive": {
+    "label": "サイズ変更・操作中",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0,
+      0.02745098,
+      0.17647059,
+      1
+    ]
+  },
+  "ImGui.InputTextCursor": {
+    "label": "文字入力カーソル",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "ImGui.TabHovered": {
+    "label": "タブ・ホバー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.01568627,
+      0.01568627,
+      0.01568627,
+      1
+    ]
+  },
+  "ImGui.Tab": {
+    "label": "タブ",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.TabSelected": {
+    "label": "選択タブ",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      1
+    ]
+  },
+  "ImGui.TabSelectedOverline": {
+    "label": "選択タブ上線",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "ImGui.TabDimmed": {
+    "label": "非アクティブタブ",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.TabDimmedSelected": {
+    "label": "非アクティブの選択タブ",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      1
+    ]
+  },
+  "ImGui.TabDimmedSelectedOverline": {
+    "label": "非アクティブの選択タブ上線",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "ImGui.DockingPreview": {
+    "label": "ドッキング先プレビュー",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0.04705882,
+      0.17647059,
+      0.45098039,
+      0.25490196
+    ]
+  },
+  "ImGui.DockingEmptyBg": {
+    "label": "空のドッキング領域",
+    "group": "基本UI・タイトル・タブ",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "ImGui.PlotLines": {
+    "label": "折れ線",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.50980392,
+      0.50980392,
+      0.50980392,
+      1
+    ]
+  },
+  "ImGui.PlotLinesHovered": {
+    "label": "折れ線・ホバー",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.10196078,
+      0.32156863,
+      0.74509804,
+      1
+    ]
+  },
+  "ImGui.PlotHistogram": {
+    "label": "ヒストグラム",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.50980392,
+      0.50980392,
+      0.50980392,
+      1
+    ]
+  },
+  "ImGui.PlotHistogramHovered": {
+    "label": "ヒストグラム・ホバー",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.10196078,
+      0.32156863,
+      0.74509804,
+      1
+    ]
+  },
+  "ImGui.TableHeaderBg": {
+    "label": "表の見出し",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.00784314,
+      0.00784314,
+      0.00784314,
+      1
+    ]
+  },
+  "ImGui.TableBorderStrong": {
+    "label": "表の外枠",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.12156863,
+      0.12156863,
+      0.12156863,
+      1
+    ]
+  },
+  "ImGui.TableBorderLight": {
+    "label": "表の内枠",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.12156863,
+      0.12156863,
+      0.12156863,
+      1
+    ]
+  },
+  "ImGui.TableRowBg": {
+    "label": "表の行",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "ImGui.TableRowBgAlt": {
+    "label": "表の交互色",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.01568627,
+      0.01568627,
+      0.01568627,
+      1
+    ]
+  },
+  "ImGui.TextLink": {
+    "label": "リンク文字",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.26,
+      0.59,
+      0.98,
+      1
+    ]
+  },
+  "ImGui.TextSelectedBg": {
+    "label": "選択文字の背景",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.04705882,
+      0.17647059,
+      0.45098039,
+      0.2745098
+    ]
+  },
+  "ImGui.TreeLines": {
+    "label": "ツリーの線",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0.43,
+      0.43,
+      0.5,
+      0.5
+    ]
+  },
+  "ImGui.DragDropTarget": {
+    "label": "ドロップ先",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0,
+      0.05882353,
+      0.38431373,
+      1
+    ]
+  },
+  "ImGui.DragDropTargetBg": {
+    "label": "ドロップ先背景",
+    "group": "基本UI・表・グラフ・項目",
+    "value": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "ImGui.UnsavedMarker": {
+    "label": "未保存マーク",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "ImGui.NavCursor": {
+    "label": "キーボード選択枠",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.10196078,
+      0.32156863,
+      0.74509804,
+      1
+    ]
+  },
+  "ImGui.NavWindowingHighlight": {
+    "label": "ウィンドウ切替の強調",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0.07058824,
+      0.24313725,
+      0.58823529,
+      0.66666667
+    ]
+  },
+  "ImGui.NavWindowingDimBg": {
+    "label": "ウィンドウ切替の背景",
+    "group": "基本UI・文字と操作表示",
+    "value": [
+      0,
+      0,
+      0,
+      0.70588235
+    ]
+  },
+  "ImGui.ModalWindowDimBg": {
+    "label": "モーダルの背面",
+    "group": "基本UI・背景と枠",
+    "value": [
+      0,
+      0,
+      0,
+      0.80392157
+    ]
+  },
+  "Style.WindowRounding": {
+    "label": "ウィンドウの角丸",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.PlatformWindowRounding": {
+    "label": "マルチウィンドウ時の角丸",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.ChildRounding": {
+    "label": "子ウィンドウの角丸",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.FrameRounding": {
+    "label": "入力欄の角丸",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.FramePaddingX": {
+    "label": "入力欄の左右余白",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.FramePaddingY": {
+    "label": "入力欄の上下余白",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.ScrollbarRounding": {
+    "label": "スクロールバーの角丸",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.GrabRounding": {
+    "label": "つまみの角丸",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.TabRounding": {
+    "label": "タブの角丸",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.TabBorderSize": {
+    "label": "タブの枠線幅",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.TabBarBorderSize": {
+    "label": "タブ列の枠線幅",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.TabBarOverlineSize": {
+    "label": "選択タブの上線幅",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.TabCloseButtonMinWidthSelected": {
+    "label": "選択タブの閉じるボタン表示幅",
+    "group": "寸法・表示",
+    "value": -1,
+    "min": -1,
+    "max": 2000
+  },
+  "Style.TabCloseButtonMinWidthUnselected": {
+    "label": "未選択タブの閉じるボタン表示幅",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": -1,
+    "max": 2000
+  },
+  "Style.WindowTitleAlignX": {
+    "label": "タイトルの水平位置",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 1
+  },
+  "Style.WindowTitleAlignY": {
+    "label": "タイトルの垂直位置",
+    "group": "寸法・表示",
+    "value": 0.5,
+    "min": 0,
+    "max": 1
+  },
+  "Style.WindowMenuButtonPosition": {
+    "label": "ウィンドウメニューボタンの位置",
+    "group": "寸法・表示",
+    "value": -1,
+    "min": -1,
+    "max": 1
+  },
+  "Style.DockingNodeHasCloseButton": {
+    "label": "ドッキング領域に閉じるボタンを表示",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 1
+  },
+  "Style.WindowBorderSize": {
+    "label": "ウィンドウの枠線幅",
+    "group": "寸法・表示",
+    "value": 1,
+    "min": 0,
+    "max": 64
+  },
+  "Style.FrameBorderSize": {
+    "label": "入力欄の枠線幅",
+    "group": "寸法・表示",
+    "value": 0,
+    "min": 0,
+    "max": 64
+  },
+  "Style.DockingSeparatorSize": {
+    "label": "ドッキング境界の幅",
+    "group": "寸法・表示",
+    "value": 2,
+    "min": 0,
+    "max": 64
+  },
+  "Style.PlatformBackgroundAlpha": {
+    "label": "マルチウィンドウ時の背景不透明度",
+    "group": "寸法・表示",
+    "value": 1,
+    "min": 0,
+    "max": 1
+  }
+}

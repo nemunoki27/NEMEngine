@@ -253,6 +253,7 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/EditorWindowPresentation.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/EditorWindowFont.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiAppearance.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/EditorPalette.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersTransform.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Builtin/Script/ScriptFieldDisplay.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Inspectors/Builtin/Script/ScriptFieldSchema.cpp"),

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
@@ -110,12 +111,12 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 
 			ImGui::SameLine(0.0f, 8.0f);
 			ImGui::SetCursorPosY(textY);
-			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "ビルド中...");
+			ImGui::TextColored(Engine::EditorPalette::Get("Panels.warning"), "ビルド中...");
 		} else if (playBuildResult == ManagedScriptBuildService::PlayBuildResult::Failed) {
 
 			ImGui::SameLine(0.0f, 8.0f);
 			ImGui::SetCursorPosY(textY);
-			ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ビルドに失敗しました");
+			ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "ビルドに失敗しました");
 		}
 	} else {
 
@@ -182,8 +183,8 @@ bool Engine::ToolbarPanel::DrawIconButton(const char* id, ImTextureID textureID,
 
 	const bool active = ImGui::IsItemActive();
 	const bool hovered = ImGui::IsItemHovered();
-	const ImVec4 buttonColor = active ? ImVec4(0.02f, 0.02f, 0.02f, 1.00f) :
-		(hovered ? ImVec4(0.08f, 0.08f, 0.08f, 0.98f) : ImVec4(0.04f, 0.04f, 0.04f, 0.95f));
+	const ImVec4 buttonColor = active ? Engine::EditorPalette::Get("Panels.Icon.press") :
+		(hovered ? Engine::EditorPalette::Get("Panels.Icon.hover") : Engine::EditorPalette::Get("Panels.Icon.normal"));
 
 	const ImVec2 rectMin = ImGui::GetItemRectMin();
 	const ImVec2 rectMax = ImGui::GetItemRectMax();
@@ -199,7 +200,7 @@ bool Engine::ToolbarPanel::DrawIconButton(const char* id, ImTextureID textureID,
 			rectMin.x + (size.x - iconSide) * 0.5f,
 			rectMin.y + (size.y - iconSide) * 0.5f);
 		const ImVec2 iconMax(iconMin.x + iconSide, iconMin.y + iconSide);
-		drawList->AddImage(textureID, iconMin, iconMax);
+		drawList->AddImage(textureID, iconMin, iconMax, ImVec2(0, 0), ImVec2(1, 1), EditorPalette::U32("Panels.Icon.tint"));
 	}
 	return result;
 }

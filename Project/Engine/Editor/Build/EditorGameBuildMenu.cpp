@@ -1,5 +1,6 @@
 #include "EditorGameBuildMenu.h"
 
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -118,7 +119,7 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 		ImGui::EndDisabled();
 
 	} else if (state == GameBuildState::Completed) {
-		ImGui::TextColored(ImVec4(0.35f, 0.85f, 0.45f, 1.0f), "完了しました");
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.success"), "完了しました");
 		const std::string outputDirectory =
 			Algorithm::PathToUTF8(session.GetService().GetOutputDirectory());
 		ImGui::TextWrapped("%s", outputDirectory.c_str());
@@ -129,12 +130,12 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 			ImGui::EndChild();
 		}
 	} else if (state == GameBuildState::Failed) {
-		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "失敗しました");
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "失敗しました");
 		if (!session.GetService().GetFailureDetail().empty()) {
 			ImGui::TextWrapped("%s", session.GetService().GetFailureDetail().c_str());
 		}
 	} else if (!session.GetError().empty()) {
-		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "%s", session.GetError().c_str());
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "%s", session.GetError().c_str());
 	}
 
 	const float spacing = ImGui::GetStyle().ItemSpacing.x;

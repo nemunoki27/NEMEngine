@@ -72,6 +72,7 @@ namespace Engine {
 		static ImGuiManager* instance_;
 
 		// 初期化済みか
+		unsigned long long paletteRevision_ = 0;
 		bool initialized_ = false;
 		EditorShortcutState shortcutState_;
 		ImGuiDisplayOutput displayOutput_;

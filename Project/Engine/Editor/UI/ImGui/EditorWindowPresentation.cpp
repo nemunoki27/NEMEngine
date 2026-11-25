@@ -3,13 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <imgui_internal.h>
 
 namespace {
 
 	constexpr float kHeaderFontSize = 14.0f;
 	const ImVec2 kHeaderPadding(6.0f, 4.0f);
-	constexpr ImU32 kHeaderTextColor = IM_COL32(200, 200, 200, 255);
+
 
 	struct WindowIcon {
 
@@ -101,7 +102,7 @@ Engine::EditorWindowPresentation::HeaderScope::HeaderScope() {
 
 	ImGui::PushFont(nullptr, kHeaderFontSize);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, kHeaderPadding);
-	ImGui::PushStyleColor(ImGuiCol_Text, kHeaderTextColor);
+	ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.headerText"));
 }
 
 Engine::EditorWindowPresentation::HeaderScope::~HeaderScope() {
@@ -119,7 +120,7 @@ void Engine::EditorWindowPresentation::FrameStyle::NewFrame() {
 	const ImVec4 bodyTextColor = style.Colors[ImGuiCol_Text];
 	style.FontSizeBase = kHeaderFontSize;
 	style.FramePadding = kHeaderPadding;
-	style.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(kHeaderTextColor);
+	style.Colors[ImGuiCol_Text] = Engine::EditorPalette::Get("Panels.headerText");
 	ImGui::NewFrame();
 	style.FramePadding = bodyPadding;
 	style.Colors[ImGuiCol_Text] = bodyTextColor;

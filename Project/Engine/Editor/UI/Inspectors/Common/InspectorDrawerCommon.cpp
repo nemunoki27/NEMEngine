@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Editor/Utility/EditorSourceNavigation.h>
@@ -174,7 +175,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 
 		// カメラフラスタム描画
 		if (camera.common.drawDebug) renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
-			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
+			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Engine::EditorGuideColors::Linear("Guides.cameraBounds"), 1.0f);
 	}
 	// MeshとPrimitiveの選択Outlineを要求する
 	const bool hasMesh = world.HasComponent<MeshRendererComponent>(entity);
@@ -183,7 +184,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 
 		// 選択中のアウトラインはシーン保存対象にしない
 		ScreenSpaceOutlineStyle style{};
-		style.color = Color4::FromHex(0xF02700FF);
+		style.color = Engine::EditorGuideColors::Linear("Guides.outline");
 		style.widthPixels = 4.0f;
 		style.priority = 300;
 		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
@@ -201,7 +202,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 				TryGetSkinnedAnimationRuntime(world, entity);
 			if (runtime) {
 				// 更新済みの骨をデバッグ描画へ渡す
-				renderer3D->DrawSkeleton(transform.worldMatrix, runtime->skeleton);
+				renderer3D->DrawSkeleton(transform.worldMatrix, runtime->skeleton, Engine::EditorGuideColors::Linear("Guides.bone"));
 			}
 		}
 	}

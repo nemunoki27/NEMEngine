@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Scripting/Managed/ScriptExecutionOrderSettings.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
@@ -47,7 +48,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 		dirty_ = false;
 	}
 	if (dirty_) {
-		ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f), "未保存の変更があります");
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.warning"), "未保存の変更があります");
 	}
 	ImGui::EndDisabled();
 

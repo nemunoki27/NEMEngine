@@ -68,7 +68,7 @@ namespace Engine {
 		template <typename T>
 		void DrawAxis(const Vector3& pos, const T& rotation, float length = 4.0f, float thickness = 1.0f);
 		// スキンメッシュの骨を描画
-		void DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton);
+		void DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton, const Color4& color);
 		// カメラのフラスタムを描画
 		void DrawCameraFrustum(const Matrix4x4& viewMatrix, float aspectRatio, float nearClip,
 			float farClip, float fovY, float scale, const Color4& color, float thickness = 1.0f);

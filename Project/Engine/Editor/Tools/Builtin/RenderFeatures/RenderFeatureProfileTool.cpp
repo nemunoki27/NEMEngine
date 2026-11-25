@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
@@ -182,11 +183,11 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		ClearSelection();
 	}
 	if (!editSession_.GetStatusMessage().empty()) {
-		ImGui::TextColored(editSession_.HasError() ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f) : ImVec4(0.45f, 0.9f, 0.55f, 1.0f), "%s",
+		ImGui::TextColored(editSession_.HasError() ? Engine::EditorPalette::Get("Panels.error") : Engine::EditorPalette::Get("Panels.success"), "%s",
 			editSession_.GetStatusMessage().c_str());
 	}
 	if (!service.GetRuntime().GetDiagnostic().empty()) {
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", service.GetRuntime().GetDiagnostic().c_str());
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "%s", service.GetRuntime().GetDiagnostic().c_str());
 	}
 
 	const float listWidth = (std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.28f);

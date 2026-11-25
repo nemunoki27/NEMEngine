@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Core/Animation/Timeline/TimelinePlayback.h>
 #include <Engine/Core/Animation/Timeline/TimelinePlaybackState.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
@@ -147,7 +148,7 @@ void TimelineEditorSession::EvaluatePreview(const EditorToolContext& context) {
 				const bool planar = settings != data.end() && settings->is_object() && plane != settings->end() &&
 					plane->is_number_integer() && plane->get<int32_t>() == static_cast<int32_t>(MotionAnimationPlane::PlaneXY);
 				if (renderer) for (size_t i = 1; i < points.size(); ++i) {
-					const Color4 color(0.25f, 0.9f, 1.0f, 1.0f);
+					const Color4 color = Engine::EditorGuideColors::Linear("Guides.timelinePath");
 					if (planar && renderer->Get2D()) renderer->Get2D()->DrawLine(
 						Vector2(points[i - 1].x, points[i - 1].y), Vector2(points[i].x, points[i].y), color, 2.0f);
 					else if (!planar && renderer->Get3D()) renderer->Get3D()->DrawLine(points[i - 1], points[i], color, 2.0f);

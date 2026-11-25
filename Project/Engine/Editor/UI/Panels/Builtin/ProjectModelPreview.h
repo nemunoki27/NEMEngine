@@ -54,6 +54,7 @@ namespace Engine {
 		std::unique_ptr<ECSWorld> world_;
 		std::unordered_map<AssetID, PreviewEntry> entries_;
 		std::weak_ptr<const uint8_t> databaseLifetime_;
+		Color4 thumbnailBackground_{};
 		uint64_t frame_ = 0;
 		uint64_t observedTextureRevision_ = 0;
 		uint32_t textureQuietFrames_ = 0;

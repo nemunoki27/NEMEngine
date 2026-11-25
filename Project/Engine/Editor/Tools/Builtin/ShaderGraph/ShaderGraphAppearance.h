@@ -3,33 +3,16 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
-#include <imgui.h>
+// c++
+#include <cstdint>
 
 namespace Engine {
 
 	// ノード表示の外観設定
 	struct ShaderGraphAppearanceSetting {
-
-		Color4 canvasBackground{};
-		Color4 grid{};
-		Color4 nodeBackground{};
-		Color4 nodeBorder{};
-		Color4 hoveredNodeBorder{};
-		Color4 selectedNodeBorder{};
-		Color4 nodeSelection{};
-		Color4 nodeSelectionBorder{};
-		Color4 link{};
-		Color4 hoveredLinkBorder{};
-		Color4 selectedLinkBorder{};
-		Color4 highlightedLinkBorder{};
-		Color4 linkSelection{};
-		Color4 linkSelectionBorder{};
-		Color4 pinSelection{};
-		Color4 pinSelectionBorder{};
 
 		Vector4 nodePadding{};
 		Vector2 linkStartOffset{};
@@ -63,8 +46,4 @@ namespace Engine::ShaderGraphAppearance {
 	void RestoreDefaultAppearance(ShaderGraphAppearanceSetting& settings);
 	// 見た目設定を有効範囲へ補正する
 	void ClampAppearanceSettings(ShaderGraphAppearanceSetting& settings);
-	// ImGuiの色表現を変換する
-	ImVec4 ToImVec4(const Engine::Color4& color);
-	// ImGuiの色表現を変換する
-	Engine::Color4 ToColor4(const ImVec4& color);
 }

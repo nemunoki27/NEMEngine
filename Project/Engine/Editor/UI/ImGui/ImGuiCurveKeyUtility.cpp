@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -11,6 +12,21 @@
 #include <cmath>
 
 namespace Engine::CurveEditorUtility {
+
+	ImVec4 ChannelColor(std::string_view name) {
+
+		if (name == "X") return EditorPalette::Get("Panels.Curve.Channel.X");
+		if (name == "Y") return EditorPalette::Get("Panels.Curve.Channel.Y");
+		if (name == "Z") return EditorPalette::Get("Panels.Curve.Channel.Z");
+		if (name == "R") return EditorPalette::Get("Panels.Curve.Channel.R");
+		if (name == "G") return EditorPalette::Get("Panels.Curve.Channel.G");
+		if (name == "B") return EditorPalette::Get("Panels.Curve.Channel.B");
+		if (name == "W") return EditorPalette::Get("Panels.Curve.Channel.W");
+		if (name == "A") return EditorPalette::Get("Panels.Curve.Channel.A");
+		if (name == "Axis") return EditorPalette::Get("Panels.Curve.Channel.Axis");
+		if (name == "Angle") return EditorPalette::Get("Panels.Curve.Channel.Angle");
+		return EditorPalette::Get("Panels.Curve.Channel.Value");
+	}
 
 	// 色のチャンネル構成を判定する
 	bool IsColorChannelSet(std::span<Engine::CurveChannel> channels) {
@@ -52,12 +68,12 @@ namespace Engine::CurveEditorUtility {
 
 		switch (ToAxis(value)) {
 		case Engine::Axis::X:
-			return IM_COL32(255, 80, 80, 255);
+			return Engine::EditorPalette::U32("Panels.Curve.axisX");
 		case Engine::Axis::Y:
-			return IM_COL32(80, 255, 100, 255);
+			return Engine::EditorPalette::U32("Panels.Curve.axisY");
 		case Engine::Axis::Z:
 		default:
-			return IM_COL32(90, 145, 255, 255);
+			return Engine::EditorPalette::U32("Panels.Curve.axisZ");
 		}
 	}
 
@@ -86,7 +102,7 @@ namespace Engine::CurveEditorUtility {
 			if (axisKey.axes.size() == 1) {
 				return GetAxisColor(ToAxisValue(axisKey.axes.front()));
 			}
-			return IM_COL32(245, 220, 80, 255);
+			return Engine::EditorPalette::U32("Panels.Curve.multiAxis");
 		}
 
 		const Engine::Vector3 axis = Engine::QuaternionAxisKeyUtility::GetAxisDirection(axisKey);

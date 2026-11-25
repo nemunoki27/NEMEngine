@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpersInternal.h>
 
@@ -20,13 +21,13 @@ namespace {
 		float depth;
 		int index;
 	};
-	constexpr ImU32 kAxisColors[]{IM_COL32(220, 35, 55, 255), IM_COL32(30, 100, 220, 255), IM_COL32(55, 165, 30, 255)};
+	constexpr const char* kAxisColors[]{"Guides.axisX", "Guides.axisY", "Guides.axisZ"};
 	constexpr const char* kAxisNames[]{"X", "Y", "Z"};
 }
 
 ImU32 Engine::ViewportOrientationGizmo::GetAxisColor(int axis) {
 
-	return kAxisColors[axis];
+	return EditorPalette::U32(kAxisColors[axis]);
 }
 
 Engine::ViewportOrientationLayout Engine::ViewportOrientationGizmo::GetLayout(const EditorPanelContext& context,
@@ -101,24 +102,24 @@ std::optional<Engine::SceneViewCameraGizmoCommand> Engine::ViewportOrientationGi
 	ImGui::EndDisabled();
 	ImDrawList* draw = ImGui::GetWindowDrawList();
 	draw->PushClipRect(layout.position, ImVec2(layout.position.x + layout.size, layout.position.y + layout.size), true);
-	if (itemHovered || pressed_) draw->AddCircleFilled(center, layout.size * 0.49f, IM_COL32(40, 40, 40, 150));
+	if (itemHovered || pressed_) draw->AddCircleFilled(center, layout.size * 0.49f, Engine::EditorPalette::U32("Guides.orientationBackdrop"));
 	for (const auto& axis : axes) {
 		ImVec4 color = ImGui::ColorConvertU32ToFloat4(GetAxisColor(axis.index / 2));
-		color.w = enabled ? 1.0f : 0.55f;
+		if (!enabled) color.w *= ImGui::GetStyle().DisabledAlpha;
 		const ImU32 axisColor = ImGui::ColorConvertFloat4ToU32(color);
 		const bool positive = axis.index % 2 == 0;
 		if (positive) draw->AddLine(center, axis.position, axisColor, 2.0f * scale);
 		if (positive || hovered == axis.index) draw->AddCircleFilled(axis.position, radius, axisColor);
 		else {
-			draw->AddCircleFilled(axis.position, radius, IM_COL32(45, 45, 45, 230));
+			draw->AddCircleFilled(axis.position, radius, Engine::EditorPalette::U32("Guides.orientationNegative"));
 			draw->AddCircle(axis.position, radius, axisColor, 0, 1.5f * scale);
 		}
-		if (hovered == axis.index) draw->AddCircle(axis.position, radius + scale, IM_COL32(255, 255, 255, 255), 0, 1.5f * scale);
+		if (hovered == axis.index) draw->AddCircle(axis.position, radius + scale, Engine::EditorPalette::U32("Guides.orientationHover"), 0, 1.5f * scale);
 		if (positive) {
 			const char* text = kAxisNames[axis.index / 2];
 			ImGui::PushFont(nullptr, ImGui::GetFontSize() * 0.5f);
 			const ImVec2 textSize = ImGui::CalcTextSize(text);
-			draw->AddText(ImVec2(axis.position.x - textSize.x * 0.5f, axis.position.y - textSize.y * 0.5f), IM_COL32(20, 20, 20, 255), text);
+			draw->AddText(ImVec2(axis.position.x - textSize.x * 0.5f, axis.position.y - textSize.y * 0.5f), Engine::EditorPalette::U32("Guides.orientationText"), text);
 			ImGui::PopFont();
 		}
 	}

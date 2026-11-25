@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -70,8 +71,8 @@ namespace {
 		const ImVec2& min, const ImVec2& max) {
 
 		const ImU32 colors[2]{
-			IM_COL32(64, 64, 64, 255),
-			IM_COL32(104, 104, 104, 255),
+			Engine::EditorPalette::U32("Panels.Checker.Dark"),
+			Engine::EditorPalette::U32("Panels.Checker.Light"),
 		};
 		uint32_t row = 0;
 		for (float y = min.y; y < max.y; y += kCheckerSize, ++row) {

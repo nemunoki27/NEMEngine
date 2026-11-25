@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/DebugDraw/SceneViewGuideColors.h>
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Renderer/Views/ViewportRenderService.h>
@@ -46,6 +48,39 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
+
+	void ApplySceneViewColors() {
+
+		using namespace Engine;
+		ImGuizmo::SetManipulatorColors({
+			.axis = {EditorPalette::U32("Guides.manipulatorAxisX"),
+				EditorPalette::U32("Guides.manipulatorAxisY"), EditorPalette::U32("Guides.manipulatorAxisZ")},
+			.plane = {EditorPalette::U32("Guides.manipulatorPlaneX"),
+				EditorPalette::U32("Guides.manipulatorPlaneY"), EditorPalette::U32("Guides.manipulatorPlaneZ")},
+			.selected = EditorPalette::U32("Guides.manipulatorSelected"),
+			.disabled = EditorPalette::U32("Guides.manipulatorDisabled"),
+			.guide = EditorPalette::U32("Guides.manipulatorGuide"),
+			.center = EditorPalette::U32("Guides.manipulatorCenter"),
+			.sectorFill = EditorPalette::U32("Guides.manipulatorSectorFill"),
+			.sectorBorder = EditorPalette::U32("Guides.manipulatorSectorBorder"),
+			.text = EditorPalette::U32("Guides.manipulatorText"),
+			.textShadow = EditorPalette::U32("Guides.manipulatorTextShadow"),
+			.hatch = EditorPalette::U32("Guides.manipulatorHatch"),
+			.scaleOrigin = EditorPalette::U32("Guides.manipulatorScaleOrigin")
+		});
+		SceneViewGuideColors::Get() = {
+			.grid2D = EditorGuideColors::Linear("Guides.grid2D"),
+			.gridMinor = EditorGuideColors::Linear("Guides.gridMinor"),
+			.gridMajor = EditorGuideColors::Linear("Guides.gridMajor"),
+			.gridCoarse = EditorGuideColors::Linear("Guides.gridCoarse"),
+			.gridSnap = EditorGuideColors::Linear("Guides.gridSnap"),
+			.gridX = EditorGuideColors::Linear("Guides.gridX"),
+			.gridZ = EditorGuideColors::Linear("Guides.gridZ"),
+			.cameraBounds = EditorGuideColors::Linear("Guides.cameraBounds"),
+			.cameraIcon = EditorGuideColors::Linear("Guides.cameraIcon"),
+			.disabledIconTint = EditorGuideColors::Linear("Guides.disabledIconTint")
+		};
+	}
 
 }
 
@@ -240,6 +275,12 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	ImGuizmo::BeginFrame();
 
+	if (guideColorRevision_ != EditorPalette::Revision()) {
+		guideColorRevision_ = EditorPalette::Revision();
+		ApplySceneViewColors();
+	}
+
+
 	// 固定バーの領域を確保してからドッキングスペースを描く
 	editorCommandPanelKind_ = EditorCommandPanelKind::None;
 	panelContext.viewportRenderService = nullptr;
@@ -311,16 +352,18 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		const auto* spline = TryGetSpline(world, entity);
 		const auto* transform = world.TryGetComponent<TransformComponent>(entity);
 		if (spline && spline->drawDebug && !spline->is2D && transform) {
+			const Color4 color = EditorGuideColors::Linear("Guides.spline");
 			const auto points = BuildSplineSamples(*spline, transform->worldMatrix);
 			for (size_t i = 1; i < points.size(); ++i)
-				lines->DrawLine(points[i - 1].position, points[i].position, Color4::FromHex(0xffbe41ff), 2);
+				lines->DrawLine(points[i - 1].position, points[i].position, color, 2);
 		}
 		const auto* motion = TryGetMotionAnimation(world, entity);
 		if (editorState_.sceneViewPickDimension != SceneViewPickDimension::Type2D &&
 			motion && motion->settings.enabled && motion->settings.drawDebug) {
+			const Color4 color = EditorGuideColors::Linear("Guides.motion");
 			const auto points = GetMotionAnimationDebugPoints(world, entity);
 			for (size_t i = 1; i < points.size(); ++i)
-				lines->DrawLine(points[i - 1], points[i], Color4::FromHex(0x5ae68cff), 2);
+				lines->DrawLine(points[i - 1], points[i], color, 2);
 		}
 		ViewportDecalGizmo::Draw(world, entity, *lines);
 	}

@@ -91,7 +91,7 @@ void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, co
 		});
 }
 
-void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton) {
+void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton, const Color4& color) {
 
 	// ジョイントがない場合は描画しない
 	if (skeleton.joints.empty()) {
@@ -119,7 +119,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 	for (size_t i = 0; i < skeleton.joints.size(); ++i) {
 
 		worldPos[i] = Vector3::Transform(Vector3::AnyInit(0.0f), skeleton.joints[i].skeletonSpaceMatrix * worldMatrix);
-		DrawSphereGrid(worldPos[i], 0.02f, Color4::Yellow(), kDivision, 1.0f);
+		DrawSphereGrid(worldPos[i], 0.02f, color, kDivision, 1.0f);
 	}
 	// 親から子に向けて描画
 	for (size_t parent = 0; parent < skeleton.joints.size(); ++parent) {
@@ -141,7 +141,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 			float top = length * kRatioTop;
 			float bottom = length * kRatioBase;
 
-			DrawCone(base, bottom, top, length, rotation, Color4::Yellow(), kDivision, 1.0f);
+			DrawCone(base, bottom, top, length, rotation, color, kDivision, 1.0f);
 		}
 	}
 	occludedMode_ = true;

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 
 // imgui
 #include <imgui.h>
@@ -19,6 +20,17 @@ namespace {
 			.maxValue = maxValue,
 		};
 	}
+
+	void EditColor(const char* label, const char* key, std::string& status) {
+
+		const auto current = Engine::EditorPalette::Get(key);
+		Engine::Color4 color(current.x, current.y, current.z, current.w);
+		ImGui::PushID(key);
+		const auto edit = Engine::MyGUI::ColorEdit(label, color);
+		ImGui::PopID();
+		if (edit.valueChanged) Engine::EditorPalette::Set(key, ImVec4(color.r, color.g, color.b, color.a));
+		if (edit.editFinished && !Engine::EditorPalette::SaveUser()) status = "個人の配色を保存できませんでした";
+	}
 } // namespace
 
 Engine::ShaderGraphAppearanceEditor::ShaderGraphAppearanceEditor() {
@@ -31,11 +43,12 @@ Engine::ShaderGraphAppearanceEditor::ShaderGraphAppearanceEditor() {
 bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 
 	bool invalidatePreviews = false;
+	ImGui::TextUnformatted("レイアウト設定");
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("保存##Appearance", ImVec2(buttonWidth, 0.0f))) {
 
 		const bool saved = ShaderGraphAppearance::SaveAppearanceSettings(settings_);
-		status = saved ? "見た目設定を保存しました" : "見た目設定の保存に失敗しました";
+		status = saved ? "レイアウト設定を保存しました" : "レイアウト設定の保存に失敗しました";
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("読み込み##Appearance", ImVec2(buttonWidth, 0.0f))) {
@@ -46,7 +59,7 @@ bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 
 			invalidatePreviews = true;
 		}
-		status = loaded ? "見た目設定を読み込みました" : "保存済みの見た目設定がありません";
+		status = loaded ? "レイアウト設定を読み込みました" : "保存済みのレイアウト設定がありません";
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("元に戻す##Appearance", ImVec2(buttonWidth, 0.0f))) {
@@ -57,26 +70,26 @@ bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 
 			invalidatePreviews = true;
 		}
-		status = "見た目設定を既定値に戻しました";
+		status = "レイアウト設定を既定値に戻しました";
 	}
 
 	if (MyGUI::CollapsingHeader("キャンバス", true)) {
 
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphCanvasAppearance");
-		MyGUI::ColorEdit("背景", settings_.canvasBackground);
-		MyGUI::ColorEdit("グリッド", settings_.grid);
+		EditColor("背景", "Graph.canvasBackground", status);
+		EditColor("グリッド", "Graph.grid", status);
 		MyGUI::DragFloat("グリッド間隔", settings_.gridSpacing, AppearanceFloatSetting(4.0f, 256.0f, 1.0f));
 		MyGUI::DragFloat("ノードスナップ間隔", settings_.nodeSnapGridSize, AppearanceFloatSetting(0.0f, 256.0f, 1.0f));
 	}
 	if (MyGUI::CollapsingHeader("ノード", true)) {
 
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphNodeAppearance");
-		MyGUI::ColorEdit("背景", settings_.nodeBackground);
-		MyGUI::ColorEdit("境界線", settings_.nodeBorder);
-		MyGUI::ColorEdit("ホバー境界線", settings_.hoveredNodeBorder);
-		MyGUI::ColorEdit("選択境界線", settings_.selectedNodeBorder);
-		MyGUI::ColorEdit("範囲選択", settings_.nodeSelection);
-		MyGUI::ColorEdit("範囲選択境界線", settings_.nodeSelectionBorder);
+		EditColor("背景", "Graph.nodeBackground", status);
+		EditColor("境界線", "Graph.nodeBorder", status);
+		EditColor("ホバー境界線", "Graph.hoveredNodeBorder", status);
+		EditColor("選択境界線", "Graph.selectedNodeBorder", status);
+		EditColor("範囲選択", "Graph.nodeSelection", status);
+		EditColor("範囲選択境界線", "Graph.nodeSelectionBorder", status);
 		MyGUI::DragVector4("余白", settings_.nodePadding, AppearanceFloatSetting(0.0f, 64.0f));
 		MyGUI::DragFloat("文字スケール", settings_.nodeTextScale, AppearanceFloatSetting(0.5f, 2.0f, 0.01f));
 		MyGUI::DragFloat("ノード最小幅", settings_.nodeMinimumWidth, AppearanceFloatSetting(0.0f, 0.0f, 1.0f));
@@ -99,14 +112,14 @@ bool Engine::ShaderGraphAppearanceEditor::Draw(std::string& status) {
 	if (MyGUI::CollapsingHeader("接続", true)) {
 
 		MyGUI::ScopedPropertyLabelWidth labelWidth("ShaderGraphConnectionAppearance");
-		MyGUI::ColorEdit("リンク", settings_.link);
-		MyGUI::ColorEdit("ホバーリンク", settings_.hoveredLinkBorder);
-		MyGUI::ColorEdit("選択リンク", settings_.selectedLinkBorder);
-		MyGUI::ColorEdit("強調リンク", settings_.highlightedLinkBorder);
-		MyGUI::ColorEdit("リンク範囲選択", settings_.linkSelection);
-		MyGUI::ColorEdit("リンク範囲境界線", settings_.linkSelectionBorder);
-		MyGUI::ColorEdit("ピン範囲選択", settings_.pinSelection);
-		MyGUI::ColorEdit("ピン範囲境界線", settings_.pinSelectionBorder);
+		EditColor("リンク", "Graph.link", status);
+		EditColor("ホバーリンク", "Graph.hoveredLinkBorder", status);
+		EditColor("選択リンク", "Graph.selectedLinkBorder", status);
+		EditColor("強調リンク", "Graph.highlightedLinkBorder", status);
+		EditColor("リンク範囲選択", "Graph.linkSelection", status);
+		EditColor("リンク範囲境界線", "Graph.linkSelectionBorder", status);
+		EditColor("ピン範囲選択", "Graph.pinSelection", status);
+		EditColor("ピン範囲境界線", "Graph.pinSelectionBorder", status);
 		MyGUI::DragVector2("開始位置オフセット", settings_.linkStartOffset, AppearanceFloatSetting(-128.0f, 128.0f));
 		MyGUI::DragVector2("終了位置オフセット", settings_.linkEndOffset, AppearanceFloatSetting(-128.0f, 128.0f));
 		MyGUI::DragFloat("ピン角丸", settings_.pinRounding, AppearanceFloatSetting(0.0f, 16.0f));

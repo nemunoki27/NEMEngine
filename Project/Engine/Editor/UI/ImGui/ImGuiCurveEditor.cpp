@@ -10,6 +10,7 @@
 #include <array>
 #include <vector>
 
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <imgui_internal.h>
 
 //============================================================================
@@ -141,8 +142,8 @@ namespace {
 			ImVec2 minPos = state.marqueeMin;
 			ImVec2 maxPos = state.marqueeMax;
 			NormalizeRect(minPos, maxPos);
-			ImGui::GetWindowDrawList()->AddRectFilled(minPos, maxPos, IM_COL32(80, 140, 255, 42));
-			ImGui::GetWindowDrawList()->AddRect(minPos, maxPos, IM_COL32(100, 165, 255, 180));
+			ImGui::GetWindowDrawList()->AddRectFilled(minPos, maxPos, Engine::EditorPalette::U32("Panels.Curve.selectionFill"));
+			ImGui::GetWindowDrawList()->AddRect(minPos, maxPos, Engine::EditorPalette::U32("Panels.Curve.selectionBorder"));
 		}
 
 		if (!graphOverlayUIBlocking) {

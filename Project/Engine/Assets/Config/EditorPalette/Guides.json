@@ -1,0 +1,532 @@
+{
+  "Guides.axisX": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・X軸",
+    "value": [
+      0.8627451,
+      0.1372549,
+      0.2156863,
+      1
+    ]
+  },
+  "Guides.axisY": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・Y軸",
+    "value": [
+      0.1176471,
+      0.3921569,
+      0.8627451,
+      1
+    ]
+  },
+  "Guides.axisZ": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・Z軸",
+    "value": [
+      0.2156863,
+      0.6470588,
+      0.1176471,
+      1
+    ]
+  },
+  "Guides.orientationBackdrop": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・ホバー背景",
+    "value": [
+      0.1568627,
+      0.1568627,
+      0.1568627,
+      0.5882353
+    ]
+  },
+  "Guides.orientationNegative": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・負軸の背景",
+    "value": [
+      0.1764706,
+      0.1764706,
+      0.1764706,
+      0.9019608
+    ]
+  },
+  "Guides.orientationHover": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・ホバー枠",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.orientationText": {
+    "group": "SceneView・編集ガイド",
+    "label": "方位ギズモ・文字",
+    "value": [
+      0.0784314,
+      0.0784314,
+      0.0784314,
+      1
+    ]
+  },
+  "Guides.clothPin": {
+    "group": "SceneView・編集ガイド",
+    "label": "Cloth・固定点",
+    "value": [
+      1,
+      0.7686275,
+      0.2509804,
+      1
+    ]
+  },
+  "Guides.motion": {
+    "group": "SceneView・編集ガイド",
+    "label": "MotionAnimation・軌跡と始点",
+    "value": [
+      0.3529412,
+      0.9019608,
+      0.5490196,
+      1
+    ]
+  },
+  "Guides.motionEnd": {
+    "group": "SceneView・編集ガイド",
+    "label": "MotionAnimation・終点",
+    "value": [
+      1,
+      0.745098,
+      0.254902,
+      1
+    ]
+  },
+  "Guides.spline": {
+    "group": "SceneView・編集ガイド",
+    "label": "Spline・曲線",
+    "value": [
+      1,
+      0.745098,
+      0.254902,
+      1
+    ]
+  },
+  "Guides.splinePoint": {
+    "group": "SceneView・編集ガイド",
+    "label": "Spline・制御点",
+    "value": [
+      1,
+      0.8235294,
+      0.254902,
+      1
+    ]
+  },
+  "Guides.splineTangent": {
+    "group": "SceneView・編集ガイド",
+    "label": "Spline・接線ハンドル",
+    "value": [
+      0.3529412,
+      0.8235294,
+      1,
+      1
+    ]
+  },
+  "Guides.splineTangentLine": {
+    "group": "SceneView・編集ガイド",
+    "label": "Spline・接線",
+    "value": [
+      0.3529412,
+      0.8235294,
+      1,
+      0.7058824
+    ]
+  },
+  "Guides.decalVolume": {
+    "group": "SceneView・編集ガイド",
+    "label": "Decal・投影範囲",
+    "value": [
+      1,
+      0.7058824,
+      0.254902,
+      0.9019608
+    ]
+  },
+  "Guides.decalDirection": {
+    "group": "SceneView・編集ガイド",
+    "label": "Decal・投影方向",
+    "value": [
+      0.3137255,
+      0.7058824,
+      1,
+      1
+    ]
+  },
+  "Guides.placement": {
+    "group": "SceneView・編集ガイド",
+    "label": "ロジック配置・配置候補",
+    "value": [
+      0.254902,
+      0.8235294,
+      0.9411765,
+      1
+    ]
+  },
+  "Guides.placementOwner": {
+    "group": "SceneView・編集ガイド",
+    "label": "ロジック配置・制御点の配置候補",
+    "value": [
+      1,
+      0.745098,
+      0.254902,
+      1
+    ]
+  },
+  "Guides.cameraBounds": {
+    "group": "SceneView・編集ガイド",
+    "label": "カメラ・描画範囲",
+    "value": [
+      1,
+      1,
+      0,
+      1
+    ]
+  },
+  "Guides.outline": {
+    "group": "SceneView・編集ガイド",
+    "label": "選択・選択輪郭",
+    "value": [
+      0.9411765,
+      0.1529412,
+      0,
+      1
+    ]
+  },
+  "Guides.bone": {
+    "group": "SceneView・編集ガイド",
+    "label": "スキニング・ボーン",
+    "value": [
+      1,
+      1,
+      0,
+      1
+    ]
+  },
+  "Guides.emitter": {
+    "group": "SceneView・編集ガイド",
+    "label": "パーティクル・エミッター",
+    "value": [
+      1,
+      0,
+      0,
+      1
+    ]
+  },
+  "Guides.force": {
+    "group": "SceneView・編集ガイド",
+    "label": "パーティクル・ForceField",
+    "value": [
+      1,
+      0.7058824,
+      0.2823529,
+      1
+    ]
+  },
+  "Guides.vector": {
+    "group": "SceneView・編集ガイド",
+    "label": "パーティクル・VectorField",
+    "value": [
+      0.2509804,
+      0.8117647,
+      0.9372549,
+      1
+    ]
+  },
+  "Guides.collision": {
+    "group": "SceneView・編集ガイド",
+    "label": "コリジョン・形状",
+    "value": [
+      0,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.trigger": {
+    "group": "SceneView・編集ガイド",
+    "label": "コリジョン・トリガー形状",
+    "value": [
+      1,
+      1,
+      0,
+      1
+    ]
+  },
+  "Guides.overlap": {
+    "group": "SceneView・編集ガイド",
+    "label": "コリジョン・衝突中",
+    "value": [
+      1,
+      0,
+      0,
+      1
+    ]
+  },
+  "Guides.timelinePath": {
+    "group": "SceneView・編集ガイド",
+    "label": "タイムライン・軌跡",
+    "value": [
+      0.5370987,
+      0.9546872,
+      1,
+      1
+    ]
+  },
+  "Guides.grid2D": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・2D線",
+    "value": [
+      1,
+      1,
+      1,
+      0.32
+    ]
+  },
+  "Guides.gridMinor": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・細線",
+    "value": [
+      1,
+      1,
+      1,
+      0.05
+    ]
+  },
+  "Guides.gridMajor": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・主線",
+    "value": [
+      1,
+      1,
+      1,
+      0.12
+    ]
+  },
+  "Guides.gridCoarse": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・大区画",
+    "value": [
+      1,
+      1,
+      1,
+      0.22
+    ]
+  },
+  "Guides.gridX": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・X軸",
+    "value": [
+      1,
+      0,
+      0.0352941,
+      1
+    ]
+  },
+  "Guides.gridZ": {
+    "group": "SceneView・編集ガイド",
+    "label": "グリッド・Z軸",
+    "value": [
+      0,
+      1,
+      0.0117647,
+      1
+    ]
+  },
+  "Guides.gridSnap": {
+    "label": "グリッド・スナップ線",
+    "group": "SceneView・編集ガイド",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.cameraIcon": {
+    "label": "カメラアイコン",
+    "group": "SceneView・編集ガイド",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.disabledIconTint": {
+    "label": "無効なアイコンの乗算色",
+    "group": "SceneView・編集ガイド",
+    "value": [
+      1,
+      1,
+      1,
+      0.42
+    ]
+  },
+  "Guides.manipulatorAxisX": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・X軸",
+    "value": [
+      0.6666667,
+      0,
+      0,
+      1
+    ]
+  },
+  "Guides.manipulatorAxisY": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・Y軸",
+    "value": [
+      0,
+      0.6666667,
+      0,
+      1
+    ]
+  },
+  "Guides.manipulatorAxisZ": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・Z軸",
+    "value": [
+      0,
+      0,
+      0.6666667,
+      1
+    ]
+  },
+  "Guides.manipulatorPlaneX": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・YZ平面",
+    "value": [
+      0.6666667,
+      0,
+      0,
+      0.3803922
+    ]
+  },
+  "Guides.manipulatorPlaneY": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・XZ平面",
+    "value": [
+      0,
+      0.6666667,
+      0,
+      0.3803922
+    ]
+  },
+  "Guides.manipulatorPlaneZ": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・XY平面",
+    "value": [
+      0,
+      0,
+      0.6666667,
+      0.3803922
+    ]
+  },
+  "Guides.manipulatorSelected": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・選択",
+    "value": [
+      1,
+      0.5019608,
+      0.0627451,
+      0.5411765
+    ]
+  },
+  "Guides.manipulatorDisabled": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・無効",
+    "value": [
+      0.6,
+      0.6,
+      0.6,
+      0.6
+    ]
+  },
+  "Guides.manipulatorGuide": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・移動ガイド",
+    "value": [
+      0.6666667,
+      0.6666667,
+      0.6666667,
+      0.6666667
+    ]
+  },
+  "Guides.manipulatorCenter": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・中央ハンドル",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.manipulatorSectorFill": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・回転角の塗り",
+    "value": [
+      1,
+      0.5019608,
+      0.0627451,
+      0.5019608
+    ]
+  },
+  "Guides.manipulatorSectorBorder": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・回転角の縁",
+    "value": [
+      1,
+      0.5019608,
+      0.0627451,
+      1
+    ]
+  },
+  "Guides.manipulatorText": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・操作値",
+    "value": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "Guides.manipulatorTextShadow": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・操作値の影",
+    "value": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "Guides.manipulatorHatch": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・裏側の軸線",
+    "value": [
+      0,
+      0,
+      0,
+      0.5019608
+    ]
+  },
+  "Guides.manipulatorScaleOrigin": {
+    "group": "SceneView・編集ガイド",
+    "label": "マニピュレーター・拡縮前の軸",
+    "value": [
+      0.2509804,
+      0.2509804,
+      0.2509804,
+      1
+    ]
+  }
+}

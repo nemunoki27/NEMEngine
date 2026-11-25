@@ -4,6 +4,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -182,7 +183,7 @@ Engine::TextInputPopupResult Engine::MyGUI::InputTextPopupContent(const char* la
 	}
 
 	if (errorText && errorText[0] != '\0') {
-		ImGui::TextColored(ImVec4(0.95f, 0.32f, 0.24f, 1.0f), "%s", errorText);
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "%s", errorText);
 	} else {
 		ImGui::Spacing();
 	}

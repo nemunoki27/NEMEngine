@@ -2,4 +2,5 @@
 
 namespace NEMTests {
 	bool TestEditorWindows();
+	bool TestEditorPalette();
 }

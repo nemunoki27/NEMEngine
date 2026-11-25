@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
@@ -48,7 +49,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 		context.panelContext->tagSettings->Reload();
 	}
 	if (context.panelContext->tagSettings->IsDirty()) {
-		ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f), "未保存の変更があります");
+		ImGui::TextColored(Engine::EditorPalette::Get("Panels.warning"), "未保存の変更があります");
 	}
 
 	// 新規タグ追加、入力が有効なときだけ追加できる
@@ -159,7 +160,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			context.panelContext->renderingLayerSettings->Reload();
 		}
 		if (context.panelContext->renderingLayerSettings->IsDirty()) {
-			ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f),
+			ImGui::TextColored(Engine::EditorPalette::Get("Panels.warning"),
 				"未保存の変更があります");
 		}
 

@@ -4,6 +4,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/DebugDraw/SceneViewGuideColors.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -173,25 +174,24 @@ Engine::SceneGridRenderer::GridPassConstants Engine::SceneGridRenderer::BuildPas
 	constants.thicknessFadeAndHorizon =
 		Vector4(gridThicknessFadePower_, gridMinHalfThickness_, gridHorizonFadeStart_, gridHorizonFadeEnd_);
 
-	// 固定間隔の細線は不透明にする
-	const float minorAlpha = (fixedMinorStep > 0.0f) ? 1.0f : gridMinorBaseAlpha_;
-	constants.minorColor = Color4(1.0f, 1.0f, 1.0f, minorAlpha);
+	const auto& colors = SceneViewGuideColors::Get();
+	constants.minorColor = fixedMinorStep > 0.0f ? colors.gridSnap : colors.gridMinor;
 	constants.minorParams0 = Vector4(gridMinorLineThickness_, gridMinorFarThicknessRate_,
 		makeFadeStartDistance(gridMinorFadeStartRate_), makeFadeEndDistance(gridMinorFadeStartRate_, gridMinorFadeEndRate_));
 	constants.minorParams1 = Vector4(gridMinorFadePower_, 0.0f, 0.0f, 0.0f);
 
-	constants.majorColor = Color4(1.0f, 1.0f, 1.0f, gridMajorBaseAlpha_);
+	constants.majorColor = colors.gridMajor;
 	constants.majorParams0 = Vector4(gridMajorLineThickness_, gridMajorFarThicknessRate_,
 		makeFadeStartDistance(gridMajorFadeStartRate_), makeFadeEndDistance(gridMajorFadeStartRate_, gridMajorFadeEndRate_));
 	constants.majorParams1 = Vector4(gridMajorFadePower_, 0.0f, 0.0f, 0.0f);
 
-	constants.coarseColor = Color4(1.0f, 1.0f, 1.0f, gridCoarseBaseAlpha_);
+	constants.coarseColor = colors.gridCoarse;
 	constants.coarseParams0 = Vector4(gridCoarseLineThickness_, gridCoarseFarThicknessRate_,
 		makeFadeStartDistance(gridCoarseFadeStartRate_), makeFadeEndDistance(gridCoarseFadeStartRate_, gridCoarseFadeEndRate_));
 	constants.coarseParams1 = Vector4(gridCoarseFadePower_, 0.0f, 0.0f, 0.0f);
 
-	constants.axisXColor = gridAxisXLineColor_;
-	constants.axisZColor = gridAxisZLineColor_;
+	constants.axisXColor = colors.gridX;
+	constants.axisZColor = colors.gridZ;
 	constants.axisParams = Vector4(gridAxisLineThickness_, 0.0f, 0.0f, visibleRadius);
 
 	return constants;

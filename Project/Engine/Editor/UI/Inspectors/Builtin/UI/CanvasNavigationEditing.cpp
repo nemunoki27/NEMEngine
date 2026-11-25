@@ -1,4 +1,5 @@
 #include "CanvasNavigationEditing.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Common/SceneEntityReferenceFields.h>
 
 //============================================================================
@@ -79,7 +80,7 @@ namespace {
 		ImGui::PushID(static_cast<int32_t>(index));
 		const bool selected = cell && cell == selectedLocalFileID;
 		if (selected) {
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.warning"));
 		}
 		ImGui::Button(label.c_str(), ImVec2(buttonWidth, ImGui::GetFrameHeight()));
 		if (selected) {

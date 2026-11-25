@@ -130,6 +130,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 			RunTest("TestAssetDatabaseTransactions", TestAssetDatabaseTransactions) &&
 			RunTest("TestAssetDependencyCandidates", TestAssetDependencyCandidates) ? 0 : 86;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--editor-palette") {
+		return RunTest("TestEditorPalette", TestEditorPalette) ? 0 : 1;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor-windows") {
 		return RunTest("TestEditorWindows", TestEditorWindows) && RunTest("TestInputConfiguration", TestInputConfiguration) ? 0 : 85;
 	}

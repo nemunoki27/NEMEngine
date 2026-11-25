@@ -1,6 +1,7 @@
 #include "AnimationClipEditorUI.h"
 #include "AnimationClipEditSession.h"
 #include "AnimationClipEditorUtility.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 
 //============================================================================
@@ -128,7 +129,7 @@ void Engine::AnimationClipEditorUI::DrawPropertyTreeUI(AnimationClipEditSession&
 		const bool selected = session.GetSelectedTrackIndex() == static_cast<int>(i);
 
 		if (missing) {
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.error"));
 		}
 		const std::string label = BuildTrackLabel(track, world, targetEntity);
 

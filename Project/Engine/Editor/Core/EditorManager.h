@@ -204,6 +204,7 @@ namespace Engine {
 
 		// 終了処理が必要な資源を所有しているか
 		bool initialized_ = false;
+		uint64_t guideColorRevision_ = UINT64_MAX;
 		// 設定を保存できる状態まで初期化されたか
 		bool initializationComplete_ = false;
 		// 再生と未保存確認の要求

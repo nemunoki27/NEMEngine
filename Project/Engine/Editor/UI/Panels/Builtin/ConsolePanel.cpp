@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Editor/Utility/EditorShell.h>
 
@@ -25,10 +26,10 @@ namespace {
 
 		switch (level) {
 		case spdlog::level::warn:
-			return ImVec4(0.95f, 0.80f, 0.25f, 1.0f);
+			return Engine::EditorPalette::Get("Panels.warning");
 		case spdlog::level::err:
 		case spdlog::level::critical:
-			return ImVec4(0.95f, 0.35f, 0.35f, 1.0f);
+			return Engine::EditorPalette::Get("Panels.error");
 		default:
 			return ImGui::GetStyleColorVec4(ImGuiCol_Text);
 		}

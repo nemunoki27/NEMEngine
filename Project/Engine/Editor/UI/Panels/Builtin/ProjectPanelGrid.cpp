@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ProjectPanelUI.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
@@ -26,7 +27,7 @@ namespace {
 			const ImVec2 padding = ImGui::GetStyle().FramePadding;
 			return ImGui::Button(id, ImVec2(size + padding.x * 2.0f, size + padding.y * 2.0f));
 		}
-		return ImGui::ImageButton(id, texture, ImVec2(size, size), uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f));
+		return ImGui::ImageButton(id, texture, ImVec2(size, size), uv0, uv1, Engine::EditorPalette::Get("Panels.Project.iconBackground"));
 	}
 
 	// 透過テクスチャの背景へチェッカーを描画する
@@ -34,8 +35,8 @@ namespace {
 
 		constexpr float kCellSize = 8.0f;
 		const ImU32 colors[2]{
-			IM_COL32(62, 62, 62, 255),
-			IM_COL32(94, 94, 94, 255),
+			Engine::EditorPalette::U32("Panels.Checker.Dark"),
+			Engine::EditorPalette::U32("Panels.Checker.Light"),
 		};
 		uint32_t row = 0;
 		for (float y = min.y; y < max.y; y += kCellSize, ++row) {

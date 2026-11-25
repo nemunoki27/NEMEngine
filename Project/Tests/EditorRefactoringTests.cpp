@@ -116,6 +116,8 @@ namespace {
 		view.height = 600;
 		view.perspective.valid = true;
 		SceneComponentOverlaySettings settings{};
+		settings.disabledTint = Color4::White(0.42f);
+		settings.cameraColor = Color4::Cyan();
 		settings.lightIconMaxPixelSize = settings.lightIconMinPixelSize = 64.0f;
 		settings.lightIconCullPixelSize = 32.0f;
 		SceneComponentOverlayRegistry registry;
@@ -127,8 +129,8 @@ namespace {
 			items[0].kind != SceneComponentOverlayKind::LightIcon || items[1].kind != SceneComponentOverlayKind::CameraIcon ||
 			items[0].screenCenter.x != 400.0f || items[1].screenCenter.x != 405.0f ||
 			items[0].rectMin.x != 368.0f || items[1].rectMax.x != 437.0f ||
-			items[0].enabled || items[1].enabled || items[0].color.a != settings.disabledAlpha ||
-			items[1].color.a != settings.disabledAlpha) return false;
+			items[0].enabled || items[1].enabled || items[0].color.a != settings.disabledTint.a ||
+			items[1].color.r != 0.0f || items[1].color.g != 1.0f || items[1].color.a != settings.disabledTint.a) return false;
 
 		// 描画解像度が変わってもアイコンの見た目と選択位置を同じ基準座標に保つ
 		if (view.GetReferenceToRenderScale() != Vector2(1.0f, 1.0f)) return false;

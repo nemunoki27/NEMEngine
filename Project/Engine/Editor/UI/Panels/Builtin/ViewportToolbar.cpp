@@ -1,5 +1,6 @@
 #include "ViewportToolbar.h"
 #include "ViewportCameraSelection.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include "ViewportOrientationGizmo.h"
 
@@ -120,7 +121,7 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 	const float scale = ImGui::GetFontSize() / 20.0f;
 	const ImVec2 size(36.0f * scale, 24.0f * scale);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.025f, 0.025f, 0.025f, 1));
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, Engine::EditorPalette::Get("Panels.Viewport.toolbar"));
 	ImGui::BeginChild("SceneToolbar", ImVec2(0, size.y), ImGuiChildFlags_None,
 		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 	ImGui::PopStyleVar();

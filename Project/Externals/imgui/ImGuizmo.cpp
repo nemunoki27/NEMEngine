@@ -736,13 +736,12 @@ namespace ImGuizmo
    static Context gContext;
 
    static const vec_t directionUnary[3] = { makeVect(1.f, 0.f, 0.f), makeVect(0.f, 1.f, 0.f), makeVect(0.f, 0.f, 1.f) };
-   static const ImU32 directionColor[3] = { IM_COL32(0xAA, 0, 0, 0xFF), IM_COL32(0, 0xAA, 0, 0xFF), IM_COL32(0, 0, 0xAA, 0XFF) };
+   static ManipulatorColors manipulatorColors{};
 
-   // Alpha: 100%: FF, 87%: DE, 70%: B3, 54%: 8A, 50%: 80, 38%: 61, 12%: 1F
-   static const ImU32 planeColor[3] = { IM_COL32(0xAA, 0, 0, 0x61), IM_COL32(0, 0xAA, 0, 0x61), IM_COL32(0, 0, 0xAA, 0x61) };
-   static const ImU32 selectionColor = IM_COL32(0xFF, 0x80, 0x10, 0x8A);
-   static const ImU32 inactiveColor = IM_COL32(0x99, 0x99, 0x99, 0x99);
-   static const ImU32 translationLineColor = IM_COL32(0xAA, 0xAA, 0xAA, 0xAA);
+   void SetManipulatorColors(const ManipulatorColors& colors)
+   {
+      manipulatorColors = colors;
+   }
    static const char* translationInfoMask[] = { "X : %5.3f", "Y : %5.3f", "Z : %5.3f",
       "Y : %5.3f Z : %5.3f", "X : %5.3f Z : %5.3f", "X : %5.3f Y : %5.3f",
       "X : %5.3f Y : %5.3f Z : %5.3f" };
@@ -1040,26 +1039,26 @@ namespace ImGuizmo
          switch (operation)
          {
          case TRANSLATE:
-            colors[0] = (type == MT_MOVE_SCREEN) ? selectionColor : IM_COL32_WHITE;
+            colors[0] = (type == MT_MOVE_SCREEN) ? manipulatorColors.selected : manipulatorColors.center;
             for (int i = 0; i < 3; i++)
             {
-               colors[i + 1] = (type == (int)(MT_MOVE_X + i)) ? selectionColor : directionColor[i];
-               colors[i + 4] = (type == (int)(MT_MOVE_YZ + i)) ? selectionColor : planeColor[i];
-               colors[i + 4] = (type == MT_MOVE_SCREEN) ? selectionColor : colors[i + 4];
+               colors[i + 1] = (type == (int)(MT_MOVE_X + i)) ? manipulatorColors.selected : manipulatorColors.axis[i];
+               colors[i + 4] = (type == (int)(MT_MOVE_YZ + i)) ? manipulatorColors.selected : manipulatorColors.plane[i];
+               colors[i + 4] = (type == MT_MOVE_SCREEN) ? manipulatorColors.selected : colors[i + 4];
             }
             break;
          case ROTATE:
-            colors[0] = (type == MT_ROTATE_SCREEN) ? selectionColor : IM_COL32_WHITE;
+            colors[0] = (type == MT_ROTATE_SCREEN) ? manipulatorColors.selected : manipulatorColors.center;
             for (int i = 0; i < 3; i++)
             {
-               colors[i + 1] = (type == (int)(MT_ROTATE_X + i)) ? selectionColor : directionColor[i];
+               colors[i + 1] = (type == (int)(MT_ROTATE_X + i)) ? manipulatorColors.selected : manipulatorColors.axis[i];
             }
             break;
          case SCALE:
-            colors[0] = (type == MT_SCALE_XYZ) ? selectionColor : IM_COL32_WHITE;
+            colors[0] = (type == MT_SCALE_XYZ) ? manipulatorColors.selected : manipulatorColors.center;
             for (int i = 0; i < 3; i++)
             {
-               colors[i + 1] = (type == (int)(MT_SCALE_X + i)) ? selectionColor : directionColor[i];
+               colors[i + 1] = (type == (int)(MT_SCALE_X + i)) ? manipulatorColors.selected : manipulatorColors.axis[i];
             }
             break;
          // note: this internal function is only called with three possible values for operation
@@ -1071,7 +1070,7 @@ namespace ImGuizmo
       {
          for (int i = 0; i < 7; i++)
          {
-            colors[i] = inactiveColor;
+            colors[i] = manipulatorColors.disabled;
          }
       }
    }
@@ -1245,14 +1244,14 @@ namespace ImGuizmo
             pos *= gContext.mScreenFactor;
             circlePos[i] = worldToPos(pos + gContext.mModel.v.position, gContext.mViewProjection);
          }
-         drawList->AddConvexPolyFilled(circlePos, halfCircleSegmentCount, IM_COL32(0xFF, 0x80, 0x10, 0x80));
-         drawList->AddPolyline(circlePos, halfCircleSegmentCount, IM_COL32(0xFF, 0x80, 0x10, 0xFF), ImDrawFlags_Closed, 2.0f);
+         drawList->AddConvexPolyFilled(circlePos, halfCircleSegmentCount, manipulatorColors.sectorFill);
+         drawList->AddPolyline(circlePos, halfCircleSegmentCount, manipulatorColors.sectorBorder, ImDrawFlags_Closed, 2.0f);
 
          ImVec2 destinationPosOnScreen = circlePos[1];
          char tmps[512];
          ImFormatString(tmps, sizeof(tmps), rotationInfoMask[type - MT_ROTATE_X], (gContext.mRotationAngle / ZPI) * 180.f, gContext.mRotationAngle);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), IM_COL32_BLACK, tmps);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), IM_COL32_WHITE, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), manipulatorColors.textShadow, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), manipulatorColors.text, tmps);
       }
    }
 
@@ -1262,7 +1261,7 @@ namespace ImGuizmo
       {
          ImVec2 baseSSpace2 = worldToPos(axis * 0.05f * (float)(j * 2) * gContext.mScreenFactor, gContext.mMVP);
          ImVec2 worldDirSSpace2 = worldToPos(axis * 0.05f * (float)(j * 2 + 1) * gContext.mScreenFactor, gContext.mMVP);
-         gContext.mDrawList->AddLine(baseSSpace2, worldDirSSpace2, IM_COL32(0, 0, 0, 0x80), 6.f);
+         gContext.mDrawList->AddLine(baseSSpace2, worldDirSSpace2, manipulatorColors.hatch, 6.f);
       }
    }
 
@@ -1308,8 +1307,8 @@ namespace ImGuizmo
 
             if (gContext.mbUsing && (gContext.mActualID == -1 || gContext.mActualID == gContext.mEditingID))
             {
-               drawList->AddLine(baseSSpace, worldDirSSpaceNoScale, IM_COL32(0x40, 0x40, 0x40, 0xFF), 3.f);
-               drawList->AddCircleFilled(worldDirSSpaceNoScale, 6.f, IM_COL32(0x40, 0x40, 0x40, 0xFF));
+               drawList->AddLine(baseSSpace, worldDirSSpaceNoScale, manipulatorColors.scaleOrigin, 3.f);
+               drawList->AddCircleFilled(worldDirSSpaceNoScale, 6.f, manipulatorColors.scaleOrigin);
             }
 
             if(!hasTranslateOnAxis || gContext.mbUsing)
@@ -1335,16 +1334,16 @@ namespace ImGuizmo
          /*vec_t dif(destinationPosOnScreen.x - sourcePosOnScreen.x, destinationPosOnScreen.y - sourcePosOnScreen.y);
          dif.Normalize();
          dif *= 5.f;
-         drawList->AddCircle(sourcePosOnScreen, 6.f, translationLineColor);
-         drawList->AddCircle(destinationPosOnScreen, 6.f, translationLineColor);
-         drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), translationLineColor, 2.f);
+         drawList->AddCircle(sourcePosOnScreen, 6.f, manipulatorColors.guide);
+         drawList->AddCircle(destinationPosOnScreen, 6.f, manipulatorColors.guide);
+         drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), manipulatorColors.guide, 2.f);
          */
          char tmps[512];
          //vec_t deltaInfo = gContext.mModel.v.position - gContext.mMatrixOrigin;
          int componentInfoIndex = (type - MT_SCALE_X) * 3;
          ImFormatString(tmps, sizeof(tmps), scaleInfoMask[type - MT_SCALE_X], scaleDisplay[translationInfoIndex[componentInfoIndex]]);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), IM_COL32_BLACK, tmps);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), IM_COL32_WHITE, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), manipulatorColors.textShadow, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), manipulatorColors.text, tmps);
       }
    }
 
@@ -1411,7 +1410,7 @@ namespace ImGuizmo
                vec_t cornerWorldPos = (dirPlaneX * quadUV[j * 2] + dirPlaneY * quadUV[j * 2 + 1]) * gContext.mScreenFactor;
                screenQuadPts[j] = worldToPos(cornerWorldPos, gContext.mMVP);
             }
-            drawList->AddPolyline(screenQuadPts, 4, directionColor[i], ImDrawFlags_Closed, 1.0f);
+            drawList->AddPolyline(screenQuadPts, 4, manipulatorColors.axis[i], ImDrawFlags_Closed, 1.0f);
             drawList->AddConvexPolyFilled(screenQuadPts, 4, colors[i + 4]);
          }
       }
@@ -1425,16 +1424,16 @@ namespace ImGuizmo
          vec_t dif = { destinationPosOnScreen.x - sourcePosOnScreen.x, destinationPosOnScreen.y - sourcePosOnScreen.y, 0.f, 0.f };
          dif.Normalize();
          dif *= 5.f;
-         drawList->AddCircle(sourcePosOnScreen, 6.f, translationLineColor);
-         drawList->AddCircle(destinationPosOnScreen, 6.f, translationLineColor);
-         drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), translationLineColor, 2.f);
+         drawList->AddCircle(sourcePosOnScreen, 6.f, manipulatorColors.guide);
+         drawList->AddCircle(destinationPosOnScreen, 6.f, manipulatorColors.guide);
+         drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), manipulatorColors.guide, 2.f);
 
          char tmps[512];
          vec_t deltaInfo = gContext.mModel.v.position - gContext.mMatrixOrigin;
          int componentInfoIndex = (type - MT_MOVE_X) * 3;
          ImFormatString(tmps, sizeof(tmps), translationInfoMask[type - MT_MOVE_X], deltaInfo[translationInfoIndex[componentInfoIndex]], deltaInfo[translationInfoIndex[componentInfoIndex + 1]], deltaInfo[translationInfoIndex[componentInfoIndex + 2]]);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), IM_COL32_BLACK, tmps);
-         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), IM_COL32_WHITE, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), manipulatorColors.textShadow, tmps);
+         drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), manipulatorColors.text, tmps);
       }
    }
 
@@ -1584,8 +1583,8 @@ namespace ImGuizmo
                overSmallAnchor = false;
             }
 
-            unsigned int bigAnchorColor = overBigAnchor ? selectionColor : (IM_COL32(0xAA, 0xAA, 0xAA, 0) + anchorAlpha);
-            unsigned int smallAnchorColor = overSmallAnchor ? selectionColor : (IM_COL32(0xAA, 0xAA, 0xAA, 0) + anchorAlpha);
+            unsigned int bigAnchorColor = overBigAnchor ? manipulatorColors.selected : (IM_COL32(0xAA, 0xAA, 0xAA, 0) + anchorAlpha);
+            unsigned int smallAnchorColor = overSmallAnchor ? manipulatorColors.selected : (IM_COL32(0xAA, 0xAA, 0xAA, 0) + anchorAlpha);
 
             drawList->AddCircleFilled(worldBound1, AnchorBigRadius, IM_COL32_BLACK);
             drawList->AddCircleFilled(worldBound1, AnchorBigRadius - 1.2f, bigAnchorColor);
@@ -1691,8 +1690,8 @@ namespace ImGuizmo
                , (bounds[4] - bounds[1]) * gContext.mBoundsMatrix.component[1].Length() * scale.component[1].Length()
                , (bounds[5] - bounds[2]) * gContext.mBoundsMatrix.component[2].Length() * scale.component[2].Length()
             );
-            drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), IM_COL32_BLACK, tmps);
-            drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), IM_COL32_WHITE, tmps);
+            drawList->AddText(ImVec2(destinationPosOnScreen.x + 15, destinationPosOnScreen.y + 15), manipulatorColors.textShadow, tmps);
+            drawList->AddText(ImVec2(destinationPosOnScreen.x + 14, destinationPosOnScreen.y + 14), manipulatorColors.text, tmps);
          }
 
          if (!io.MouseDown[0]) {
@@ -2428,7 +2427,7 @@ namespace ImGuizmo
             {
                cubeFace.faceCoordsScreen[iCoord] = worldToPos(faceCoords[iCoord] * 0.5f * invert, res);
             }
-            cubeFace.color = directionColor[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0);
+            cubeFace.color = manipulatorColors.axis[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0);
 
             cubeFace.z = centerPositionVP.z / centerPositionVP.w;
             cubeFaceCount++;
@@ -2497,7 +2496,7 @@ namespace ImGuizmo
             {
                ImU32 col = IM_COL32(0x80, 0x80, 0x80, 0xFF);
                col = (fmodf(fabsf(f), 10.f) < FLT_EPSILON) ? IM_COL32(0x90, 0x90, 0x90, 0xFF) : col;
-               col = (fabsf(f) < FLT_EPSILON) ? IM_COL32(0x40, 0x40, 0x40, 0xFF): col;
+               col = (fabsf(f) < FLT_EPSILON) ? IM_COL32(0x40, 0x40, 0x40, 0xFF) : col;
 
                float thickness = 1.f;
                thickness = (fmodf(fabsf(f), 10.f) < FLT_EPSILON) ? 1.5f : thickness;
@@ -2624,7 +2623,7 @@ namespace ImGuizmo
                // draw face with lighter color
                if (iPass)
                {
-                  gContext.mDrawList->AddConvexPolyFilled(faceCoordsScreen, 4, (directionColor[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0x80)) | (isInside ? IM_COL32(0x08, 0x08, 0x08, 0) : 0));
+                  gContext.mDrawList->AddConvexPolyFilled(faceCoordsScreen, 4, (manipulatorColors.axis[normalIndex] | IM_COL32(0x80, 0x80, 0x80, 0x80)) | (isInside ? IM_COL32(0x08, 0x08, 0x08, 0) : 0));
                   if (boxes[boxCoordInt])
                   {
                      gContext.mDrawList->AddConvexPolyFilled(faceCoordsScreen, 4, IM_COL32(0xF0, 0xA0, 0x60, 0x80));

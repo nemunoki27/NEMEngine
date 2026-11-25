@@ -7,6 +7,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Editor/Utility/EditorSourceNavigation.h>
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 
 // c++
 #include <algorithm>
@@ -21,17 +22,6 @@ namespace {
 	constexpr float kDefaultNodeMinimumWidth = 180.0f;
 	constexpr float kDefaultNodePreviewDisplaySize = 144.0f;
 	constexpr int32_t kDefaultNodePreviewTextureSize = 128;
-
-	// 保存済みの色を取得し未設定なら既定値を使う
-	Engine::Color4 ReadColor(const nlohmann::json& data, const char* name, const Engine::Color4& fallback) {
-
-		const auto found = data.find(name);
-		if (found == data.end() || !found->is_object()) {
-			return fallback;
-		}
-		return Engine::Color4(found->value("r", fallback.r), found->value("g", fallback.g), found->value("b", fallback.b),
-			found->value("a", fallback.a));
-	}
 
 	// 四成分の保存値か既定値を取得する
 	Engine::Vector4 ReadVector4(const nlohmann::json& data, const char* name, const Engine::Vector4& fallback) {
@@ -55,16 +45,6 @@ namespace {
 	}
 }
 
-ImVec4 Engine::ShaderGraphAppearance::ToImVec4(const Engine::Color4& color) {
-
-	return ImVec4(color.r, color.g, color.b, color.a);
-}
-
-Engine::Color4 Engine::ShaderGraphAppearance::ToColor4(const ImVec4& color) {
-
-	return Engine::Color4(color.x, color.y, color.z, color.w);
-}
-
 bool Engine::ShaderGraphAppearance::LoadAppearanceSettings(ShaderGraphAppearanceSetting& outSettings) try {
 
 	nlohmann::json data;
@@ -76,28 +56,6 @@ bool Engine::ShaderGraphAppearance::LoadAppearanceSettings(ShaderGraphAppearance
 	// 既定値へ保存済み設定を重ねる
 	ShaderGraphAppearanceSetting settings;
 	RestoreDefaultAppearance(settings);
-	const auto colorsFound = data.find("colors");
-	if (colorsFound != data.end() && colorsFound->is_object()) {
-
-		const nlohmann::json& colors = *colorsFound;
-		settings.canvasBackground = ReadColor(colors, "canvasBackground", settings.canvasBackground);
-		settings.grid = ReadColor(colors, "grid", settings.grid);
-		settings.nodeBackground = ReadColor(colors, "nodeBackground", settings.nodeBackground);
-		settings.nodeBorder = ReadColor(colors, "nodeBorder", settings.nodeBorder);
-		settings.hoveredNodeBorder = ReadColor(colors, "hoveredNodeBorder", settings.hoveredNodeBorder);
-		settings.selectedNodeBorder = ReadColor(colors, "selectedNodeBorder", settings.selectedNodeBorder);
-		settings.nodeSelection = ReadColor(colors, "nodeSelection", settings.nodeSelection);
-		settings.nodeSelectionBorder = ReadColor(colors, "nodeSelectionBorder", settings.nodeSelectionBorder);
-		settings.link = ReadColor(colors, "link", settings.link);
-		settings.hoveredLinkBorder = ReadColor(colors, "hoveredLinkBorder", settings.hoveredLinkBorder);
-		settings.selectedLinkBorder = ReadColor(colors, "selectedLinkBorder", settings.selectedLinkBorder);
-		settings.highlightedLinkBorder = ReadColor(colors, "highlightedLinkBorder", settings.highlightedLinkBorder);
-		settings.linkSelection = ReadColor(colors, "linkSelection", settings.linkSelection);
-		settings.linkSelectionBorder = ReadColor(colors, "linkSelectionBorder", settings.linkSelectionBorder);
-		settings.pinSelection = ReadColor(colors, "pinSelection", settings.pinSelection);
-		settings.pinSelectionBorder = ReadColor(colors, "pinSelectionBorder", settings.pinSelectionBorder);
-	}
-
 	const auto layoutFound = data.find("layout");
 	if (layoutFound != data.end() && layoutFound->is_object()) {
 
@@ -133,25 +91,6 @@ bool Engine::ShaderGraphAppearance::SaveAppearanceSettings(const ShaderGraphAppe
 		return false;
 	}
 
-	// 色と配置を同じ文書へ保存する
-	nlohmann::json colors{
-		{ "canvasBackground", settings.canvasBackground.ToJson() },
-		{ "grid", settings.grid.ToJson() },
-		{ "nodeBackground", settings.nodeBackground.ToJson() },
-		{ "nodeBorder", settings.nodeBorder.ToJson() },
-		{ "hoveredNodeBorder", settings.hoveredNodeBorder.ToJson() },
-		{ "selectedNodeBorder", settings.selectedNodeBorder.ToJson() },
-		{ "nodeSelection", settings.nodeSelection.ToJson() },
-		{ "nodeSelectionBorder", settings.nodeSelectionBorder.ToJson() },
-		{ "link", settings.link.ToJson() },
-		{ "hoveredLinkBorder", settings.hoveredLinkBorder.ToJson() },
-		{ "selectedLinkBorder", settings.selectedLinkBorder.ToJson() },
-		{ "highlightedLinkBorder", settings.highlightedLinkBorder.ToJson() },
-		{ "linkSelection", settings.linkSelection.ToJson() },
-		{ "linkSelectionBorder", settings.linkSelectionBorder.ToJson() },
-		{ "pinSelection", settings.pinSelection.ToJson() },
-		{ "pinSelectionBorder", settings.pinSelectionBorder.ToJson() },
-	};
 	nlohmann::json layout{
 		{ "nodePadding", settings.nodePadding.ToJson() },
 		{ "linkStartOffset", settings.linkStartOffset.ToJson() },
@@ -172,8 +111,7 @@ bool Engine::ShaderGraphAppearance::SaveAppearanceSettings(const ShaderGraphAppe
 		{ "linkThickness", settings.linkThickness },
 	};
 	const nlohmann::json data{
-		{ "schemaVersion", 4 },
-		{ "colors", std::move(colors) },
+		{ "schemaVersion", 5 },
 		{ "layout", std::move(layout) },
 	};
 	return JsonAdapter::Save(RuntimePaths::GetEngineAssetPath(ConfigPaths::kShaderGraphAppearance), data);
@@ -183,21 +121,26 @@ void Engine::ShaderGraphAppearance::ApplyAppearanceSettings(const ShaderGraphApp
 
 	// Node Editorの描画状態へ設定を反映する
 	ed::Style& style = ed::GetStyle();
-	style.Colors[ed::StyleColor_Bg] = ToImVec4(settings.canvasBackground);
-	style.Colors[ed::StyleColor_Grid] = ToImVec4(settings.grid);
-	style.Colors[ed::StyleColor_NodeBg] = ToImVec4(settings.nodeBackground);
-	style.Colors[ed::StyleColor_NodeBorder] = ToImVec4(settings.nodeBorder);
-	style.Colors[ed::StyleColor_HovNodeBorder] = ToImVec4(settings.hoveredNodeBorder);
-	style.Colors[ed::StyleColor_SelNodeBorder] = ToImVec4(settings.selectedNodeBorder);
-	style.Colors[ed::StyleColor_NodeSelRect] = ToImVec4(settings.nodeSelection);
-	style.Colors[ed::StyleColor_NodeSelRectBorder] = ToImVec4(settings.nodeSelectionBorder);
-	style.Colors[ed::StyleColor_HovLinkBorder] = ToImVec4(settings.hoveredLinkBorder);
-	style.Colors[ed::StyleColor_SelLinkBorder] = ToImVec4(settings.selectedLinkBorder);
-	style.Colors[ed::StyleColor_HighlightLinkBorder] = ToImVec4(settings.highlightedLinkBorder);
-	style.Colors[ed::StyleColor_LinkSelRect] = ToImVec4(settings.linkSelection);
-	style.Colors[ed::StyleColor_LinkSelRectBorder] = ToImVec4(settings.linkSelectionBorder);
-	style.Colors[ed::StyleColor_PinRect] = ToImVec4(settings.pinSelection);
-	style.Colors[ed::StyleColor_PinRectBorder] = ToImVec4(settings.pinSelectionBorder);
+	style.Colors[ed::StyleColor_Bg] = EditorPalette::Get("Graph.canvasBackground");
+	style.Colors[ed::StyleColor_Grid] = EditorPalette::Get("Graph.grid");
+	style.Colors[ed::StyleColor_NodeBg] = EditorPalette::Get("Graph.nodeBackground");
+	style.Colors[ed::StyleColor_NodeBorder] = EditorPalette::Get("Graph.nodeBorder");
+	style.Colors[ed::StyleColor_HovNodeBorder] = EditorPalette::Get("Graph.hoveredNodeBorder");
+	style.Colors[ed::StyleColor_SelNodeBorder] = EditorPalette::Get("Graph.selectedNodeBorder");
+	style.Colors[ed::StyleColor_NodeSelRect] = EditorPalette::Get("Graph.nodeSelection");
+	style.Colors[ed::StyleColor_NodeSelRectBorder] = EditorPalette::Get("Graph.nodeSelectionBorder");
+	style.Colors[ed::StyleColor_HovLinkBorder] = EditorPalette::Get("Graph.hoveredLinkBorder");
+	style.Colors[ed::StyleColor_SelLinkBorder] = EditorPalette::Get("Graph.selectedLinkBorder");
+	style.Colors[ed::StyleColor_HighlightLinkBorder] = EditorPalette::Get("Graph.highlightedLinkBorder");
+	style.Colors[ed::StyleColor_LinkSelRect] = EditorPalette::Get("Graph.linkSelection");
+	style.Colors[ed::StyleColor_LinkSelRectBorder] = EditorPalette::Get("Graph.linkSelectionBorder");
+	style.Colors[ed::StyleColor_PinRect] = EditorPalette::Get("Graph.pinSelection");
+	style.Colors[ed::StyleColor_PinRectBorder] = EditorPalette::Get("Graph.pinSelectionBorder");
+
+	style.Colors[ed::StyleColor_Flow] = EditorPalette::Get("Graph.flow");
+	style.Colors[ed::StyleColor_FlowMarker] = EditorPalette::Get("Graph.flowMarker");
+	style.Colors[ed::StyleColor_GroupBg] = EditorPalette::Get("Graph.groupBackground");
+	style.Colors[ed::StyleColor_GroupBorder] = EditorPalette::Get("Graph.groupBorder");
 
 	style.NodePadding = ImVec4(settings.nodePadding.x, settings.nodePadding.y, settings.nodePadding.z,
 		settings.nodePadding.w);
@@ -216,26 +159,6 @@ void Engine::ShaderGraphAppearance::RestoreDefaultAppearance(ShaderGraphAppearan
 
 	// Node Editorの既定値から表示設定を作る
 	const ed::Style style{};
-	settings.canvasBackground = ToColor4(style.Colors[ed::StyleColor_Bg]);
-	settings.grid = ToColor4(style.Colors[ed::StyleColor_Grid]);
-	settings.nodeBackground = ToColor4(style.Colors[ed::StyleColor_NodeBg]);
-	settings.nodeBorder = ToColor4(style.Colors[ed::StyleColor_NodeBorder]);
-	settings.hoveredNodeBorder = ToColor4(style.Colors[ed::StyleColor_HovNodeBorder]);
-	settings.selectedNodeBorder = ToColor4(style.Colors[ed::StyleColor_SelNodeBorder]);
-	settings.nodeSelection = ToColor4(style.Colors[ed::StyleColor_NodeSelRect]);
-	settings.nodeSelectionBorder = ToColor4(style.Colors[
-			ed::StyleColor_NodeSelRectBorder]);
-	settings.link = Color4::White();
-	settings.hoveredLinkBorder = ToColor4(style.Colors[ed::StyleColor_HovLinkBorder]);
-	settings.selectedLinkBorder = ToColor4(style.Colors[ed::StyleColor_SelLinkBorder]);
-	settings.highlightedLinkBorder = ToColor4(style.Colors[
-			ed::StyleColor_HighlightLinkBorder]);
-	settings.linkSelection = ToColor4(style.Colors[ed::StyleColor_LinkSelRect]);
-	settings.linkSelectionBorder = ToColor4(style.Colors[
-			ed::StyleColor_LinkSelRectBorder]);
-	settings.pinSelection = ToColor4(style.Colors[ed::StyleColor_PinRect]);
-	settings.pinSelectionBorder = ToColor4(style.Colors[ed::StyleColor_PinRectBorder]);
-
 	settings.nodePadding = Vector4(style.NodePadding.x, style.NodePadding.y, style.NodePadding.z, style.NodePadding.w);
 	settings.linkStartOffset = Vector2{};
 	settings.linkEndOffset = Vector2{};

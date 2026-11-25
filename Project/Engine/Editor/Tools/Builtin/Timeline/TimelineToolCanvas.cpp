@@ -1,4 +1,5 @@
 #include "TimelineTool.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include "TimelineAppearance.h"
 
 //============================================================================
@@ -73,7 +74,7 @@ void TimelineTool::DrawCanvas(const EditorToolContext& context) {
 	draw->PushClipRect(ImVec2(timeX, origin.y), ImVec2(origin.x + width, origin.y + height), true);
 	const float durationX = timeX + static_cast<float>((session_.GetAsset().duration - viewStart_) * pixelsPerSecond_);
 	if (durationX < origin.x + width) draw->AddRectFilled(ImVec2((std::max)(durationX, timeX), origin.y),
-		ImVec2(origin.x + width, origin.y + height), IM_COL32(0, 0, 0, 85));
+		ImVec2(origin.x + width, origin.y + height), Engine::EditorPalette::U32("Panels.Timeline.pastEnd"));
 	const float playhead = timeX + static_cast<float>((session_.time - viewStart_) * pixelsPerSecond_);
 	draw->AddLine(ImVec2(playhead, origin.y), ImVec2(playhead, origin.y + height), GetColor(Color::Playhead));
 	if (snapGuide_ >= 0.0 && dragMode_ != DragMode::None) {

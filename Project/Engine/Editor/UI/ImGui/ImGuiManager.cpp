@@ -1,4 +1,5 @@
 #include "ImGuiManager.h"
+#include "EditorPalette.h"
 #include "EditorWindowPresentation.h"
 #include "ImGuiAppearance.h"
 
@@ -142,6 +143,10 @@ void ImGuiManager::Begin() {
 	ImGui_ImplDX12_SyncDisplayOutputs();
 	CheckGPUFailure();
 	ImGui_ImplWin32_NewFrame();
+	if (paletteRevision_ != EditorPalette::Revision()) {
+		ImGuiAppearance::ApplyTheme(ImGui::GetStyle(), (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0);
+		paletteRevision_ = EditorPalette::Revision();
+	}
 	frameStyle_.NewFrame();
 }
 

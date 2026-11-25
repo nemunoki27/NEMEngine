@@ -51,8 +51,6 @@ namespace Engine {
 
 		// Inspectorモデルプレビュー用レンダーターゲットの基本サイズ
 		const Vector2I kModelPreviewSize_ = Vector2I(512, 288);
-		// Inspectorモデルプレビューの背景色
-		const Color4 kModelPreviewColor_ = Color4(0.10f, 0.11f, 0.13f, 1.0f);
 		// InspectorモデルプレビューのMRT数
 		const uint32_t kModelPreviewColorTargetCount_ = 3;
 

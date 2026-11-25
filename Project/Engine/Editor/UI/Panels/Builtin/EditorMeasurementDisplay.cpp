@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "EditorGPUPassTooltip.h"
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/Core/EditorState.h>
@@ -114,8 +115,8 @@ void Engine::EditorMeasurementDisplay::DrawOverlay(const EditorState& state, con
 	float y = position.y + 8.0f + topInset;
 	auto line = [&](const char* text) {
 		const float x = (std::max)(position.x + 8.0f, position.x + size.x - 8.0f - ImGui::CalcTextSize(text).x);
-		draw->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 255), text);
-		draw->AddText(ImVec2(x, y), IM_COL32(0, 255, 0, 255), text);
+		draw->AddText(ImVec2(x + 1.0f, y + 1.0f), Engine::EditorPalette::U32("Panels.Measurement.shadow"), text);
+		draw->AddText(ImVec2(x, y), Engine::EditorPalette::U32("Panels.Measurement.text"), text);
 		y += ImGui::GetTextLineHeightWithSpacing();
 	};
 	char text[64];

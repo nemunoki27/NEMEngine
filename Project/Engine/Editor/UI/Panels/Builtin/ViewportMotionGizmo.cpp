@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Animation/Motion/MotionAnimationEvaluation.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -32,18 +33,20 @@ void Engine::ViewportMotionGizmo::Draw(const EditorPanelContext& context, ImVec2
 		return true;
 	};
 	auto* draw = ImGui::GetWindowDrawList();
+	const ImU32 motionColor = EditorPalette::U32("Guides.motion");
+	const ImU32 motionEndColor = EditorPalette::U32("Guides.motionEnd");
 	draw->PushClipRect(imagePosition, ImVec2(imagePosition.x + imageSize.x, imagePosition.y + imageSize.y), true);
 	if (context.editorState->sceneViewPickDimension == SceneViewPickDimension::Type2D) {
 		for (size_t index = 1; index < points.size(); ++index) {
 			ImVec2 start, end;
 			if (project(points[index - 1], start) && project(points[index], end))
-				draw->AddLine(start, end, IM_COL32(90, 230, 140, 255), 2);
+				draw->AddLine(start, end, motionColor, 2);
 		}
 	}
 	if (!points.empty()) {
 		ImVec2 start, end;
-		if (project(points.front(), start)) draw->AddCircleFilled(start, 5, IM_COL32(90, 230, 140, 255));
-		if (project(points.back(), end)) draw->AddCircle(end, 6, IM_COL32(255, 190, 65, 255), 0, 2);
+		if (project(points.front(), start)) draw->AddCircleFilled(start, 5, motionColor);
+		if (project(points.back(), end)) draw->AddCircle(end, 6, motionEndColor, 0, 2);
 	}
 	draw->PopClipRect();
 }

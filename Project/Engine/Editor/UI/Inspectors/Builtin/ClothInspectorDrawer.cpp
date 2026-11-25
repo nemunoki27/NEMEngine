@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorPresentation.h>
 
@@ -28,7 +29,7 @@ void ClothInspectorDrawer::DrawFields(const EditorPanelContext& context, ECSWorl
 
 	const auto* renderer = world.TryGetComponent<PrimitiveRendererComponent>(entity);
 	if (!IsClothPlane(renderer)) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.82f, 0.22f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_Text, Engine::EditorPalette::Get("Panels.warning"));
 		MyGUI::Text("PrimitiveRendererで3DPlaneを設定してください");
 		ImGui::PopStyleColor();
 		return;

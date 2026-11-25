@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/DebugDraw/SceneViewGuideColors.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
@@ -45,7 +46,7 @@ void Engine::DebugOverlayPass::Execute([[maybe_unused]] GraphicsCore& graphicsCo
 			LineRenderer2D* renderer = LineRenderer::GetInstance()->Get2D();
 			for (size_t i = 0; i < worldCorners.size(); ++i) {
 				renderer->DrawLine(worldCorners[i], worldCorners[(i + 1) % worldCorners.size()],
-					Color4::Yellow(), 2.0f);
+					SceneViewGuideColors::Get().cameraBounds, 2.0f);
 			}
 		}
 

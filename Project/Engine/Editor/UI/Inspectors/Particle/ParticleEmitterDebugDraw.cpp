@@ -5,6 +5,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorGuideColors.h>
 #include <Engine/Core/World/Components/Physics/ParticleFieldComponents.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -37,8 +38,8 @@ void Engine::ParticleEmitterDebugDraw::DrawFieldBounds(ECSWorld& world) {
 				renderer->DrawOBB(bounds.center, bounds.halfSize, bounds.rotation, color);
 		});
 	};
-	draw.operator()<ForceFieldComponent>(Color4::FromHex(0xFFB448FF));
-	draw.operator()<VectorFieldComponent>(Color4::FromHex(0x40CFEFFF));
+	draw.operator()<ForceFieldComponent>(EditorGuideColors::Linear("Guides.force"));
+	draw.operator()<VectorFieldComponent>(EditorGuideColors::Linear("Guides.vector"));
 }
 
 void Engine::ParticleEmitterDebugDraw::Draw(const ParticleEmitterSettings& settings,
@@ -73,6 +74,7 @@ void Engine::ParticleEmitterDebugDraw::DrawBox(const ParticleEmitterSettings& se
 	if (!renderer) {
 		return;
 	}
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 	// 各辺の両端を発生時と同じ行列で変換する
 	Vector3 half = settings.box.size * 0.5f;
 	for (uint32_t i = 0; i < 8; ++i) {
@@ -83,7 +85,7 @@ void Engine::ParticleEmitterDebugDraw::DrawBox(const ParticleEmitterSettings& se
 			uint32_t j = i | bit;
 			Vector3 end((j & 1) ? half.x : -half.x, (j & 2) ? half.y : -half.y, (j & 4) ? half.z : -half.z);
 			renderer->DrawLine(center + Vector3::Transform(start, emitterMatrix),
-				center + Vector3::Transform(end, emitterMatrix), Color4::Red());
+				center + Vector3::Transform(end, emitterMatrix), color);
 		}
 	}
 }
@@ -98,7 +100,7 @@ void Engine::ParticleEmitterDebugDraw::DrawSphere(const ParticleEmitterSettings&
 	const float radius = settings.sphere.radius;
 	renderer->DrawSphere(center, Vector3::Transform({ radius, 0, 0 }, emitterMatrix),
 		Vector3::Transform({ 0, radius, 0 }, emitterMatrix), Vector3::Transform({ 0, 0, radius }, emitterMatrix),
-		Color4::Red());
+		EditorGuideColors::Linear("Guides.emitter"));
 }
 
 void Engine::ParticleEmitterDebugDraw::DrawHemisphere(const ParticleEmitterSettings& settings,
@@ -111,7 +113,7 @@ void Engine::ParticleEmitterDebugDraw::DrawHemisphere(const ParticleEmitterSetti
 	const float radius = settings.sphere.radius;
 	renderer->DrawSphere(center, Vector3::Transform({ radius, 0, 0 }, emitterMatrix),
 		Vector3::Transform({ 0, radius, 0 }, emitterMatrix), Vector3::Transform({ 0, 0, radius }, emitterMatrix),
-		Color4::Red(), 1.0f, true);
+		EditorGuideColors::Linear("Guides.emitter"), 1.0f, true);
 }
 
 void Engine::ParticleEmitterDebugDraw::DrawTorus(const ParticleEmitterSettings& settings,
@@ -122,7 +124,7 @@ void Engine::ParticleEmitterDebugDraw::DrawTorus(const ParticleEmitterSettings& 
 		return;
 	}
 	const Matrix4x4& rotationMatrix = emitterMatrix;
-	const Color4 color = Color4::Red();
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 
 	// 主円周を管の内外2本の円で表す
 	constexpr uint32_t kDivision = 24;
@@ -147,7 +149,7 @@ void Engine::ParticleEmitterDebugDraw::DrawPoint(const ParticleEmitterSettings& 
 	const Vector3& center, const Matrix4x4& emitterMatrix, bool is2D) {
 
 	const Matrix4x4& rotationMatrix = emitterMatrix;
-	const Color4 color = Color4::Red();
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 	const Vector3 direction = Vector3::NormalizeOr(settings.point.direction, Vector3(0.0f, 1.0f, 0.0f));
 
 	// 2Dはスクリーン空間の2Dレンダラーで描く
@@ -183,6 +185,7 @@ void Engine::ParticleEmitterDebugDraw::DrawCone(const ParticleEmitterSettings& s
 	}
 	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
 
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 	// 開き角に沿った上面半径で高さ1の円錐を表す
 	const float displayHeight = 1.0f;
 	const float topRadius = settings.cone.radius + std::tan(settings.cone.angle * degToRad) * displayHeight;
@@ -193,9 +196,9 @@ void Engine::ParticleEmitterDebugDraw::DrawCone(const ParticleEmitterSettings& s
 		return center + Vector3::Transform(Vector3(std::cos(angle) * radius, height, std::sin(angle) * radius), emitterMatrix);
 	};
 	for (uint32_t i = 0; i < kDivision; ++i) {
-		renderer->DrawLine(point(settings.cone.radius, 0.0f, i), point(settings.cone.radius, 0.0f, i + 1), Color4::Red());
-		renderer->DrawLine(point(topRadius, displayHeight, i), point(topRadius, displayHeight, i + 1), Color4::Red());
-		renderer->DrawLine(point(settings.cone.radius, 0.0f, i), point(topRadius, displayHeight, i), Color4::Red());
+		renderer->DrawLine(point(settings.cone.radius, 0.0f, i), point(settings.cone.radius, 0.0f, i + 1), color);
+		renderer->DrawLine(point(topRadius, displayHeight, i), point(topRadius, displayHeight, i + 1), color);
+		renderer->DrawLine(point(settings.cone.radius, 0.0f, i), point(topRadius, displayHeight, i), color);
 	}
 }
 
@@ -203,7 +206,7 @@ void Engine::ParticleEmitterDebugDraw::DrawRect(const ParticleEmitterSettings& s
 	const Vector3& center, const Matrix4x4& emitterMatrix, bool is2D) {
 
 	const Matrix4x4& rotationMatrix = emitterMatrix;
-	const Color4 color = Color4::Red();
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 
 	// 矩形の外周を線で表す
 	const Vector2 half = settings.rect.size * 0.5f;
@@ -245,7 +248,7 @@ void Engine::ParticleEmitterDebugDraw::DrawCone2D(const ParticleEmitterSettings&
 	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
 
 	const Matrix4x4& rotationMatrix = emitterMatrix;
-	const Color4 color = Color4::Red();
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 
 	// 底辺と開き角の2本の線で扇を表す
 	const float tilt = settings.cone.angle * degToRad;
@@ -294,7 +297,7 @@ void Engine::ParticleEmitterDebugDraw::DrawCircle(const ParticleEmitterSettings&
 	const ParticleEmitterCircleParams& circle = settings.circle;
 	const float span = ParticleCircleEmitterShape::GetArcSpan(circle);
 	const Matrix4x4& rotationMatrix = emitterMatrix;
-	const Color4 color = Color4::Red();
+	const Color4 color = EditorGuideColors::Linear("Guides.emitter");
 
 	// 弧の範囲だけ線を張る
 	const float startAngle = Math::WrapDegree360(circle.angleMin) * Math::radian;

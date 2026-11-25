@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/Core/EditorContext.h>
@@ -152,7 +153,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 			ALCStatusLabel(snapshot.alcUnloadStatus),
 			snapshot.lastSuccessfulBuildTime.empty() ? "なし" : snapshot.lastSuccessfulBuildTime.c_str());
 		if (!snapshot.lastFailureSummary.empty()) {
-			ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 1.0f), "直近の失敗: %s", snapshot.lastFailureSummary.c_str());
+			ImGui::TextColored(Engine::EditorPalette::Get("Panels.error"), "直近の失敗: %s", snapshot.lastFailureSummary.c_str());
 		}
 
 		if (ImGui::Button("再ビルド")) { service->RequestRebuild(); }
@@ -218,7 +219,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 			ImGui::PushID(rowID++);
 
 			const ImVec4 color = (d.severity == DiagnosticSeverity::Error)
-				? ImVec4(0.95f, 0.45f, 0.45f, 1.0f) : ImVec4(0.95f, 0.85f, 0.40f, 1.0f);
+				? Engine::EditorPalette::Get("Panels.error") : Engine::EditorPalette::Get("Panels.warning");
 
 			ImGui::TableSetColumnIndex(0);
 			ImGui::TextColored(color, "%s", ProcessKindLabel(d.processKind));
