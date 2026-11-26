@@ -159,6 +159,26 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 		report_["cameraMotionOrigins"] = nlohmann::json::object();
 	}
 
+	if (report_.contains("shadowSequence") && phase_ < phaseCount_) {
+
+		const auto& settings = report_["shadowSequence"][phase_];
+		features_->SetAllowInlineRayTracing(settings.value("enabled", true));
+		features_->SetSoftShadowSampleCount(settings.value("samples", 4u));
+		if (settings.contains("reflectionEnabled")) {
+			auto preferences = features_->GetPreferences();
+			preferences.reflectionEnabled = settings.at("reflectionEnabled").get<bool>();
+			features_->ApplyRuntimePreferences(preferences);
+		}
+	}
+	if (report_.contains("ambientOcclusionSequence")) {
+		const auto& settings = report_["ambientOcclusionSequence"][phase_];
+		auto preferences = features_->GetPreferences();
+		preferences.ambientOcclusionEnabled = settings.at("enabled").get<bool>();
+		preferences.ambientOcclusionRadius = settings.at("radius").get<float>();
+		preferences.ambientOcclusionIntensity = settings.at("intensity").get<float>();
+		preferences.ambientOcclusionQuality = settings.value("quality", 1);
+		features_->ApplyRuntimePreferences(preferences);
+	}
 	// 同じSceneで機能の切替前後を計測
 	features_->SetAllowMeshShader(sceneSequence_.empty() && !report_.contains("ambientOcclusionSequence") &&
 		!report_.contains("shadowSequence") && !report_.contains("transformSequence") &&
@@ -182,31 +202,10 @@ void Engine::EditorRenderBenchmark::BeginPhase(GraphicsCore& graphicsCore) {
 
 void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float deltaTime) {
 
-	ApplyAntialiasingCameraSettings();
-
-	if (report_.contains("shadowSequence") && phase_ < phaseCount_) {
-
-		const auto& settings = report_["shadowSequence"][phase_];
-		features_->SetAllowInlineRayTracing(settings.value("enabled", true));
-		features_->SetSoftShadowSampleCount(settings.value("samples", 4u));
-		if (settings.contains("reflectionEnabled")) {
-			if (auto* world = application_->GetActiveWorld()) {
-				world->ForEach<PerspectiveCameraComponent>([&](Entity, PerspectiveCameraComponent& camera) {
-					camera.common.reflectionEnabled = settings.at("reflectionEnabled").get<bool>();
-				});
-			}
-		}
-	}
-	// 保存済みSceneを変えず実行中のCameraだけを変更する
+	// 実行中の描画設定だけを変更する
 	if (report_.contains("ambientOcclusionSequence") && phase_ < phaseCount_) {
 		if (auto* world = application_->GetActiveWorld()) {
 			const auto& settings = report_["ambientOcclusionSequence"][phase_];
-			world->ForEach<PerspectiveCameraComponent>([&](Entity, PerspectiveCameraComponent& camera) {
-				camera.common.ambientOcclusionEnabled = settings.at("enabled").get<bool>();
-				camera.common.ambientOcclusionRadius = settings.at("radius").get<float>();
-				camera.common.ambientOcclusionIntensity = settings.at("intensity").get<float>();
-				camera.common.ambientOcclusionQuality = settings.value("quality", 1);
-			});
 			// 環境光だけの比較も隔離したWorldで行う
 			if (settings.contains("iblIntensity")) {
 				world->ForEach<SkyboxRendererComponent>([&](Entity, SkyboxRendererComponent& skybox) {

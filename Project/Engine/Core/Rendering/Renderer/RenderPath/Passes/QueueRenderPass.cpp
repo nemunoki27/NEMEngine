@@ -66,6 +66,7 @@ void Engine::QueueRenderPass::Execute(
 		if (snapshot) context.bufferRegistry.Register({.alias = "gParticleSceneDepth", .resource = snapshot->GetResource(),
 			.srvGPUHandle = snapshot->GetSRVGPUHandle()});
 	}
+	ScopedValue countVertices(context.countDrawVertices, true);
 	if (itemScratch_.size() != items.items.size() || !desc_.usePhaseExecution) {
 
 		RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps_,

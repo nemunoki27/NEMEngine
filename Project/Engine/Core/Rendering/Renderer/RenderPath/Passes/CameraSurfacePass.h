@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeaturePass.h"
+#include <Engine/Core/Rendering/Core/SurfaceLightingSettings.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
@@ -39,7 +40,8 @@ namespace Engine {
 		struct State {
 
 			RenderFeatureProfileRuntime runtime{};
-			CameraCommon settings{};
+			SurfaceLightingSettings settings{};
+			uint32_t cullingMask = UINT32_MAX;
 			Matrix4x4 projectionMatrix = Matrix4x4::Identity();
 			uint64_t generation = 0;
 			bool opaqueGeometryAllowed = false;

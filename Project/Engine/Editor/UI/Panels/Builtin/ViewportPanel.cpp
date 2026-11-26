@@ -22,11 +22,75 @@
 // c++
 #include <algorithm>
 #include <optional>
+#include <imgui_internal.h>
 
 //============================================================================
 //	ViewportPanel classMethods
 //============================================================================
 namespace {
+
+	bool UpdateRegionPick(const Engine::EditorPanelContext& context, ImVec2 origin, ImVec2 size,
+		bool hovered, bool blocked) {
+
+		auto& state = *context.editorState;
+		auto& region = state.regionPick;
+		const ImGuiID id = ImGui::GetID("##SceneRegionPick");
+		auto* world = context.GetWorld();
+		const bool enabled = world && state.enableScenePick && !state.sceneCameraNavigating &&
+			state.selectKind == Engine::EditorSelectionKind::Entity;
+		if (!enabled || (region.pressed && (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
+			region.world.lock() != world->GetLifetime()))) {
+			if (region.pressed) {
+				if (ImGui::GetActiveID() == id) ImGui::ClearActiveID();
+				state.scenePickPressActive = false;
+				state.scenePickClickPending = false;
+			}
+			region.pressed = false;
+			return false;
+		}
+		const ImVec2 mouse = ImGui::GetMousePos();
+		const Engine::Vector2 uv(std::clamp((mouse.x - origin.x) / size.x, 0.0f, 1.0f),
+			std::clamp((mouse.y - origin.y) / size.y, 0.0f, 1.0f));
+		// Spaceドラッグは他パネルへの参照渡し、Altはカメラ操作へ渡す
+		if (hovered && !blocked && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+			!ImGui::GetIO().KeyAlt && !ImGui::IsKeyDown(ImGuiKey_Space)) {
+			// Imageの余白をドラッグしてもフローティングパネル自体を移動しない
+			ImGui::FocusWindow(ImGui::GetCurrentWindow());
+			ImGui::SetActiveID(id, ImGui::GetCurrentWindow());
+			region.pressed = true;
+			region.world = world->GetLifetime();
+			region.start = uv;
+		}
+		if (!region.pressed) return false;
+		ImGui::KeepAliveID(id);
+
+		region.end = uv;
+		const bool dragging = ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left);
+		if (dragging) {
+			const ImVec2 lo(origin.x + (std::min)(region.start.x, uv.x) * size.x,
+				origin.y + (std::min)(region.start.y, uv.y) * size.y);
+			const ImVec2 hi(origin.x + (std::max)(region.start.x, uv.x) * size.x,
+				origin.y + (std::max)(region.start.y, uv.y) * size.y);
+			auto* drawList = ImGui::GetWindowDrawList();
+			drawList->AddRectFilled(lo, hi, ImGui::GetColorU32(ImGuiCol_TextSelectedBg));
+			drawList->AddRect(lo, hi, ImGui::GetColorU32(ImGuiCol_NavCursor));
+		}
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+			region.pressed = false;
+			if (dragging) {
+				region.additive = ImGui::GetIO().KeyShift;
+				region.toggle = ImGui::GetIO().KeyCtrl;
+				region.queued = true;
+				++state.scenePickRequestID;
+				state.scenePickPressActive = false;
+				state.scenePickClickPending = false;
+			}
+		} else if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+			region.pressed = false;
+		}
+		if (!region.pressed && ImGui::GetActiveID() == id) ImGui::ClearActiveID();
+		return true;
+	}
 
 	// 選択Entityを他のPanelへ渡す
 	void DrawViewportEntityDragDropSource(const Engine::EditorPanelContext& context, bool blockByGizmo) {
@@ -130,6 +194,7 @@ void Engine::ViewportPanel::UpdateVisibility(const EditorPanelContext& context, 
 		context.editorState->sceneOrientationHovered = false;
 		context.editorState->sceneOrientationActive = false;
 		if (!visible) {
+			context.editorState->regionPick.pressed = false;
 			context.editorState->useSceneGizmo = false;
 			context.editorState->sceneOrientationMin = context.editorState->sceneOrientationMax = {};
 		}
@@ -248,7 +313,9 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		const bool objectEditing = gizmoSession_.IsActive() || splineGizmo_.IsActive();
 		const bool blockOrientation = (overOrientation || orientationGizmo_.IsActive()) && !objectEditing &&
 			!context.editorState->sceneCameraNavigating;
-		const bool imageHovered = ImGui::IsItemHovered() && !blockOrientation;
+		const ImGuiHoveredFlags imageHoverFlags = kind_ == ViewportPanelKind::Scene && context.editorState->regionPick.pressed
+			? ImGuiHoveredFlags_AllowWhenBlockedByActiveItem : ImGuiHoveredFlags_None;
+		const bool imageHovered = ImGui::IsItemHovered(imageHoverFlags) && !blockOrientation;
 		if (kind_ == ViewportPanelKind::Scene) {
 			context.editorState->sceneOrientationHovered = overOrientation && !objectEditing;
 			context.editorState->sceneOrientationActive = orientationGizmo_.IsActive();
@@ -296,7 +363,9 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
-		DrawViewportEntityDragDropSource(context, blockDragByGizmo || blockOrientation);
+		const bool regionGesture = kind_ == ViewportPanelKind::Scene &&
+			UpdateRegionPick(context, imagePos, viewSize_, imageHovered, blockDragByGizmo || blockOrientation);
+		DrawViewportEntityDragDropSource(context, regionGesture || blockDragByGizmo || blockOrientation);
 		if (kind_ == ViewportPanelKind::Scene && context.editorState) {
 			if (const auto command = orientationGizmo_.Draw(context, orientation, !objectEditing)) {
 				context.host->RequestSceneViewOrientation(*command);

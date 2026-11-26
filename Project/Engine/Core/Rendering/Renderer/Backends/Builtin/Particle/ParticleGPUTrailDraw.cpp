@@ -1,4 +1,5 @@
 #include "ParticleRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -71,4 +72,7 @@ void ParticleRenderBackend::DrawGPUTrails(const RenderDrawContext& context, cons
 	// 粒子本体とは別の寿命と描画個数を使う
 	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	gpuService_.DrawTrails(graphics, data);
+	if (context.vertexCounter) {
+		context.vertexCounter->AddIndirect(commands, data.trailArguments, offsetof(D3D12_DRAW_ARGUMENTS, InstanceCount), 4);
+	}
 }

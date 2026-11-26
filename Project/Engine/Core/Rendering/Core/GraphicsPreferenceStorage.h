@@ -12,7 +12,7 @@ namespace Engine::GraphicsPreferenceStorage {
 	void Load(GraphicsFeaturePreferences& preferences);
 	// 現在の設定を保存する
 	void Save(const GraphicsFeaturePreferences& preferences);
-	bool SaveDynamicGI(const GraphicsFeaturePreferences& preferences);
+	bool SaveProjectLighting(const GraphicsFeaturePreferences& preferences);
 	// 保存済みの廃止設定を現在の形式へ移行する
 	bool Migrate(nlohmann::json& data);
 	// 設定文書と実行用の値を相互変換する

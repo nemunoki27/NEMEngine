@@ -34,8 +34,7 @@ namespace Engine {
 		void ApplyRuntimePreferences(const GraphicsFeaturePreferences& preferences);
 		void SetRuntimeOverrideActive(bool active) { runtimeOverrideActive_ = active; }
 		void SetAllowInlineRayTracing(bool enabled);
-		void SetDynamicGI(bool enabled, DynamicGIQuality quality, DynamicGIDebug debug);
-		void SetAllowDispatchRays(bool enabled);
+		void SetProjectLighting(const GraphicsFeaturePreferences& updated);
 		void SetAllowRaytracingDownsampling(bool enabled);
 		void SetSoftShadowSampleCount(uint32_t count);
 		// 描画カリング機能を個別に切り替える

@@ -3,7 +3,7 @@
 //============================================================================
 //	CameraAmbientOcclusionPipeline functions
 //============================================================================
-Engine::RenderFeatureProfileAsset Engine::BuildCameraAmbientOcclusionProfile(const CameraCommon& settings, bool opaqueGeometryAllowed) {
+Engine::RenderFeatureProfileAsset Engine::BuildCameraAmbientOcclusionProfile(const SurfaceLightingSettings& settings, bool opaqueGeometryAllowed, uint32_t cullingMask) {
 
 	RenderFeatureProfileAsset profile{};
 	const float scale = settings.ambientOcclusionQuality == 2 ? 1.0f : 0.5f;
@@ -19,7 +19,7 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraAmbientOcclusionProfile(con
 	trace.outputs.push_back({.name = "Raw", .shaderResource = "gDestColor",
 		.format = RenderFeatureTextureFormat::R16_FLOAT, .widthScale = scale, .heightScale = scale});
 	trace.parameterOverrides.Set("opaqueGeometryAllowed", MaterialParameterValue{.value = uint32_t(opaqueGeometryAllowed)});
-	trace.parameterOverrides.Set("cullingMask", MaterialParameterValue{.value = static_cast<uint32_t>(settings.cullingMask) & 0x00ffffffu});
+	trace.parameterOverrides.Set("cullingMask", MaterialParameterValue{.value = cullingMask & 0x00ffffffu});
 	trace.parameterOverrides.Set("radius", MaterialParameterValue{.value = settings.ambientOcclusionRadius});
 	trace.parameterOverrides.Set("sampleCount", MaterialParameterValue{.value =
 		settings.ambientOcclusionQuality == 0 ? 2u : settings.ambientOcclusionQuality == 2 ? 8u : 4u});

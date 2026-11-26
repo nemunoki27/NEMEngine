@@ -9,6 +9,11 @@
       "passKind": "Draw",
       "pipeline": "4e454d41535345543309336c2fa4669c",
       "preferredVariant": "GraphicsVertex"
+    },
+    {
+      "passKind": "EditorPicking",
+      "pipeline": "33c93074be5d456a9b2ab0593cb8e2f7",
+      "preferredVariant": "GraphicsVertex"
     }
   ]
 }

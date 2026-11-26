@@ -89,6 +89,18 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 		mesh.subMeshes.back().boundsRadius = mesh.boundsRadius;
 	}
 
+	if (mesh.subMeshes.size() == 1) {
+		mesh.subMeshes.front().vertexCount = mesh.vertexCount;
+	} else if (std::any_of(mesh.subMeshes.begin(), mesh.subMeshes.end(), [](const SubMeshDesc& subMesh) {
+		return subMesh.vertexCount == 0;
+	})) {
+		// 製品パックでは頂点の所属情報から復元する
+		for (auto& subMesh : mesh.subMeshes) subMesh.vertexCount = 0;
+		for (uint32_t index : imported.vertexSubMeshIndices) {
+			if (index < mesh.subMeshes.size()) ++mesh.subMeshes[index].vertexCount;
+		}
+	}
+
 	// サブメッシュのテクスチャアセットIDを解決
 	ResolveSubMeshDefaultTextureAssets(*assetDatabase, mesh);
 

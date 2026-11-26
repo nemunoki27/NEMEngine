@@ -8,48 +8,62 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
+#include <unordered_set>
+
 //============================================================================
 //	MeshSubMeshPicker classMethods
 //============================================================================
+namespace {
+
+	void CreatePickTarget(Engine::GraphicsCore& graphicsCore, Engine::MultiRenderTarget& target, uint32_t width, uint32_t height) {
+
+		using namespace Engine;
+		MultiRenderTargetCreateDesc desc{};
+		desc.width = width;
+		desc.height = height;
+		desc.colors.emplace_back(ColorAttachmentDesc{
+			.name = "MeshPickingID",
+			.format = DXGI_FORMAT_R32G32B32A32_UINT,
+			.clearColor = Color4(0, 0, 0, 0),
+			.createUAV = false,
+			});
+
+		DepthTextureCreateDesc depth{};
+		depth.width = width;
+		depth.height = height;
+		depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
+		depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		depth.debugName = L"MeshPickingDepth";
+		desc.depth = depth;
+
+		target.Create(graphicsCore.GetDXObject().GetDevice(),
+			&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
+			&graphicsCore.GetSRVDescriptor(), desc);
+	}
+}
+
 void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 
 	if (initialized_) {
 		return;
 	}
 
-	MultiRenderTargetCreateDesc desc{};
-	desc.width = 1;
-	desc.height = 1;
-	desc.colors.emplace_back(ColorAttachmentDesc{
-		.name = "MeshPickingID",
-		.format = DXGI_FORMAT_R32G32B32A32_UINT,
-		.clearColor = Color4::Black(),
-		.createUAV = false,
-		});
-
-	DepthTextureCreateDesc depth{};
-	depth.width = 1;
-	depth.height = 1;
-	depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
-	depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	depth.debugName = L"MeshPickingDepth";
-	desc.depth = depth;
-
-	renderTarget_.Create(graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(), desc);
+	CreatePickTarget(graphicsCore, renderTarget_, 1, 1);
 	readbackSlots_.Connect(graphicsCore.GetDXObject().GetResourceRetirement());
-	for (uint32_t index = 0; index < GraphicsFrameState::GetActiveCount(); ++index) {
-		auto& slot = readbackSlots_[index];
-		slot.buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(),
-			graphicsCore.GetDXObject().GetDevice());
-		slot.requestID = 0;
-		slot.fenceValue = 0;
-		slot.pending = false;
-	}
 
 	initialized_ = true;
+}
+
+Engine::MultiRenderTarget* Engine::MeshSubMeshPicker::GetRegionTarget(
+	GraphicsCore& graphicsCore, uint32_t width, uint32_t height) {
+
+	if (!initialized_ || !width || !height) return nullptr;
+	auto& slot = readbackSlots_[graphicsCore.GetDXObject().GetDxCommand()->GetCurrentFrameIndex()];
+	if (slot.pending) return nullptr;
+	slot.regionTarget = std::make_unique<MultiRenderTarget>();
+	CreatePickTarget(graphicsCore, *slot.regionTarget, width, height);
+	return slot.regionTarget.get();
 }
 
 void Engine::MeshSubMeshPicker::Finalize() {
@@ -59,6 +73,8 @@ void Engine::MeshSubMeshPicker::Finalize() {
 		slot.requestID = 0;
 		slot.fenceValue = 0;
 		slot.pending = false;
+		slot.regionTarget.reset();
+		slot.regionBuffer.reset();
 	}
 	initialized_ = false;
 }
@@ -77,20 +93,31 @@ Engine::MeshSubMeshPicker::ConsumePendingResult(
 			continue;
 		}
 		slot.pending = false;
-		if (outcome.resolved &&
-			slot.requestID < outcome.requestID) {
-			continue;
-		}
+		slot.regionTarget.reset();
+		auto regionBuffer = std::move(slot.regionBuffer);
+		if (outcome.resolved && slot.requestID < outcome.requestID) continue;
 
 		outcome = {};
 		outcome.resolved = true;
 		outcome.requestID = slot.requestID;
-		if (!world) {
+		outcome.region = slot.region;
+		if (!world) continue;
+
+		if (slot.region) {
+			std::unordered_set<uint32_t> seen;
+			for (uint32_t y = 0; y < slot.height; ++y) {
+				for (uint32_t x = 0; x < slot.width; ++x) {
+					const auto& pixel = regionBuffer->GetReadbackData(static_cast<size_t>(y) * slot.rowLength + x);
+					const Entity entity{pixel.entityIndex, pixel.entityGeneration};
+					if (pixel.valid && !seen.contains(entity.index) && world->IsAlive(entity)) {
+						seen.insert(entity.index);
+						outcome.entities.push_back(entity);
+					}
+				}
+			}
 			continue;
 		}
-
-		const PickResult& result =
-			slot.buffer.GetReadbackData().result;
+		const PickResult& result = slot.clickBuffer.GetReadbackData();
 		if (result.valid == 0 ||
 			result.entityIndex == UINT32_MAX ||
 			result.entityGeneration == UINT32_MAX) {
@@ -117,13 +144,13 @@ Engine::MeshSubMeshPicker::ConsumePendingResult(
 }
 
 bool Engine::MeshSubMeshPicker::ExecuteReadback(
-	GraphicsCore& graphicsCore, uint64_t requestID) {
+	GraphicsCore& graphicsCore, uint64_t requestID, MultiRenderTarget& target, bool region) {
 
-	if (!initialized_ || !renderTarget_.IsValid() || requestID == 0) {
+	if (!initialized_ || !target.IsValid() || requestID == 0) {
 		return false;
 	}
 
-	RenderTexture2D* sourceTexture = renderTarget_.GetColorTexture(0);
+	RenderTexture2D* sourceTexture = target.GetColorTexture(0);
 	if (!sourceTexture || !sourceTexture->GetResource()) {
 		return false;
 	}
@@ -135,22 +162,30 @@ bool Engine::MeshSubMeshPicker::ExecuteReadback(
 	if (slot.pending) {
 		return false;
 	}
-	if (!slot.buffer.GetResource()) {
-		slot.buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
+	slot.width = target.GetWidth();
+	slot.height = target.GetHeight();
+	slot.region = region;
+	const uint32_t rowPitch = (static_cast<uint32_t>(sizeof(PickResult)) * slot.width +
+		D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1);
+	slot.rowLength = rowPitch / sizeof(PickResult);
+	if (region) slot.regionBuffer = std::make_unique<DxReadbackBuffer<PickResult>>();
+	auto& buffer = region ? *slot.regionBuffer : slot.clickBuffer;
+	if (!buffer.GetResource()) {
+		buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), static_cast<size_t>(slot.rowLength) * slot.height);
 	}
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	sourceTexture->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	D3D12_TEXTURE_COPY_LOCATION destination{};
-	destination.pResource = slot.buffer.GetResource();
+	destination.pResource = buffer.GetResource();
 	destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	destination.PlacedFootprint.Footprint.Format =
 		DXGI_FORMAT_R32G32B32A32_UINT;
-	destination.PlacedFootprint.Footprint.Width = 1;
-	destination.PlacedFootprint.Footprint.Height = 1;
+	destination.PlacedFootprint.Footprint.Width = slot.width;
+	destination.PlacedFootprint.Footprint.Height = slot.height;
 	destination.PlacedFootprint.Footprint.Depth = 1;
-	destination.PlacedFootprint.Footprint.RowPitch =
-		D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+	destination.PlacedFootprint.Footprint.RowPitch = rowPitch;
 
 	D3D12_TEXTURE_COPY_LOCATION source{};
 	source.pResource = sourceTexture->GetResource();

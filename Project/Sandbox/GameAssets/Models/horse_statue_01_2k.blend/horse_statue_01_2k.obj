@@ -1,6 +1,6 @@
 # Blender 5.1.2
 # www.blender.org
-mtllib _resources/0/horse_statue_01_2k.mtl
+mtllib horse_statue_01_2k_imported.mtl
 o horse_statue_01
 v -0.005692 0.024848 -0.018044
 v -0.006708 0.024449 -0.020703

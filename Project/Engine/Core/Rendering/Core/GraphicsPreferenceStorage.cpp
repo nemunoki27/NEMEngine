@@ -16,6 +16,13 @@
 
 namespace {
 
+	constexpr const char* kProjectLightingKeys[] = {
+		"dynamicGI", "dynamicGIQuality", "dynamicGIDebug", "allowDispatchRays",
+		"reflectionQuality", "reflectionIntensity", "reflectionMaxDistance", "reflectionParameters", "ambientOcclusionEnabled",
+		"ambientOcclusionQuality", "ambientOcclusionRadius", "ambientOcclusionIntensity",
+		"indirectIntensity", "emissiveContribution", "giUpdateSpeed"
+	};
+
 	constexpr const char* kGraphicsFeatureConfigPath = Engine::ConfigPaths::kGraphicsFeatureSettings;
 
 	bool ReadBoolSetting(const nlohmann::json& data, const char* key,
@@ -46,6 +53,15 @@ namespace {
 		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
 			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
 		return fallback;
+	}
+
+	int32_t ReadQualitySetting(const nlohmann::json& data, const char* key, int32_t fallback) {
+
+		const auto found = data.find(key);
+		if (found == data.end() || !found->is_number_integer()) return fallback;
+		if (*found < 0) return 0;
+		if (*found > 2) return 2;
+		return found->get<int32_t>();
 	}
 
 	float ReadFloatSetting(const nlohmann::json& data, const char* key,
@@ -99,7 +115,9 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 	}
 
 	const bool changed = Migrate(data);
-	Read(data, preferences);
+	auto user = data;
+	for (const auto* key : kProjectLightingKeys) user.erase(key);
+	Read(user, preferences);
 	if (changed) {
 		JsonAdapter::Save(path, data);
 	}
@@ -136,6 +154,17 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 		ReadFloatSetting(data, "fxaaSubpixelStrength", preferences.fxaa.subpixelStrength), 0.0f, 1.0f);
 	preferences.fxaaSettingsMigrated = ReadBoolSetting(data, "fxaaSettingsMigrated", preferences.fxaaSettingsMigrated);
 
+	preferences.reflectionIntensity = std::clamp(ReadFloatSetting(data, "reflectionIntensity", preferences.reflectionIntensity), 0.0f, 65504.0f);
+	preferences.reflectionMaxDistance = std::clamp(ReadFloatSetting(data, "reflectionMaxDistance", preferences.reflectionMaxDistance), 0.01f, 100000.0f);
+	preferences.ambientOcclusionRadius = std::clamp(ReadFloatSetting(data, "ambientOcclusionRadius", preferences.ambientOcclusionRadius), 0.001f, 1000.0f);
+	preferences.ambientOcclusionIntensity = std::clamp(ReadFloatSetting(data, "ambientOcclusionIntensity", preferences.ambientOcclusionIntensity), 0.0f, 65504.0f);
+	preferences.indirectIntensity = std::clamp(ReadFloatSetting(data, "indirectIntensity", preferences.indirectIntensity), 0.0f, 65504.0f);
+	preferences.emissiveContribution = std::clamp(ReadFloatSetting(data, "emissiveContribution", preferences.emissiveContribution), 0.0f, 65504.0f);
+	preferences.giUpdateSpeed = static_cast<uint32_t>(ReadQualitySetting(data, "giUpdateSpeed", static_cast<int32_t>(preferences.giUpdateSpeed)));
+	preferences.reflectionQuality = ReadQualitySetting(data, "reflectionQuality", preferences.reflectionQuality);
+	preferences.ambientOcclusionQuality = ReadQualitySetting(data, "ambientOcclusionQuality", preferences.ambientOcclusionQuality);
+	preferences.ambientOcclusionEnabled = ReadBoolSetting(data, "ambientOcclusionEnabled", preferences.ambientOcclusionEnabled);
+	if (auto it = data.find("reflectionParameters"); it != data.end() && it->is_object()) preferences.reflectionParameters = *it;
 	preferences.dynamicGI = ReadBoolSetting(data, "dynamicGI", preferences.dynamicGI);
 	preferences.dynamicGIQuality = EnumAdapter<DynamicGIQuality>::FromString(
 		ReadStringSetting(data, "dynamicGIQuality", EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality)))
@@ -147,8 +176,8 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 		"allowMeshShader", preferences.allowMeshShader);
 	preferences.allowInlineRayTracing = ReadBoolSetting(data,
 		"allowInlineRayTracing", preferences.allowInlineRayTracing);
-	preferences.allowDispatchRays = ReadBoolSetting(data,
-		"allowDispatchRays", preferences.allowDispatchRays);
+	preferences.reflectionEnabled = ReadBoolSetting(data,
+		"allowDispatchRays", preferences.reflectionEnabled);
 	preferences.allowRaytracingDownsampling = ReadBoolSetting(data,
 		"allowRaytracingDownsampling",
 		preferences.allowRaytracingDownsampling);
@@ -171,31 +200,27 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 	preferences.frameContextCount = std::clamp(savedFrameCount, 1u, 2u);
 	preferences.displayOutput.mode =
 		EnumAdapter<DisplayOutputMode>::FromString(
-			ReadStringSetting(data, "displayOutputMode", "SDR"))
+			ReadStringSetting(data, "displayOutputMode", EnumAdapter<DisplayOutputMode>::ToString(preferences.displayOutput.mode)))
 		.value_or(DisplayOutputMode::SDR);
 	preferences.displayOutput.paperWhiteNits = std::clamp(
-		ReadFloatSetting(data, "paperWhiteNits", 200.0f), 80.0f, 1000.0f);
+		ReadFloatSetting(data, "paperWhiteNits", preferences.displayOutput.paperWhiteNits), 80.0f, 1000.0f);
 	preferences.displayOutput.maxLuminanceNits = std::clamp(
-		ReadFloatSetting(data, "maxLuminanceNits", 1000.0f),
+		ReadFloatSetting(data, "maxLuminanceNits", preferences.displayOutput.maxLuminanceNits),
 		preferences.displayOutput.paperWhiteNits, 10000.0f);
 }
 
 void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& preferences) {
 
 	auto values = Write(preferences);
-	values.erase("dynamicGI");
-	values.erase("dynamicGIQuality");
-	values.erase("dynamicGIDebug");
+	for (const auto* key : kProjectLightingKeys) values.erase(key);
 	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), values);
 }
 
-bool Engine::GraphicsPreferenceStorage::SaveDynamicGI(const GraphicsFeaturePreferences& preferences) {
+bool Engine::GraphicsPreferenceStorage::SaveProjectLighting(const GraphicsFeaturePreferences& preferences) {
 
-	const nlohmann::json settings = {
-		{"dynamicGI", preferences.dynamicGI},
-		{"dynamicGIQuality", EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality)},
-		{"dynamicGIDebug", EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug)}
-	};
+	const auto values = Write(preferences);
+	nlohmann::json settings;
+	for (const auto* key : kProjectLightingKeys) settings[key] = values.at(key);
 	return JsonFile::SaveCanonical(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGlobalIllumination), settings, 2);
 }
 
@@ -208,12 +233,23 @@ nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePre
 	data["fxaaMinimumThreshold"] = preferences.fxaa.minimumThreshold;
 	data["fxaaSubpixelStrength"] = preferences.fxaa.subpixelStrength;
 	data["fxaaSettingsMigrated"] = preferences.fxaaSettingsMigrated;
+	data["reflectionQuality"] = preferences.reflectionQuality;
+	data["reflectionIntensity"] = preferences.reflectionIntensity;
+	data["reflectionMaxDistance"] = preferences.reflectionMaxDistance;
+	data["reflectionParameters"] = preferences.reflectionParameters;
+	data["ambientOcclusionEnabled"] = preferences.ambientOcclusionEnabled;
+	data["ambientOcclusionQuality"] = preferences.ambientOcclusionQuality;
+	data["ambientOcclusionRadius"] = preferences.ambientOcclusionRadius;
+	data["ambientOcclusionIntensity"] = preferences.ambientOcclusionIntensity;
+	data["indirectIntensity"] = preferences.indirectIntensity;
+	data["emissiveContribution"] = preferences.emissiveContribution;
+	data["giUpdateSpeed"] = preferences.giUpdateSpeed;
 	data["dynamicGI"] = preferences.dynamicGI;
 	data["dynamicGIQuality"] = EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality);
 	data["dynamicGIDebug"] = EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug);
 	data["allowMeshShader"] = preferences.allowMeshShader;
 	data["allowInlineRayTracing"] = preferences.allowInlineRayTracing;
-	data["allowDispatchRays"] = preferences.allowDispatchRays;
+	data["allowDispatchRays"] = preferences.reflectionEnabled;
 	data["allowRaytracingDownsampling"] =
 		preferences.allowRaytracingDownsampling;
 	data["softShadowSampleCount"] =

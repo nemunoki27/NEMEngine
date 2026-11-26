@@ -6366,285 +6366,285 @@
     "buffers": [
         {
             "byteLength": 9528220,
-            "uri": "_resources/0/Sponza.bin"
+            "uri": "Sponza_geometry.bin"
         }
     ],
     "images": [
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/8773302468495022225.jpg"
+            "uri": "Textures/8773302468495022225.jpg"
         },
         {
             "mimeType": "image/png",
-            "uri": "_resources/0/5061699253647017043.png"
+            "uri": "Textures/5061699253647017043.png"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/11872827283454512094.jpg"
+            "uri": "Textures/11872827283454512094.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/12501374198249454378.jpg"
-        },
-        {
-            "mimeType": "image/png",
-            "uri": "_resources/0/8006627369776289000.png"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/715093869573992647.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4477655471536070370.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/7268504077753552595.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/8503262930880235456.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/13982482287905699490.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/8750083169368950601.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/16885566240357350108.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/16299174074766089871.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/5792855332885324923.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/11968150294050148237.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/2051777328469649772.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/14650633544276105767.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4871783166746854860.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/10388182081421875623.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/15295713303328085182.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/9916269861720640319.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/15722799267630235092.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/6047387724914829168.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/8051790464816141987.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/14267839433702832875.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/5823059166183034438.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/13824894030729245199.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/6667038893015345571.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/7441062115984513793.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/8114461559286000061.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/3628158980083700836.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/11490520546946913238.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/3455394979645218238.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/7645212358685992005.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/6151467286084645207.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/8783994986360286082.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/2299742237651021498.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4975155472559461469.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/3371964815757888145.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/7056944414013900257.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4675343432951571524.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/7815564343179553343.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/2374361008830720677.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/2775690330959970771.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/332936164838540657.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/2185409758123873465.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/6593109234861095314.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/17876391417123941155.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/466164707995436622.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4601176305987539675.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/11474523244911310074.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/4910669866631290573.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/9288698199695299068.jpg"
-        },
-        {
-            "mimeType": "image/jpeg",
-            "uri": "_resources/0/14170708867020035030.jpg"
+            "uri": "Textures/12501374198249454378.jpg"
         },
         {
             "mimeType": "image/png",
-            "uri": "_resources/0/16275776544635328252.png"
+            "uri": "Textures/8006627369776289000.png"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/1219024358953944284.jpg"
+            "uri": "Textures/715093869573992647.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/3827035219084910048.jpg"
+            "uri": "Textures/4477655471536070370.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/755318871556304029.jpg"
+            "uri": "Textures/7268504077753552595.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/2411100444841994089.jpg"
+            "uri": "Textures/8503262930880235456.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/10381718147657362067.jpg"
+            "uri": "Textures/13982482287905699490.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/8481240838833932244.jpg"
+            "uri": "Textures/8750083169368950601.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/17556969131407844942.jpg"
+            "uri": "Textures/16885566240357350108.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/759203620573749278.jpg"
+            "uri": "Textures/16299174074766089871.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/6772804448157695701.jpg"
+            "uri": "Textures/5792855332885324923.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/13196865903111448057.jpg"
+            "uri": "Textures/11968150294050148237.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/14118779221266351425.jpg"
+            "uri": "Textures/2051777328469649772.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/2969916736137545357.jpg"
+            "uri": "Textures/14650633544276105767.jpg"
         },
         {
             "mimeType": "image/jpeg",
-            "uri": "_resources/0/8747919177698443163.jpg"
+            "uri": "Textures/4871783166746854860.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/10388182081421875623.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/15295713303328085182.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/9916269861720640319.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/15722799267630235092.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/6047387724914829168.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/8051790464816141987.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/14267839433702832875.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/5823059166183034438.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/13824894030729245199.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/6667038893015345571.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/7441062115984513793.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/8114461559286000061.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/3628158980083700836.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/11490520546946913238.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/3455394979645218238.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/7645212358685992005.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/6151467286084645207.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/8783994986360286082.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2299742237651021498.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/4975155472559461469.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/3371964815757888145.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/7056944414013900257.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/4675343432951571524.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/7815564343179553343.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2374361008830720677.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2775690330959970771.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/332936164838540657.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2185409758123873465.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/6593109234861095314.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/17876391417123941155.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/466164707995436622.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/4601176305987539675.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/11474523244911310074.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/4910669866631290573.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/9288698199695299068.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/14170708867020035030.jpg"
         },
         {
             "mimeType": "image/png",
-            "uri": "_resources/0/white.png"
+            "uri": "Textures/16275776544635328252.png"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/1219024358953944284.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/3827035219084910048.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/755318871556304029.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2411100444841994089.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/10381718147657362067.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/8481240838833932244.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/17556969131407844942.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/759203620573749278.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/6772804448157695701.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/13196865903111448057.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/14118779221266351425.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/2969916736137545357.jpg"
+        },
+        {
+            "mimeType": "image/jpeg",
+            "uri": "Textures/8747919177698443163.jpg"
+        },
+        {
+            "mimeType": "image/png",
+            "uri": "Textures/white.png"
         }
     ],
     "materials": [

@@ -3,34 +3,47 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/CameraSurfacePipeline.h>
+#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
 // c++
 #include <algorithm>
-#include <array>
+#include <variant>
 
 namespace {
 
-	void Accumulate(Engine::ValueEditResult& result, const Engine::ValueEditResult& field) {
+	Engine::ValueEditResult ItemEdit(bool changed) {
 
-		result.valueChanged |= field.valueChanged;
-		result.anyItemActive |= field.anyItemActive;
-		result.editFinished |= field.editFinished;
-	}
-
-	void AccumulateCheckbox(Engine::ValueEditResult& result, const char* label, bool& value) {
-
-		const bool changed = Engine::MyGUI::Checkbox(label, value);
-		result.valueChanged |= changed;
-		result.editFinished |= changed;
+		return { changed, ImGui::IsItemActive(), ImGui::IsItemDeactivatedAfterEdit() };
 	}
 
 	Engine::ValueEditResult DrawQuality(int32_t& quality) {
 
-		const std::array<std::string, 3> labels{ "低", "標準", "高" };
-		std::string selected = labels[static_cast<size_t>(std::clamp(quality, 0, 2))];
-		const auto result = Engine::MyGUI::StringCombo("品質", selected, labels);
-		if (result.valueChanged) quality = static_cast<int32_t>(std::find(labels.begin(), labels.end(), selected) - labels.begin());
+		return ItemEdit(ImGui::Combo("品質", &quality, "軽量\0標準\0高品質\0"));
+	}
+
+	Engine::ValueEditResult DrawPassParameters(Engine::MaterialInstanceParameters& overrides,
+		const Engine::MaterialParameterSet& defaults) {
+
+		Engine::ValueEditResult result{};
+		for (const auto& record : defaults.GetRecords()) {
+			const auto& [name, parameter] = record.namedValue;
+			const auto* fallback = std::get_if<float>(&parameter.value);
+			if (!fallback) continue;
+			const auto* stored = overrides.Find(record.id);
+			const auto* scalar = stored ? std::get_if<float>(&stored->value) : nullptr;
+			float value = scalar ? *scalar : *fallback;
+			const auto edit = ItemEdit(ImGui::DragFloat(name.c_str(), &value, 0.01f));
+			if (edit.valueChanged) overrides.Set(record.id, name, record.semantic, Engine::MaterialParameterValue{ .value = value });
+			result.Merge(edit);
+			if (ImGui::BeginPopupContextItem()) {
+				Engine::MaterialParameterEditor::DrawParameterCopyMenu(record.id, name);
+				ImGui::EndPopup();
+			}
+		}
 		return result;
 	}
 }
@@ -38,46 +51,57 @@ namespace {
 //============================================================================
 //	CameraSurfaceSettingsEditor classMethods
 //============================================================================
-Engine::ValueEditResult Engine::CameraSurfaceSettingsEditor::DrawReflection(CameraCommon& settings) {
+Engine::ValueEditResult Engine::CameraSurfaceSettingsEditor::DrawReflection(SurfaceLightingSettings& settings, RenderAssetLibrary* library) {
 
 	ValueEditResult result{};
-	AccumulateCheckbox(result, "反射を使用", settings.reflectionEnabled);
-	Accumulate(result, MyGUI::DragFloat("反射強度", settings.reflectionIntensity,
-		{ .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("最大距離", settings.reflectionMaxDistance,
-		{ .dragSpeed = 0.1f, .minValue = 0.01f, .maxValue = 100000.0f }));
-	Accumulate(result, DrawQuality(settings.reflectionQuality));
-	// 保存済みの調整値もCameraから編集する
-	if (settings.reflectionParameters.contains("passes")) {
-		for (auto& pass : settings.reflectionParameters["passes"]) {
-			ImGui::PushID(pass.value("id", std::string{}).c_str());
-			for (auto& parameter : pass["parameters"]) {
-				if (!parameter["value"].is_number()) continue;
-				float value = parameter["value"].get<float>();
-				const auto field = MyGUI::DragFloat(parameter.value("name", std::string{}).c_str(), value);
-				Accumulate(result, field);
-				if (field.valueChanged) parameter["value"] = value;
+	result.Merge(ItemEdit(ImGui::Checkbox("反射を使用", &settings.reflectionEnabled)));
+	ImGui::BeginDisabled(!settings.reflectionEnabled);
+	result.Merge(DrawQuality(settings.reflectionQuality));
+	result.Merge(ItemEdit(ImGui::DragFloat("反射強度", &settings.reflectionIntensity, 0.01f, 0.0f, 65504.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)));
+	result.Merge(ItemEdit(ImGui::DragFloat("最大距離", &settings.reflectionMaxDistance, 0.1f, 0.01f, 100000.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)));
+	if (library && ImGui::BeginMenu("詳細設定")) {
+		static const auto profile = BuildCameraReflectionProfile(SurfaceLightingSettings{});
+		for (const auto& pass : profile.passes) {
+			const auto* material = library->LoadMaterial(pass.material);
+			if (!material || (material->parameters.empty() && pass.parameterOverrides.empty()) || !ImGui::BeginMenu(pass.name.c_str())) continue;
+			auto defaults = material->parameters;
+			defaults.MergeFrom(pass.parameterOverrides);
+			const std::string id = ToString(pass.id);
+			auto& passes = settings.reflectionParameters["passes"];
+			if (!passes.is_array()) passes = nlohmann::json::array();
+			auto saved = std::find_if(passes.begin(), passes.end(), [&](const auto& entry) {
+				return entry.is_object() && entry.contains("id") && entry["id"] == id;
+			});
+			MaterialInstanceParameters overrides;
+			if (saved != passes.end() && saved->contains("parameters")) ReadMaterialInstance((*saved)["parameters"], overrides);
+			const auto edit = DrawPassParameters(overrides, defaults);
+			result.Merge(edit);
+			if (edit.valueChanged) {
+				if (saved == passes.end()) passes.push_back({{"id", id}, {"name", pass.name}, {"parameters", WriteMaterialInstance(overrides)}});
+				else (*saved)["parameters"] = WriteMaterialInstance(overrides);
 			}
-			ImGui::PopID();
+			ImGui::EndMenu();
 		}
+		ImGui::EndMenu();
 	}
+	ImGui::EndDisabled();
 	return result;
 }
 
 Engine::ValueEditResult Engine::CameraSurfaceSettingsEditor::DrawAmbientOcclusion(
-	CameraCommon& settings, GraphicsCore* graphicsCore) {
+	SurfaceLightingSettings& settings, GraphicsCore* graphicsCore) {
 
 	ValueEditResult result{};
 	const bool supported = graphicsCore && graphicsCore->GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath() &&
 		graphicsCore->GetDXObject().GetFeatureController().GetSupport().SupportsShaderModel6_6();
 	ImGui::BeginDisabled(!supported);
-	AccumulateCheckbox(result, "AOを使用", settings.ambientOcclusionEnabled);
-	Accumulate(result, MyGUI::DragFloat("強度", settings.ambientOcclusionIntensity,
-		{ .dragSpeed = 0.01f, .minValue = 0.0f }));
-	Accumulate(result, MyGUI::DragFloat("半径", settings.ambientOcclusionRadius,
-		{ .dragSpeed = 0.01f, .minValue = 0.001f, .maxValue = 1000.0f }));
-	Accumulate(result, DrawQuality(settings.ambientOcclusionQuality));
+	result.Merge(ItemEdit(ImGui::Checkbox("AOを使用", &settings.ambientOcclusionEnabled)));
+	ImGui::BeginDisabled(!settings.ambientOcclusionEnabled);
+	result.Merge(DrawQuality(settings.ambientOcclusionQuality));
+	result.Merge(ItemEdit(ImGui::DragFloat("強度", &settings.ambientOcclusionIntensity, 0.01f, 0.0f, 65504.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)));
+	result.Merge(ItemEdit(ImGui::DragFloat("半径", &settings.ambientOcclusionRadius, 0.01f, 0.001f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)));
 	ImGui::EndDisabled();
-	if (!supported) Engine::MyGUI::Text("このGPUではレイトレーシングAOを使用できません");
+	ImGui::EndDisabled();
+	if (!supported) ImGui::TextDisabled("使用不可");
 	return result;
 }

@@ -1,4 +1,5 @@
 #include "ParticleRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -205,6 +206,7 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 			commandList);
 	}
 
+	if (context.vertexCounter) context.vertexCounter->Add(4, resources.GetTrailSegmentCount());
 	if (variant && variant->kind == PipelineVariantKind::GraphicsMesh) {
 
 		// 点列から1グループ32セグメントずつGPUでリボンへ展開する

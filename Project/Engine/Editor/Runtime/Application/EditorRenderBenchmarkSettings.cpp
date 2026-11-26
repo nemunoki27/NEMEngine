@@ -178,37 +178,13 @@ void Engine::EditorRenderBenchmark::BeginAntialiasingPhase(GraphicsCore& graphic
 	auto preferences = originalAntialiasingPreferences_;
 	preferences.antialiasing = *EnumAdapter<AntialiasingMethod>::FromString(settings.at("antialiasing").get<std::string>());
 	preferences.allowInlineRayTracing = settings.value("shadows", preferences.allowInlineRayTracing);
-	preferences.allowDispatchRays = settings.value("reflections", preferences.allowDispatchRays);
+	preferences.reflectionEnabled = settings.value("reflections", preferences.reflectionEnabled);
 	preferences.frameContextCount = settings.value("frameContextCount", preferences.frameContextCount);
+	preferences.ambientOcclusionEnabled = settings.value("aoEnabled", preferences.ambientOcclusionEnabled);
+	preferences.ambientOcclusionRadius = settings.value("aoRadius", preferences.ambientOcclusionRadius);
+	preferences.ambientOcclusionIntensity = settings.value("aoIntensity", preferences.ambientOcclusionIntensity);
 	features_->ApplyRuntimePreferences(preferences);
 	graphicsCore.RequestDoubleBuffering(preferences.frameContextCount == 2);
-	ApplyAntialiasingCameraSettings();
-}
-
-void Engine::EditorRenderBenchmark::ApplyAntialiasingCameraSettings() {
-
-	if (!report_.contains("antialiasingSequence") || phase_ >= phaseCount_) return;
-	auto* world = application_->GetActiveWorld();
-	if (!world) return;
-	if (antialiasingWorld_ != world) {
-		antialiasingWorld_ = world;
-		originalAntialiasingCameras_ = nlohmann::json::object();
-	}
-	const auto& settings = report_["antialiasingSequence"][phase_];
-	world->ForEach<PerspectiveCameraComponent>([&](Entity entity, PerspectiveCameraComponent& camera) {
-
-		const auto key = std::to_string(entity.index) + "_" + std::to_string(entity.generation);
-		if (!originalAntialiasingCameras_.contains(key)) {
-			originalAntialiasingCameras_[key] = {{"index", entity.index}, {"generation", entity.generation},
-				{"aoEnabled", camera.common.ambientOcclusionEnabled}, {"reflections", camera.common.reflectionEnabled},
-				{"aoRadius", camera.common.ambientOcclusionRadius}, {"aoIntensity", camera.common.ambientOcclusionIntensity}};
-		}
-		const auto& original = originalAntialiasingCameras_[key];
-		camera.common.ambientOcclusionEnabled = settings.value("aoEnabled", original.at("aoEnabled").get<bool>());
-		camera.common.ambientOcclusionRadius = settings.value("aoRadius", original.at("aoRadius").get<float>());
-		camera.common.ambientOcclusionIntensity = settings.value("aoIntensity", original.at("aoIntensity").get<float>());
-		camera.common.reflectionEnabled = settings.value("reflections", original.at("reflections").get<bool>());
-	});
 }
 
 nlohmann::json Engine::EditorRenderBenchmark::CaptureAntialiasingState() const {
@@ -232,19 +208,6 @@ nlohmann::json Engine::EditorRenderBenchmark::CaptureAntialiasingState() const {
 void Engine::EditorRenderBenchmark::RestoreAntialiasing() {
 
 	if (!features_ || !report_.contains("antialiasingSequence")) return;
-	if (auto* world = application_->GetActiveWorld(); world && world == antialiasingWorld_) {
-		for (const auto& original : originalAntialiasingCameras_) {
-			const Entity entity{original.at("index").get<uint32_t>(), original.at("generation").get<uint32_t>()};
-			if (auto* camera = world->TryGetComponent<PerspectiveCameraComponent>(entity)) {
-				camera->common.ambientOcclusionEnabled = original.at("aoEnabled").get<bool>();
-				camera->common.ambientOcclusionRadius = original.at("aoRadius").get<float>();
-				camera->common.ambientOcclusionIntensity = original.at("aoIntensity").get<float>();
-				camera->common.reflectionEnabled = original.at("reflections").get<bool>();
-			}
-		}
-	}
 	features_->ApplyRuntimePreferences(originalAntialiasingPreferences_);
 	features_->SetRuntimeOverrideActive(false);
-	originalAntialiasingCameras_ = nlohmann::json::object();
-	antialiasingWorld_ = nullptr;
 }

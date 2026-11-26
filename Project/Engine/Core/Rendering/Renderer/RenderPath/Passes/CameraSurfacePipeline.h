@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/SurfaceLightingSettings.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 
 namespace Engine {
@@ -15,7 +16,7 @@ namespace Engine {
 	}
 
 	// Cameraの固定反射パスを作成する
-	RenderFeatureProfileAsset BuildCameraReflectionProfile(const CameraCommon& settings);
+	RenderFeatureProfileAsset BuildCameraReflectionProfile(const SurfaceLightingSettings& settings);
 	// Cameraの固定遮蔽パスを作成する
-	RenderFeatureProfileAsset BuildCameraAmbientOcclusionProfile(const CameraCommon& settings, bool opaqueGeometryAllowed = false);
+	RenderFeatureProfileAsset BuildCameraAmbientOcclusionProfile(const SurfaceLightingSettings& settings, bool opaqueGeometryAllowed = false, uint32_t cullingMask = UINT32_MAX);
 }

@@ -8,6 +8,7 @@ struct PSInstance {
 
 	float4x4 uvMatrix;
 	ShineHighlightData shine;
+	uint2 entity;
 };
 cbuffer ViewConstants : register(b0) {
 

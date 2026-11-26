@@ -76,6 +76,8 @@ cbuffer GIChangeBounds : register(b4) {
 	uint cacheConverged;
 	uint hasCoarseBricks;
 	uint showCacheUpdates;
+	uint updateSpeed;
+	uint layoutChanged;
 };
 
 #include "giEmitters.hlsli"

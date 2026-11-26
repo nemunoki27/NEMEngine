@@ -32,7 +32,7 @@ void ApplicationPreloader::PrepareReflectionAnimations(GraphicsCore& graphicsCor
 	if (!graphicsCore.GetDXObject().ShouldUseDispatchRays()) return;
 	bool reflectionEnabled = false;
 	world.ForEach<PerspectiveCameraComponent>([&](Entity, const PerspectiveCameraComponent& camera) {
-		reflectionEnabled |= camera.common.enabled && camera.common.reflectionEnabled;
+		reflectionEnabled |= camera.common.enabled;
 	});
 	if (!reflectionEnabled) return;
 	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent>(

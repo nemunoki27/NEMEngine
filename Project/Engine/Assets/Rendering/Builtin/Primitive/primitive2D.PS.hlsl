@@ -43,3 +43,9 @@ PSOutput main(VSOutput input) {
 	output.color = ApplyShineHighlight(output.color, input.shineUV, gInstances[input.instanceID].shine);
 	return output;
 }
+
+uint4 PickPrimitive2D(VSOutput input) : SV_Target0 {
+
+	clip(main(input).color.a - 1.0f / 255.0f);
+	return uint4(gInstances[input.instanceID].entity, 0u, 1u);
+}

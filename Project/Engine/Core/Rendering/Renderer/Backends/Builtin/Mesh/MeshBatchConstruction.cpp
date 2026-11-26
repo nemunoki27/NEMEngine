@@ -60,6 +60,21 @@ namespace {
 
 }
 
+uint64_t Engine::MeshBatchResources::CountDrawVertices(const MeshGPUResource& mesh, uint32_t subMesh, uint32_t group) const {
+
+	if (subMesh != kAllMeshSubMeshes) return uint64_t(mesh.subMeshes[subMesh].vertexCount) * instanceCount_;
+	if (group == UINT32_MAX) return uint64_t(mesh.vertexCount) * instanceCount_;
+
+	uint64_t vertices = 0;
+	for (const auto& instance : meshScratch_) {
+		for (uint32_t index = 0; index < instance.subMeshCount; ++index) {
+			const auto& data = subMeshScratch_[instance.subMeshDataOffset + index];
+			if (data.renderGroupIndex == group) vertices += mesh.subMeshes[index].vertexCount;
+		}
+	}
+	return vertices;
+}
+
 void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawContext,
 	const RenderSceneBatch& batch, std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) {
 

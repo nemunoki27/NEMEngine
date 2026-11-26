@@ -4,11 +4,14 @@
 //	include
 //============================================================================
 #include "EditorMeasurementDisplay.h"
+#include <Engine/Editor/UI/Inspectors/Common/CameraSurfaceSettingsEditor.h>
 #include "EditorAntialiasingMenu.h"
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/Core/ViewportPanelSettings.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFeatureSelection.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -214,22 +217,6 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 		EditorAntialiasingMenu::Draw(context);
 
-		if (ImGui::BeginMenu("グローバルイルミネーション")) {
-			bool enabled = runtime.useDynamicGI;
-			int quality = static_cast<int>(preferences.dynamicGIQuality);
-			int debug = static_cast<int>(preferences.dynamicGIDebug);
-			ImGui::BeginDisabled(!support.SupportsDynamicGI());
-			bool changed = ImGui::Checkbox("動的GIを有効", &enabled);
-			ImGui::BeginDisabled(!enabled);
-			changed |= ImGui::Combo("品質", &quality, "軽量\0標準\0高品質\0");
-			changed |= ImGui::Combo("デバッグ表示", &debug, "通常\0間接光のみ\0キャッシュ更新箇所\0");
-			ImGui::EndDisabled();
-			ImGui::EndDisabled();
-			if (changed) featureController.SetDynamicGI(enabled, static_cast<DynamicGIQuality>(quality), static_cast<DynamicGIDebug>(debug));
-			if (!support.SupportsDynamicGI()) ImGui::TextDisabled("DXR Tier 1.1とShader Model 6.6に対応したGPUが必要です");
-			ImGui::EndMenu();
-		}
-
 		// レイトレーシングの影と反射を設定
 		if (ImGui::BeginMenu("レイトレーシング")) {
 			bool allowInlineRayTracing = preferences.allowInlineRayTracing;
@@ -251,14 +238,8 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			DrawGraphicsTooltip("ライトごとの影レイ数です。1レイでも画素ごとに分散して柔らかい境界を維持します");
 			ImGui::EndDisabled();
 
-			bool allowDispatchRays = preferences.allowDispatchRays;
-			if (ImGui::Checkbox("マテリアル反射パス", &allowDispatchRays)) {
-				featureController.SetAllowDispatchRays(allowDispatchRays);
-			}
-			DrawGraphicsTooltip("DispatchRaysによる反射描画を有効にします");
-
 			bool allowRaytracingDownsampling = preferences.allowRaytracingDownsampling;
-			ImGui::BeginDisabled(!allowDispatchRays);
+			ImGui::BeginDisabled(!runtime.useDispatchRays);
 			if (ImGui::Checkbox("ダウンサンプリング", &allowRaytracingDownsampling)) {
 
 				featureController.SetAllowRaytracingDownsampling(allowRaytracingDownsampling);
@@ -266,6 +247,57 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			DrawGraphicsTooltip("DispatchRaysと後段フィルターを縮小解像度で実行します");
 			ImGui::EndDisabled();
 
+			ImGui::Separator();
+			if (ImGui::BeginMenu("反射")) {
+				auto settings = preferences;
+				const bool supported = GraphicsFeatureSelection::SupportsMaterialReflections(support);
+				ImGui::BeginDisabled(!supported);
+				const auto edit = CameraSurfaceSettingsEditor::DrawReflection(settings,
+					context.renderPipeline ? &context.renderPipeline->GetRenderAssetLibrary() : nullptr);
+				if (edit.editFinished || (edit.valueChanged && !edit.anyItemActive)) featureController.SetProjectLighting(settings);
+				else if (edit.valueChanged) featureController.ApplyRuntimePreferences(settings);
+				ImGui::EndDisabled();
+				if (!supported) ImGui::TextDisabled("使用不可");
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("アンビエントオクルージョン")) {
+				auto settings = preferences;
+				const auto edit = CameraSurfaceSettingsEditor::DrawAmbientOcclusion(settings, context.graphicsCore);
+				if (edit.editFinished || (edit.valueChanged && !edit.anyItemActive)) featureController.SetProjectLighting(settings);
+				else if (edit.valueChanged) featureController.ApplyRuntimePreferences(settings);
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("グローバルイルミネーション")) {
+				auto settings = preferences;
+				int quality = static_cast<int>(settings.dynamicGIQuality);
+				int debug = static_cast<int>(settings.dynamicGIDebug);
+				int speed = static_cast<int>(settings.giUpdateSpeed);
+				ImGui::BeginDisabled(!support.SupportsDynamicGI());
+				bool dragging = false;
+				bool finished = false;
+				bool changed = ImGui::Checkbox("動的GIを有効", &settings.dynamicGI);
+				ImGui::BeginDisabled(!settings.dynamicGI);
+				changed |= ImGui::Combo("品質", &quality, "軽量\0標準\0高品質\0");
+				changed |= ImGui::DragFloat("間接光の強度", &settings.indirectIntensity, 0.01f, 0.0f, 65504.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				dragging |= ImGui::IsItemActive();
+				finished |= ImGui::IsItemDeactivatedAfterEdit();
+				changed |= ImGui::DragFloat("発光の寄与", &settings.emissiveContribution, 0.01f, 0.0f, 65504.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+				dragging |= ImGui::IsItemActive();
+				finished |= ImGui::IsItemDeactivatedAfterEdit();
+				changed |= ImGui::Combo("更新速度", &speed, "低速\0標準\0高速\0");
+				changed |= ImGui::Combo("デバッグ表示", &debug, "通常\0間接光のみ\0キャッシュ更新箇所\0");
+				ImGui::EndDisabled();
+				ImGui::EndDisabled();
+				if (!support.SupportsDynamicGI()) ImGui::TextDisabled("使用不可");
+				if (changed || finished) {
+					settings.dynamicGIQuality = static_cast<DynamicGIQuality>(quality);
+					settings.dynamicGIDebug = static_cast<DynamicGIDebug>(debug);
+					settings.giUpdateSpeed = static_cast<uint32_t>(speed);
+					if (finished || !dragging) featureController.SetProjectLighting(settings);
+					else featureController.ApplyRuntimePreferences(settings);
+				}
+				ImGui::EndMenu();
+			}
 			if (!support.SupportsRayTracingPath()) {
 				ImGui::TextDisabled("未対応GPUでは実行時だけRayTracingを無効化します");
 			}

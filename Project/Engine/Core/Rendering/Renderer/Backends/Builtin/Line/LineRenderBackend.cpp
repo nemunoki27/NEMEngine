@@ -1,4 +1,5 @@
 #include "LineRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -143,6 +144,7 @@ void Engine::LineRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// 線分リストで描画
 	commandList->DrawInstanced(resources.GetVertexCount(), 1, 0, 0);
+	if (context.vertexCounter) context.vertexCounter->Add(resources.GetVertexCount());
 }
 
 bool Engine::LineRenderBackend::CanBatch(const RenderItem& first,

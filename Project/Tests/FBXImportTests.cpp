@@ -57,7 +57,7 @@ namespace {
 		}
 		const auto virtualDirectory = "GameAssets/" + target.filename().string();
 		const auto imported = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, model);
-		if (!imported.success || imported.fullPath != target / "textured/textured.FBX") {
+		if (!imported.success || imported.fullPath != target / "textured.FBX") {
 			std::cerr << "FBX texture import failed: " << imported.message << '\n';
 			return false;
 		}
@@ -74,10 +74,10 @@ namespace {
 		{
 			NEMTests::TestFileReadLock lock(source / "Textures/albedo.png", false);
 			const auto failed = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, model);
-			if (failed.success || std::filesystem::exists(target / "textured 1")) return false;
+			if (failed.success || std::filesystem::exists(target / "textured 1.FBX")) return false;
 		}
 		const auto repeated = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, model);
-		if (!repeated.success || repeated.fullPath != target / "textured 1/textured.FBX") return false;
+		if (!repeated.success || repeated.fullPath != target / "textured 1.FBX") return false;
 		// 実際のバイナリFBXでも画像参照長の変更を通す
 		const auto fixture = RuntimePaths::GetEngineProjectRoot() / "Externals/assimp/test/models/FBX/spider.fbx";
 		auto binaryBytes = StorageFileUtility::ReadVerifiedBytes(fixture, StorageFileUtility::FileRevision(fixture));
@@ -104,7 +104,7 @@ namespace {
 		// フォルダー単位でも各FBXと外部画像を一緒に取り込む
 		const auto folder = ProjectAssetCopyUtility::ImportExternalDirectory(ProjectAssetSource::Game, virtualDirectory, source);
 		if (!folder.success || !ModelFileDependencyCollector::Collect(
-			folder.fullPath / "textured/textured.FBX", files, diagnostic) || files.size() != 8) {
+			folder.fullPath / "textured.FBX", files, diagnostic) || files.size() != 8) {
 			std::cerr << "FBX folder import failed: " << folder.message << " " << diagnostic << '\n';
 			return false;
 		}

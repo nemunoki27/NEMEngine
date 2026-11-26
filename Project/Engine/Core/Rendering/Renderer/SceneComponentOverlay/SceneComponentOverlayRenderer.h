@@ -66,7 +66,8 @@ namespace Engine {
 			Vector2 halfSize = Vector2::AnyInit(0.0f);
 			Color4 color = Color4::White();
 			float rotationRadians = 0.0f;
-			Vector3 _pad = Vector3::AnyInit(0.0f);
+			Entity entity{};
+			float _pad = 0.0f;
 		};
 		static_assert(sizeof(SpriteInstanceData) % 16 == 0);
 

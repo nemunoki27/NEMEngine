@@ -199,7 +199,7 @@ int32_t ManagedScriptRuntime::CopyComponentSettingsCallback(ManagedNativeEntity 
 			if (!camera || !context || !context->renderAssetLibrary || !context->assetDatabase) return -1;
 			auto& library = *context->renderAssetLibrary;
 			library.Init(context->assetDatabase);
-			data = {{"reflectionParameters", camera->reflectionParameters}};
+			data = nlohmann::json::object();
 			data["cameraInstanceID"] = world->GetBindingComponentInstanceID(target, type);
 			data["renderPassesAsset"] = ToString(camera->renderPasses);
 			data["renderPassesRevision"] = library.GetRenderPassesRevision(camera->renderPasses);
@@ -467,11 +467,9 @@ int32_t ManagedScriptRuntime::ApplyComponentSettingsCallback(ManagedNativeEntity
 				if (!candidate.guid) return 0;
 				passes = std::make_shared<const RenderPassesAsset>(std::move(candidate));
 			}
-			if (data.contains("reflectionParameters") && !data["reflectionParameters"].is_object()) return 0;
 			// 全項目の変換成功後にCamera固有の設定を公開する
 			camera->runtimeRenderPasses = std::move(passes);
 			camera->runtimeRenderPassesSourceRevision = context->renderAssetLibrary->GetRenderPassesRevision(camera->renderPasses);
-			if (data.contains("reflectionParameters")) camera->reflectionParameters = data["reflectionParameters"];
 			world->MarkComponentModified(target, type);
 			return 1;
 		}

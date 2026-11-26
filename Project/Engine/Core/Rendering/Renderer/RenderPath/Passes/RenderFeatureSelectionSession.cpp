@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Utility/ScopedValue.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -120,6 +121,7 @@ bool Engine::RenderFeatureSelectionSession::Begin(GraphicsCore& graphicsCore, Sc
 				phase == RenderPhase::PostProcessUI ? nullptr : context.resources->GetSceneMain()->GetDepthTexture();
 			const MaterialPassKind passKind =
 				phase == RenderPhase::Transparent ? MaterialPassKind::Transparent : MaterialPassKind::Draw;
+			ScopedValue countVertices(context.countDrawVertices, selection.mode == RenderFeatureSelectionMode::IsolatedLayer);
 			RenderPassExecutionHelper::Execute(graphicsCore, context, phaseItems, deps,
 				RenderPassSurfaceBinding{
 					.colorSurface = selectionTarget,

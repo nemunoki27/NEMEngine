@@ -136,7 +136,7 @@ namespace {
 	bool CheckSurfaceProfiles() {
 
 		using namespace Engine;
-		CameraCommon settings{};
+		SurfaceLightingSettings settings{};
 		for (int32_t quality = 0; quality <= 2; ++quality) {
 			settings.reflectionQuality = settings.ambientOcclusionQuality = quality;
 			const auto ao = BuildCameraAmbientOcclusionProfile(settings);

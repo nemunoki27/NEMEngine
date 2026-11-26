@@ -1,4 +1,5 @@
 #include "MeshShaderDrawPath.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -9,6 +10,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 
@@ -100,4 +102,7 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 	context.commandList->DispatchMesh(
 		meshletGroupCount,
 		prepared.instanceCount, 1);
+	if (auto* counter = context.drawContext->vertexCounter) {
+		counter->Add(prepared.resources->CountDrawVertices(*prepared.gpuMesh, prepared.subMeshIndex, prepared.subMeshGroupIndex));
+	}
 }

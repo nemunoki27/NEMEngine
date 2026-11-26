@@ -98,31 +98,13 @@ void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 	Logger::Output(LogType::Engine, "Inline RayTracing経路: {}", GetEnabledText(runtimeFeatures_.useInlineRayTracing));
 }
 
-void Engine::GraphicsFeatureController::SetDynamicGI(bool enabled, DynamicGIQuality quality, DynamicGIDebug debug) {
+void Engine::GraphicsFeatureController::SetProjectLighting(const GraphicsFeaturePreferences& updated) {
 
-	if (preferences_.dynamicGI == enabled && preferences_.dynamicGIQuality == quality && preferences_.dynamicGIDebug == debug) return;
-	auto updated = preferences_;
-	updated.dynamicGI = enabled;
-	updated.dynamicGIQuality = quality;
-	updated.dynamicGIDebug = debug;
-	if (!runtimeOverrideActive_ && !GraphicsPreferenceStorage::SaveDynamicGI(updated)) {
-		Logger::Output(LogType::Engine, spdlog::level::err, "動的GIの設定を保存できませんでした");
+	if (!runtimeOverrideActive_ && !GraphicsPreferenceStorage::SaveProjectLighting(updated)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "照明設定を保存できませんでした");
 		return;
 	}
 	ApplyRuntimePreferences(updated);
-}
-
-void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
-
-	if (preferences_.allowDispatchRays == enabled) {
-		return;
-	}
-
-	preferences_.allowDispatchRays = enabled;
-	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
-
-	Logger::Output(LogType::Engine, "DispatchRays経路: {}", GetEnabledText(runtimeFeatures_.useDispatchRays));
 }
 
 void Engine::GraphicsFeatureController::SetAllowRaytracingDownsampling(

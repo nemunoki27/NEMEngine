@@ -29,7 +29,11 @@ namespace Engine {
 	//	IRenderBackend structures
 	//============================================================================
 	// 描画コンテキスト
+	class ViewVertexCounter;
+
 	struct RenderDrawContext {
+
+		ViewVertexCounter* vertexCounter = nullptr;
 
 		GraphicsCore* graphicsCore = nullptr;
 		// 実際に描画するビュー

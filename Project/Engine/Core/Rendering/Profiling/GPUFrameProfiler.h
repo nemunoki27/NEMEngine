@@ -9,12 +9,38 @@
 // c++
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 // directX
 #include <d3d12.h>
 
 namespace Engine {
+
+	enum class RenderViewKind;
+
+	// 本描画に提出したジオメトリの頂点数を集計する
+	class ViewVertexCounter {
+	public:
+
+		void Add(uint64_t vertices, uint32_t instances = 1) { vertices_ += vertices * instances; }
+		// COPY_SOURCEで読み取れる描画引数からインスタンス数を記録する
+		void AddIndirect(ID3D12GraphicsCommandList* commands, ID3D12Resource* arguments,
+			uint64_t instanceCountOffset, uint32_t vertices);
+
+	private:
+
+		friend class GPUFrameProfiler;
+		static constexpr size_t kCountsPerPage = 1024;
+		uint64_t vertices_ = 0;
+		bool rendered_ = false;
+		bool incomplete_ = false;
+		std::vector<uint32_t> weights_{};
+		std::vector<ComPtr<ID3D12Resource>> pages_{};
+
+		std::optional<uint64_t> Collect() const;
+		void Reset();
+	};
 
 	//============================================================================
 	//	GPUFrameProfiler class
@@ -38,6 +64,11 @@ namespace Engine {
 		void SetViewID(std::string viewID);
 		// 記録を締め切り、ResolveQueryDataをコマンドリストへ積む
 		void Resolve(ID3D12GraphicsCommandList* commandList);
+
+		// 計測画面を表示している間だけ間接描画の個数を読み戻す
+		void RequestVertexCounts();
+		ViewVertexCounter* GetVertexCounter(RenderViewKind kind);
+		std::optional<uint64_t> GetVertexCount(RenderViewKind kind) const;
 
 		// 終了処理
 		void Finalize();
@@ -70,6 +101,8 @@ namespace Engine {
 			uint32_t nextTimestamp = 0;
 			std::vector<PassRecord> passes{};
 
+			std::array<ViewVertexCounter, 2> vertices{};
+
 			bool pendingPass = false;
 			uint32_t ignoredPassDepth = 0;
 			std::string pendingName{};
@@ -92,6 +125,8 @@ namespace Engine {
 		uint64_t frequency_ = 0;
 		bool initialized_ = false;
 		std::string viewID_{};
+		uint64_t vertexRequestFrame_ = UINT64_MAX;
+		std::array<std::optional<uint64_t>, 2> vertexCounts_{};
 
 		//--------- functions ----------------------------------------------------
 

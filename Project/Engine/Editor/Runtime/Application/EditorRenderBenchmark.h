@@ -70,8 +70,6 @@ namespace Engine {
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
 		GraphicsFeaturePreferences originalAntialiasingPreferences_{};
-		ECSWorld* antialiasingWorld_ = nullptr;
-		nlohmann::json originalAntialiasingCameras_ = nlohmann::json::object();
 		// 計測用のFPS上限を終了時に戻す
 		uint32_t originalTargetFps_ = 0;
 		uint32_t originalEditorTargetFps_ = 0;
@@ -125,7 +123,6 @@ namespace Engine {
 		// 比較中だけAAと描画機能の希望値を切り替える
 		void BeginAntialiasingPhase(GraphicsCore& graphicsCore);
 		// 保存しないCamera設定を比較条件へ合わせる
-		void ApplyAntialiasingCameraSettings();
 		// 希望値と実行中のView別の状態を記録する
 		nlohmann::json CaptureAntialiasingState() const;
 		// 比較前の設定へ戻して保存の抑止を解除する

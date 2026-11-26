@@ -1,4 +1,5 @@
 #include "ParticleRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -60,6 +61,7 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 	D3D12_GPU_VIRTUAL_ADDRESS vertices = 0;
 	D3D12_INDEX_BUFFER_VIEW indices{};
 	uint32_t indexCount = 0;
+	uint32_t vertexCount = 0;
 	float radius = 1;
 	const bool drawSource = !settings.trail.enabled || settings.trail.drawSource;
 	if (drawSource && settings.model) {
@@ -77,6 +79,7 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 		vertices = mesh->vertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 		indices = mesh->indexBuffer.GetIndexBufferView();
 		indexCount = mesh->indexCount;
+		vertexCount = mesh->vertexCount;
 		radius = mesh->boundsRadius + Vector3::Length(mesh->boundsCenter);
 	} else if (drawSource) {
 		auto shape = ParticleDrawPreparation::MakeShapeComponent(settings);
@@ -95,6 +98,7 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 		vertices = geometry->vertexBuffer.buffer->GetResource()->GetGPUVirtualAddress();
 		indices = geometry->indexBuffer.GetIndexBufferView();
 		indexCount = geometry->indexCount;
+		vertexCount = geometry->vertexCount;
 		radius = geometry->boundsRadius + Vector3::Length(geometry->boundsCenter);
 	}
 	// 描画中のCameraからカリングとビルボードの条件を作る
@@ -186,6 +190,11 @@ void ParticleRenderBackend::DrawGPU(const RenderDrawContext& context, const Rend
 			commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commands->IASetIndexBuffer(&indices);
 			gpuService_.DrawIndexed(graphics, data, phase);
+			if (context.vertexCounter) {
+				const uint64_t offset = uint64_t(phase) * sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+				context.vertexCounter->AddIndirect(commands, data.arguments,
+					offset + offsetof(D3D12_DRAW_INDEXED_ARGUMENTS, InstanceCount), vertexCount);
+			}
 		}
 	}
 	if (settings.trail.enabled && data.trailArguments) DrawGPUTrails(context, item, emitter, data, constants);

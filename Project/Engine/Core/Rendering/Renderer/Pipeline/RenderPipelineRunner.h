@@ -78,12 +78,18 @@ namespace Engine {
 		bool usesRenderTextureInputs = false;
 		std::span<const Matrix4x4> instanceWorldMatrices;
 		std::span<const RaytracingGeometryBounds> geometryBounds;
+		uint32_t commonLayers = 0;
 		std::span<const RaytracingInstanceShaderData> instanceData;
 		std::span<const RaytracingHitMaterial> hitMaterials;
 		std::function<ID3D12Resource*(GraphicsCore&)> resolveLegacyTLAS;
 	};
 	// シーンを処理する描画パスの実行に必要なコンテキスト
+	class ViewVertexCounter;
+
 	struct SceneExecutionContext {
+
+		ViewVertexCounter* viewVertexCounter = nullptr;
+		bool countDrawVertices = false;
 
 		// ビューの種類
 		RenderViewKind kind = RenderViewKind::Game;
@@ -299,10 +305,10 @@ namespace Engine {
 		uint64_t GetStaticBLASPublishedBytes() const { return raytracingSceneBuilder_.GetStaticBLASPublishedBytes(); }
 		uint64_t GetShadowAnalysisCount() const { return renderPath_.GetShadowAnalysisCount(); }
 
-		// 指定ピクセルだけを1x1整数RTへ描画する
+		// 指定ピクセルを左上に、対象範囲を整数RTへ描画する
 		bool RenderMeshPicking(GraphicsCore& graphicsCore,
 			RenderViewKind kind, const Vector2& inputPixel,
-			MultiRenderTarget& target, std::optional<Dimension> dimensionFilter = std::nullopt);
+			MultiRenderTarget& target, std::optional<Dimension> dimensionFilter = std::nullopt, bool region = false);
 
 		// 指定ビューのGBufferアタッチメントテクスチャを取得する、GBufferデバッグ表示用、未生成はnullptr
 		RenderTexture2D* GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment);

@@ -9,8 +9,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Ns ../1/horse_statue_01_rough_2k.jpg
-map_Bump -bm 1.000000 ../1/horse_statue_01_nor_gl_2k.png
+map_Ns SourceTextures/horse_statue_01_rough_2k.jpg
+map_Bump -bm 1.000000 SourceTextures/horse_statue_01_nor_gl_2k.png
 
 newmtl horse_statue_01_base
 Ka 1.000000 1.000000 1.000000
@@ -19,6 +19,6 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd ../1/horse_statue_01_diff_2k.jpg
-map_Ns ../1/horse_statue_01_rough_2k.jpg
-map_Bump -bm 1.000000 ../1/horse_statue_01_nor_gl_2k.png
+map_Kd SourceTextures/horse_statue_01_diff_2k.jpg
+map_Ns SourceTextures/horse_statue_01_rough_2k.jpg
+map_Bump -bm 1.000000 SourceTextures/horse_statue_01_nor_gl_2k.png

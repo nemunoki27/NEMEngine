@@ -1,4 +1,5 @@
 #include "VertexMeshDrawPath.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -123,6 +124,9 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 		prepared.resources->GetVisibleInstanceMeshGPUAddress());
 	context.commandList->ExecuteIndirect(commandSignature_.Get(), 1,
 		prepared.resources->GetIndexedIndirectArgsResource(), 0, nullptr, 0);
+	if (auto* counter = context.drawContext->vertexCounter) {
+		counter->Add(prepared.resources->CountDrawVertices(*prepared.gpuMesh, prepared.subMeshIndex, prepared.subMeshGroupIndex));
+	}
 }
 
 bool Engine::VertexMeshDrawPath::BuildIndexedIndirectArgs(const MeshPathDrawContext& context) {

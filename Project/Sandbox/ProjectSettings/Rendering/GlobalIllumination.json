@@ -1,5 +1,17 @@
 {
+  "allowDispatchRays": true,
+  "ambientOcclusionEnabled": true,
+  "ambientOcclusionIntensity": 1.0,
+  "ambientOcclusionQuality": 2,
+  "ambientOcclusionRadius": 1.0,
   "dynamicGI": true,
   "dynamicGIDebug": "None",
-  "dynamicGIQuality": "High"
+  "dynamicGIQuality": "High",
+  "emissiveContribution": 1.0,
+  "giUpdateSpeed": 1,
+  "indirectIntensity": 0.5,
+  "reflectionIntensity": 1.0,
+  "reflectionMaxDistance": 600.0,
+  "reflectionParameters": {},
+  "reflectionQuality": 2
 }

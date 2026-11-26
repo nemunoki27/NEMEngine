@@ -59,6 +59,18 @@ namespace Engine {
 			return frames_[GraphicsFrameState::GetCurrentIndex()].handle;
 		}
 
+		// 現在の内容を再利用し、同フレームの後続転送による上書きを防ぐ
+		void RetainCurrentForFrame() {
+			auto& frame = frames_[GraphicsFrameState::GetCurrentIndex()];
+			const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+			if (frame.serial != serial && frame.current != 0) {
+				std::swap(frame.slots.front(), frame.slots[frame.current]);
+				frame.current = 0;
+			}
+			frame.serial = serial;
+			frame.slots[frame.current].lastUsedSerial = serial;
+		}
+
 		// 描画バウンディング名を取得する
 		std::string_view GetBindingName() const { return bindingName_; }
 	private:

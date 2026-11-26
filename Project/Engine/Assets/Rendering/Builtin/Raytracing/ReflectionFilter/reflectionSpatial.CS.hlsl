@@ -124,10 +124,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	gSourcePosition.GetDimensions(geometrySize.x, geometrySize.y);
 	uint2 centerGeometry = MapPixelToTexture(
 		dispatchThreadID.xy, outputSize, geometrySize);
-	float centerDepth = ProjectReflectionSurfaceDepth(
-		gSourcePosition.Load(int3(centerGeometry, 0)).xyz);
-	float3 centerNormal = DecodeGBufferNormal(
-		gSourceNormal.Load(int3(centerGeometry, 0)).xyz);
 	float roughness = saturate(
 		gSourceMaterial.Load(int3(centerGeometry, 0)).g);
 	float filterAmount = smoothstep(
@@ -136,6 +132,9 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		gDestColor[dispatchThreadID.xy] = centerColor;
 		return;
 	}
+	float3 centerPosition = gSourcePosition.Load(int3(centerGeometry, 0)).xyz;
+	float centerDepth = ProjectReflectionSurfaceDepth(centerPosition);
+	float3 centerNormal = DecodeGBufferNormal(gSourceNormal.Load(int3(centerGeometry, 0)).xyz);
 	if (0.5f < antiFirefly) {
 
 		gDestColor[dispatchThreadID.xy] = RemoveIsolatedFirefly(
@@ -143,8 +142,6 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 			centerColor, centerDepth, centerNormal);
 		return;
 	}
-	float3 centerPosition = gSourcePosition.Load(
-		int3(centerGeometry, 0)).xyz;
 	float centerHitDistance = gReflectionHitDistance.Load(
 		int3(dispatchThreadID.xy, 0));
 	float centerLuminance = Luminance(centerColor.rgb);
@@ -167,36 +164,26 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 			}
 			uint2 sampleGeometry = MapPixelToTexture(
 				uint2(samplePixel), outputSize, geometrySize);
-			float sampleDepth = ProjectReflectionSurfaceDepth(
-				gSourcePosition.Load(int3(sampleGeometry, 0)).xyz);
+			float3 samplePosition = gSourcePosition.Load(int3(sampleGeometry, 0)).xyz;
+			float sampleDepth = ProjectReflectionSurfaceDepth(samplePosition);
 			float3 sampleNormal = DecodeGBufferNormal(
 				gSourceNormal.Load(int3(sampleGeometry, 0)).xyz);
-			float3 samplePosition = gSourcePosition.Load(
-				int3(sampleGeometry, 0)).xyz;
 			float sampleHitDistance = gReflectionHitDistance.Load(
 				int3(samplePixel, 0));
 			float spatialWeight = kATrousKernel[x + 2] *
 				kATrousKernel[y + 2];
-			float depthWeight = exp(-abs(sampleDepth - centerDepth) *
-				max(depthSigma, 1.0f));
+			float attenuation = abs(sampleDepth - centerDepth) * max(depthSigma, 1.0f);
 			float normalWeight = pow(saturate(dot(
 				centerNormal, sampleNormal)), max(normalPower, 1.0f));
-			float positionWeight = exp(-distance(
-				centerPosition, samplePosition) *
-				max(positionSigma, 0.0f) / float(filterStep));
+			attenuation += distance(centerPosition, samplePosition) * max(positionSigma, 0.0f) / float(filterStep);
 			float hitScale = max(max(centerHitDistance,
 				sampleHitDistance), 1.0f);
-			float hitWeight = centerValid ?
-				exp(-abs(sampleHitDistance - centerHitDistance) /
-					hitScale * max(hitDistanceSigma, 1.0f)) : 1.0f;
+			attenuation += abs(sampleHitDistance - centerHitDistance) / hitScale * max(hitDistanceSigma, 1.0f);
 			float sampleLuminance = Luminance(sampleColor.rgb);
 			float luminanceScale = max(max(abs(centerLuminance),
 				abs(sampleLuminance)), 0.25f);
-			float colorWeight = centerValid ? exp(-abs(
-				sampleLuminance - centerLuminance) / luminanceScale *
-				max(colorSigma, 0.0f)) : 1.0f;
-			float weight = spatialWeight * depthWeight *
-				normalWeight * positionWeight * hitWeight * colorWeight;
+			attenuation += abs(sampleLuminance - centerLuminance) / luminanceScale * max(colorSigma, 0.0f);
+			float weight = spatialWeight * normalWeight * exp(-attenuation);
 			accumulated += sampleColor * weight;
 			accumulatedWeight += weight;
 		}

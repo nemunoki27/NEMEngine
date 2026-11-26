@@ -7,6 +7,8 @@
 
 // c++
 #include <filesystem>
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -24,17 +26,26 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
+		struct Layout {
+			std::filesystem::path sourceRoot;
+			std::filesystem::path targetRoot;
+			std::map<std::string, std::filesystem::path> externalDirectories;
+			std::set<std::string> reserved;
+		};
+
 		// 通常読込と文書参照から必要なファイルを揃える
-		bool Prepare(const std::filesystem::path& model, std::string& diagnostic);
+		bool Prepare(const std::filesystem::path& model, std::string& diagnostic, Layout* layout = nullptr);
 		// 更新された入力を拒否し、作業先へ全ファイルを準備する
 		bool Stage(ProjectDirectoryCopyTransaction& transaction, std::string& diagnostic,
-			const std::filesystem::path& relativeRoot = {}) const;
+			std::set<std::string>* staged = nullptr) const;
+		// 選択中のフォルダーへ関連ファイルをまとめて公開する
+		bool PublishFiles(const std::filesystem::path& root, std::string& diagnostic) const;
 		// 公開先のMaterialが取り込み元と同じ画像を解決するか確認する
 		bool Verify(const std::filesystem::path& root, std::string& diagnostic) const;
 
 		//--------- accessor -----------------------------------------------------
 
-		std::filesystem::path GetMainRelativePath() const { return model_.filename(); }
+		std::filesystem::path GetMainRelativePath() const { return files_.front().relative; }
 
 	private:
 		//========================================================================
@@ -50,6 +61,7 @@ namespace Engine {
 			std::filesystem::path relative;
 			std::string key;
 			std::string revision;
+			std::string outputRevision;
 			std::string bytes;
 		};
 
@@ -72,7 +84,7 @@ namespace Engine {
 		// 文書から未使用のBufferや画像も収集する
 		bool CollectReferences(std::string& diagnostic);
 		// 同名ファイルを別の関連フォルダーへ分ける
-		void AssignPaths();
+		bool PreparePaths(Layout& layout, std::string& diagnostic);
 		// 文書の参照を取り込み後の相対位置へ更新する
 		bool RewriteReferences(std::string& diagnostic);
 		// 準備後に入力ファイルが変更されていないか確認する

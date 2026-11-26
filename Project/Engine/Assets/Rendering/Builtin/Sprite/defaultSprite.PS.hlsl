@@ -40,3 +40,9 @@ PSOutput main(VSOutput input) {
 
 	return output;
 }
+
+uint4 PickSprite(VSOutput input) : SV_Target0 {
+
+	clip(main(input).color.a - 1.0f / 255.0f);
+	return uint4(gPSInstances[input.instanceID].entity, 0u, 1u);
+}

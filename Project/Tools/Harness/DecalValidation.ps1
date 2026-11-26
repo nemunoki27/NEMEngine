@@ -46,8 +46,12 @@ try {
     if ($Showcase) { $paths = @('GameAssets/Scenes/DecalValidation.scene.json') }
     ConvertTo-Json -InputObject $paths | Set-Content -LiteralPath (Join-Path $outputRoot 'Scenes.json') -Encoding utf8
     @{ allowMeshShader = $Mode -ne 'Vertex'; allowInlineRayTracing = $Mode -eq 'DXR';
-       allowDispatchRays = $Mode -eq 'DXR'; frameContextCount = 2 } |
+       frameContextCount = 2 } |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/GraphicsFeatures.json') -Encoding utf8
+    $lightingRoot = Join-Path $gameRoot 'ProjectSettings/Rendering'
+    $null = New-Item -ItemType Directory -Path $lightingRoot -Force
+    @{ allowDispatchRays = $Mode -eq 'DXR'; ambientOcclusionEnabled = $Mode -eq 'DXR'; dynamicGI = $false } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $lightingRoot 'GlobalIllumination.json') -Encoding utf8
     @{ activeScene = 'd3ca1000000000000000000000000028' } | ConvertTo-Json |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Editor/ActiveScene.json') -Encoding utf8
     # 副Viewの非表示を含め描画条件を固定する

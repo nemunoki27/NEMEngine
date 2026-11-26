@@ -16,6 +16,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
+#include <algorithm>
 #include <array>
 #include <iostream>
 
@@ -97,7 +98,7 @@ namespace {
 			bytes == original && !diagnostic.empty();
 	}
 
-	// glTFのBufferと未使用画像も専用フォルダーへ取り込む
+	// glTFのBufferと未使用画像も元の階層で取り込む
 	bool CheckGLTFImport(
 		const std::filesystem::path& root, const std::filesystem::path& assets, const std::string& virtualDirectory) {
 
@@ -123,8 +124,8 @@ namespace {
 		const auto imported =
 			ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, root / "mesh.gltf");
 		nlohmann::json copied;
-		if (!imported.success || imported.fullPath != assets / "mesh/mesh.gltf" ||
-			!JsonFile::TryLoad(imported.fullPath, copied) || copied["extras"] != document["extras"]) {
+		if (!imported.success || imported.fullPath != assets / "mesh.gltf" ||
+			!JsonFile::TryLoad(imported.fullPath, copied) || copied != document) {
 			std::cerr << "glTF import failed: " << imported.message << '\n';
 			return false;
 		}
@@ -181,6 +182,7 @@ namespace {
 			image["uri"] = "../" + image["uri"].get<std::string>();
 		}
 		if (!JsonFile::SaveCanonical(root / "pack/mesh.gltf", document, 2) ||
+			!JsonFile::SaveCanonical(root / "pack/second.gltf", document, 2) ||
 			!StorageFileUtility::WriteBytes(root / "pack/mesh/keep.txt", "keep")) {
 			return false;
 		}
@@ -194,12 +196,14 @@ namespace {
 		const auto folder = ProjectAssetCopyUtility::ImportExternalDirectory(ProjectAssetSource::Game, virtualDirectory, root / "pack");
 		if (!folder.success || !folder.isDirectory || folder.fullPath != assets / "pack" ||
 			!std::filesystem::is_regular_file(folder.fullPath / "mesh/keep.txt") ||
-			!JsonFile::TryLoad(folder.fullPath / "mesh 1/mesh.gltf", copied)) {
+			!JsonFile::TryLoad(folder.fullPath / "mesh.gltf", copied)) {
 			std::cerr << "Model folder import failed: " << folder.message << '\n';
 			return false;
 		}
+		nlohmann::json second;
+		if (!JsonFile::TryLoad(folder.fullPath / "second.gltf", second) || second != copied) return false;
 		for (const auto& image : copied["images"]) {
-			const auto path = folder.fullPath / "mesh 1" / image["uri"].get<std::string>();
+			const auto path = folder.fullPath / image["uri"].get<std::string>();
 			if (!StorageFileUtility::IsInside(path, folder.fullPath) || !std::filesystem::is_regular_file(path)) {
 				return false;
 			}
@@ -238,7 +242,7 @@ bool NEMTests::TestModelImportBundle() {
 	// 通常読込のMTL補完とNormal補完を維持する
 	const auto imported =
 		ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, source / "surface.obj");
-	if (!imported.success || imported.isDirectory || imported.fullPath != target / "surface/surface.obj" ||
+	if (!imported.success || imported.isDirectory || imported.fullPath != target / "surface.obj" ||
 		imported.assetPath.empty()) {
 		std::cerr << "OBJ bundle import failed: " << imported.message << '\n';
 		return false;
@@ -249,14 +253,15 @@ bool NEMTests::TestModelImportBundle() {
 		return false;
 	}
 	for (const auto& file : dependencies) {
-		if (!StorageFileUtility::IsInside(file, target / "surface")) {
+		if (!StorageFileUtility::IsInside(file, target)) {
 			return false;
 		}
 	}
-	// 同じモデルを取り込んでも前回のフォルダーを上書きしない
+	// 同じモデルを取り込んでも前回のファイルを上書きしない
 	const auto repeated =
 		ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, source / "surface.obj");
-	if (!repeated.success || repeated.fullPath != target / "surface 1/surface.obj" ||
+	if (!repeated.success || repeated.fullPath != target / "surface 1.obj" ||
+		std::filesystem::exists(target / "surface 1_Dependencies") ||
 		!CheckGLTFImport(source, target, virtualDirectory)) {
 		return false;
 	}
@@ -275,12 +280,23 @@ bool NEMTests::TestModelImportBundle() {
 	if (std::filesystem::exists(target / "changed")) {
 		return false;
 	}
+	// 別内容の同名画像を上書きせず、今回のモデルだけ新しい画像へつなぐ
+	const auto different =
+		ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, source / "surface.obj");
+	if (!different.success || !ModelFileDependencyCollector::Collect(different.fullPath, dependencies, diagnostic) ||
+		std::ranges::none_of(dependencies, [&](const auto& path) {
+			return path.filename() == "bundle_surface_diffuse.png" && path.parent_path() != target &&
+				StorageFileUtility::ReadVerifiedBytes(path, StorageFileUtility::FileRevision(path)) == "changed";
+		}) || StorageFileUtility::ReadVerifiedBytes(target / "bundle_surface_diffuse.png",
+			StorageFileUtility::FileRevision(target / "bundle_surface_diffuse.png")) != "diffuse") {
+		return false;
+	}
 	// 元フォルダーを除去しても取り込み先だけで読み込める
 	if (!external.Remove() || !ModelFileDependencyCollector::Collect(imported.fullPath, dependencies, diagnostic) ||
 		dependencies.size() != 4) {
 		return false;
 	}
-	if (!ModelFileDependencyCollector::Collect(target / "pack/mesh 1/mesh.gltf", dependencies, diagnostic) ||
+	if (!ModelFileDependencyCollector::Collect(target / "pack/mesh.gltf", dependencies, diagnostic) ||
 		dependencies.size() != 2) {
 		return false;
 	}

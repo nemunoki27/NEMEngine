@@ -232,6 +232,7 @@ namespace Engine {
 		// 投影候補をSubMesh単位で選別する境界球
 		Vector3 boundsCenter{};
 		float boundsRadius = 0.0f;
+		uint32_t vertexCount = 0;
 	};
 	// workerで構築した描画用配列
 	struct MeshUploadData {

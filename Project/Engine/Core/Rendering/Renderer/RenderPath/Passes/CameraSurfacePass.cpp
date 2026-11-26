@@ -42,11 +42,10 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 	if (ambientOcclusion_) context.targetRegistry->RegisterColor(RenderTargetNames::kAmbientOcclusion, nullptr);
 	if (!context.view || !context.view->FindCamera(RenderCameraDomain::Perspective) || context.disableInlineRayTracing) return;
 	const auto& controller = graphicsCore.GetDXObject().GetFeatureController();
-	const auto& settings = context.postProcessCamera.surfaceSettings;
-	const int32_t cullingMask = static_cast<int32_t>(context.view->GetCullingMask(RenderCameraDomain::Perspective));
-	const bool active = ambientOcclusion_ ? settings.ambientOcclusionEnabled &&
-		controller.GetSupport().SupportsInlineRayTracingPath() && controller.GetSupport().SupportsShaderModel6_6() :
-		settings.reflectionEnabled && controller.GetRuntimeFeatures().useDispatchRays;
+	const auto& settings = controller.GetPreferences();
+	const uint32_t cullingMask = context.view->GetCullingMask(RenderCameraDomain::Perspective);
+	const auto& features = controller.GetRuntimeFeatures();
+	const bool active = ambientOcclusion_ ? features.useAmbientOcclusion : features.useDispatchRays;
 	if (!active || !context.raytracing.tlasResource) return;
 
 	// 設定変更時だけ実行計画を再生成する
@@ -54,7 +53,8 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 	const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	State& state = states_[context.view->GetHistoryKey()];
 	// Cameraが除外するInstanceがある場合は候補HitでLayerを調べる
-	const bool opaqueGeometryAllowed = std::all_of(context.raytracing.instanceData.begin(), context.raytracing.instanceData.end(),
+	const bool opaqueGeometryAllowed = !ambientOcclusion_ || (context.raytracing.commonLayers & cullingMask) != 0 ||
+		std::all_of(context.raytracing.instanceData.begin(), context.raytracing.instanceData.end(),
 		[cullingMask](const auto& instance) { return ((instance.renderFlags >> 8u) & cullingMask) != 0; });
 	const bool parametersChanged = ambientOcclusion_ ?
 		state.settings.ambientOcclusionRadius != settings.ambientOcclusionRadius ||
@@ -63,15 +63,14 @@ void Engine::CameraSurfacePass::Execute(GraphicsCore& graphicsCore,
 		state.settings.reflectionIntensity != settings.reflectionIntensity ||
 		state.settings.reflectionMaxDistance != settings.reflectionMaxDistance ||
 		state.settings.reflectionParameters != settings.reflectionParameters;
-	if (state.generation == 0 || state.opaqueGeometryAllowed != opaqueGeometryAllowed || parametersChanged || state.settings.cullingMask != cullingMask ||
+	if (state.generation == 0 || state.opaqueGeometryAllowed != opaqueGeometryAllowed || parametersChanged || state.cullingMask != cullingMask ||
 		state.projectionMatrix != camera->matrices.unjitteredProjectionMatrix) {
 
 		// 可変設定のコピーは計画を作り直すときだけ行う
-		CameraCommon runtimeSettings = settings;
-		runtimeSettings.cullingMask = cullingMask;
-		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(runtimeSettings, opaqueGeometryAllowed) :
-			BuildCameraReflectionProfile(runtimeSettings));
-		state.settings = std::move(runtimeSettings);
+		state.cullingMask = cullingMask;
+		state.runtime.Rebuild(ambientOcclusion_ ? BuildCameraAmbientOcclusionProfile(settings, opaqueGeometryAllowed, cullingMask) :
+			BuildCameraReflectionProfile(settings));
+		state.settings = settings;
 		state.opaqueGeometryAllowed = opaqueGeometryAllowed;
 		state.projectionMatrix = camera->matrices.unjitteredProjectionMatrix;
 		++state.generation;

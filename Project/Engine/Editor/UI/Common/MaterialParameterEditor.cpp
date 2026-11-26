@@ -54,18 +54,22 @@ namespace Engine::MaterialParameterEditor {
 		return { .valueChanged = true, .editFinished = true };
 	}
 
+	void DrawParameterCopyMenu(MaterialParameterID parameterID, std::string_view name) {
+
+		if (ImGui::MenuItem("バッファ名をコピー")) {
+			ImGui::SetClipboardText(std::string(name).c_str());
+		}
+		if (ImGui::MenuItem("マテリアルIDをコピー", nullptr, false, static_cast<bool>(parameterID))) {
+			ImGui::SetClipboardText(Engine::ToString(UUID{ parameterID.value }).c_str());
+		}
+	}
+
 	MyGUI::ScopedPropertyLabelContextMenu MakeLabelContextMenu(
 		MaterialParameterID parameterID, std::string_view name) {
 
 		return MyGUI::ScopedPropertyLabelContextMenu([parameterID, name]() {
-
-			if (ImGui::MenuItem("バッファ名をコピー")) {
-				ImGui::SetClipboardText(std::string(name).c_str());
-			}
-			if (ImGui::MenuItem("マテリアルIDをコピー", nullptr, false, static_cast<bool>(parameterID))) {
-				ImGui::SetClipboardText(Engine::ToString(UUID{ parameterID.value }).c_str());
-			}
-			});
+			DrawParameterCopyMenu(parameterID, name);
+		});
 	}
 
 	size_t GetScalarDisplayRank(

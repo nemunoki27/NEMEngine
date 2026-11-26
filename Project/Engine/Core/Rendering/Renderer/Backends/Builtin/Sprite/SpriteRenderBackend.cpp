@@ -1,4 +1,5 @@
 #include "SpriteRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -111,7 +112,10 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		return;
 	}
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass = sourcePass;
-	if (IsOutlineMaskPass(context.passKind)) {
+	if (context.passKind == MaterialPassKind::EditorPicking) {
+		if (!BackendDrawCommon::ResolveMaterialPass(context, BuiltinAssets::Materials::DefaultSprite,
+			DefaultMaterialSlot::Sprite, { MaterialPassKind::EditorPicking }, resolvedPass)) return;
+	} else if (IsOutlineMaskPass(context.passKind)) {
 		if (const MaterialPassBinding* graphPass = sourcePass.material ?
 			FindPass(*sourcePass.material, context.passKind) : nullptr) {
 
@@ -208,6 +212,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// インスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
+	if (context.vertexCounter) context.vertexCounter->Add(4, resources.GetInstanceCount());
 }
 
 //============================================================================

@@ -1,4 +1,5 @@
 #include "TextRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -195,6 +196,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// 文字をインスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
+	if (context.vertexCounter) context.vertexCounter->Add(4, resources.GetInstanceCount());
 }
 
 //============================================================================

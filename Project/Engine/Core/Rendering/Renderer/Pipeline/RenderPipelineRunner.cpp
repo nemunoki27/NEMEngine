@@ -320,6 +320,9 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			ViewLightCollector::CollectForView(scenePreparation_.frameLightBatch_, activeScene, view, viewState.lightSet);
 		}
 		SceneExecutionContext context = BuildViewExecutionContext(graphicsCore, request, activeScene, kind, view);
+		if (!view.targetTexture && viewRequest->ShouldRender(view)) {
+			context.viewVertexCounter = GPUFrameProfiler::GetInstance().GetVertexCounter(kind);
+		}
 		context.particleCameraCaptureRequired = particleCameraDepth_.NeedsCapture(view.perspective.sourceCamera);
 		if (!context.sceneInstance) {
 			context.targetRegistry->EndFrame();

@@ -279,6 +279,7 @@ void Engine::LightingPass::Execute(
 		-atmosphere.moonDirection.z, atmosphere.moonAngularRadius};
 	constants.atmosphereLunar = {atmosphere.lunarLuminance.x, atmosphere.lunarLuminance.y, atmosphere.lunarLuminance.z, 0};
 	constants.ambientIntensity = 0.03f;
+	const auto& lighting = graphicsCore.GetDXObject().GetFeatureController().GetPreferences();
 	constants.skyboxColor = skybox.found ? skybox.color : graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
 	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;
 	constants.hasSkybox = skybox.found ? 1u : 0u;
@@ -292,9 +293,9 @@ void Engine::LightingPass::Execute(
 	constants.shadowMapAvailable = shadowMapAvailable && !useShadow ? 1u : 0u;
 	constants.shadowMapLightIndex = directionalShadows_.GetState().lightIndex;
 	constants.reflectionFeatureActive =
-		!context.postProcessCamera.surfaceSettings.reflectionEnabled ||
+		!lighting.reflectionEnabled ||
 		(runtimeFeatures.useDispatchRays && tlasAvailable) ? 1u : 0u;
-	constants.reflectionIntensity = context.postProcessCamera.surfaceSettings.reflectionIntensity;
+	constants.reflectionIntensity = lighting.reflectionIntensity;
 	if (context.diffuseGI) {
 		context.diffuseGI->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		BindGBufferSRV(commandList, diffuseGISlot_, context.diffuseGI);
@@ -304,7 +305,7 @@ void Engine::LightingPass::Execute(
 			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture()->gpuHandle);
 	}
 	constants.ambientOcclusionIntensity = context.ambientOcclusion ?
-		context.postProcessCamera.surfaceSettings.ambientOcclusionIntensity : 0.0f;
+		lighting.ambientOcclusionIntensity : 0.0f;
 	// 遮蔽がないViewは白Textureを使う
 	if (context.ambientOcclusion) {
 		context.ambientOcclusion->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);

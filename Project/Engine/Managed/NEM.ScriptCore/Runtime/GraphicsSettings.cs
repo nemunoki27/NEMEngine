@@ -5,6 +5,7 @@ namespace NEMEngine;
 
 public enum DisplayOutputMode { SDR, HDR10, ScRGB }
 public enum DynamicGIQuality { Low, Standard, High }
+public enum DynamicGIUpdateSpeed { Slow, Standard, Fast }
 public enum DynamicGIDebug { None, Indirect, CacheUpdates }
 public enum AntialiasingMethod { None, FXAA }
 
@@ -30,6 +31,20 @@ public sealed class GraphicsSettingsData {
 	public float fxaaEdgeThreshold { get => Read<float>("fxaaEdgeThreshold"); set => Write("fxaaEdgeThreshold", value); }
 	public float fxaaMinimumThreshold { get => Read<float>("fxaaMinimumThreshold"); set => Write("fxaaMinimumThreshold", value); }
 	public float fxaaSubpixelStrength { get => Read<float>("fxaaSubpixelStrength"); set => Write("fxaaSubpixelStrength", value); }
+	public float reflectionIntensity { get => Read<float>("reflectionIntensity"); set => Write("reflectionIntensity", value); }
+	public float reflectionMaxDistance { get => Read<float>("reflectionMaxDistance"); set => Write("reflectionMaxDistance", value); }
+	public int reflectionQuality { get => Read<int>("reflectionQuality"); set => Write("reflectionQuality", value); }
+	public bool ambientOcclusionEnabled { get => Read<bool>("ambientOcclusionEnabled"); set => Write("ambientOcclusionEnabled", value); }
+	public float ambientOcclusionIntensity { get => Read<float>("ambientOcclusionIntensity"); set => Write("ambientOcclusionIntensity", value); }
+	public float ambientOcclusionRadius { get => Read<float>("ambientOcclusionRadius"); set => Write("ambientOcclusionRadius", value); }
+	public int ambientOcclusionQuality { get => Read<int>("ambientOcclusionQuality"); set => Write("ambientOcclusionQuality", value); }
+	public float indirectIntensity { get => Read<float>("indirectIntensity"); set => Write("indirectIntensity", value); }
+	public float emissiveContribution { get => Read<float>("emissiveContribution"); set => Write("emissiveContribution", value); }
+	public DynamicGIUpdateSpeed giUpdateSpeed { get => (DynamicGIUpdateSpeed)Read<int>("giUpdateSpeed"); set => Write("giUpdateSpeed", (int)value); }
+	public JsonObject reflectionParameters {
+		get => (JsonObject)values["reflectionParameters"]!.DeepClone();
+		set => values["reflectionParameters"] = value.DeepClone();
+	}
 	public bool dynamicGI { get => Read<bool>("dynamicGI"); set => Write("dynamicGI", value); }
 	public DynamicGIQuality dynamicGIQuality {
 		get => Enum.Parse<DynamicGIQuality>(Read<string>("dynamicGIQuality"));
@@ -76,6 +91,8 @@ public sealed class GraphicsRuntimeState {
 	public uint renderHeight => Read<uint>("renderHeight");
 	public uint outputWidth => Read<uint>("outputWidth");
 	public uint outputHeight => Read<uint>("outputHeight");
+	public bool ambientOcclusionSupported => Read<bool>("ambientOcclusionSupported");
+	public bool ambientOcclusionEnabled => Read<bool>("ambientOcclusionEnabled");
 	public bool dynamicGISupported => Read<bool>("dynamicGISupported");
 	public bool dynamicGIEnabled => Read<bool>("dynamicGIEnabled");
 	public bool rayTracingSupported => Read<bool>("rayTracingSupported");

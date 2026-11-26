@@ -251,7 +251,21 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// シーンビューのメッシュピック処理の結果を選択状態へ適用する
 	const MeshSubMeshPickOutcome pickOutcome = meshSubMeshPicker_->ConsumePendingResult(graphicsCore, context.activeWorld);
-	if (pickOutcome.resolved && pickOutcome.requestID == editorState_.scenePickRequestID) {
+	if (pickOutcome.resolved && pickOutcome.region && pickOutcome.requestID == editorState_.scenePickRequestID) {
+		auto& region = editorState_.regionPick;
+		auto* world = context.activeWorld;
+		if (world && region.world.lock() == world->GetLifetime() && editorState_.enableScenePick &&
+			editorState_.selectKind == EditorSelectionKind::Entity) {
+			if (!region.additive && !region.toggle) editorState_.ClearSelection();
+			auto apply = [&](Entity entity) {
+				if (!world->IsAlive(entity) || !IsScenePickDimensionAllowed(*world, entity, editorState_.sceneViewPickDimension) ||
+					!editorState_.CanMultiSelect(*world, entity)) return;
+				if (region.toggle) editorState_.ToggleEntityInSelection(entity);
+				else editorState_.AddEntityToSelection(entity);
+			};
+			for (const Entity entity : pickOutcome.entities) apply(entity);
+		}
+	} else if (pickOutcome.resolved && pickOutcome.requestID == editorState_.scenePickRequestID) {
 
 		// 最新クリックの結果だけ候補へ反映し、リリース済みなら選択を確定する
 		const bool dimensionAllowed =

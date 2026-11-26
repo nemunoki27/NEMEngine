@@ -24,20 +24,26 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float spacing=GridSpacing(n)*(level==0u ? 1.0f : 4.0f);
 	float3 origin=(float3(cell)+0.5f)*spacing;
 	float tag=CellTag(cell);
-	uint previousProbe;
-	bool valid=FindGIProbe(cell,n,true,level,previousProbe);
+	uint previousProbe=probe;
+	bool valid=true;
+	if(layoutChanged!=0u) valid=FindGIProbe(cell,n,true,level,previousProbe);
 	uint face=index%6u;
 	uint2 previousPixel=GIProbeTexel(previousProbe,n)+uint2(face,0);
 	float4 history=valid ? gHistoryColor.Load(int3(previousPixel,0)) : 0;
 	valid=valid && GIProbeFaceTag(history.a)==tag;
 	bool changed=lightingChanged!=0;
-	[unroll]
-	for(uint b=0;b<8;++b) {
-		float radius=changeBounds[b].w;
-		changed |= radius>0 && distance(origin,changeBounds[b].xyz)<=radius+spacing;
+	[branch]
+	if(!changed && changeBounds[0].w>0) {
+		[unroll]
+		for(uint b=0;b<8;++b) {
+			float radius=changeBounds[b].w;
+			float3 delta=origin-changeBounds[b].xyz;
+			changed |= radius>0 && dot(delta,delta)<=(radius+spacing)*(radius+spacing);
+		}
 	}
 	uint ageMultiplier=cacheConverged==1u ? 16u : cacheConverged==2u ? 4u : 1u;
 	uint period=max(changed ? updatePeriod/2u : updatePeriod*ageMultiplier,1u);
+	period=max((period*2u)>>updateSpeed,1u);
 	// 同じ格子点の六方向は同一フレームで更新する
 	if(valid && (GIWorldHash(cell)+cacheFrame)%period!=0) {
 		gDestColor[p]=float4(history.rgb,-abs(history.a));

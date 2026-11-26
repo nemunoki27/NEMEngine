@@ -292,10 +292,10 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	const ResolvedCameraView* extensionCamera = extensionView.FindOutputCamera();
 	const AssetID extensionID = extensionCamera ? extensionCamera->renderPasses : AssetID{};
 	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderPassesRevision(extensionID);
-	const auto overrideAsset = extensionCamera && extensionCamera->surfaceSettings.runtimeRenderPasses &&
-		extensionCamera->surfaceSettings.runtimeRenderPasses->guid == extensionID &&
-		extensionCamera->surfaceSettings.runtimeRenderPassesSourceRevision == extensionRevision ?
-		extensionCamera->surfaceSettings.runtimeRenderPasses : nullptr;
+	const auto overrideAsset = extensionCamera && extensionCamera->runtimeRenderPasses &&
+		extensionCamera->runtimeRenderPasses->guid == extensionID &&
+		extensionCamera->runtimeRenderPassesSourceRevision == extensionRevision ?
+		extensionCamera->runtimeRenderPasses : nullptr;
 	if (cameraState.renderPassesOverride != overrideAsset || cameraState.renderPassesAsset != extensionID ||
 		cameraState.renderPassesAssetRevision != extensionRevision) {
 		const RenderPassesAsset* extension = overrideAsset ? overrideAsset.get() : extensionID ?
@@ -354,7 +354,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// 初回のスキニングにも反射で使うメッシュを渡す
 	const auto& platform = graphicsCore.GetDXObject();
 	if (sceneChanged && meshBackend_ && request.assetDatabase &&
-		(platform.ShouldUseDynamicGI() || (context.postProcessCamera.surfaceSettings.reflectionEnabled && platform.ShouldUseDispatchRays())) && !scenePreparation_.visibleMeshes_.empty() &&
+		(platform.ShouldUseDynamicGI() || platform.ShouldUseDispatchRays()) && !scenePreparation_.visibleMeshes_.empty() &&
 		!meshBackend_->AreMeshesReady(scenePreparation_.visibleMeshes_)) {
 		meshBackend_->PreloadMeshes(graphicsCore, *request.assetDatabase, scenePreparation_.visibleMeshes_);
 	}
@@ -398,7 +398,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// 反射定数を転送してから、この描画のGPUアドレスを登録する
 	const SceneSkyboxInfo skyboxInfo = SceneSkyboxResolver::Resolve(
 		graphicsCore, request.assetDatabase, request.world, view.GetCullingMask(RenderCameraDomain::Perspective));
-	cameraState.raytracingBuffers.Upload(*context.view, skyboxInfo, context.postProcessCamera.surfaceSettings);
+	cameraState.raytracingBuffers.Upload(*context.view, skyboxInfo, platform.GetFeatureController().GetPreferences());
 	context.raytracingViewConstants = &cameraState.raytracingBuffers.GetData();
 	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
 	return context;

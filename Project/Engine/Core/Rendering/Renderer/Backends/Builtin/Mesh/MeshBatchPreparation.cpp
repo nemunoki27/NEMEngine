@@ -102,6 +102,10 @@ namespace {
 				Engine::DefaultMaterialSlot::Mesh, { context.passKind }, outResolved)) {
 				return true;
 			}
+			if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
+				return Engine::BackendDrawCommon::ResolveMaterialPass(context, Engine::BuiltinAssets::Materials::DefaultMesh,
+					Engine::DefaultMaterialSlot::Mesh, { context.passKind }, outResolved);
+			}
 		}
 		return false;
 	}

@@ -19,6 +19,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 
 	// 描画コンテキストの構築
 	RenderDrawContext drawContext{};
+	drawContext.vertexCounter = sceneContext.countDrawVertices ? sceneContext.viewVertexCounter : nullptr;
 	drawContext.graphicsCore = &graphicsCore;
 	drawContext.view = sceneContext.view;
 	// SceneView描画時でもGameViewカメラでカリングできるように別ポインタで渡す

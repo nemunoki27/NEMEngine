@@ -101,7 +101,8 @@ namespace Engine {
 		float farClip = 1000.0f;
 		// 描画対象レイヤーマスク
 		uint32_t cullingMask = 0xFFFFFFFFu;
-		CameraCommon surfaceSettings{};
+		std::shared_ptr<const RenderPassesAsset> runtimeRenderPasses;
+		uint64_t runtimeRenderPassesSourceRevision = 0;
 		bool postProcessEnabled = true;
 		ColorPipelineSettings colorPipeline{};
 		AssetID renderPasses{};

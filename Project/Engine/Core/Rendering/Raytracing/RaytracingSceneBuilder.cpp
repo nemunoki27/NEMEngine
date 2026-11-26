@@ -111,13 +111,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	PrimitiveGeometryManager* primitiveGeometryManager, const RenderSceneBatch& renderBatch, SceneExecutionContext& context) {
 
 	const auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
-	const bool canBuildRaytracingScene =
-		featureController.GetSupport().SupportsRayTracingPath() &&
-		(graphicsCore.GetDXObject().ShouldBuildRaytracingScene() ||
-		(context.view && context.view->FindCamera(RenderCameraDomain::Perspective) && !context.disableInlineRayTracing &&
-		 context.postProcessCamera.surfaceSettings.ambientOcclusionEnabled &&
-		 featureController.GetSupport().SupportsInlineRayTracingPath() && featureController.GetSupport().SupportsShaderModel6_6()));
-	if (!canBuildRaytracingScene) {
+	if (!featureController.ShouldBuildRaytracingScene()) {
 		return;
 	}
 	if (!context.sceneInstance) {
@@ -258,6 +252,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 			}
 
 			if (transformChanged) {
+				state.result.instanceMatricesDirty_ = true;
 				const bool rebuildForTraceQuality =
 					RequiresTLASRebuildForTraceQuality(state.cachedTLASInstances.size(), changedInstanceCount);
 				state.tlasState.RefitORRebuild(graphicsCore, state.cachedTLASInstances, rebuildForTraceQuality);
@@ -311,7 +306,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	}
 	const bool prepareMaterialHits = state.cachedSceneInstanceID != context.sceneInstance->instanceID &&
 		(graphicsCore.GetDXObject().ShouldUseDynamicGI() ||
-		 (context.postProcessCamera.surfaceSettings.reflectionEnabled && graphicsCore.GetDXObject().ShouldUseDispatchRays()));
+		 graphicsCore.GetDXObject().ShouldUseDispatchRays());
 	if (meshBackend && !requiredMeshes.empty()) {
 		if (prepareMaterialHits && !meshBackend->AreMeshesReady(requiredMeshes)) meshBackend->PreloadMeshes(graphicsCore, assetDatabase, requiredMeshes);
 		else meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);

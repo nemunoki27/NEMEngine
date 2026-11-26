@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/SurfaceLightingSettings.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -91,7 +92,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// データ転送、skyboxは反射レイのミス時の背景に使う
-		void Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const CameraCommon& settings);
+		void Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const SurfaceLightingSettings& settings);
 
 		// 描画バッファレジストリに自身のバッファを登録する
 		void RegisterTo(RenderBufferRegistry& registry) const;

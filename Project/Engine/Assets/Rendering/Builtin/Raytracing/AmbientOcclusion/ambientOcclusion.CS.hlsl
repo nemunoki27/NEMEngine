@@ -42,6 +42,17 @@ StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t6);
 SamplerState gSampler : register(s0);
 RWTexture2D<float> gDestColor : register(u0);
 
+static const float2 kSampleAzimuth[8] = {
+	float2(1.000000000f, 0.000000000f),
+	float2(-0.737368873f, -0.675490300f),
+	float2(0.087425709f, 0.996171042f),
+	float2(0.608438880f, -0.793600737f),
+	float2(-0.984713491f, 0.174181919f),
+	float2(0.843755274f, 0.536728086f),
+	float2(-0.259604259f, -0.965715087f),
+	float2(-0.460907074f, 0.887448404f)
+};
+
 uint HashAO(uint value) {
 
 	value ^= value >> 16;
@@ -100,6 +111,10 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float3 bitangent = cross(normal, tangent);
 	uint count = clamp(sampleCount, 1u, 8u);
 	float rotation = float(HashAO(source.x + source.y * width + frameIndex * 747796405u)) / 4294967296.0f;
+	float sine, cosine;
+	sincos(6.2831853f * rotation, sine, cosine);
+	float3 rotatedTangent = tangent * cosine + bitangent * sine;
+	float3 rotatedBitangent = bitangent * cosine - tangent * sine;
 	float visibility = 0.0f;
 	float distanceLimit = max(radius, 0.001f);
 	RayDesc ray;
@@ -110,9 +125,8 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	for (uint index = 0u; index < count; ++index) {
 
 		float r = sqrt((float(index) + 0.5f) / float(count));
-		float phi = 6.2831853f * frac(float(index) * 0.61803399f + rotation);
-		float3 direction = tangent * (r * cos(phi)) + bitangent * (r * sin(phi)) + normal * sqrt(1.0f - r * r);
-		ray.Direction = direction;
+		ray.Direction = r * (rotatedTangent * kSampleAzimuth[index].x + rotatedBitangent * kSampleAzimuth[index].y) +
+			normal * sqrt(1.0f - r * r);
 		RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> query;
 		// 常時判定マスクで影と反射の設定から独立させる
 		query.TraceRayInline(gSceneTLAS, opaqueGeometryAllowed != 0u ? 0u : RAY_FLAG_FORCE_NON_OPAQUE, 4u, ray);

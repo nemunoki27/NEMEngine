@@ -14,6 +14,8 @@
 #include <Engine/Editor/UI/Panels/Builtin/ViewportOrientationGizmo.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Renderer/Views/CameraViewProjection.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshPicker.h>
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 #include <Engine/Editor/Core/Layout/EditorLayoutSerialization.h>
 
@@ -415,5 +417,44 @@ bool NEMTests::TestEditorWindows() {
 		saved.find("Inspector:duplicate") == std::string::npos) return false;
 	if (!CheckExternalDocking(frameStyle, nodeID, renamed.c_str(), duplicate.c_str())) return false;
 	std::cout << "Editor windows: icons, alignment, IDs, body style, DPI sizes, title drag, docking and layout passed\n";
+	return true;
+}
+
+bool NEMTests::TestRegionPicking() {
+
+	using namespace Engine;
+	GraphicsCore graphics;
+	graphics.Init(false);
+	const ScopedCleanup shutdown([&]() noexcept { graphics.Finalize(); });
+	MeshSubMeshPicker picker;
+	picker.Init(graphics);
+	ECSWorld world;
+	const auto a = world.CreateEntity(), b = world.CreateEntity();
+
+	// 17画素の行は512byte境界まで埋められる。後続行の末尾と重複IDも確認する
+	graphics.BeginRenderFrame();
+	auto* target = picker.GetRegionTarget(graphics, 17, 3);
+	if (!target) return false;
+	auto* commands = graphics.GetDXObject().GetDxCommand();
+	target->TransitionForRender(*commands);
+	target->Clear(*commands, {.clearColorValue = Color4(0, 0, 0, 0)});
+	const auto handle = target->GetColorTexture(0)->GetRenderTarget().rtvHandle;
+	const auto paint = [&](Entity entity, D3D12_RECT rect) {
+		const float id[4]{static_cast<float>(entity.index), static_cast<float>(entity.generation), 0.0f, 1.0f};
+		commands->GetCommandList()->ClearRenderTargetView(handle, id, 1, &rect);
+	};
+	paint(a, {0, 0, 3, 1});
+	paint(b, {16, 2, 17, 3});
+	if (!picker.ExecuteReadback(graphics, 42, *target, true)) return false;
+	graphics.SubmitRenderFrame();
+	graphics.EndRenderFrame();
+	graphics.GetDXObject().WaitForGPU();
+	const auto picked = picker.ConsumePendingResult(graphics, &world);
+	if (!picked.resolved || !picked.region || picked.requestID != 42 || picked.entities != std::vector<Entity>{a, b}) {
+		std::cerr << "Region pick " << picked.requestID << ": " << picked.entities.size() << " IDs, expected "
+			<< a.index << "/" << a.generation << " " << b.index << "/" << b.generation << '\n';
+		for (const Entity entity : picked.entities) std::cerr << entity.index << "/" << entity.generation << ' ';
+		return false;
+	}
 	return true;
 }

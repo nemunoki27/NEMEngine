@@ -108,6 +108,7 @@ void Engine::SceneComponentOverlayRenderer::Finalize() {
 		spriteInstances->Release();
 	}
 	spriteRunInstances_.clear();
+	spriteView_.Release();
 	pipelineCache_.clear();
 	initialized_ = false;
 }
@@ -130,7 +131,8 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 		GraphicsPipelineDesc desc{};
 		desc.type = PipelineType::Vertex;
 		desc.preRaster = { BuiltinShaderSource::Editor::SceneOverlaySpriteVS, "main", "vs_6_0" };
-		desc.pixel = { BuiltinShaderSource::Editor::SceneOverlaySpritePS, "main", "ps_6_0" };
+		desc.pixel = { BuiltinShaderSource::Editor::SceneOverlaySpritePS,
+			rtvFormat == DXGI_FORMAT_R32G32B32A32_UINT ? "PickIcon" : "main", "ps_6_0" };
 		desc.staticSamplers.push_back(MakeLinearClampSampler());
 		desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
@@ -184,14 +186,15 @@ void Engine::SceneComponentOverlayRenderer::Render([[maybe_unused]] GraphicsCore
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// 前フレームの描画済みアイテムがPickerへ残らないよう、最初に必ず消す
-	SceneComponentOverlayState::GetInstance().Clear();
+	const DXGI_FORMAT rtvFormat = ResolveSurfaceRTVFormat(surface);
+	const bool picking = rtvFormat == DXGI_FORMAT_R32G32B32A32_UINT;
+	if (!picking) SceneComponentOverlayState::GetInstance().Clear();
 	if (items.empty() || !view.valid || surface.GetWidth() == 0 || surface.GetHeight() == 0) {
 		return;
 	}
 
 	Init(graphicsCore);
 
-	const DXGI_FORMAT rtvFormat = ResolveSurfaceRTVFormat(surface);
 	PipelinePair* pipelines = GetOrCreatePipelines(graphicsCore, rtvFormat);
 	if (!pipelines || !pipelines->sprite) {
 		return;
@@ -204,7 +207,7 @@ void Engine::SceneComponentOverlayRenderer::Render([[maybe_unused]] GraphicsCore
 	DrawSpriteIcons(graphicsCore, assetDatabase, view, surface, *pipelines->sprite, items, renderedItems);
 
 	// 実際に描けたアイテムだけをCPU Pickerへ渡す
-	SceneComponentOverlayState::GetInstance().SetRenderedItems(world, renderedItems);
+	if (!picking) SceneComponentOverlayState::GetInstance().SetRenderedItems(world, renderedItems);
 #endif
 }
 
@@ -278,6 +281,7 @@ void Engine::SceneComponentOverlayRenderer::DrawSpriteIcons(GraphicsCore& graphi
 
 			SpriteInstanceData instance{};
 			instance.center = item.screenCenter;
+			instance.entity = item.entity;
 			instance.halfSize = (item.rectMax - item.rectMin) * 0.5f;
 			instance.color = item.color;
 			instance.rotationRadians = item.spriteRotationRadians;

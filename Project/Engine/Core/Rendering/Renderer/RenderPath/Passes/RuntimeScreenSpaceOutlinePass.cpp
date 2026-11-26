@@ -1,4 +1,5 @@
 #include "RuntimeScreenSpaceOutlinePass.h"
+#include <Engine/Core/Foundation/Utility/ScopedValue.h>
 
 //============================================================================
 //	include
@@ -177,6 +178,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::DrawUIRange(GraphicsCore& graphicsCo
 	std::erase_if(uiDrawScratch_, [&](const RenderItem* item) {
 		return item && context.renderPassesRuntime && context.renderPassesRuntime->IsItemIsolated(*item, context.kind);
 	});
+	ScopedValue countVertices(context.countDrawVertices, true);
 	RenderPassExecutionHelper::Execute(graphicsCore, context, uiDrawScratch_, deps_, target);
 }
 

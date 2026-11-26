@@ -474,7 +474,7 @@
     "buffers": [
         {
             "byteLength": 2520,
-            "uri": "_resources/0/cornell_box.bin"
+            "uri": "cornell_box_extended_imported.bin"
         }
     ],
     "cameras": [

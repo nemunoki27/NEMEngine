@@ -69,6 +69,8 @@ nlohmann::json Engine::RuntimeProjectSettings::ReadEffective() const {
 	const auto& size = graphics_.GetContext().GetWindowSetting().gameSize;
 	return {{"meshShaderSupported", support.SupportsMeshShaderPath()}, {"rayTracingSupported", support.SupportsRayTracingPath()},
 		{"inlineRayTracingSupported", support.SupportsInlineRayTracingPath()}, {"meshShaderEnabled", features.useMeshShader},
+		{"ambientOcclusionSupported", support.SupportsInlineRayTracingPath() && support.SupportsShaderModel6_6()},
+		{"ambientOcclusionEnabled", features.useAmbientOcclusion},
 		{"dynamicGISupported", support.SupportsDynamicGI()}, {"dynamicGIEnabled", features.useDynamicGI},
 		{"rayTracingShadowsEnabled", features.useInlineRayTracing}, {"rayTracingReflectionsEnabled", features.useDispatchRays},
 		{"doubleBufferingEnabled", GraphicsFrameState::GetActiveCount() == 2},
@@ -90,7 +92,7 @@ bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 	for (auto it = settings.begin(); it != settings.end(); ++it) {
 		if (!candidate.contains(it.key())) return false;
 		const auto& old = candidate[it.key()];
-		if ((old.is_boolean() && !it->is_boolean()) || (old.is_string() && !it->is_string()) ||
+		if ((old.is_object() && !it->is_object()) || (old.is_boolean() && !it->is_boolean()) || (old.is_string() && !it->is_string()) ||
 			(old.is_number_integer() && !it->is_number_integer()) ||
 			(old.is_number() && (!it->is_number() || !std::isfinite(it->get<double>())))) return false;
 		candidate[it.key()] = it.value();
@@ -210,7 +212,13 @@ bool Engine::RuntimeProjectSettings::SaveUserSettings() const {
 bool Engine::RuntimeProjectSettings::LoadUserSettings() {
 
 	auto settings = JsonFile::Load(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), false);
-	if (settings.is_object()) settings.erase("sceneClearColor");
+	if (settings.is_object()) {
+		settings.erase("sceneClearColor");
+		// 旧版のユーザー設定でプロジェクトの照明初期値を上書きしない
+		if (!settings.contains("giUpdateSpeed")) {
+			for (const auto* key : {"allowDispatchRays", "dynamicGI", "dynamicGIQuality", "dynamicGIDebug"}) settings.erase(key);
+		}
+	}
 	if (GraphicsPreferenceStorage::Migrate(settings)) {
 		StorageFileUtility::WriteBytes(RuntimePaths::GetUserSettingsPath("Runtime/GameUserSettings.json"), settings.dump(2));
 	}

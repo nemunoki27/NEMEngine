@@ -66,6 +66,7 @@ void ParticleGPUService::PrepareTrailView(GraphicsCore& graphics, ParticleGPUIns
 		}
 	}
 	view.trailKeys[0].Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	view.arguments.Transition(commands, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-	view.trailArguments.Transition(commands, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+	const auto argumentState = D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_COPY_SOURCE;
+	view.arguments.Transition(commands, argumentState);
+	view.trailArguments.Transition(commands, argumentState);
 }

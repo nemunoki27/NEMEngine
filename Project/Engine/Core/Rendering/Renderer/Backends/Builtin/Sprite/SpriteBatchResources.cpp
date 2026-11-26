@@ -93,6 +93,7 @@ void Engine::SpriteBatchResources::UploadInstances(const RenderDrawContext& cont
 		{
 			SpritePSInstanceData instance{};
 			instance.uvMatrix = payload->uvMatrix;
+			instance.entity = item->entity;
 			instance.shine = ResolveShineHighlight(context, *item);
 			psScratch_.emplace_back(instance);
 		}

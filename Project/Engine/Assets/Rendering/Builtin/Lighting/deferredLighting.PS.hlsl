@@ -673,7 +673,7 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 		float4 gi = float4(0, 0, 0, -1);
 		if (diffuseGIMode != 0u) gi = gDiffuseGI.Load(int3(pixel, 0));
 		if (gi.a >= 0.0f) {
-			color += gi.rgb * DiffuseGIReflectance(albedo, metallic) * ao;
+			color += gi.rgb * DiffuseGIReflectance(albedo, metallic) * (ao * screenAO);
 		} else {
 			color += EvaluateDiffuseEnvironment(N, V, albedo, metallic, ao * screenAO, F0);
 		}

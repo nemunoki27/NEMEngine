@@ -71,7 +71,7 @@ const ResolvedRenderView* RenderPipelineRunner::FindPickingView(RenderViewKind k
 
 bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	RenderViewKind kind, const Vector2& inputPixel,
-	MultiRenderTarget& target, std::optional<Dimension> dimensionFilter) {
+	MultiRenderTarget& target, std::optional<Dimension> dimensionFilter, bool region) {
 
 	if (!pickingState_.lastRenderRequest_.world || !pickingState_.lastRenderRequest_.assetDatabase ||
 		!pickingState_.lastActiveScene_ || !target.IsValid()) {
@@ -82,9 +82,7 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	const ResolvedRenderView* selectedView = FindPickingView(kind, inputPixel, viewPixel);
 	if (!selectedView) return false;
 	const ResolvedRenderView& view = *selectedView;
-	const ResolvedCameraView* camera =
-		view.FindCamera(RenderCameraDomain::Perspective);
-	if (!view.valid || !camera) {
+	if (!view.valid) {
 		return false;
 	}
 
@@ -93,10 +91,11 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	for (const RenderItem& item : scenePreparation_.renderBatch_.GetItems()) {
 
 		if ((item.backendID != RenderBackendID::Mesh &&
-			item.backendID != RenderBackendID::Primitive && item.backendID != RenderBackendID::Text) ||
+			item.backendID != RenderBackendID::Primitive && item.backendID != RenderBackendID::Text &&
+			(!region || item.backendID != RenderBackendID::Sprite)) ||
 			item.sceneInstanceID != pickingState_.lastActiveScene_->instanceID ||
-			item.cameraDomain != RenderCameraDomain::Perspective ||
-			(item.visibilityLayerMask & camera->cullingMask) == 0) {
+			(!region && item.cameraDomain != RenderCameraDomain::Perspective) ||
+			!view.FindCamera(item.cameraDomain) || (item.visibilityLayerMask & view.GetCullingMask(item.cameraDomain)) == 0) {
 			continue;
 		}
 		if (dimensionFilter) {
@@ -133,12 +132,12 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	target.Bind(*dxCommand);
 	target.Clear(*dxCommand, {
 		.clearColor = true,
-		.clearColorValue = Color4::Black(),
+		.clearColorValue = Color4(0, 0, 0, 0),
 		.clearDepth = true,
 		.clearDepthValue = 1.0f,
 		});
 
-	// 元ビューを負のオフセットで1x1 RTへ写し、クリック画素だけをラスタライズする
+	// 元ビューを選択範囲の左上へずらしてラスタライズする
 	const float pixelX = std::floor(std::clamp(
 		viewPixel.x, 0.0f, static_cast<float>(view.width - 1)));
 	const float pixelY = std::floor(std::clamp(
@@ -150,7 +149,7 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	viewport.Height = static_cast<float>(view.height);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
-	D3D12_RECT scissor{ 0, 0, 1, 1 };
+	D3D12_RECT scissor{0, 0, static_cast<LONG>(target.GetWidth()), static_cast<LONG>(target.GetHeight())};
 
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	commandList->RSSetViewports(1, &viewport);

@@ -67,7 +67,7 @@ void Engine::TextureAssetResolver::IndexDirectoryRecursive(const std::filesystem
 }
 
 const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolver::ChooseBestCandidate(
-	const std::vector<TextureCandidate>& candidates, bool filePaths) const {
+	const std::vector<TextureCandidate>& candidates, bool filePaths, const std::filesystem::path& directory) const {
 
 	if (candidates.empty()) {
 		return nullptr;
@@ -78,6 +78,7 @@ const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolv
 	std::string bestExternalKey;
 	std::string_view bestKey;
 	for (const TextureCandidate& candidate : candidates) {
+		if (!directory.empty() && candidate.fullPath.parent_path() != directory) continue;
 
 		// 通常描画ではAssetにできない候補を選ばない
 		if (!filePaths && candidate.assetPath.empty()) {
@@ -114,7 +115,7 @@ const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolv
 }
 
 const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolver::ResolveIndexedPathByStem(
-	const std::string& stemLower, bool filePaths) const {
+	const std::string& stemLower, bool filePaths, const std::filesystem::path& directory) const {
 
 	if (stemLower.empty()) {
 		return {};
@@ -125,7 +126,7 @@ const Engine::TextureAssetResolver::TextureCandidate* Engine::TextureAssetResolv
 		return {};
 	}
 
-	return ChooseBestCandidate(it->second, filePaths);
+	return ChooseBestCandidate(it->second, filePaths, directory);
 }
 
 void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullPath) {
@@ -278,16 +279,21 @@ std::filesystem::path Engine::TextureAssetResolver::ResolveNormalPath(
 
 	constexpr std::array normalSuffixes = {
 		"_ddn", "_normal", "_norm", "_nrm", "_bump", "-ddn", "-normal", "-norm", "-nrm", "-bump"};
-	for (const std::string& stem : baseStems) {
-		for (const std::string_view suffix : normalSuffixes) {
-
-			if (const auto* candidate = ResolveIndexedPathByStem(stem + std::string(suffix), filePaths)) {
-				return candidate->fullPath;
+	// 同じ名前のマテリアルが複数ある場合はBaseColorと同じフォルダーから補完する
+	const auto findNormal = [&](const std::filesystem::path& directory) -> std::filesystem::path {
+		for (const auto& stem : baseStems) {
+			for (const auto suffix : normalSuffixes) {
+				if (const auto* candidate = ResolveIndexedPathByStem(stem + std::string(suffix), filePaths, directory)) {
+					return candidate->fullPath;
+				}
 			}
 		}
+		return {};
+	};
+	if (!resolvedBaseColor.empty()) {
+		if (auto normal = findNormal(resolvedBaseColor.parent_path()); !normal.empty()) return normal;
 	}
-
-	return {};
+	return findNormal({});
 }
 
 Engine::TextureAlphaContent Engine::TextureAssetResolver::AnalyzeAlpha(const std::string& reference) const {

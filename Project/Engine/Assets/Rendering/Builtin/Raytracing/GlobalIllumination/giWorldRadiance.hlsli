@@ -5,6 +5,8 @@ cbuffer GIWorldLighting : register(b0, space36) {
 	float giGroundHeight;
 	float giInverseAtmosphereHeight;
 	float4 giAtmosphereColors[2][32];
+	float indirectIntensity;
+	float emissiveContribution;
 };
 
 float3 GIAltitudeLightColor(uint index, float height, float3 color) {
@@ -124,11 +126,16 @@ float3 DirectGI(GISurface hit) {
 	return sum / 3.14159265f;
 }
 
+float3 EmissiveIrradiance(float3 position,float3 normal,bool secondary) {
+	if(emissiveContribution<=0) return 0;
+	return GIEmitterIrradiance(position,normal,secondary)*emissiveContribution;
+}
+
 float3 SurfaceRadiance(GISurface hit,Texture2D<float4> cache,Texture2D<float2> moments,bool previous) {
-	if ((hit.flags & kMaterialFlagLighting)==0u) return hit.diffuse;
+	if ((hit.flags & kMaterialFlagLighting)==0u || !any(hit.diffuse)) return hit.diffuse;
 	float3 irradiance = DirectGI(hit);
 	if ((hit.flags & kMaterialFlagReceiveIBL)!=0u && hit.ambientOcclusion>0.0f) {
-		irradiance += hit.ambientOcclusion*(GIEmitterIrradiance(hit.position,hit.normal,true)+
+		irradiance += hit.ambientOcclusion*(EmissiveIrradiance(hit.position,hit.normal,true)+
 			CachedIrradiance(cache,moments,hit.position+0.002f*hit.normal,hit.normal,previous,hasCoarseBricks!=0u));
 	}
 	return hit.diffuse*irradiance;
@@ -158,13 +165,44 @@ float3 TraceDistantIrradiance(Texture2D<float4> cache,Texture2D<float2> moments,
 	return sum/max(totalWeight,0.0001f);
 }
 
-float4 ReadVisibleIrradiance(Texture2D<float4> cache,int3 cell,uint n,uint level,uint2 size,
+struct GIProbeNeighborhood {
+	int3 firstBrick;
+	uint4 lower;
+	uint4 upper;
+};
+
+// 同じブリックにある候補点は検索表を一度だけ引く
+bool LoadProbeNeighborhood(int3 first,int3 last,uint n,uint level,out GIProbeNeighborhood neighborhood) {
+	neighborhood.firstBrick=first>>2;
+	neighborhood.lower=0xffffffffu;
+	neighborhood.upper=0xffffffffu;
+	uint3 span=uint3((last>>2)-neighborhood.firstBrick);
+	uint activeAxes=span.x|(span.y<<1u)|(span.z<<2u);
+	bool found=false;
+	[loop]
+	for(uint i=0;i<=activeAxes;++i) {
+		if((i&activeAxes)!=i) continue;
+		int3 brick=neighborhood.firstBrick+int3(i&1u,(i>>1u)&1u,i>>2u);
+		uint base;
+		if(!FindGIProbe(brick*4,n,false,level,base)) continue;
+		if(i<4u) neighborhood.lower[i]=base;
+		else neighborhood.upper[i-4u]=base;
+		found=true;
+	}
+	return found;
+}
+
+float4 ReadVisibleIrradiance(Texture2D<float4> cache,int3 cell,GIProbeNeighborhood neighborhood,uint2 size,
 	GIFaceWeights weights,float3 delta,float3 position,float3 normal,float wrap) {
 	float3 direction=delta/max(length(delta),0.0001f);
 	float facing=saturate(dot(normal,direction)+wrap);
 	if(facing<=0) return 0;
-	uint probe;
-	if(!FindGIProbe(cell,n,false,level,probe)) return 0;
+	uint3 brick=uint3((cell>>2)-neighborhood.firstBrick);
+	uint xy=brick.x+2u*brick.y;
+	uint base=brick.z!=0u ? neighborhood.upper[xy] : neighborhood.lower[xy];
+	if(base==0xffffffffu) return 0;
+	uint3 local=asuint(cell)&3u;
+	uint probe=base+local.x+4u*local.y+16u*local.z;
 	float3 bias=normal*0.002f;
 	float3 segment=delta-bias;
 	float lengthToCell=length(segment);
@@ -193,11 +231,13 @@ float4 GatherLevelIrradiance(Texture2D<float4> cache,float3 position,float3 norm
 	float4 close=0;
 	float4 wide=0;
 	bool high=rayCount>=32u;
+	GIProbeNeighborhood neighborhood;
+	if(!LoadProbeNeighborhood(first-(high ? 1 : 0),first+(high ? 2 : 1),n,level,neighborhood)) return 0;
 	for(uint i=0;i<8;++i) {
 		int3 corner=int3(i&1,(i>>1)&1,i>>2);
 		float3 axisWeights=lerp(1-fraction,fraction,float3(corner));
 		float3 delta=float3(corner)-fraction;
-		float4 probe=ReadVisibleIrradiance(cache,first+corner,n,level,size,weights,delta*spacing,position,normal,high ? 0.0f : 0.1f);
+		float4 probe=ReadVisibleIrradiance(cache,first+corner,neighborhood,size,weights,delta*spacing,position,normal,high ? 0.0f : 0.1f);
 		close+=probe*(axisWeights.x*axisWeights.y*axisWeights.z);
 		if(high) wide+=probe*NeighborWeight(delta);
 	}
@@ -212,7 +252,7 @@ float4 GatherLevelIrradiance(Texture2D<float4> cache,float3 position,float3 norm
 			float3 delta=float3(corner)-fraction;
 			float weight=NeighborWeight(delta);
 			if(weight<=0) continue;
-			wide+=weight*ReadVisibleIrradiance(cache,first+corner,n,level,size,weights,delta*spacing,position,normal,0);
+			wide+=weight*ReadVisibleIrradiance(cache,first+corner,neighborhood,size,weights,delta*spacing,position,normal,0);
 		}
 		float outerConfidence=smoothstep(0,0.025f,wide.a)*(1-confidence);
 		float combined=confidence+outerConfidence;
@@ -236,7 +276,7 @@ float3 GatherIrradiance(Texture2D<float4> cache,Texture2D<float2> moments,float3
 		if(coarse.a<1.0f) fallback=lerp(TraceDistantIrradiance(cache,moments,position,normal),fallback,coarse.a);
 		indirect=lerp(fallback,indirect,fine.a);
 	}
-	return indirect+GIEmitterIrradiance(position,normal,false);
+	return indirect+EmissiveIrradiance(position,normal,false);
 }
 
 // 各スクリーンプローブが担当する画素範囲

@@ -2,6 +2,7 @@
 #include "TestFixtures.h"
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Core/GraphicsFeatureSelection.h>
+#include <Engine/Core/Rendering/Core/GraphicsPreferenceStorage.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchViewResources.h>
@@ -348,7 +349,7 @@ namespace NEMTests {
 		Engine::GraphicsFeaturePreferences preferences{};
 		preferences.allowMeshShader = true;
 		preferences.allowInlineRayTracing = true;
-		preferences.allowDispatchRays = true;
+		preferences.reflectionEnabled = true;
 
 		Engine::GraphicsFeatureSupport unsupported{};
 		const Engine::GraphicsRuntimeFeatures restricted =
@@ -359,7 +360,7 @@ namespace NEMTests {
 			restricted.useDispatchRays ||
 			!preferences.allowMeshShader ||
 			!preferences.allowInlineRayTracing ||
-			!preferences.allowDispatchRays) {
+			!preferences.reflectionEnabled) {
 			return false;
 		}
 
@@ -379,7 +380,19 @@ namespace NEMTests {
 
 		// GIだけを有効にしても共有TLASを構築する
 		Engine::GraphicsFeaturePreferences gi{};
+		if (!gi.dynamicGI || !gi.reflectionEnabled || !gi.ambientOcclusionEnabled) return false;
+		if (gi.reflectionQuality != 2 || gi.ambientOcclusionQuality != 2 || gi.dynamicGIQuality != Engine::DynamicGIQuality::High) return false;
+		Engine::GraphicsPreferenceStorage::Read({{"emissiveContribution", 0.25f}, {"indirectIntensity", 1.75f},
+			{"giUpdateSpeed", 2}, {"ambientOcclusionRadius", 3.0f}, {"reflectionIntensity", 0.5f}}, gi);
+		Engine::GraphicsFeaturePreferences restored{};
+		Engine::GraphicsPreferenceStorage::Read(Engine::GraphicsPreferenceStorage::Write(gi), restored);
+		if (restored.emissiveContribution != 0.25f || restored.indirectIntensity != 1.75f || restored.giUpdateSpeed != 2 ||
+			restored.ambientOcclusionRadius != 3.0f || restored.reflectionIntensity != 0.5f) return false;
+		gi.dynamicGI = false;
+		gi.reflectionEnabled = false;
 		gi.allowInlineRayTracing = false;
+		if (!Engine::GraphicsFeatureSelection::Resolve(supported, gi).useAmbientOcclusion) return false;
+		gi.ambientOcclusionEnabled = false;
 		if (Engine::GraphicsFeatureSelection::Resolve(supported, gi).UsesAnyRayTracing()) return false;
 		gi.dynamicGI = true;
 		const auto giOnly = Engine::GraphicsFeatureSelection::Resolve(supported, gi);
@@ -406,7 +419,7 @@ namespace NEMTests {
 				dispatchRays, preferences);
 		return !dispatchRaysFeatures.useMeshShader &&
 			!dispatchRaysFeatures.useInlineRayTracing &&
-			dispatchRaysFeatures.useDispatchRays;
+			dispatchRays.SupportsDispatchRaysPath() && !dispatchRaysFeatures.useDispatchRays;
 	}
 
 

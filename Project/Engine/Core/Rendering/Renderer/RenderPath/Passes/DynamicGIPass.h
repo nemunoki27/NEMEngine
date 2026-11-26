@@ -48,6 +48,8 @@ namespace Engine {
 			float groundHeight = 0.0f;
 			float inverseHeight = 0.0f;
 			std::array<std::array<Vector4, 32>, 2> colors{};
+			float indirectIntensity = 1.0f;
+			float emissiveContribution = 1.0f;
 		};
 		struct State {
 			struct Geometry {

@@ -153,7 +153,7 @@ bool NEMTests::CheckModelFileURIReferences() {
 	}
 	const auto virtualDirectory = "GameAssets/" + target.filename().string();
 	const auto imported = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, model);
-	if (!imported.success || imported.fullPath != target / "model %20/model %20.gltf") {
+	if (!imported.success || imported.fullPath != target / "model %20.gltf") {
 		std::cerr << "Model URI import failed: " << imported.message << '\n';
 		return false;
 	}

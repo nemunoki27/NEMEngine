@@ -74,7 +74,7 @@ namespace NEMTests {
 		if (outputRestored.gameView || outputRestored.sceneView) return false;
 
 		// 固定反射とAOは追加パスなしでも有効な計画になる
-		Engine::CameraCommon settings{};
+		Engine::SurfaceLightingSettings settings{};
 		Engine::RenderFeatureProfileRuntime surfaceRuntime{};
 		for (int32_t quality = 0; quality <= 2; ++quality) {
 			settings.ambientOcclusionQuality = settings.reflectionQuality = quality;
@@ -480,19 +480,16 @@ namespace NEMTests {
 		camera.common.targetTexture = renderTexture.guid;
 		camera.common.colorPipeline.exposure.manualEV100 = 2.5f;
 		camera.common.renderPasses = extension.guid;
-		camera.common.ambientOcclusionEnabled = false;
-		camera.common.ambientOcclusionRadius = 3.5f;
-		camera.common.reflectionQuality = 2;
-		camera.common.reflectionIntensity = 0.4f;
-		const nlohmann::json cameraData = camera;
+		nlohmann::json cameraData = camera;
+		if (cameraData.contains("ambientOcclusionEnabled") || cameraData.contains("reflectionIntensity")) return false;
+		cameraData["ambientOcclusionEnabled"] = false;
+		cameraData["reflectionIntensity"] = 0.4f;
 		const Engine::PerspectiveCameraComponent restoredCamera = cameraData.get<Engine::PerspectiveCameraComponent>();
 		return restoredCamera.projectionMode == Engine::CameraProjectionMode::Orthographic &&
 			   restoredCamera.orthographicSize == 12.0f && restoredCamera.common.viewportX == 0.5f &&
 			   restoredCamera.common.viewportWidth == 0.5f && restoredCamera.common.targetTexture == renderTexture.guid &&
 			   restoredCamera.common.colorPipeline.exposure.manualEV100 == 2.5f &&
-			   restoredCamera.common.renderPasses == extension.guid && !restoredCamera.common.ambientOcclusionEnabled &&
-			restoredCamera.common.ambientOcclusionRadius == 3.5f && restoredCamera.common.reflectionQuality == 2 &&
-			restoredCamera.common.reflectionIntensity == 0.4f;
+			   restoredCamera.common.renderPasses == extension.guid;
 	}
 
 	bool TestPostProcessSourceExtension() {

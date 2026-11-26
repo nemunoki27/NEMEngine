@@ -17,6 +17,7 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
@@ -96,6 +97,59 @@ namespace {
 			descriptors.GetUseDescriptorCount() == initialDescriptors + 30;
 	}
 
+
+	bool CheckViewVertexCounts(ID3D12Device* device, ID3D12CommandQueue* queue) {
+
+		ComPtr<ID3D12CommandAllocator> allocator;
+		ComPtr<ID3D12GraphicsCommandList> commands;
+		ComPtr<ID3D12Fence> fence;
+		if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator))) ||
+			FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator.Get(), nullptr, IID_PPV_ARGS(&commands))) ||
+			FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)))) return false;
+
+		const D3D12_DRAW_INDEXED_ARGUMENTS indirect{ 6, 3, 0, 0, 0 };
+		ComPtr<ID3D12Resource> arguments;
+		DxUtils::CreateBufferResource(device, arguments, sizeof(indirect));
+		void* data = nullptr;
+		const D3D12_RANGE read{ 0, 0 };
+		if (FAILED(arguments->Map(0, &read, &data))) return false;
+		std::memcpy(data, &indirect, sizeof(indirect));
+		arguments->Unmap(0, nullptr);
+
+		Engine::GraphicsResourceRetirement retirement;
+		auto& profiler = Engine::GPUFrameProfiler::GetInstance();
+		const uint32_t index = Engine::GraphicsFrameState::GetCurrentIndex();
+		Engine::GraphicsFrameState::BeginFrame(index);
+		profiler.BeginFrame(device, queue, retirement);
+		profiler.RequestVertexCounts();
+		auto* game = profiler.GetVertexCounter(Engine::RenderViewKind::Game);
+		auto* scene = profiler.GetVertexCounter(Engine::RenderViewKind::Scene);
+		if (!game || !scene) {
+			profiler.Finalize();
+			return false;
+		}
+		game->Add(24, 2);
+		scene->Add(UINT32_MAX, 2);
+		// 読み戻しが複数ページになる場合もView間で混ざらない
+		for (size_t draw = 0; draw < 1025; ++draw) {
+			game->AddIndirect(commands.Get(), arguments.Get(), offsetof(D3D12_DRAW_INDEXED_ARGUMENTS, InstanceCount), 4);
+		}
+		profiler.Resolve(commands.Get());
+		bool valid = SUCCEEDED(commands->Close());
+		if (valid) {
+			ID3D12CommandList* lists[]{ commands.Get() };
+			queue->ExecuteCommandLists(1, lists);
+			valid = SUCCEEDED(queue->Signal(fence.Get(), 1)) && SUCCEEDED(fence->SetEventOnCompletion(1, nullptr));
+		}
+		if (valid) {
+			Engine::GraphicsFrameState::BeginFrame(index);
+			profiler.BeginFrame(device, queue, retirement);
+			valid = profiler.GetVertexCount(Engine::RenderViewKind::Game) == 48 + 1025 * 12 &&
+				profiler.GetVertexCount(Engine::RenderViewKind::Scene) == uint64_t(UINT32_MAX) * 2;
+		}
+		profiler.Finalize();
+		return valid;
+	}
 
 	bool CheckGraphicsFenceRetirement(ID3D12Device* device, ID3D12CommandQueue* queue) {
 
@@ -504,6 +558,7 @@ static bool RunGPURetirement(bool hardware, bool compatibleHardware) {
 	valid &= NEMTests::RunTest("CheckMaskCompositeResampling", [&] { return NEMTests::CheckMaskCompositeResampling(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckMeshIndirectArguments", [&] { return NEMTests::CheckMeshIndirectArguments(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckHiZSampleBounds", [&] { return NEMTests::CheckHiZSampleBounds(device.Get(), queue.Get()); });
+	valid &= NEMTests::RunTest("CheckViewVertexCounts", [&] { return CheckViewVertexCounts(device.Get(), queue.Get()); });
 	const bool graphicsValid = NEMTests::RunTest("CheckGraphicsFenceRetirement", [&] { return CheckGraphicsFenceRetirement(device.Get(), queue.Get()); });
 	if (!graphicsValid) std::cerr << "Graphics owner retirement failed\n";
 	valid &= graphicsValid;

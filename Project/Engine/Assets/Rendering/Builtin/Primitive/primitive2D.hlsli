@@ -35,7 +35,7 @@ struct PrimitiveInstance {
 	float4 bottomColor;
 	uint flags;
 	uint motionFrameSerial;
-	uint2 _pad;
+	uint2 entity;
 	float4 hexTiling;
 	ShineHighlightData shine;
 };

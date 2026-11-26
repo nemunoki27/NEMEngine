@@ -86,9 +86,11 @@ namespace Engine {
 		// テクスチャ候補を再帰的にインデックスに追加
 		void IndexDirectoryRecursive(const std::filesystem::path& directory, bool inPreferredFolder);
 		// テクスチャ候補のリストから、最適な候補を選択する
-		const TextureCandidate* ChooseBestCandidate(const std::vector<TextureCandidate>& candidates, bool filePaths) const;
+		const TextureCandidate* ChooseBestCandidate(const std::vector<TextureCandidate>& candidates, bool filePaths,
+			const std::filesystem::path& directory) const;
 		// 同じstemの候補を解決先の範囲で選ぶ
-		const TextureCandidate* ResolveIndexedPathByStem(const std::string& stemLower, bool filePaths) const;
+		const TextureCandidate* ResolveIndexedPathByStem(const std::string& stemLower, bool filePaths,
+			const std::filesystem::path& directory = {}) const;
 		// 直接参照と索引の順に画像を解決する
 		std::filesystem::path ResolvePath(const std::string& importedReference, bool filePaths) const;
 		// 明示参照と名前補完の順にNormalを解決する

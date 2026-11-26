@@ -39,7 +39,7 @@ namespace Engine {
 		void Release();
 		// 現在のFrameへ構築結果を転送する
 		void Upload();
-		// 同じFrameへの重複転送を避ける
+		// 現在のFrameに同じ内容があれば転送先を再利用する
 		void UploadCached();
 		// 構築結果を描画Contextへ公開する
 		void Publish(SceneExecutionContext& context, ID3D12Resource* tlas,
@@ -68,6 +68,7 @@ namespace Engine {
 		std::vector<RaytracingGeometryShaderData> sceneGeometryScratch_{};
 		std::vector<RaytracingGeometryBounds> sceneGeometryBounds_{};
 		std::vector<Matrix4x4> instanceWorldMatrices_{};
+		bool instanceMatricesDirty_ = true;
 		std::vector<MeshSubMeshShaderData> sceneSubMeshScratch_{};
 
 		// メッシュピック用のサブメッシュ情報
@@ -75,6 +76,8 @@ namespace Engine {
 		// TLASインスタンスごとのピック記録先頭
 		std::vector<uint32_t> scenePickRecordOffsets_{};
 
+		std::array<bool, kGraphicsFrameContextCount> currentContents_{};
+		uint32_t commonLayers_ = 0;
 		std::array<uint64_t, kGraphicsFrameContextCount>
 			sceneUploadFrameSerials_ = {};
 	};

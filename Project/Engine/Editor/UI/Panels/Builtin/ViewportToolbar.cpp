@@ -72,7 +72,7 @@ void Engine::ViewportToolbar::Draw(const EditorPanelContext& context) {
 	add(ToolAction::Translate, icons_.translateKey, "座標編集 T", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Translate, 0);
 	add(ToolAction::Rotate, icons_.rotateKey, "回転編集 R", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Rotate, 0);
 	add(ToolAction::Scale, icons_.scaleKey, "拡縮編集 S", state.sceneViewManipulatorMode == SceneViewManipulatorMode::Scale, 0);
-	add(ToolAction::Pick, icons_.enablePickKey, "シーンオブジェクト選択の有効・無効", state.enableScenePick, 1);
+	add(ToolAction::Pick, icons_.enablePickKey, "シーンオブジェクト選択の有効・無効\n左ドラッグで範囲選択、Shiftで追加、Ctrlで反転\nSpace＋左ドラッグで他のパネルへオブジェクトを渡す", state.enableScenePick, 1);
 	add(ToolAction::Selection, state.selectKind == EditorSelectionKind::Entity ? icons_.entitySelectKey : icons_.subMeshSelectKey,
 		"オブジェクト・サブメッシュ選択 E", state.selectKind == EditorSelectionKind::MeshSubMesh, 1);
 	add(ToolAction::Dimension, state.sceneViewPickDimension == SceneViewPickDimension::Type2D ? icons_.selection2DKey :

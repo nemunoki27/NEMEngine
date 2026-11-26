@@ -16,8 +16,8 @@
         "depthClipEnable": true
       },
       "depthStencil": {
-        "depthEnable": true,
-        "depthWriteMask": "D3D12_DEPTH_WRITE_MASK_ALL",
+        "depthEnable": false,
+        "depthWriteMask": "D3D12_DEPTH_WRITE_MASK_ZERO",
         "depthFunc": "D3D12_COMPARISON_FUNC_LESS_EQUAL",
         "stencilEnable": false
       },

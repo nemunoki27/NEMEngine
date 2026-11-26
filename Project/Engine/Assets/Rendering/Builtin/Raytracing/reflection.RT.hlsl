@@ -627,7 +627,7 @@ float3 ReflectionHitIrradiance(float3 worldPosition,float3 normal) {
 	float4 cached=SampleCachedIrradiance(cache,moments,worldPosition+0.002f*normal,normal,false,true);
 	float3 irradiance=cached.rgb;
 	if(cached.a<1.0f) irradiance+=(1.0f-cached.a)*TraceDistantIrradiance(cache,moments,worldPosition,normal);
-	return irradiance+GIEmitterIrradiance(worldPosition,normal,false);
+	return min((irradiance+EmissiveIrradiance(worldPosition,normal,false))*indirectIntensity,60000.0f);
 }
 
 float3 EvaluateRaytracingSurfaceLighting(
@@ -710,8 +710,10 @@ float3 EvaluateRaytracingSurfaceLighting(
 	if ((renderFlags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) {
 
 		if (gGIWorldCacheIndex != kNoTexture) {
-			float3 irradiance = ReflectionHitIrradiance(worldPosition,material.N);
-			ambient = irradiance * DiffuseGIReflectance(material.baseColor.rgb, material.metallic) * material.ao;
+			float3 diffuse = DiffuseGIReflectance(material.baseColor.rgb, material.metallic) * material.ao;
+			if (any(diffuse) && indirectIntensity > 0.0f) {
+				ambient = ReflectionHitIrradiance(worldPosition,material.N) * diffuse;
+			}
 		} else if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 			TextureCube<float4> skybox = ResourceDescriptorHeap[
@@ -812,13 +814,14 @@ bool LoadRasterHitMaterial(float3 worldPosition, inout ResolvedPBRMaterial mater
 void ReflectionAnyHit(inout ReflectionPayload payload, in BuiltInTriangleIntersectionAttributes attr) {
 
 	RaytracingInstanceShaderData instanceData;
+	uint geometryIndex = gRaytracingSceneInstances[InstanceID()].geometryDataOffset + GeometryIndex();
+	if ((gRaytracingSubMeshes[gRaytracingGeometries[geometryIndex].subMeshDataIndex]._materialPad >> 16u) != 2u) return;
 	SubMeshShaderData subMesh;
 	float2 uv, paintUV;
 	float4 vertexColor;
 	float3 position;
 	float3x3 tangentToWorld;
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh, uv, paintUV, vertexColor, position, tangentToWorld);
-	if ((subMesh._materialPad >> 16u) != 2u) return;
 	HexTilingData hex = BuildHexTiling(uv, subMesh.hexTiling);
 	float alpha = subMesh.importedBaseColor.a * subMesh.color.a * vertexColor.a;
 	alpha *= SampleHitTexture(subMesh.baseColorTextureIndex, hex, 0.0f, 1.0f.xxxx).a;

@@ -4,9 +4,71 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+
+// c++
+#include <algorithm>
 
 // directX
 #include <d3dx12.h>
+
+//============================================================================
+//	ViewVertexCounter classMethods
+//============================================================================
+void Engine::ViewVertexCounter::AddIndirect(ID3D12GraphicsCommandList* commands, ID3D12Resource* arguments,
+	uint64_t instanceCountOffset, uint32_t vertices) {
+
+	if (incomplete_) return;
+	const size_t page = weights_.size() / kCountsPerPage;
+	if (pages_.size() == page) {
+
+		ComPtr<ID3D12Device> device;
+		ComPtr<ID3D12Resource> buffer;
+		const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_READBACK);
+		const auto desc = CD3DX12_RESOURCE_DESC::Buffer(kCountsPerPage * sizeof(uint32_t));
+		if (FAILED(arguments->GetDevice(IID_PPV_ARGS(&device))) ||
+			FAILED(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+				D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffer)))) {
+			incomplete_ = true;
+			return;
+		}
+		pages_.emplace_back(std::move(buffer));
+	}
+
+	// 次の描画で引数が更新される前に可視インスタンス数だけ退避する
+	commands->CopyBufferRegion(pages_[page].Get(), (weights_.size() % kCountsPerPage) * sizeof(uint32_t),
+		arguments, instanceCountOffset, sizeof(uint32_t));
+	weights_.emplace_back(vertices);
+}
+
+std::optional<uint64_t> Engine::ViewVertexCounter::Collect() const {
+
+	if (!rendered_ || incomplete_) return std::nullopt;
+	uint64_t result = vertices_;
+	for (size_t first = 0; first < weights_.size(); first += kCountsPerPage) {
+
+		const size_t count = (std::min)(kCountsPerPage, weights_.size() - first);
+		const D3D12_RANGE range{ 0, count * sizeof(uint32_t) };
+		void* data = nullptr;
+		auto& buffer = pages_[first / kCountsPerPage];
+		if (FAILED(buffer->Map(0, &range, &data))) return std::nullopt;
+		const auto* instances = static_cast<const uint32_t*>(data);
+		for (size_t index = 0; index < count; ++index) {
+			result += uint64_t(instances[index]) * weights_[first + index];
+		}
+		const D3D12_RANGE written{ 0, 0 };
+		buffer->Unmap(0, &written);
+	}
+	return result;
+}
+
+void Engine::ViewVertexCounter::Reset() {
+
+	vertices_ = 0;
+	rendered_ = false;
+	incomplete_ = false;
+	weights_.clear();
+}
 
 //============================================================================
 //	GPUFrameProfiler classMethods
@@ -91,6 +153,12 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 		return;
 	}
 	// 同じContextの前回結果はBeginFrameのFence待機後なので安全に読める
+	if (state.hasResolved) {
+		for (size_t index = 0; index < state.vertices.size(); ++index) {
+			vertexCounts_[index] = state.vertices[index].Collect();
+		}
+	}
+	for (auto& counter : state.vertices) counter.Reset();
 	CollectResolved(state);
 	state.frameSerial = serial;
 	state.cpuFrameID = FrameProfiler::GetInstance().GetFrameID();
@@ -143,6 +211,26 @@ void Engine::GPUFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 		state.pendingName, state.pendingBegin, endIndex, state.pendingViewID
 		});
 	state.pendingPass = false;
+}
+
+void Engine::GPUFrameProfiler::RequestVertexCounts() {
+
+	vertexRequestFrame_ = FrameProfiler::GetInstance().GetFrameID();
+}
+
+Engine::ViewVertexCounter* Engine::GPUFrameProfiler::GetVertexCounter(RenderViewKind kind) {
+
+	auto& state = frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	if (!state.active || state.frameSerial != GraphicsFrameState::GetFrameSerial() || vertexRequestFrame_ == UINT64_MAX ||
+		2 < FrameProfiler::GetInstance().GetFrameID() - vertexRequestFrame_) return nullptr;
+	auto& counter = state.vertices[static_cast<size_t>(kind)];
+	counter.rendered_ = true;
+	return &counter;
+}
+
+std::optional<uint64_t> Engine::GPUFrameProfiler::GetVertexCount(RenderViewKind kind) const {
+
+	return vertexCounts_[static_cast<size_t>(kind)];
 }
 
 void Engine::GPUFrameProfiler::SetViewID(std::string viewID) {
@@ -220,6 +308,9 @@ void Engine::GPUFrameProfiler::Finalize() {
 	// GPU完了までQueryと読戻し先を保持する
 	for (FrameQueryState& state : frameStates_) {
 		if (retirement_) {
+			for (auto& counter : state.vertices) {
+				for (auto& page : counter.pages_) retirement_->Retire(page);
+			}
 			retirement_->Retire(state.queryHeap);
 			retirement_->Retire(state.readbackBuffer);
 		}
@@ -227,6 +318,8 @@ void Engine::GPUFrameProfiler::Finalize() {
 	}
 	frameRegistration_.Reset();
 	retirement_ = nullptr;
+	vertexRequestFrame_ = UINT64_MAX;
+	vertexCounts_ = {};
 	frequency_ = 0;
 	initialized_ = false;
 }

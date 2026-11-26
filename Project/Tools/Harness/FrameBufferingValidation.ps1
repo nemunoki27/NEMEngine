@@ -124,13 +124,13 @@ try {
     } else { @{} }
     $preferences.frameContextCount = $InitialFrameCount
     if ($Scenario -eq 'MeshShaderOff') { $preferences.allowMeshShader = $false }
-    if ($Scenario -eq 'RayTracingOn') {
-        $preferences.allowInlineRayTracing = $true
-        $preferences.allowDispatchRays = $true
-    }
-    if ($Scenario -eq 'RayTracingOff') {
-        $preferences.allowInlineRayTracing = $false
-        $preferences.allowDispatchRays = $false
+    if ($Scenario -in @('RayTracingOn', 'RayTracingOff')) {
+        $enabled = $Scenario -eq 'RayTracingOn'
+        $preferences.allowInlineRayTracing = $enabled
+        $lightingRoot = Join-Path $projectRoot 'ProjectSettings/Rendering'
+        $null = New-Item -ItemType Directory -Path $lightingRoot -Force
+        @{ allowDispatchRays = $enabled; ambientOcclusionEnabled = $enabled; dynamicGI = $false } |
+            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $lightingRoot 'GlobalIllumination.json') -Encoding utf8
     }
     $preferences | ConvertTo-Json -Depth 20 |
         Set-Content -LiteralPath (Join-Path $settingsRoot 'Runtime/GraphicsFeatures.json') -Encoding utf8

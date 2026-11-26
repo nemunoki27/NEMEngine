@@ -57,6 +57,7 @@ namespace Engine {
 		// UV行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 		ShineHighlightData shine{};
+		Entity entity{};
 	};
 
 	//============================================================================

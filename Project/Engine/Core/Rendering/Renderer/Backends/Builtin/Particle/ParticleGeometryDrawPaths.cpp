@@ -1,4 +1,5 @@
 #include "ParticleRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -120,6 +121,7 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		commandList->DrawInstanced(triangleCount * 3u, instanceCount, 0, 0);
 	}
+	if (context.vertexCounter) context.vertexCounter->Add(triangleCount * 3u, instanceCount);
 	return true;
 }
 
@@ -183,6 +185,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 	const D3D12_INDEX_BUFFER_VIEW indexBufferView = meshResource->indexBuffer.GetIndexBufferView();
 	commandList->IASetIndexBuffer(&indexBufferView);
 	commandList->DrawIndexedInstanced(meshResource->indexCount, instanceCount, 0, 0, 0);
+	if (context.vertexCounter) context.vertexCounter->Add(meshResource->vertexCount, instanceCount);
 	return true;
 }
 
@@ -239,4 +242,5 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 	const D3D12_INDEX_BUFFER_VIEW indexBufferView = geometry->indexBuffer.GetIndexBufferView();
 	commandList->IASetIndexBuffer(&indexBufferView);
 	commandList->DrawIndexedInstanced(geometry->indexCount, instanceCount, 0, 0, 0);
+	if (context.vertexCounter) context.vertexCounter->Add(geometry->vertexCount, instanceCount);
 }

@@ -1,4 +1,5 @@
 #include "PrimitiveRenderBackend.h"
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 
 //============================================================================
 //	include
@@ -124,17 +125,11 @@ namespace {
 			return true;
 		}
 
-		// 2D描画は正射投影の前方描画専用マテリアルから解決する
-		if (is2D) {
-			return Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
-				Engine::DefaultMaterialSlot::Primitive2D,
-				{ Engine::MaterialPassKind::Draw }, outResolved);
-		}
 		// ピッキングは見た目用マテリアルに依存せず、Entity IDを出すBuiltinパスへ固定する
 		if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
 
 			const Engine::AssetID materialID =
-				Engine::BuiltinAssets::Materials::DefaultPrimitive;
+				is2D ? Engine::BuiltinAssets::Materials::DefaultPrimitive2D : Engine::BuiltinAssets::Materials::DefaultPrimitive;
 			const Engine::MaterialAsset* material =
 				context.assetLibrary->LoadMaterial(materialID);
 			if (!material) {
@@ -150,6 +145,12 @@ namespace {
 			outResolved.material = material;
 			outResolved.pass = pass;
 			return true;
+		}
+		// 2D描画は正射投影の前方描画専用マテリアルから解決する
+		if (is2D) {
+			return Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
+				Engine::DefaultMaterialSlot::Primitive2D,
+				{ Engine::MaterialPassKind::Draw }, outResolved);
 		}
 		if (context.passKind == Engine::MaterialPassKind::Transparent) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
@@ -258,7 +259,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		context.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask;
 	const MaterialAsset* bindingMaterial = resolvedPass.material;
 	BackendDrawCommon::ResolvedMaterialPass sourcePass{};
-	if (is2D && isOutlineMask) {
+	if (is2D && (isOutlineMask || context.passKind == MaterialPassKind::EditorPicking)) {
 		if (!BackendDrawCommon::ResolveMaterialPass(
 			context, item->material, DefaultMaterialSlot::Primitive2D,
 			{ MaterialPassKind::Draw }, sourcePass)) {
@@ -403,6 +404,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		commandList->IASetIndexBuffer(&indexBufferView);
 		commandList->DrawIndexedInstanced(geometry->indexCount, resources.GetInstanceCount(), 0, 0, 0);
 	}
+	if (context.vertexCounter) context.vertexCounter->Add(geometry->vertexCount, resources.GetInstanceCount());
 }
 
 //============================================================================

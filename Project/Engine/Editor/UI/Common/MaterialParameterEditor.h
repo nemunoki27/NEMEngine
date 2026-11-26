@@ -24,6 +24,7 @@ namespace Engine::MaterialParameterEditor {
 	ValueEditResult DrawReload(MaterialParameterSet& parameters);
 
 	// 値編集と同じ名前とIDをクリップボードへコピーする
+	void DrawParameterCopyMenu(MaterialParameterID parameterID, std::string_view name);
 	MyGUI::ScopedPropertyLabelContextMenu MakeLabelContextMenu(MaterialParameterID parameterID, std::string_view name);
 
 	// 標準PBRスカラーをインスペクターで扱いやすい順に並べる

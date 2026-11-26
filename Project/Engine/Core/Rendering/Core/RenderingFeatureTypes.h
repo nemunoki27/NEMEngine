@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "SurfaceLightingSettings.h"
+
 // c++
 #include <array>
 #include <cstdint>
@@ -98,7 +100,7 @@ namespace Engine {
 	};
 
 	// ユーザー参照設定
-	struct GraphicsFeaturePreferences {
+	struct GraphicsFeaturePreferences : SurfaceLightingSettings {
 
 		AntialiasingMethod antialiasing = AntialiasingMethod::None;
 		FXAASettings fxaa{};
@@ -108,10 +110,12 @@ namespace Engine {
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
-		bool dynamicGI = false;
-		DynamicGIQuality dynamicGIQuality = DynamicGIQuality::Standard;
+		bool dynamicGI = true;
+		DynamicGIQuality dynamicGIQuality = DynamicGIQuality::High;
 		DynamicGIDebug dynamicGIDebug = DynamicGIDebug::None;
-		bool allowDispatchRays = false;
+		float indirectIntensity = 1.0f;
+		float emissiveContribution = 1.0f;
+		uint32_t giUpdateSpeed = 1;
 		// DispatchRaysと後段フィルターを縮小解像度で実行するか
 		bool allowRaytracingDownsampling = true;
 		// Inline RayTracingでライトごとに発行する影レイ数
@@ -121,7 +125,8 @@ namespace Engine {
 		// 深度ピラミッドによるオクルージョンカリングを行うか
 		bool allowOcclusionCulling = true;
 		// SceneViewのカリングにGameViewのカメラを使用するか
-		bool useGameViewCameraForSceneCulling = true;		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
+		bool useGameViewCameraForSceneCulling = true;
+		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;
@@ -139,6 +144,7 @@ namespace Engine {
 		bool useInlineRayTracing = false;
 		bool useDynamicGI = false;
 		bool useDispatchRays = false;
+		bool useAmbientOcclusion = false;
 		bool useRaytracingDownsampling = true;
 		uint32_t softShadowSampleCount = 4;
 		// 描画パスごとに参照するカリング機能
@@ -147,7 +153,7 @@ namespace Engine {
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
 
-		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays || useDynamicGI; }
+		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays || useDynamicGI || useAmbientOcclusion; }
 	};
 
 	// エディター汎用関数

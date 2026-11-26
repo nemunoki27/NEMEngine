@@ -22,7 +22,7 @@ void Engine::RaytracingViewBufferSet::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const CameraCommon& settings) {
+void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, const SceneSkyboxInfo& skybox, const SurfaceLightingSettings& settings) {
 
 
 	// 描画サイズとその逆数を転送

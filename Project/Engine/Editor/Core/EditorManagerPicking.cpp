@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayState.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 
 // c++
@@ -240,9 +241,51 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 	// 以下の条件のいずれかを満たす場合はピック処理を行わない
 	if (!initialized_ || layoutState_.hidePanels || !editorState_.enableScenePick) {
+		editorState_.regionPick = {};
 		return;
 	}
 
+	auto& region = editorState_.regionPick;
+	if (region.queued) {
+		region.queued = false;
+		auto* world = context.activeWorld;
+		const auto* surface = renderPipeline.GetViewportRenderService().GetSurface(RenderViewKind::Scene);
+		if (!world || region.world.lock() != world->GetLifetime() || !surface ||
+			!surface->GetWidth() || !surface->GetHeight()) return;
+		const uint32_t viewWidth = surface->GetWidth(), viewHeight = surface->GetHeight();
+		const uint32_t x = (std::min)(viewWidth - 1, static_cast<uint32_t>((std::min)(region.start.x, region.end.x) * viewWidth));
+		const uint32_t y = (std::min)(viewHeight - 1, static_cast<uint32_t>((std::min)(region.start.y, region.end.y) * viewHeight));
+		const uint32_t right = (std::max)(x + 1, static_cast<uint32_t>(std::ceil((std::max)(region.start.x, region.end.x) * viewWidth)));
+		const uint32_t bottom = (std::max)(y + 1, static_cast<uint32_t>(std::ceil((std::max)(region.start.y, region.end.y) * viewHeight)));
+		auto* target = meshSubMeshPicker_->GetRegionTarget(graphicsCore, right - x, bottom - y);
+		if (!target) {
+			region.queued = true;
+			return;
+		}
+		std::optional<Dimension> dimensionFilter{};
+		if (editorState_.sceneViewPickDimension != SceneViewPickDimension::Both) {
+			dimensionFilter = ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension);
+		}
+		const Vector2 origin(static_cast<float>(x), static_cast<float>(y));
+		if (!renderPipeline.RenderMeshPicking(graphicsCore, RenderViewKind::Scene, origin, *target, dimensionFilter, true)) return;
+		const auto& overlays = SceneComponentOverlayState::GetInstance();
+		if (context.assetDatabase && overlays.GetWorld() == world) {
+			SceneComponentOverlayItemList items;
+			for (const auto& item : overlays.GetRenderedItems()) {
+				if (!world->IsAlive(item.entity) || !IsScenePickDimensionAllowed(*world, item.entity,
+					editorState_.sceneViewPickDimension)) continue;
+				items.push_back(item);
+				items.back().screenCenter -= origin;
+			}
+			ResolvedRenderView regionView{};
+			regionView.valid = true;
+			regionView.width = target->GetWidth();
+			regionView.height = target->GetHeight();
+			regionOverlayRenderer_.Render(graphicsCore, *context.assetDatabase, regionView, *target, world, items);
+		}
+		meshSubMeshPicker_->ExecuteReadback(graphicsCore, editorState_.scenePickRequestID, *target, true);
+		return;
+	}
 	Input* input = Input::GetInstance();
 
 	// 押下を開始した同じViewでドラッグせず離した場合だけ選択を確定する
@@ -369,7 +412,7 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				renderPixel, *pickTarget, dimensionFilter)) {
 
 				if (meshSubMeshPicker_->ExecuteReadback(
-					graphicsCore, editorState_.scenePickRequestID)) {
+					graphicsCore, editorState_.scenePickRequestID, *pickTarget)) {
 					return true;
 				}
 			}

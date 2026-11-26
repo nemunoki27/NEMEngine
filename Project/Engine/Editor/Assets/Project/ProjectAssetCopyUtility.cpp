@@ -303,24 +303,12 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetCopyUtility::ImportExternalFi
 	// 既存Assetと競合しない公開先を選ぶ
 	if (ModelDocumentReferences::IsDocumentPath(externalFilePath)) {
 		try {
-			// 本体と参照ファイルをモデル名の専用フォルダーへ揃える
-			const auto root = ProjectAssetPath::MakeUniquePath(targetDirectory / externalFilePath.stem());
-			if (root.empty()) {
-				result.message = "モデルの取り込み先フォルダーを決定できません";
-				return result;
-			}
+			ProjectModelImportPlan::Layout layout{ .sourceRoot = externalFilePath.parent_path(), .targetRoot = targetDirectory };
 			ProjectModelImportPlan plan;
-			if (!plan.Prepare(externalFilePath, result.message)) {
-				return result;
-			}
-			ProjectDirectoryCopyTransaction transaction(root);
-			if (!transaction.Begin(result.message) || !plan.Stage(transaction, result.message) ||
-				!transaction.Publish(result.message) || !plan.Verify(root, result.message)) {
-				return result;
-			}
-			transaction.Commit();
+			if (!plan.Prepare(externalFilePath, result.message, &layout) ||
+				!plan.PublishFiles(targetDirectory, result.message)) return result;
 			result.success = true;
-			result.fullPath = root / plan.GetMainRelativePath();
+			result.fullPath = targetDirectory / plan.GetMainRelativePath();
 			result.assetPath = ProjectAssetPath::ToAssetPath(result.fullPath);
 			return result;
 		} catch (const std::exception& error) {

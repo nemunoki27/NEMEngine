@@ -177,6 +177,7 @@ namespace Engine {
 		uint32_t GetSkinnedVerticesSRVIndex() const { return skinning_->skinnedVertices.GetSRVIndex(); }
 
 		// インスタンス数を取得する
+		uint64_t CountDrawVertices(const MeshGPUResource& mesh, uint32_t subMesh, uint32_t group) const;
 		uint32_t GetInstanceCount() const { return instanceCount_; }
 		uint32_t GetSkinnedInstanceCount() const { return skinnedInstanceCount_; }
 		uint64_t GetSkinningBufferGeneration() const { return skinningBufferGeneration_; }

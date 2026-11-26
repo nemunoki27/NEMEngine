@@ -30,7 +30,7 @@ namespace Engine {
 		DxReadbackBuffer& operator=(const DxReadbackBuffer&) = delete;
 
 		// リードバック用のリソースを確保し、CPUアクセス可能にする
-		void CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device);
+		void CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device, size_t count = 1);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -38,7 +38,7 @@ namespace Engine {
 		ID3D12Resource* GetResource() const { return resource_.Get(); }
 
 		// 読み戻し結果を参照で取得する
-		const T& GetReadbackData() { return *mappedData_; }
+		const T& GetReadbackData(size_t index = 0) const { return mappedData_[index]; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -55,11 +55,11 @@ namespace Engine {
 	//	DxReadbackBuffer templateMethods
 	//============================================================================
 	template<typename T>
-	inline void DxReadbackBuffer<T>::CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
+	inline void DxReadbackBuffer<T>::CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device, size_t count) {
 
 		if (retirement_ && retirement_ != &retirement) throw std::logic_error("Readback Bufferの回収先は変更できません");
 		ComPtr<ID3D12Resource> candidate;
-		DxUtils::CreateReadbackBufferResource(device, candidate, sizeof(T));
+		DxUtils::CreateReadbackBufferResource(device, candidate, count * sizeof(T));
 		T* mapped = nullptr;
 		const HRESULT result = candidate->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
 		if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxReadbackBuffer::Map")) {

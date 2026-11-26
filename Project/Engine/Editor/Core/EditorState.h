@@ -149,6 +149,16 @@ namespace Engine {
 		bool scenePickClickAdditive = false;
 		bool scenePickPressActive = false;
 		bool scenePickPressGameView = false;
+
+		// SceneView画像内の正規化座標で保持する
+		struct RegionPick {
+			bool pressed = false;
+			bool queued = false;
+			bool additive = false;
+			bool toggle = false;
+			Vector2 start{}, end{};
+			std::weak_ptr<const ECSWorldLifetime> world;
+		} regionPick;
 		// ダブルクリックでシーンカメラを寄せたいエンティティ、EditorManagerが消費する
 		Entity cameraFocusRequest = Entity::Null();
 		// シーンカメラがフォーカスで寄っている最中か、フォーカス中はギズモ操作を無効にする

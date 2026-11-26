@@ -27,26 +27,7 @@ namespace {
 		std::filesystem::path relative;
 		bool directory = false;
 	};
-	// モデルごとの専用フォルダーと準備済み参照
-	struct ModelEntry {
 
-		std::filesystem::path relative;
-		std::unique_ptr<Engine::ProjectModelImportPlan> plan;
-	};
-
-	// コピー元の名前と競合しないモデル専用フォルダーを選ぶ
-	std::filesystem::path ReserveModelRoot(const std::filesystem::path& relative, std::set<std::string>& names) {
-
-		const auto base = relative.parent_path() / relative.stem();
-		for (uint32_t index = 0; index < 10000; ++index) {
-			const auto candidate = index == 0 ? base : relative.parent_path() /
-				Engine::Algorithm::PathFromUTF8(Engine::Algorithm::PathToUTF8(relative.stem()) + " " + std::to_string(index));
-			if (names.insert(Engine::StorageFileUtility::PathKey(candidate)).second) {
-				return candidate;
-			}
-		}
-		throw std::runtime_error("モデルの取り込み先フォルダーを決定できません");
-	}
 }
 
 //============================================================================
@@ -75,9 +56,9 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetCopyUtility::ImportExternalDi
 			return result;
 		}
 
-		// 全ての元ファイル名を先に確保し、モデル用の名前と分ける
+		// 元の階層を保って取り込む範囲を収集する
 		std::vector<ImportEntry> entries;
-		std::set<std::string> names;
+		ProjectModelImportPlan::Layout layout{ .sourceRoot = externalDirectoryPath };
 		for (auto iterator = std::filesystem::recursive_directory_iterator(externalDirectoryPath);
 			iterator != std::filesystem::recursive_directory_iterator{}; ++iterator) {
 			const auto& entry = *iterator;
@@ -94,40 +75,30 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetCopyUtility::ImportExternalDi
 				result.message = "取り込み元の相対パスを解決できません";
 				return result;
 			}
-			names.insert(StorageFileUtility::PathKey(relative));
 			entries.push_back({entry.path(), relative, directory});
 		}
 
-		// フォルダー外の参照もモデルごとに取り込む
-		std::vector<ModelEntry> models;
+		// 共有画像とMTLは各モデルの参照を準備してから一度だけコピーする
+		std::set<std::string> staged;
+		std::vector<std::unique_ptr<ProjectModelImportPlan>> models;
 		ProjectDirectoryCopyTransaction transaction(root);
-		if (!transaction.Begin(result.message)) {
-			return result;
+		if (!transaction.Begin(result.message)) return result;
+		for (const auto& entry : entries) {
+			if (entry.directory || !ModelDocumentReferences::IsDocumentPath(entry.source)) continue;
+			auto model = std::make_unique<ProjectModelImportPlan>();
+			if (!model->Prepare(entry.source, result.message, &layout) ||
+				!model->Stage(transaction, result.message, &staged)) return result;
+			models.push_back(std::move(model));
 		}
 		for (const auto& entry : entries) {
 			if (entry.directory) {
-				if (!transaction.AddDirectory(entry.relative, result.message)) {
-					return result;
-				}
-			} else if (ModelDocumentReferences::IsDocumentPath(entry.source)) {
-				ModelEntry model{ReserveModelRoot(entry.relative, names), std::make_unique<ProjectModelImportPlan>()};
-				if (!model.plan->Prepare(entry.source, result.message) ||
-					!model.plan->Stage(transaction, result.message, model.relative)) {
-					return result;
-				}
-				models.push_back(std::move(model));
-			} else if (!transaction.StageFile(entry.source, entry.relative, result.message)) {
-				return result;
-			}
+				if (!transaction.AddDirectory(entry.relative, result.message)) return result;
+			} else if (!staged.contains(StorageFileUtility::PathKey(entry.source)) &&
+				!transaction.StageFile(entry.source, entry.relative, result.message)) return result;
 		}
-		if (!transaction.Publish(result.message)) {
-			return result;
-		}
-		// 全モデルの解決結果が一致するまで所有を渡さない
+		if (!transaction.Publish(result.message)) return result;
 		for (const auto& model : models) {
-			if (!model.plan->Verify(root / model.relative, result.message)) {
-				return result;
-			}
+			if (!model->Verify(root, result.message)) return result;
 		}
 		transaction.Commit();
 		result.success = true;

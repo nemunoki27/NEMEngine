@@ -4607,7 +4607,7 @@
     "buffers": [
         {
             "byteLength": 11241996,
-            "uri": "_resources/0/classroom.bin"
+            "uri": "classroom_core.bin"
         }
     ],
     "cameras": [
@@ -4621,91 +4621,7 @@
             "type": "perspective"
         }
     ],
-    "extensionsRequired": [
-        "KHR_materials_specular",
-        "KHR_materials_clearcoat"
-    ],
-    "extensionsUsed": [
-        "KHR_materials_specular",
-        "KHR_materials_clearcoat"
-    ],
     "extras": {
-        "pbrt": {
-            "light_sources": [
-                {
-                    "from": [
-                        -0.865804,
-                        0.416766,
-                        -0.276929
-                    ],
-                    "gltf": "metadata_only",
-                    "pbrt": "distant",
-                    "pbrt_transform": [
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "radiance_rgb": [
-                        10.0,
-                        10.0,
-                        10.0
-                    ],
-                    "to": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ]
-                },
-                {
-                    "gltf": "metadata_only",
-                    "pbrt": "infinite",
-                    "pbrt_transform": [
-                        -1.0,
-                        0.0,
-                        8.74228e-08,
-                        0.0,
-                        -8.74228e-08,
-                        0.0,
-                        -1.0,
-                        0.0,
-                        0.0,
-                        1.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "source": "textures/Skydome.pfm"
-                }
-            ],
-            "render": {
-                "fov_degrees": 35.9834,
-                "integrator": "path",
-                "max_depth": 17,
-                "pixel_filter": "triangle",
-                "resolution": [
-                    1280,
-                    720
-                ],
-                "sampler": "sobol",
-                "samples_per_pixel": 64
-            }
-        },
         "sceneId": "classroom",
         "sourceFormat": "pbrt-v4"
     },
@@ -4729,21 +4645,8 @@
     "materials": [
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.654071,
-                            0.67408,
-                            0.8
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.654071,
                         0.67408,
@@ -4766,17 +4669,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "texture",
-                        "value": "Texture01"
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.8,
@@ -4806,21 +4700,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.008214,
-                            0.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.008214,
@@ -4843,21 +4724,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         1.0,
                         1.0,
@@ -4880,21 +4748,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.779661,
-                            0.653162,
-                            0.349188
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.779661,
                         0.653162,
@@ -4917,21 +4772,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.644901,
-                            0.412119
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.644901,
@@ -4954,21 +4796,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         1.0,
                         1.0,
@@ -4991,21 +4820,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -5028,21 +4844,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         1.0,
                         1.0,
@@ -5065,21 +4868,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -5102,21 +4892,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -5139,21 +4916,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.717509,
-                            0.190456
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.717509,
@@ -5176,21 +4940,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.791642,
-                            0.388399
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.791642,
@@ -5213,21 +4964,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.64,
-                            0.472188,
-                            0.319233
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.64,
                         0.472188,
@@ -5250,21 +4988,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -5287,21 +5012,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.79311,
-                            0.79311,
-                            0.79311
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.79311,
                         0.79311,
@@ -5324,21 +5036,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.0,
-                            0.030764,
-                            0.8
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.0,
                         0.030764,
@@ -5361,21 +5060,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.145676,
-                            0.64,
-                            0.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.145676,
                         0.64,
@@ -5398,21 +5084,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.626651,
-                            0.0,
-                            0.0
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.626651,
                         0.0,
@@ -5435,21 +5108,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.491301,
-                            0.305177,
-                            0.8
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.491301,
                         0.305177,
@@ -5472,21 +5132,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.784314,
-                            0.784314,
-                            0.784314
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.784314,
                         0.784314,
@@ -5509,32 +5156,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_clearcoat": {
-                    "clearcoatFactor": 1.0,
-                    "clearcoatRoughnessFactor": 0.1
-                },
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.647814,
-                            0.647814,
-                            0.647814
-                        ]
-                    },
-                    "coateddiffuse": {
-                        "clearcoat_factor": 1.0,
-                        "clearcoat_roughness": 0.1,
-                        "remaproughness": false,
-                        "uroughness": 0.1,
-                        "vroughness": 0.1
-                    },
                     "reflectance_rgb": [
                         0.647814,
                         0.647814,
@@ -5557,21 +5180,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.00631,
-                            0.00631,
-                            0.00631
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.00631,
                         0.00631,
@@ -5594,32 +5204,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_clearcoat": {
-                    "clearcoatFactor": 1.0,
-                    "clearcoatRoughnessFactor": 0.1
-                },
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.00631,
-                            0.00631,
-                            0.00631
-                        ]
-                    },
-                    "coateddiffuse": {
-                        "clearcoat_factor": 1.0,
-                        "clearcoat_roughness": 0.1,
-                        "remaproughness": false,
-                        "uroughness": 0.1,
-                        "vroughness": 0.1
-                    },
                     "reflectance_rgb": [
                         0.00631,
                         0.00631,
@@ -5642,21 +5228,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.00631,
-                            0.00631,
-                            0.00631
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.00631,
                         0.00631,
@@ -5679,21 +5252,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.028991,
-                            0.028991,
-                            0.028991
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.028991,
                         0.028991,
@@ -5716,21 +5276,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.684615,
-                            0.684615,
-                            0.684615
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.684615,
                         0.684615,
@@ -5753,32 +5300,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_clearcoat": {
-                    "clearcoatFactor": 1.0,
-                    "clearcoatRoughnessFactor": 0.05
-                },
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ]
-                    },
-                    "coateddiffuse": {
-                        "clearcoat_factor": 1.0,
-                        "clearcoat_roughness": 0.05,
-                        "remaproughness": false,
-                        "uroughness": 0.05,
-                        "vroughness": 0.05
-                    },
                     "reflectance_rgb": [
                         1.0,
                         1.0,
@@ -5801,28 +5324,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_clearcoat": {
-                    "clearcoatFactor": 1.0,
-                    "clearcoatRoughnessFactor": 0.05
-                },
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "texture",
-                        "value": "Texture02"
-                    },
-                    "coateddiffuse": {
-                        "clearcoat_factor": 1.0,
-                        "clearcoat_roughness": 0.05,
-                        "remaproughness": false,
-                        "uroughness": 0.05,
-                        "vroughness": 0.05
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.8,
@@ -5852,21 +5355,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.8,
-                            0.8
-                        ]
-                    },
                     "eta": [
                         1.65746,
                         0.880369,
@@ -5907,21 +5397,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.8,
-                            0.8
-                        ]
-                    },
                     "eta": [
                         1.65746,
                         0.880369,
@@ -5960,21 +5437,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.659224,
-                            0.592438,
-                            0.517401
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.659224,
                         0.592438,
@@ -5997,17 +5461,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "texture",
-                        "value": "Texture03"
-                    },
                     "reflectance_rgb": [
                         0.8,
                         0.8,
@@ -6037,21 +5492,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.056173,
-                            0.056173,
-                            0.056173
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.056173,
                         0.056173,
@@ -6074,21 +5516,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -6111,21 +5540,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -6148,21 +5564,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -6185,21 +5588,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.03598,
-                            0.03598,
-                            0.03598
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.03598,
                         0.03598,
@@ -6222,21 +5612,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.450837,
-                            0.453663,
-                            0.499605
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.450837,
                         0.453663,
@@ -6259,21 +5636,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.8,
-                            0.8,
-                            0.8
-                        ]
-                    },
                     "eta": [
                         1.65746,
                         0.880369,
@@ -6314,21 +5678,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.327125,
-                            0.578596,
-                            0.280561
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.327125,
                         0.578596,
@@ -6351,21 +5702,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.687031,
-                            0.715465,
-                            0.560499
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.687031,
                         0.715465,
@@ -6388,32 +5726,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_clearcoat": {
-                    "clearcoatFactor": 1.0,
-                    "clearcoatRoughnessFactor": 0.001
-                },
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
-                    "coateddiffuse": {
-                        "clearcoat_factor": 1.0,
-                        "clearcoat_roughness": 0.001,
-                        "remaproughness": false,
-                        "uroughness": 0.001,
-                        "vroughness": 0.001
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,
@@ -6436,21 +5750,8 @@
         },
         {
             "doubleSided": true,
-            "extensions": {
-                "KHR_materials_specular": {
-                    "specularFactor": 0.0
-                }
-            },
             "extras": {
                 "pbrt": {
-                    "Kd": {
-                        "encoding": "rgb",
-                        "value": [
-                            0.612066,
-                            0.612066,
-                            0.612066
-                        ]
-                    },
                     "reflectance_rgb": [
                         0.612066,
                         0.612066,

@@ -13,7 +13,8 @@ struct SpriteInstance {
 	float2 halfSize;
 	float4 color;
 	float rotationRadians;
-	float3 _pad0;
+	uint2 entity;
+	float _pad0;
 };
 StructuredBuffer<SpriteInstance> gSceneOverlaySpriteInstances : register(t1);
 
@@ -25,6 +26,7 @@ struct VSOutput {
 	float4 position : SV_POSITION;
 	float2 uv : TEXCOORD0;
 	float4 color : COLOR0;
+	nointerpolation uint2 entity : TEXCOORD1;
 };
 
 //============================================================================
@@ -54,6 +56,7 @@ VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
 	VSOutput output;
 	output.position = float4(ndc, 0.0f, 1.0f);
 	output.uv = uv;
+	output.entity = instance.entity;
 	output.color = instance.color;
 	return output;
 }

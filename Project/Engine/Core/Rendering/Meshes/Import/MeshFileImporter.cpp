@@ -242,6 +242,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 			SubMeshDesc subMesh{};
 			subMesh.indexOffset = subMeshIndexOffset;
 			subMesh.indexCount = subMeshIndexCount;
+			subMesh.vertexCount = mesh->mNumVertices;
 			subMesh.name = Engine::MeshImportUtility::BuildSubMeshName(mesh, meshIndex, material);
 
 			// マテリアルがあれば、テクスチャの参照を取得

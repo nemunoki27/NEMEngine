@@ -216,7 +216,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 				meshBackend, primitives ? &primitives->GetGeometryManager() : nullptr, preparation.renderBatch_, context);
 			RegisterSceneTLAS(context);
 			rayView.Init(graphicsCore);
-			rayView.Upload(previewView, {}, context.postProcessCamera.surfaceSettings);
+			rayView.Upload(previewView, {}, graphicsCore.GetDXObject().GetFeatureController().GetPreferences());
 			rayView.RegisterTo(context.bufferRegistry);
 			context.raytracingViewConstants = &rayView.GetData();
 		}

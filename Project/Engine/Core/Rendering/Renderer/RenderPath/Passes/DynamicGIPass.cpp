@@ -375,7 +375,11 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		state.directionalRevision = directional;
 		state.lightRevision = lightRevision;
 	}
+	const auto& lighting = graphicsCore.GetDXObject().GetFeatureController().GetPreferences();
+	state.atmosphere.indirectIntensity = lighting.indirectIntensity;
+	state.atmosphere.emissiveContribution = lighting.emissiveContribution;
 	uint64_t environment = graphicsCore.GetTextureUploadService().GetContentRevision();
+	Algorithm::HashCombine(environment, std::bit_cast<uint32_t>(lighting.emissiveContribution));
 	Algorithm::HashCombine(environment, context.lightShadowFilterRevision);
 	if (const auto* sky = context.raytracingViewConstants) {
 		Algorithm::HashCombine(environment, sky->hasSkybox);
@@ -482,12 +486,15 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		uint32_t cacheConverged;
 		uint32_t hasCoarseBricks;
 		uint32_t showCacheUpdates;
+		uint32_t updateSpeed;
+		uint32_t layoutChanged;
 	};
 	const uint32_t refreshMode = state.settlingFrames ? 0u : (state.changeFrames || state.layoutPending ? 2u : 1u);
 	const CacheChanges changes{state.changedBounds, state.lightingChangeFrames != 0 ? 1u : 0u,
 		static_cast<uint32_t>(emitters_.size()), state.cacheFrame, refreshMode,
 		state.hasCoarseBricks ? 1u : 0u,
-		platform.GetFeatureController().GetPreferences().dynamicGIDebug == DynamicGIDebug::CacheUpdates ? 1u : 0u};
+		platform.GetFeatureController().GetPreferences().dynamicGIDebug == DynamicGIDebug::CacheUpdates ? 1u : 0u,
+		lighting.giUpdateSpeed, state.layoutPending ? 1u : 0u};
 	if (state.lightingChangeFrames != 0) --state.lightingChangeFrames;
 	const auto upload = changeConstants_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), changes);
 	context.bufferRegistry.Register({.alias = "GIChangeBounds", .gpuAddress = upload.gpuAddress});

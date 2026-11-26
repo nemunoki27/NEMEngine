@@ -129,22 +129,29 @@ float4 CachedLevelIrradiance(Texture2D<float4> cache,Texture2D<float2> moments,f
 	float3 grid = position / spacing - 0.5f;
 	int3 first = int3(floor(grid));
 	float3 fraction = frac(grid);
+	bool oneBrick=all((asuint(first)&3u)!=3u);
+	uint firstSlot=0;
+	if(oneBrick) {
+		if(!FindGIProbe(first,n,previous,level,firstSlot)) return 0;
+	}
 	float4 result = 0;
 	[loop]
 	for (uint i = 0; i < 8u; ++i) {
 		int3 corner = int3(i & 1u, (i >> 1u) & 1u, i >> 2u);
 		int3 cell = first + corner;
-		uint slot;
-		if (!FindGIProbe(cell,n,previous,level,slot)) continue;
 		float3 delta=float3(corner)-fraction;
 		float distanceSquared=dot(delta,delta);
 		float facing=distanceSquared<1e-8f ? 1.0f : smoothstep(-0.05f,0.25f,dot(N,delta)*rsqrt(distanceSquared));
-		if(facing<=0) continue;
-		float visibility=ProbeVisibility(moments,slot,size,-delta);
+		float3 axis = lerp(1.0f - fraction, fraction, float3(corner));
+		float weight=axis.x*axis.y*axis.z*facing;
+		if(weight<=0) continue;
+		uint slot=firstSlot+uint(corner.x+4*corner.y+16*corner.z);
+		if(!oneBrick) {
+			if(!FindGIProbe(cell,n,previous,level,slot)) continue;
+		}
 		float3 probe;
 		if (!ReadGIProbe(cache, cell, slot, size, weights, probe)) continue;
-		float3 axis = lerp(1.0f - fraction, fraction, float3(corner));
-		result += (axis.x*axis.y*axis.z*facing*visibility)*float4(probe,1);
+		result += (weight*ProbeVisibility(moments,slot,size,-delta))*float4(probe,1);
 	}
 	return float4(result.rgb/max(result.a,1e-6f),smoothstep(0,0.12f,result.a));
 }

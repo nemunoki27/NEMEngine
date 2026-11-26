@@ -2589,62 +2589,6 @@
           "id": 8
         },
         {
-          "managedName": "ReflectionEnabled",
-          "nativeMember": "common.reflectionEnabled",
-          "kind": "Bool",
-          "access": "ReadWrite",
-          "id": 32
-        },
-        {
-          "managedName": "ReflectionIntensity",
-          "nativeMember": "common.reflectionIntensity",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 33
-        },
-        {
-          "managedName": "ReflectionMaxDistance",
-          "nativeMember": "common.reflectionMaxDistance",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 34
-        },
-        {
-          "managedName": "ReflectionQuality",
-          "nativeMember": "common.reflectionQuality",
-          "kind": "Int",
-          "access": "ReadWrite",
-          "id": 35
-        },
-        {
-          "managedName": "AmbientOcclusionEnabled",
-          "nativeMember": "common.ambientOcclusionEnabled",
-          "kind": "Bool",
-          "access": "ReadWrite",
-          "id": 0
-        },
-        {
-          "managedName": "AmbientOcclusionIntensity",
-          "nativeMember": "common.ambientOcclusionIntensity",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 1
-        },
-        {
-          "managedName": "AmbientOcclusionRadius",
-          "nativeMember": "common.ambientOcclusionRadius",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 3
-        },
-        {
-          "managedName": "AmbientOcclusionQuality",
-          "nativeMember": "common.ambientOcclusionQuality",
-          "kind": "Int",
-          "access": "ReadWrite",
-          "id": 2
-        },
-        {
           "managedName": "ExposureHistogramLowPercent",
           "nativeMember": "common.colorPipeline.exposure.histogramLowPercent",
           "kind": "Float",
@@ -2934,62 +2878,6 @@
           "kind": "Vector3",
           "access": "ReadWrite",
           "id": 8
-        },
-        {
-          "managedName": "ReflectionEnabled",
-          "nativeMember": "common.reflectionEnabled",
-          "kind": "Bool",
-          "access": "ReadWrite",
-          "id": 35
-        },
-        {
-          "managedName": "ReflectionIntensity",
-          "nativeMember": "common.reflectionIntensity",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 36
-        },
-        {
-          "managedName": "ReflectionMaxDistance",
-          "nativeMember": "common.reflectionMaxDistance",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 37
-        },
-        {
-          "managedName": "ReflectionQuality",
-          "nativeMember": "common.reflectionQuality",
-          "kind": "Int",
-          "access": "ReadWrite",
-          "id": 38
-        },
-        {
-          "managedName": "AmbientOcclusionEnabled",
-          "nativeMember": "common.ambientOcclusionEnabled",
-          "kind": "Bool",
-          "access": "ReadWrite",
-          "id": 0
-        },
-        {
-          "managedName": "AmbientOcclusionIntensity",
-          "nativeMember": "common.ambientOcclusionIntensity",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 1
-        },
-        {
-          "managedName": "AmbientOcclusionRadius",
-          "nativeMember": "common.ambientOcclusionRadius",
-          "kind": "Float",
-          "access": "ReadWrite",
-          "id": 3
-        },
-        {
-          "managedName": "AmbientOcclusionQuality",
-          "nativeMember": "common.ambientOcclusionQuality",
-          "kind": "Int",
-          "access": "ReadWrite",
-          "id": 2
         },
         {
           "managedName": "ExposureHistogramLowPercent",

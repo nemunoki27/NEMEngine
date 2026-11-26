@@ -133,6 +133,7 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--editor-palette") {
 		return RunTest("TestEditorPalette", TestEditorPalette) ? 0 : 1;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--region-picking") return RunTest("TestRegionPicking", TestRegionPicking) ? 0 : 1;
 	if (1 < argc && std::string_view(argv[1]) == "--editor-windows") {
 		return RunTest("TestEditorWindows", TestEditorWindows) && RunTest("TestInputConfiguration", TestInputConfiguration) ? 0 : 85;
 	}
@@ -239,7 +240,8 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return RunTest("TestEditorAssetWorkflow", TestEditorAssetWorkflow) ? 0 : 53;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--project-asset-copy") {
-		return RunTest("TestProjectAssetCopyTransaction", TestProjectAssetCopyTransaction) ? 0 : 53;
+		return RunTest("TestProjectAssetCopyTransaction", TestProjectAssetCopyTransaction) &&
+			RunTest("TestModelImportBundle", TestModelImportBundle) ? 0 : 53;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--fbx-import") {
 		return RunTest("TestFBXImport", TestFBXImport) ? 0 : 52;

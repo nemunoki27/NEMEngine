@@ -11,7 +11,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
-#include <array>
+#include <vector>
 
 namespace Engine {
 
@@ -34,11 +34,13 @@ namespace Engine {
 		Entity entity = Entity::Null();
 		uint32_t subMeshIndex = 0;
 		UUID subMeshStableID{};
+		bool region = false;
+		std::vector<Entity> entities;
 	};
 
 	//============================================================================
 	//	MeshSubMeshPicker class
-	//	1x1整数RTでメッシュのサブメッシュを取得するクラス
+	//	整数RTから選択範囲のオブジェクトとクリック位置のサブメッシュを取得する
 	//============================================================================
 	class MeshSubMeshPicker {
 	public:
@@ -54,9 +56,11 @@ namespace Engine {
 		// 前フレームの結果を選択情報へ変換する
 		MeshSubMeshPickOutcome ConsumePendingResult(
 			GraphicsCore& graphicsCore, ECSWorld* world);
-		// ラスター描画済みの1x1整数RTをreadbackへコピーする
+		// ピッキングRTからreadbackへのコピーを予約する
 		bool ExecuteReadback(GraphicsCore& graphicsCore,
-			uint64_t requestID);
+			uint64_t requestID, MultiRenderTarget& target, bool region = false);
+		// 矩形選択のフレームだけID描画先を確保する
+		MultiRenderTarget* GetRegionTarget(GraphicsCore& graphicsCore, uint32_t width, uint32_t height);
 		// 終了処理
 		void Finalize();
 
@@ -77,17 +81,15 @@ namespace Engine {
 			uint32_t subMeshIndex = UINT32_MAX;
 			uint32_t valid = 0;
 		};
-		// テクスチャコピーのRowPitchは256byte境界に合わせる
-		struct PickReadbackRow {
-
-			PickResult result{};
-			uint32_t padding[60]{};
-		};
-		static_assert(sizeof(PickReadbackRow) == D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
 		struct ReadbackSlot {
 
-			DxReadbackBuffer<PickReadbackRow> buffer{};
+			DxReadbackBuffer<PickResult> clickBuffer;
+			std::unique_ptr<DxReadbackBuffer<PickResult>> regionBuffer;
+			std::unique_ptr<MultiRenderTarget> regionTarget;
+			uint32_t width = 0;
+			uint32_t height = 0;
+			uint32_t rowLength = 0;
+			bool region = false;
 			uint64_t requestID = 0;
 			uint64_t fenceValue = 0;
 			bool pending = false;

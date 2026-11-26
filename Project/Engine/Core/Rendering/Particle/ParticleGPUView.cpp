@@ -96,7 +96,7 @@ ParticleGPUDrawData ParticleGPUService::PrepareView(GraphicsCore& graphics,
 		dispatch(6, (instance.phaseCount + 255) / 256);
 		view->keys[0].Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 		view->counts.Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-		view->arguments.Transition(commands, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		view->arguments.Transition(commands, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT | D3D12_RESOURCE_STATE_COPY_SOURCE);
 	}
 	if (instance.trailCapacity) {
 		const auto* trailPipeline = pipelines.GetORCreate(platform, assets, BuiltinAssets::Pipelines::ParticleGPUTrailPrepare,

@@ -3,13 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
-#include <algorithm>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 //============================================================================
 //	CameraSurfacePipeline functions
 //============================================================================
-Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const CameraCommon& settings) {
+Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const SurfaceLightingSettings& settings) {
 
 	RenderFeatureProfileAsset profile{};
 	{
@@ -213,16 +213,19 @@ Engine::RenderFeatureProfileAsset Engine::BuildCameraReflectionProfile(const Cam
 		if (pass.id == UUID{0x5254434f4d504f53ull}) continue;
 		for (auto& output : pass.outputs) output.widthScale = output.heightScale = scale;
 	}
-	// 移行済みの調整値だけを固定パスへ戻す
-	nlohmann::json savedPasses = nlohmann::json::array();
-	if (settings.reflectionParameters.is_object() && settings.reflectionParameters.contains("passes") &&
-		settings.reflectionParameters["passes"].is_array()) {
-		savedPasses = settings.reflectionParameters["passes"];
-	}
-	const auto saved = RenderFeatureProfileSerializer::FromJson(nlohmann::json{{"passes", savedPasses}});
-	for (const auto& oldPass : saved.passes) {
-		for (auto& pass : profile.passes) {
-			if (pass.id == oldPass.id) pass.parameterOverrides.MergeFrom(oldPass.parameterOverrides);
+	// 公開している固定パスのパラメータだけを上書きする
+	const auto saved = settings.reflectionParameters.find("passes");
+	if (saved != settings.reflectionParameters.end() && saved->is_array()) {
+		for (const auto& entry : *saved) {
+			if (!entry.is_object() || !entry.contains("id") || !entry["id"].is_string() || !entry.contains("parameters")) continue;
+			const auto id = FromString16Hex(entry["id"].get<std::string>());
+			for (auto& pass : profile.passes) {
+				if (pass.id != id) continue;
+				MaterialInstanceParameters overrides{};
+				ReadMaterialInstance(entry["parameters"], overrides);
+				pass.parameterOverrides.MergeFrom(overrides);
+				break;
+			}
 		}
 	}
 	return profile;

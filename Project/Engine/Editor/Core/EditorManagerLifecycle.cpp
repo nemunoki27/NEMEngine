@@ -128,6 +128,7 @@ void Engine::EditorManager::Finalize() {
 		meshSubMeshPicker_.reset();
 	}
 	// 保存やPickingの終了失敗時もImGuiを切り離す
+	cleanup([&]() { regionOverlayRenderer_.Finalize(); });
 	cleanup([&]() { imguiManager_.Finalize(); });
 	ImGuizmo::SetImGuiContext(nullptr);
 	if (failure) {

@@ -38,38 +38,49 @@ void Engine::RaytracingSceneResult::Release() {
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
 	sceneUploadFrameSerials_ = {};
+	currentContents_ = {};
 }
 
 void Engine::RaytracingSceneResult::Upload() {
 
+	instanceMatricesDirty_ = true;
+	currentContents_.fill(false);
+	commonLayers_ = 0x00ffffffu;
+	for (const auto& instance : sceneInstanceScratch_) commonLayers_ &= instance.renderFlags >> 8u;
+	UploadCached();
+}
+
+void Engine::RaytracingSceneResult::UploadCached() {
+
+	const uint32_t frame = GraphicsFrameState::GetCurrentIndex();
+	sceneUploadFrameSerials_[frame] = GraphicsFrameState::GetFrameSerial();
+	if (currentContents_[frame] && materialParameters_.GetResource()) {
+		sceneInstances_.RetainCurrentForFrame();
+		sceneGeometries_.RetainCurrentForFrame();
+		sceneSubMeshes_.RetainCurrentForFrame();
+		materialParameters_.RetainCurrentForFrame();
+		return;
+	}
 	sceneInstances_.Upload(sceneInstanceScratch_);
 	sceneGeometries_.Upload(sceneGeometryScratch_);
 	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
 	if (materialParameterWords_.empty()) materialParameterWords_.resize(4);
 	materialParameters_.Upload(materialParameterWords_);
-	sceneUploadFrameSerials_[GraphicsFrameState::GetCurrentIndex()] =
-		GraphicsFrameState::GetFrameSerial();
-}
-
-void Engine::RaytracingSceneResult::UploadCached() {
-
-	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
-	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-	if (sceneUploadFrameSerials_[frameIndex] == frameSerial) {
-		return;
-	}
-
-	Upload();
+	currentContents_[frame] = true;
 }
 
 void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 	ID3D12Resource* tlas, uint64_t materialGeneration, bool texturesReady, std::span<const RaytracingTLASInstance> instances) {
 
 	// 再利用中のTLASも現在の配置で投影候補を選別する
-	instanceWorldMatrices_.resize(instances.size());
-	for (size_t index = 0; index < instances.size(); ++index) instanceWorldMatrices_[index] = instances[index].worldMatrix;
+	if (instanceMatricesDirty_ || instanceWorldMatrices_.size() != instances.size()) {
+		instanceWorldMatrices_.resize(instances.size());
+		for (size_t index = 0; index < instances.size(); ++index) instanceWorldMatrices_[index] = instances[index].worldMatrix;
+		instanceMatricesDirty_ = false;
+	}
 	context.raytracing.instanceWorldMatrices = instanceWorldMatrices_;
 	context.raytracing.geometryBounds = sceneGeometryBounds_;
+	context.raytracing.commonLayers = commonLayers_;
 	context.raytracing.instanceData = sceneInstanceScratch_;
 	context.raytracing.hitMaterials = hitMaterials_;
 	if (!materialParameterWords_.empty()) {

@@ -1,0 +1,17 @@
+{
+  "name": "defaultSpritePicking",
+  "stages": [
+    {
+      "stage": "VS",
+      "file": "4e454d415353455454837bc26b01ce62",
+      "entry": "main",
+      "profile": "vs_6_0"
+    },
+    {
+      "stage": "PS",
+      "file": "4e454d4153534554abe45545f515d014",
+      "entry": "PickSprite",
+      "profile": "ps_6_0"
+    }
+  ]
+}

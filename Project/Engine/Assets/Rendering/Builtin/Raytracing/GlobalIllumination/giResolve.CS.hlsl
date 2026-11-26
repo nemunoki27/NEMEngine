@@ -82,15 +82,16 @@ void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID, ui
 				int2 local=coord-firstProbe;
 				GIProbeSample data=groupProbes[uint(local.y)*tileSize.x+uint(local.x)];
 				float4 probe=data.radiance;
-				float2 d=(float2(data.samplePixel)-float2(p))*float2(probeSize)/float2(size);
-				float spatial=exp2(-dot(d,d)*1.5f);
 				if(probe.a<0) continue;
+				float2 d=(float2(data.samplePixel)-float2(p))*float2(probeSize)/float2(size);
 				if(all(data.samplePixel==p)) exact=float4(probe.rgb,1);
 				float3 delta=data.position-P;
 				float3 n=data.normal;
 				float alignment=saturate(dot(n,N));
 				float planeDistance=max(abs(dot(delta,N)),abs(dot(delta,n)));
-				float w=spatial*exp2(-planeDistance/planeTolerance)*pow(alignment,12.0f);
+				float square=alignment*alignment;
+				float fourth=square*square;
+				float w=exp2(-dot(d,d)*1.5f-planeDistance/planeTolerance)*fourth*fourth*fourth;
 				sum+=probe.rgb*w;
 				bestWeight=max(bestWeight,w);
 				weightSum+=w;
@@ -105,7 +106,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID, uint3 groupID : SV_GroupID, ui
 			if(exact.a==0) surface=GatherIrradiance(gWorldCache,gWorldMoments,P,N);
 			irradiance=lerp(surface,irradiance,confidence);
 		}
-		output=float4(irradiance,0);
+		output=float4(min(irradiance*indirectIntensity,60000.0f),0);
 		[branch]
 		if(showCacheUpdates!=0u) output.a=CacheUpdateFraction(P);
 	}

@@ -6,6 +6,8 @@
 #include "EditorGPUPassTooltip.h"
 #include <Engine/Editor/UI/ImGui/EditorPalette.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/Core/EditorState.h>
 
@@ -51,6 +53,17 @@ void Engine::EditorMeasurementDisplay::DrawData() {
 	}
 	const Engine::FrameProfiler::ECSStatistics& ecsStatistics = profiler.GetECSStatistics();
 	ImGui::Text("Entity数          : %u", ecsStatistics.entityCount);
+	auto& gpuProfiler = GPUFrameProfiler::GetInstance();
+	gpuProfiler.RequestVertexCounts();
+	const auto gameVertices = gpuProfiler.GetVertexCount(RenderViewKind::Game);
+	const auto sceneVertices = gpuProfiler.GetVertexCount(RenderViewKind::Scene);
+	ImGui::Text("頂点数            : GameView %s / SceneView %s",
+		gameVertices ? std::to_string(*gameVertices).c_str() : "—",
+		sceneVertices ? std::to_string(*sceneVertices).c_str() : "—");
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("本描画に提出したオブジェクトの頂点数です。GPU内の三角形カリング前に数えます。\n"
+			"影・深度・選択・デバッグ描画は除きます。— は未描画または計測待ちです。");
+	}
 	ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
 	// CPUの全体時間とGPUのパス計測を分けて表示する
