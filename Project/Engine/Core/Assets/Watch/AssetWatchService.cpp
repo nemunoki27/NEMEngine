@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Watch/AssetChangeWatcher.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -19,14 +20,6 @@ namespace {
 	constexpr uint32_t kPollIntervalFrames = 20;
 	// 変更検知から実際のリロードまで待つ時間で、エディタの書き込み途中を読まないための猶予
 	constexpr std::chrono::milliseconds kDebounceDuration{ 300 };
-
-	// 対象とするテクスチャ拡張子か
-	bool IsTextureExtension(const std::string& extension) {
-
-		return extension == ".png" || extension == ".dds" || extension == ".tga" ||
-			extension == ".jpg" || extension == ".jpeg" || extension == ".bmp" ||
-			extension == ".gif" || extension == ".hdr";
-	}
 
 	// 対象とするモデル拡張子か
 	bool IsModelExtension(const std::string& extension) {
@@ -216,7 +209,7 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		return false;
 	}
 
-	const bool isTexture = IsTextureExtension(extension);
+	const bool isTexture = AssetTypeResolver::IsTextureExtension(extension);
 	const bool isModel = IsModelExtension(extension);
 	if (meta->type == AssetType::Texture && isTexture && textureUploadService_) {
 

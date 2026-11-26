@@ -12,6 +12,7 @@
 #include <Engine/Core/Scripting/Managed/ManagedSourceWatcher.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 
 // c++
 #include <algorithm>
@@ -20,6 +21,40 @@
 #include <thread>
 
 namespace {
+
+	bool CheckEXRRegistration() {
+
+		using namespace Engine;
+		NEMTests::TestDirectory directory("EXRRegistration", RuntimePaths::GetGameAssetsRoot());
+		const auto& root = directory.GetPath();
+		const auto rough = root / "leaves_rough_2k.EXR";
+		const auto normal = root / "leaves_nor_gl_2k.exr";
+		std::ofstream(rough) << "fixture";
+		std::ofstream(normal) << "fixture";
+		AssetMeta old{};
+		old.type = AssetType::DefaultAsset;
+		old.guid = AssetGUID::New();
+		if (!AssetDatabase::WriteMetaFile(AssetMetaStorage::MetaPathOf(rough), old)) return false;
+
+		AssetDatabase database;
+		database.Init();
+		if (!database.RebuildMeta({ root })) return false;
+		const auto* migrated = database.Find(old.guid);
+		const auto* imported = database.FindByPath(RuntimePaths::ToAssetPath(normal));
+		if (!migrated || migrated->type != AssetType::Texture || migrated->importer != "TextureImporter" ||
+			ParseTextureImportSettings(migrated->importerSettings).preset != TextureImportPreset::Data ||
+			!imported || imported->type != AssetType::Texture) return false;
+		const auto settings = ParseTextureImportSettings(imported->importerSettings);
+		if (settings.preset != TextureImportPreset::NormalMap || settings.normalConvention != TextureNormalConvention::OpenGL ||
+			MakeEXRImportSettings("LEAVES-NOR-DX").normalConvention != TextureNormalConvention::DirectX ||
+			MakeEXRImportSettings("throughGlass").preset != TextureImportPreset::HDR) return false;
+
+		// 再走査時は保存した用途を優先する
+		const auto custom = ToJson(MakeTextureImportSettings(TextureImportPreset::HDR));
+		if (!database.UpdateImporterSettings(old.guid, custom, kTextureImporterVersion) || !database.RebuildMeta({ root })) return false;
+		migrated = database.Find(old.guid);
+		return migrated && migrated->importerSettings == custom;
+	}
 
 	template<class Watcher, class Consume>
 	bool CheckWatcherLifetime(Watcher& watcher, Consume&& consume) {
@@ -72,6 +107,8 @@ namespace NEMTests {
 	}
 
 	bool TestAssetDatabaseTransactions() {
+
+		if (!CheckEXRRegistration()) return false;
 
 		using namespace Engine;
 		TestDirectory directory("AssetDatabase", RuntimePaths::GetGameAssetsRoot());

@@ -76,9 +76,7 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 		extension == ".hlsli") {
 		return AssetType::Shader;
 	}
-	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
-		extension == ".dds" || extension == ".tga" || extension == ".bmp" ||
-		extension == ".gif" || extension == ".hdr") {
+	if (IsTextureExtension(extension)) {
 		return AssetType::Texture;
 	}
 	if (extension == ".obj" || extension == ".gltf" || extension == ".glb" || extension == ".fbx") {
@@ -102,6 +100,13 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 		return AssetType::Text;
 	}
 	return AssetType::DefaultAsset;
+}
+
+bool Engine::AssetTypeResolver::IsTextureExtension(std::string_view extension) {
+
+	return extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
+		extension == ".dds" || extension == ".tga" || extension == ".bmp" ||
+		extension == ".gif" || extension == ".hdr" || extension == ".exr";
 }
 
 std::string_view Engine::AssetTypeResolver::FindCompoundSuffix(

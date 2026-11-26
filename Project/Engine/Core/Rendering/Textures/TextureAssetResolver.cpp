@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/GLTFDocumentReferences.h>
 #include <Engine/Core/Rendering/Meshes/Import/GLTFFileReference.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -25,8 +26,7 @@ std::string Engine::TextureAssetResolver::NormalizeStem(std::string_view name) {
 bool Engine::TextureAssetResolver::IsTextureExtension(const std::filesystem::path& path) {
 
 	const std::string ext = Algorithm::ToLower(Algorithm::PathToUTF8(path.extension()));
-	return ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp" ||
-		   ext == ".gif" || ext == ".hdr";
+	return AssetTypeResolver::IsTextureExtension(ext);
 }
 
 std::string Engine::TextureAssetResolver::ToAssetPath(const std::filesystem::path& fullPath) {

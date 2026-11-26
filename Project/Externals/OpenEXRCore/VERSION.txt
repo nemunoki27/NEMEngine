@@ -1,0 +1,7 @@
+OpenEXRCore 3.3.5
+https://github.com/AcademySoftwareFoundation/openexr/releases/tag/v3.3.5
+
+OpenEXRCore sources and configuration templates are taken from this release.
+The C decoder uses the Imath 3.1.12 half headers and libdeflate 1.18 sources
+pinned by upstream. License texts are in LICENSE.md, Imath/LICENSE.md, and
+libdeflate/COPYING.

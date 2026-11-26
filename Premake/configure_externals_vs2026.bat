@@ -19,6 +19,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+cmake -P "%ENGINE_ROOT%\Premake\cmake\openexr-config.cmake"
+if errorlevel 1 exit /b 1
+
 mkdir "%ASSIMP_BUILD%" >nul 2>&1
 
 echo ===== Configure assimp =====

@@ -14,6 +14,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 
 // c++
 #include <algorithm>
@@ -238,6 +239,19 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	AssetMeta meta{};
 	meta.assetPath = assetPath;
 
+	const bool exr = guessedType == AssetType::Texture &&
+		Algorithm::ToLower(Algorithm::PathToUTF8(assetFull.extension())) == ".exr";
+	const auto initializeImporter = [&]() {
+		meta.type = guessedType;
+		meta.importer = AssetMetaStorage::ResolveImporterName(guessedType);
+		if (exr) {
+			auto settings = ToJson(MakeEXRImportSettings(Algorithm::PathToUTF8(assetFull.stem())));
+			settings.update(meta.importerSettings);
+			meta.importerSettings = std::move(settings);
+			meta.importerVersion = kTextureImporterVersion;
+		}
+	};
+
 	if (std::filesystem::exists(metaFull)) {
 
 		if (!ReadMetaFile(metaFull, meta)) {
@@ -258,14 +272,12 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 			meta.importer = AssetMetaStorage::ResolveImporterName(AssetType::Text);
 			if (!WriteMetaFile(metaFull, meta)) return {};
 		}
-		if (meta.type == AssetType::DefaultAsset && guessedType == AssetType::Mesh &&
-			Algorithm::ToLower(Algorithm::PathToUTF8(assetFull.extension())) == ".fbx" &&
-			(meta.importer.empty() || meta.importer == "DefaultImporter")) {
+		if (meta.type == AssetType::DefaultAsset && (meta.importer.empty() || meta.importer == "DefaultImporter") &&
+			(exr || (guessedType == AssetType::Mesh && Algorithm::ToLower(Algorithm::PathToUTF8(assetFull.extension())) == ".fbx"))) {
 
-			// 未対応時に登録されたFBXもGUIDを保持してMeshへ移す
-			meta.type = AssetType::Mesh;
-			meta.importer = AssetMetaStorage::ResolveImporterName(AssetType::Mesh);
-			if (!WriteMetaFile(metaFull, meta)) {
+			// 未対応時の汎用アセットを同じGUIDで移行する
+			initializeImporter();
+			if ((!exr || RuntimePaths::CanWritePath(metaFull)) && !WriteMetaFile(metaFull, meta)) {
 				return {};
 			}
 		}
@@ -280,8 +292,9 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 		// typeがUnknownでもパスから一意に判定できるなら補正して保存する
 		if (meta.type == AssetType::Unknown && guessedType != AssetType::Unknown) {
 
-			meta.type = guessedType;
-			if (!WriteMetaFile(metaFull, meta)) {
+			if (exr) initializeImporter();
+			else meta.type = guessedType;
+			if ((!exr || RuntimePaths::CanWritePath(metaFull)) && !WriteMetaFile(metaFull, meta)) {
 				return {};
 			}
 		} else if (meta.type == AssetType::Unknown) {
@@ -293,8 +306,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 		// .meta未作成なら新規発行して保存してよい
 		meta.guid = AssetGUID::New();
-		meta.type = guessedType;
-		meta.importer = AssetMetaStorage::ResolveImporterName(guessedType);
+		initializeImporter();
 		if (!WriteMetaFile(metaFull, meta)) {
 			return {};
 		}

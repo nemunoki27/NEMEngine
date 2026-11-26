@@ -1,5 +1,6 @@
 #include "TextureDecoder.h"
 #include "TexturePreviewResize.h"
+#include "EXRTextureDecoder.h"
 
 #include <Engine/Core/Assets/Package/ProductContentPack.h>
 
@@ -279,6 +280,10 @@ HRESULT Engine::TextureDecoder::ReadMetadata(const std::string& assetPath, Direc
 		return DirectX::GetMetadataFromDDSMemory(bytes.data(), bytes.size(), DirectX::DDS_FLAGS_NONE, metadata);
 	}
 	const std::string extension = Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension()));
+	if (extension == ".exr") {
+		const char* diagnostic = "EXR";
+		return EXRTextureDecoder::Read(fullPath, nullptr, metadata, nullptr, diagnostic);
+	}
 	if (extension == ".dds") {
 		return DirectX::GetMetadataFromDDSFile(fullPath.c_str(), DirectX::DDS_FLAGS_NONE, metadata);
 	}
@@ -315,7 +320,7 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 
 	DirectX::ScratchImage loaded{};
 	// WICを使用するスレッドのCOM寿命を読込中だけ保持する
-	const bool usesWIC = extension != ".dds" && extension != ".tga" && extension != ".hdr";
+	const bool usesWIC = extension != ".dds" && extension != ".tga" && extension != ".hdr" && extension != ".exr";
 	const HRESULT initialized = usesWIC ? CoInitializeEx(nullptr, COINIT_MULTITHREADED) : E_NOTIMPL;
 	if (usesWIC && FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
 		result.result = initialized;
@@ -344,6 +349,9 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 
 		hr = job.snapshotBytes ? DirectX::LoadFromTGAMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
 			&loadedMeta, loaded) : DirectX::LoadFromTGAFile(fullPathW.c_str(), &loadedMeta, loaded);
+	} else if (extension == ".exr") {
+		failureStage = "EXR";
+		hr = EXRTextureDecoder::Read(fullPath, job.snapshotBytes.get(), loadedMeta, &loaded, failureStage);
 	} else if (extension == ".hdr") {
 
 		hr = job.snapshotBytes ? DirectX::LoadFromHDRMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
@@ -404,7 +412,9 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 					processingSucceeded = false;
 				}
 			}
-			if (processingSucceeded && loaded.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM) {
+			const bool floatingPointSource = sourceFormat == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+				sourceFormat == DXGI_FORMAT_R32G32B32A32_FLOAT;
+			if (processingSucceeded && !floatingPointSource && loaded.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM) {
 
 				DirectX::ScratchImage linearImage{};
 				hr = DirectX::Convert(loaded.GetImages(), loaded.GetImageCount(), loaded.GetMetadata(),
@@ -422,7 +432,7 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 				processingSucceeded = NormalizeNormalMap(loaded,
 					job.importSettings.normalConvention == TextureNormalConvention::OpenGL, reconstructZ);
 			}
-		} else if (!cooked && job.importSettings.alphaColorBleed &&
+		} else if (!cooked && extension != ".exr" && job.importSettings.alphaColorBleed &&
 			(job.importSettings.preset == TextureImportPreset::Color ||
 				job.importSettings.preset == TextureImportPreset::UI)) {
 

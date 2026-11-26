@@ -27,6 +27,8 @@ namespace Engine {
 
 		// ファイルパス(拡張子)からAssetTypeを推測する
 		static AssetType GuessByPath(const std::filesystem::path& assetFullPath);
+		// 小文字の拡張子からテクスチャ形式を判定する
+		static bool IsTextureExtension(std::string_view extension);
 		// エンジン固有の複合拡張子を取得する、該当しなければ空を返す
 		static std::string_view FindCompoundSuffix(
 			const std::filesystem::path& assetFullPath);

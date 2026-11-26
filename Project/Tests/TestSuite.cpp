@@ -225,7 +225,8 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Meshlet generation failed\n";
 		return 16;
 	}
-	if (!RunTest("TestGraphicsFeatureSelection", TestGraphicsFeatureSelection)) {
+	if (!RunTest("TestEXRTextures", TestEXRTextures) ||
+		!RunTest("TestGraphicsFeatureSelection", TestGraphicsFeatureSelection)) {
 		std::cerr << "Graphics feature selection failed\n";
 		return 16;
 	}

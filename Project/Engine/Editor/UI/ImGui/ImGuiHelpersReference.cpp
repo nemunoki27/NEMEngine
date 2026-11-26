@@ -22,7 +22,7 @@ namespace Engine {
 		// ドロップ先で何を渡せばよいか分かるようプレースホルダへ添えて使う
 		std::string_view AcceptedExtensionsForType(AssetType type) {
 			switch (type) {
-			case AssetType::Texture:          return ".png/.jpg/.dds/.renderTexture";
+			case AssetType::Texture:          return ".png/.jpg/.dds/.exr/.renderTexture";
 			case AssetType::Text:             return ".csv/.json/.txt";
 			case AssetType::Material:         return ".material";
 			case AssetType::ShaderGraph:      return ".shadergraph";

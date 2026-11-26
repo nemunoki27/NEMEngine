@@ -236,6 +236,628 @@
       ]
     },
     {
+      "name": "OpenEXRCore",
+      "version": "3.3.5",
+      "versionEvidence": "VERSION.txt",
+      "upstreamCommit": null,
+      "upstreamComparison": "unknown",
+      "knownLocalChanges": [],
+      "patches": [],
+      "licenseFiles": [
+        "Imath/LICENSE.md",
+        "libdeflate/COPYING",
+        "LICENSE.md"
+      ],
+      "treeSHA256": "3f6cadda2328b04160fdd699cd7a0d2887bfe6e727a86bf626816866a63b18cc",
+      "files": [
+        {
+          "path": "config/IlmThreadConfig.h.in",
+          "size": 1220,
+          "sha256": "2e0cc65a45589affe8bec0c7d0e50c3af4c097e37829d197b83ed76e986b0e88"
+        },
+        {
+          "path": "config/ImathConfig.h.in",
+          "size": 5624,
+          "sha256": "158b955f3c0e7ad9ac31f96ab4ffa6ebd9451df249d53eac4e488b9159c6eed7"
+        },
+        {
+          "path": "config/OpenEXRConfig.h.in",
+          "size": 6533,
+          "sha256": "5ee58a1e36f52c8fc73599f9f6ceb9ac7dbd6559a421f2d2c3a8cd13039a8734"
+        },
+        {
+          "path": "config/OpenEXRConfigInternal.h.in",
+          "size": 1505,
+          "sha256": "3d5e94a63e1030af477766ccf8a0d4dfe5be6e3da443da02d7c52fd5cbfff910"
+        },
+        {
+          "path": "core/attributes.c",
+          "size": 32875,
+          "sha256": "60c8588c71a1bb1b72a983764b102d068833a6341733a8d9ca19e73d50cec355"
+        },
+        {
+          "path": "core/backward_compatibility.h",
+          "size": 1609,
+          "sha256": "000ff3bbf49265904955f2fceec8bd836a4c0d19d02fd000730987a2fb3b7a07"
+        },
+        {
+          "path": "core/base.c",
+          "size": 5740,
+          "sha256": "d483080706524195b237b56d61ca66d9286cc4026c3c7bb1c8fb58615341f8e5"
+        },
+        {
+          "path": "core/channel_list.c",
+          "size": 7698,
+          "sha256": "44b8be85def0fdcd819ec5166e4d5380fafc38ea11c79ba3bb9d53abdd339d48"
+        },
+        {
+          "path": "core/chunk.c",
+          "size": 75085,
+          "sha256": "233ee4bc9195f86a955a0797e403e0f320c3d76c148d4ee2d9c0dba0bb4b87a8"
+        },
+        {
+          "path": "core/coding.c",
+          "size": 7997,
+          "sha256": "c47e68a14a501d81b7cca9cff2ff067dc9a43164a7c7100a07d188b935a2dae7"
+        },
+        {
+          "path": "core/compression.c",
+          "size": 16541,
+          "sha256": "604c24acb32818c57280eed5832e288e82166a509b5a5bec4b4ea09a3f3a8847"
+        },
+        {
+          "path": "core/context.c",
+          "size": 21839,
+          "sha256": "52b4c500ba61624f98ebc04fa46e3abdf0b6e934e65e622f1cd25eb4b86be7cf"
+        },
+        {
+          "path": "core/debug.c",
+          "size": 13170,
+          "sha256": "f412feaf93a8810a4138c9122b146ec0da18b8634ee184b256f0ee39c8bfe484"
+        },
+        {
+          "path": "core/decoding.c",
+          "size": 24004,
+          "sha256": "4a8c94f7e2c59a40170bff366d0aa55b66dd5bbf67ac5d450ba3d71973304a04"
+        },
+        {
+          "path": "core/dwaLookups.h",
+          "size": 1107084,
+          "sha256": "a8392abb973a9925de6742d4f2b356da9ae8a852d53be3fa07bbbb9a3dc1c2c8"
+        },
+        {
+          "path": "core/encoding.c",
+          "size": 14195,
+          "sha256": "fc4e33ff94cb94569f4a2ed36935b943ba64e9533827436de1906674e4527489"
+        },
+        {
+          "path": "core/float_vector.c",
+          "size": 3727,
+          "sha256": "574a57b6146124c8b843b8160d0361ca25727226be4f51c81630dce4ec1acd72"
+        },
+        {
+          "path": "core/internal_attr.h",
+          "size": 4719,
+          "sha256": "838bf9a0213e3a6351be7766a800aee34bc92619d6681afc5fed0eb5503ae1cc"
+        },
+        {
+          "path": "core/internal_b44_table.c",
+          "size": 1107356,
+          "sha256": "d12001043f738ca9c33379cfe074efac026b5b50316f1e23c3561b755756e19d"
+        },
+        {
+          "path": "core/internal_b44.c",
+          "size": 21334,
+          "sha256": "72dc71ac6b3f261f2d70d3b82c3e3ebc93dd00717baa162bfdf918d202a6c35e"
+        },
+        {
+          "path": "core/internal_channel_list.h",
+          "size": 1648,
+          "sha256": "0c133517a03ff09b33eb863b67c31f53efddc2ddfc938cf4d0445f0871e40074"
+        },
+        {
+          "path": "core/internal_coding.h",
+          "size": 7780,
+          "sha256": "43e6bde684b332e4b7ec555adc13d94fac620eabfe46eb61d7e05bb374e1e7ed"
+        },
+        {
+          "path": "core/internal_compress.h",
+          "size": 1099,
+          "sha256": "acb6422d3e4a2b2948d33170527f88ea7dd2c4e87997784b516961ceed6023bc"
+        },
+        {
+          "path": "core/internal_constants.h",
+          "size": 951,
+          "sha256": "957dbeeb48c3d5ec0e83789e46512d8af4bfed80bfc057b5d373e0b31bb5a4b6"
+        },
+        {
+          "path": "core/internal_cpuid.h",
+          "size": 3278,
+          "sha256": "b962ba8cf747a12995eb95849ce9741c6387b31d153e655b988ceceee0c7c204"
+        },
+        {
+          "path": "core/internal_decompress.h",
+          "size": 2527,
+          "sha256": "c5bf02b8c3d9f2b678f14f006ecfc1ad6ca5b571b0507c4fdbf3996bc4f8a4fa"
+        },
+        {
+          "path": "core/internal_dwa_channeldata.h",
+          "size": 3418,
+          "sha256": "02170a4ba92e7d2443c01ef3273274514164c4de25db1f14adbc8d852a17928c"
+        },
+        {
+          "path": "core/internal_dwa_classifier.h",
+          "size": 7417,
+          "sha256": "6d3ab99360bfab60ba7c3e369e241c901f7ff6e92e51164efe3fc0776de8862a"
+        },
+        {
+          "path": "core/internal_dwa_compressor.h",
+          "size": 55364,
+          "sha256": "0b6c579d6062c44d22e0ee2645c0b15229b53216ff34488ae3f5ac38cdbc773a"
+        },
+        {
+          "path": "core/internal_dwa_decoder.h",
+          "size": 24037,
+          "sha256": "8ba8764413ff8c1fcaf2a3d676f3b72cd7e9cf46e332e9a356a53379c1b088c5"
+        },
+        {
+          "path": "core/internal_dwa_encoder.h",
+          "size": 41499,
+          "sha256": "2b56ccf5087b84eba02a2af5190895cc71fef3c7fb71bea107bf5156a3d5ccf9"
+        },
+        {
+          "path": "core/internal_dwa_helpers.h",
+          "size": 1622,
+          "sha256": "e78472060b89e2a58ce226f8ff100c93ddb6c306ae52b6f4bb06b92dbfe3d99b"
+        },
+        {
+          "path": "core/internal_dwa_simd.h",
+          "size": 84296,
+          "sha256": "4d92a8b22faf391fce57d082c3c8b8f88b41c22fafd3b33951ea2de1eae18e91"
+        },
+        {
+          "path": "core/internal_dwa.c",
+          "size": 9259,
+          "sha256": "9df47564018d985de7f2b11a9e57851541b4f768afbd230ab28b3eb721266b87"
+        },
+        {
+          "path": "core/internal_file.h",
+          "size": 1913,
+          "sha256": "678e0838ec830c117b409672d021b23a8cb3656023ce076e242142a5b3a595ba"
+        },
+        {
+          "path": "core/internal_float_vector.h",
+          "size": 1523,
+          "sha256": "17e218220e6a57ccb0d6fdb1b92b0caeebc87b5896b6def853edc2a165f7a32e"
+        },
+        {
+          "path": "core/internal_huf.c",
+          "size": 58486,
+          "sha256": "27c1b81f8d6bf163b6c7d3ad6a61e70449429beaf981436d5a2c1b0846c47f07"
+        },
+        {
+          "path": "core/internal_huf.h",
+          "size": 900,
+          "sha256": "7c8b9bd718f1c2406387d5eac4cf456d35492c2abc3fc8a101aac458ced321da"
+        },
+        {
+          "path": "core/internal_memory.h",
+          "size": 576,
+          "sha256": "4c8e5b1100cbdc4961b4e85545ce60caaf482cf212a57d896bdedd4acc848cba"
+        },
+        {
+          "path": "core/internal_opaque.h",
+          "size": 1959,
+          "sha256": "68ad9904d4914d9c4a0cce8f264ec4726bd67558e6d2606c1f2ffbd64ad162bc"
+        },
+        {
+          "path": "core/internal_piz.c",
+          "size": 19668,
+          "sha256": "811b5d0713f062ba55a7bb89325c7600156bcb1a3cce1806356ad9cc5d51c825"
+        },
+        {
+          "path": "core/internal_posix_file_impl.h",
+          "size": 12450,
+          "sha256": "7bf6041c8f4fc4e5fe44a8bf60a771ee45274aa79660ebf90bb4ff747a4e1abf"
+        },
+        {
+          "path": "core/internal_preview.h",
+          "size": 1741,
+          "sha256": "47740fa72c11731c92825049788e10c98338b0e5fb421f79969b75499e654473"
+        },
+        {
+          "path": "core/internal_pxr24.c",
+          "size": 13233,
+          "sha256": "8632855188b98590632bbd63a4b4779ee05d5574c49f38b90409a1a8993271d1"
+        },
+        {
+          "path": "core/internal_rle.c",
+          "size": 5578,
+          "sha256": "199f0404d4f71880ac7a2ff60b0b60905957628208635a75a2de30ef50a53898"
+        },
+        {
+          "path": "core/internal_string_vector.h",
+          "size": 2827,
+          "sha256": "faa9565a911ab5e6c9ecdaf3e2c5f5f88ae74e65d79006555ef4e0b49ab01744"
+        },
+        {
+          "path": "core/internal_string.h",
+          "size": 2519,
+          "sha256": "da7973a00a5346f5482506c9a06b0502ded441df48884834c2f953d7761f8ea3"
+        },
+        {
+          "path": "core/internal_structs.c",
+          "size": 14018,
+          "sha256": "6b29102071da2b77e98b6202b756fa7f77252de5310a39be9e14bfd1d8454f36"
+        },
+        {
+          "path": "core/internal_structs.h",
+          "size": 11961,
+          "sha256": "6b7d22abc0f08f411d667613488ec6b45c65259c82d954c636f0c15186c4b53f"
+        },
+        {
+          "path": "core/internal_util.h",
+          "size": 1620,
+          "sha256": "d3f3ff545d6345a952de107ef1543a128b2ea832e7d88b6965ef792c4e2419f1"
+        },
+        {
+          "path": "core/internal_win32_file_impl.h",
+          "size": 12927,
+          "sha256": "bb646feb8aad5e58b3994e427bd1606f62736f4dc3fef0ea2aed3d430b143c54"
+        },
+        {
+          "path": "core/internal_xdr.h",
+          "size": 6269,
+          "sha256": "1056506d514718451b37005a836be5bb74e3dc3c018e44955de5e85ea22f2cba"
+        },
+        {
+          "path": "core/internal_zip.c",
+          "size": 11941,
+          "sha256": "637c402d6367aa09e4417ec60ea6fe222a9dbd0d3be9d1f8c0551efb3b489a47"
+        },
+        {
+          "path": "core/memory.c",
+          "size": 1620,
+          "sha256": "3ec42e4f76d8e9fbc00f1e14c7a8f49c50326f63817102f5c9af72a0612773be"
+        },
+        {
+          "path": "core/opaque.c",
+          "size": 8537,
+          "sha256": "a207aa80ae1ca4fb6bdfee255b407eeb08f75de0ea3c3f13a424af86572c52da"
+        },
+        {
+          "path": "core/openexr_attr.h",
+          "size": 16387,
+          "sha256": "7c367a31a0804bdf0608193d8509aa0855af6c9982eda14b1f039554e1cac6c5"
+        },
+        {
+          "path": "core/openexr_base.h",
+          "size": 6549,
+          "sha256": "144dbf9feee6ec95be15f8f8d5e869e43c4727d70f99a4276d7eb430cc5b030f"
+        },
+        {
+          "path": "core/openexr_chunkio.h",
+          "size": 5458,
+          "sha256": "1bd85e362c51195fed80faa3f78b6d4be22e42a0b95f41ddb4f50d9c3735d1cd"
+        },
+        {
+          "path": "core/openexr_coding.h",
+          "size": 4325,
+          "sha256": "a8748c9625c7cd07db278c19f69b9eef364269125396e8d50ac9750d063d711b"
+        },
+        {
+          "path": "core/openexr_compression.h",
+          "size": 3247,
+          "sha256": "f3a5f504aa19028767f2555c70c76acb7bacb0f756a01274d4364d6b9156b8f2"
+        },
+        {
+          "path": "core/openexr_config.h",
+          "size": 1092,
+          "sha256": "c1f8defaf56b7eb6e3f02e64fd7b72de44df5b7f453078745b44f13604be5b60"
+        },
+        {
+          "path": "core/openexr_context.h",
+          "size": 22202,
+          "sha256": "5f05eae335afb145c9e1a91cb709b642b580dc94ae3b7d61536406653b0875c4"
+        },
+        {
+          "path": "core/openexr_debug.h",
+          "size": 480,
+          "sha256": "b887e027b84267871b27c0ff5c8a54b9068f891e70be5bb9175568e39b569641"
+        },
+        {
+          "path": "core/openexr_decode.h",
+          "size": 12202,
+          "sha256": "1aa4b24f54fe1479058055b5506d3c837d25b15e0d1ba0f9dc5f8284f00653c4"
+        },
+        {
+          "path": "core/openexr_encode.h",
+          "size": 12684,
+          "sha256": "690af87409a6824c02226a382561270da781b7418ca1cb4a840c5861c8ec5d9f"
+        },
+        {
+          "path": "core/openexr_errors.h",
+          "size": 2310,
+          "sha256": "c68bbc01759ece823ad6a201f91a45d8ee09846ae9ab0d3b4f9b1e2b77e55881"
+        },
+        {
+          "path": "core/openexr_part.h",
+          "size": 29089,
+          "sha256": "f7a7c510ebd4708d13bec8233493eea6ba18ee0b7d532e77bdb5344fec1bc300"
+        },
+        {
+          "path": "core/openexr_std_attr.h",
+          "size": 841,
+          "sha256": "3788e8a5a876f35d483997e3e067334eb0220c17e21377a923a20b4dee6b15fb"
+        },
+        {
+          "path": "core/openexr_version.h",
+          "size": 425,
+          "sha256": "91cde11cf2863812b5494edd434515fac18f24693815ba79952105579cffdadb"
+        },
+        {
+          "path": "core/openexr.h",
+          "size": 520,
+          "sha256": "64112b55030b83dc5826db78d5ff05bd72d31bb9aed8bef268b8ba63c5649824"
+        },
+        {
+          "path": "core/pack.c",
+          "size": 7589,
+          "sha256": "a02c63d481a0890e554f109a0b7cc43d9a9806cf5690b4d8e243656dd96c7b31"
+        },
+        {
+          "path": "core/parse_header.c",
+          "size": 85508,
+          "sha256": "a775ec27d9344089c60cf2c13a207de89f872b9176e2806c6df02cea6103248f"
+        },
+        {
+          "path": "core/part_attr.c",
+          "size": 78507,
+          "sha256": "ceb733a5bc60b35d7346f5c285fd22d620da13dfc0f67a7045d25e5c2926c329"
+        },
+        {
+          "path": "core/part.c",
+          "size": 18889,
+          "sha256": "88a315711c041ba7a0562ca8b4c049ae54258e3338aea3009135d8dca28afd20"
+        },
+        {
+          "path": "core/preview.c",
+          "size": 2139,
+          "sha256": "33d73c9a39ce200308c46d10541c01d1a17b3b8bf9c1e03746cb119856fe9b67"
+        },
+        {
+          "path": "core/std_attr.c",
+          "size": 128,
+          "sha256": "34561535e5b298c4d913ca68a8b21fe95177a064fed67280c3ae35bfe1ef08c3"
+        },
+        {
+          "path": "core/string_vector.c",
+          "size": 7056,
+          "sha256": "b00a5f9990e3bdf25732b0075f252c7fd00bc1ea5b2ba5fe870437fe209625d6"
+        },
+        {
+          "path": "core/string.c",
+          "size": 6791,
+          "sha256": "9122affca8966435583dc70c95066ceb1969ab9a1cae7e1b15caa8cb1553cdaa"
+        },
+        {
+          "path": "core/unpack.c",
+          "size": 66580,
+          "sha256": "66ed9c9ccbfff25fa266d2fb6ade0968a4e6886c434e7e0b744b089ef2a79016"
+        },
+        {
+          "path": "core/validation.c",
+          "size": 28342,
+          "sha256": "dc9ef10fa91cff49281cc756e9cb8bf7c6ffd2d7211816bd3fc1d54df0ff51ce"
+        },
+        {
+          "path": "core/write_header.c",
+          "size": 20866,
+          "sha256": "c40a72bcbea958d04414f419b8acaf7685915b26590b12a9615135656f0520d9"
+        },
+        {
+          "path": "Imath/half.h",
+          "size": 27902,
+          "sha256": "24c8558dd5a27ef337cd123615fc1ce6bb2bd1362bac35d8607519058bc83c21"
+        },
+        {
+          "path": "Imath/ImathExport.h",
+          "size": 2132,
+          "sha256": "ea4893e470c083b3fb7604574c7e93ca409578d6ea5bb66517ee79000721506a"
+        },
+        {
+          "path": "Imath/ImathNamespace.h",
+          "size": 3048,
+          "sha256": "09f6dc5fadc97d2af0307b4e9d540e9dfcb913ee8150c2b83e4f5bcf7219c7c7"
+        },
+        {
+          "path": "Imath/ImathPlatform.h",
+          "size": 1944,
+          "sha256": "3f38a97f8fce95d80750da3669a1a584d68a5ea57be80d9f9e1c1363412fe5b3"
+        },
+        {
+          "path": "Imath/LICENSE.md",
+          "size": 1497,
+          "sha256": "c20236d3b39fd20eba8e3d1fb3b892a5483df2e7d8d61bf43f165d3fac22f601"
+        },
+        {
+          "path": "libdeflate/common_defs.h",
+          "size": 20821,
+          "sha256": "354e64c01a4083c0d1e7dc111c7d42d2adc2b06ab2efa7681473d93dac9e3f76"
+        },
+        {
+          "path": "libdeflate/COPYING",
+          "size": 1052,
+          "sha256": "5d246dd2537307b80fed9ba5fdddf5d0fe7a8f023393a071182b9daed56b40fe"
+        },
+        {
+          "path": "libdeflate/lib/adler32_vec_template.h",
+          "size": 3914,
+          "sha256": "d84c6f88473189dd6f2ffaf9a47a238bec212ddfe371ec0ff55dd8954b41a185"
+        },
+        {
+          "path": "libdeflate/lib/adler32.c",
+          "size": 3628,
+          "sha256": "3ff389e1f08f9cf096a2722aa49e1734ced26d9d9d06a5f0767fa33ee2e5c868"
+        },
+        {
+          "path": "libdeflate/lib/arm/adler32_impl.h",
+          "size": 10061,
+          "sha256": "e7d99be2e7b2a40a5df2b03b381bb3bc72e148f15f53488e3812acbc151791e5"
+        },
+        {
+          "path": "libdeflate/lib/arm/cpu_features.c",
+          "size": 5832,
+          "sha256": "24a6736c29121a7e6ad8211bd409d07109741dc1e8ce1a4f421b3d03e2ed6e05"
+        },
+        {
+          "path": "libdeflate/lib/arm/cpu_features.h",
+          "size": 9604,
+          "sha256": "c53c5313794029b681b32cf8e31dd935852dc91bc81b8a4f2ab02fde77e56352"
+        },
+        {
+          "path": "libdeflate/lib/arm/crc32_impl.h",
+          "size": 23631,
+          "sha256": "3104139c9057a6b131bb511abf4cffb825d9ed98611c19400e65f74d309e5e11"
+        },
+        {
+          "path": "libdeflate/lib/arm/crc32_pmull_helpers.h",
+          "size": 5957,
+          "sha256": "c279418769b977824d238fb85fb2efe082b5202f2fb5636702f8e6b74c4c3e50"
+        },
+        {
+          "path": "libdeflate/lib/arm/crc32_pmull_wide.h",
+          "size": 7241,
+          "sha256": "c2bce19ebf541ebf526ad6209c3a49e2e898c836538ac4fe9ef1309fe8eeea3a"
+        },
+        {
+          "path": "libdeflate/lib/arm/matchfinder_impl.h",
+          "size": 2487,
+          "sha256": "e479785e936e3adf7b621b7314cb09365ea65bd350cfc7fc51480752178ba998"
+        },
+        {
+          "path": "libdeflate/lib/bt_matchfinder.h",
+          "size": 11499,
+          "sha256": "6e3834eb2de5c759479bbdab9471f3569f8aa2bcbba81f4f917c84ebff0050ad"
+        },
+        {
+          "path": "libdeflate/lib/cpu_features_common.h",
+          "size": 2788,
+          "sha256": "f4eb0800558e9116dd14446ccfb9b1896f970aec6de42c18366a29bde73fd0da"
+        },
+        {
+          "path": "libdeflate/lib/crc32_multipliers.h",
+          "size": 20575,
+          "sha256": "15cf05fe2c5e07edff062d1a611dc2bee12f66fee24e05718c46005d9a8d5d52"
+        },
+        {
+          "path": "libdeflate/lib/crc32_tables.h",
+          "size": 28471,
+          "sha256": "43f0a8a29ad89e533f3cf1cfa801d894dbae458d37ce53b5798c4e98f067e6b5"
+        },
+        {
+          "path": "libdeflate/lib/crc32.c",
+          "size": 9226,
+          "sha256": "d10c21c5f0aaf03d1af566bba97d18decb06300e7aa57413762dc346b38c6ee2"
+        },
+        {
+          "path": "libdeflate/lib/decompress_template.h",
+          "size": 25048,
+          "sha256": "bd8c8ba7884383a7dc6f5f162ada16213d242eab8ea55cb01092c403634683a3"
+        },
+        {
+          "path": "libdeflate/lib/deflate_compress.c",
+          "size": 135284,
+          "sha256": "8d25bb7791602650939f4d502ca1fe2ac5326706e84cbbd4ce6e0a21c090412f"
+        },
+        {
+          "path": "libdeflate/lib/deflate_compress.h",
+          "size": 398,
+          "sha256": "cd3a74bb22e5358e9571184294b1f3600e2a72bde483485eda242a92bb7124b0"
+        },
+        {
+          "path": "libdeflate/lib/deflate_constants.h",
+          "size": 1747,
+          "sha256": "72ea6e5f0abe53e781203e3f383603a765a768b860a09b3356be36bfd87c8af3"
+        },
+        {
+          "path": "libdeflate/lib/deflate_decompress.c",
+          "size": 47754,
+          "sha256": "547671dda82a26a9b5f3ee554d5b974e4e3fe5edd858e64f04d19f19cc5be6aa"
+        },
+        {
+          "path": "libdeflate/lib/gzip_compress.c",
+          "size": 2665,
+          "sha256": "b92016cf6a5ce34b48e6950d7de68923d2e5e0475bbe4c71297360818deafb08"
+        },
+        {
+          "path": "libdeflate/lib/gzip_constants.h",
+          "size": 1029,
+          "sha256": "135661faa24f45407517f9f73380cf89890613aeba27b3a4f5cfba0e74e85ae0"
+        },
+        {
+          "path": "libdeflate/lib/gzip_decompress.c",
+          "size": 3996,
+          "sha256": "f853b8802a1b7e79f6626f0a2c104d005958288c2a37ea24df758ee54f714304"
+        },
+        {
+          "path": "libdeflate/lib/hc_matchfinder.h",
+          "size": 13970,
+          "sha256": "b37e8c48957f8d7773a847a1d5a5fe5343b85e0f9c43ddce2e55eb24d58a1704"
+        },
+        {
+          "path": "libdeflate/lib/ht_matchfinder.h",
+          "size": 7135,
+          "sha256": "a682872f0d05919e13d53b49df42039062c177c65d19095da958162425883c0c"
+        },
+        {
+          "path": "libdeflate/lib/lib_common.h",
+          "size": 3236,
+          "sha256": "553919864f01c50587ee69a7d65cf2dc4491c696c775ac7bb1abd75e5a4632da"
+        },
+        {
+          "path": "libdeflate/lib/matchfinder_common.h",
+          "size": 5724,
+          "sha256": "9a6fca6e558d19d6ff50111e03f6f56ee315058bd079dfafda20f95fb6f981a5"
+        },
+        {
+          "path": "libdeflate/lib/utils.c",
+          "size": 3524,
+          "sha256": "87257a5c5a4044e1cdc6eb7e85ffe51598d32c41631844f512759e6f660d0ded"
+        },
+        {
+          "path": "libdeflate/lib/zlib_compress.c",
+          "size": 2618,
+          "sha256": "b5ca0c9af0346fd656871441b08b73b3512601ceec8edc6cc81e8a93929081d4"
+        },
+        {
+          "path": "libdeflate/lib/zlib_constants.h",
+          "size": 488,
+          "sha256": "562e16b83ac33ac6d351cdfdf1962750576080d65c22ab66cad0aaa33695bebb"
+        },
+        {
+          "path": "libdeflate/lib/zlib_decompress.c",
+          "size": 3138,
+          "sha256": "704a57fb91c36c1c88b04a3482694de08c794ca0cb3904ac247a206802aa6ee0"
+        },
+        {
+          "path": "libdeflate/libdeflate.h",
+          "size": 15748,
+          "sha256": "a4c17e99aef823e316541bf367a19a3baa33f2bd2a7d91e103d4a4e7415dd564"
+        },
+        {
+          "path": "LICENSE.md",
+          "size": 1501,
+          "sha256": "84853c91d4c2e0310741d4773469d98bb93e61029608e0ba0882a3fffdf330bd"
+        },
+        {
+          "path": "VERSION.txt",
+          "size": 342,
+          "sha256": "0d278618fef42676c3c58bf3a3dea1df85e3ed848a2e79ba5324cda433541541"
+        }
+      ]
+    },
+    {
       "name": "DirectXTex",
       "version": null,
       "versionEvidence": "DirectXTex.h",

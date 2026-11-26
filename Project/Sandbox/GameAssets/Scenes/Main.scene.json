@@ -4,7 +4,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 9
+                    "siblingOrder": 6
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -681,7 +681,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 5
+                    "siblingOrder": 3
                 },
                 "Name": {
                     "name": "Plane"
@@ -986,7 +986,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 10
+                    "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -2617,7 +2617,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 5
                 },
                 "Name": {
                     "name": "Sphere"
@@ -3149,7 +3149,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 7
+                    "siblingOrder": 4
                 },
                 "Name": {
                     "name": "Cube"

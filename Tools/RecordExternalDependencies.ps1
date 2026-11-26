@@ -1,4 +1,4 @@
-﻿param([string]$OutputPath = '', [switch]$Verify)
+param([string]$OutputPath = '', [switch]$Verify)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -8,6 +8,7 @@ if (-not $OutputPath) { $OutputPath = Join-Path $externalRoot 'dependencies.lock
 $libraries = @(
     @{ name = 'imgui'; versionFile = 'imgui.h'; pattern = '^#define IMGUI_VERSION\s+"([^"]+)"' },
     @{ name = 'meshoptimizer'; versionFile = 'include\meshoptimizer.h'; pattern = 'meshoptimizer - version ([0-9.]+)' },
+    @{ name = 'OpenEXRCore'; versionFile = 'VERSION.txt'; pattern = '^OpenEXRCore ([0-9.]+)' },
     @{ name = 'DirectXTex'; versionFile = 'DirectXTex.h'; pattern = '' },
     @{ name = 'magic_enum'; versionFile = 'magic_enum.hpp'; prefix = 'MAGIC_ENUM_VERSION_' },
     @{ name = 'nlohmann'; versionFile = 'json.hpp'; prefix = 'NLOHMANN_JSON_VERSION_' },

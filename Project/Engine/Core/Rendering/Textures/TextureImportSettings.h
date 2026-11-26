@@ -5,6 +5,7 @@
 //============================================================================
 // c++
 #include <cstdint>
+#include <string_view>
 // directX
 #include <d3d12.h>
 // json
@@ -84,6 +85,8 @@ namespace Engine {
 
 	// プリセットの推奨設定を作成する
 	TextureImportSettings MakeTextureImportSettings(TextureImportPreset preset);
+	// EXRのファイル名から初回の用途と法線規約を選ぶ
+	TextureImportSettings MakeEXRImportSettings(std::string_view stem);
 	// JSONから設定を復元し欠落値をプリセット既定値で補う
 	TextureImportSettings ParseTextureImportSettings(const nlohmann::json& data);
 	// 設定をJSONへ変換する

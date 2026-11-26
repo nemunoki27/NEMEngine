@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
@@ -82,6 +83,24 @@ Engine::TextureImportSettings Engine::MakeTextureImportSettings(TextureImportPre
 		break;
 	}
 	return settings;
+}
+
+Engine::TextureImportSettings Engine::MakeEXRImportSettings(std::string_view stem) {
+
+	std::string name = "_" + Algorithm::ToLower(std::string(stem)) + "_";
+	for (char& c : name) {
+		if (c == '-' || c == '.' || c == ' ') c = '_';
+	}
+	const bool directX = name.find("_nor_dx_") != std::string::npos;
+	if (directX || name.find("_nor_gl_") != std::string::npos) {
+		auto settings = MakeTextureImportSettings(TextureImportPreset::NormalMap);
+		settings.normalConvention = directX ? TextureNormalConvention::DirectX : TextureNormalConvention::OpenGL;
+		return settings;
+	}
+	if (name.find("_rough_") != std::string::npos || name.find("_roughness_") != std::string::npos) {
+		return MakeTextureImportSettings(TextureImportPreset::Data);
+	}
+	return MakeTextureImportSettings(TextureImportPreset::HDR);
 }
 
 Engine::TextureImportSettings Engine::ParseTextureImportSettings(const nlohmann::json& data) {

@@ -10,6 +10,39 @@ externalproject "DirectXTex"
         ["Develop"] = "Release",
     }
 
+local exr = path.join(NEM_PROJECT_ROOT, "Externals/OpenEXRCore")
+project "OpenEXRCore"
+    location (exr)
+    kind "StaticLib"
+    system "windows"
+    language "C"
+    cdialect "C17"
+    staticruntime "On"
+    warnings "Default"
+    multiprocessorcompile "On"
+    defines { "_CRT_SECURE_NO_WARNINGS", "NOMINMAX" }
+    buildoptions { "/utf-8" }
+
+    removeconfigurations { "Develop" }
+    configmap { ["Develop"] = "Release" }
+
+    includedirs {
+        path.join(exr, "core"), path.join(exr, "Imath"), path.join(exr, "libdeflate"),
+        path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/OpenEXRCore/include"),
+    }
+    files {
+        path.join(exr, "core/*.c"), path.join(exr, "core/*.h"),
+        path.join(exr, "libdeflate/lib/x86/cpu_features.c"),
+        path.join(exr, "libdeflate/lib/utils.c"), path.join(exr, "libdeflate/lib/adler32.c"),
+        path.join(exr, "libdeflate/lib/deflate_*.c"), path.join(exr, "libdeflate/lib/zlib_*.c"),
+    }
+
+    filter "configurations:Debug"
+        symbols "On"
+    filter "configurations:Release"
+        optimize "On"
+    filter {}
+
 project "imgui"
     location (NEM_IMGUI_PROJECT_LOCATION or path.join(NEMENGINE_ROOT, "Project/Externals/imgui"))
     kind "StaticLib"

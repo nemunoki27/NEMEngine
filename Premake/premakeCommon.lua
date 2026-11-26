@@ -95,6 +95,13 @@ function NEM_AddEngineIncludeSettings()
         path.join(NEM_PROJECT_ROOT, "Externals/dotnet-hosting/include"),
     }
 
+    filter "files:**EXRTextureDecoder.cpp"
+        buildoptions {
+            '/I"' .. path.join(NEM_PROJECT_ROOT, "Externals/OpenEXRCore/core") .. '"',
+            '/I"' .. path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/OpenEXRCore/include") .. '"',
+        }
+    filter {}
+
     -- msdf-atlas-gen: <msdf-atlas-gen/msdf-atlas-gen.h> と内部の <msdfgen.h> / <core/...>
     if NEM_MSDF_AVAILABLE then
         externalincludedirs {
@@ -151,6 +158,7 @@ end
 function NEM_AddEngineDllLinkSettings()
     links {
         "meshoptimizer",
+        "OpenEXRCore",
         "bcrypt",
     }
     dependson {
