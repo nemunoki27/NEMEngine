@@ -15,6 +15,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
 #include "Passes/CameraSurfacePass.h"
+#include "Passes/DynamicGIPass.h"
 #include "Passes/HeightFogPass.h"
 #include "Passes/DecalPass.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeaturePass.h>
@@ -55,6 +56,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps, bool
 		}));
 	fixedPasses.emplace_back(std::make_unique<DecalPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<CameraSurfacePass>(deps_, true));
+	fixedPasses.emplace_back(std::make_unique<DynamicGIPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{

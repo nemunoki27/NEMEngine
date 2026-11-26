@@ -1,0 +1,11 @@
+{
+  "name": "giResolve",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345544749000000000021",
+      "entry": "main",
+      "profile": "cs_6_6"
+    }
+  ]
+}

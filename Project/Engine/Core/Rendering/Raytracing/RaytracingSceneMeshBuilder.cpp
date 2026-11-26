@@ -204,6 +204,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			MeshBoundsUtility::TransformSphere(localMatrix, bounds.center, bounds.radius);
 			geometryData.boundsSphere = {bounds.center.x, bounds.center.y, bounds.center.z, bounds.radius};
 			work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
+			bounds.emissiveTriangleCount = GetEmissiveTriangleCount(subMeshData, importedSubMesh.indexCount);
+			bounds.deformed = hasSkinnedSource;
 			bounds.instanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
 			bounds.receiveDecals = src.renderer && src.renderer->receiveDecals && !meshResource->isSkinned &&
 				renderState.surfaceMode != MaterialSurfaceMode::Transparent;

@@ -26,6 +26,7 @@
 
 // c++
 #include <algorithm>
+#include <array>
 
 namespace {
 
@@ -206,6 +207,21 @@ bool Engine::RayTracingExecutor::Execute(
 		if (binding.kind == ShaderBindingKind::CBV && context.raytracingViewConstants &&
 			(binding.name == "RaytracingViewConstants" || binding.name == "gRaytracingViewConstants")) {
 			auto constants = *context.raytracingViewConstants;
+			if (context.diffuseGICache && context.diffuseGIMoments && context.view) {
+				context.diffuseGICache->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				context.diffuseGIMoments->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				if (context.diffuseGI) {
+					context.diffuseGI->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+					constants.giResolvedIndex = context.diffuseGI->GetSRVIndex();
+				}
+				constants.giWorldCacheIndex = context.diffuseGICache->GetSRVIndex();
+				constants.giWorldMomentsIndex = context.diffuseGIMoments->GetSRVIndex();
+				const auto* emitters = context.bufferRegistry.Find("gGIEmitters");
+				constants.emitterCount = emitters ? emitters->elementCount : 0u;
+				constants.cullingMask = context.view->GetCullingMask(RenderCameraDomain::Perspective) & 0x00ffffffu;
+				const auto quality = graphicsCore.GetDXObject().GetFeatureController().GetPreferences().dynamicGIQuality;
+				constants.rayCount = quality == DynamicGIQuality::High ? 32u : quality == DynamicGIQuality::Low ? 4u : 8u;
+			}
 			// 解像度の復元後も実行中のViewに合わせる
 			if (context.view) {
 				constants.renderSize = Vector2(static_cast<float>((std::max)(context.view->width, 1u)),
@@ -259,6 +275,22 @@ bool Engine::RayTracingExecutor::Execute(
 						registered->srvGPUHandle);
 				}
 				continue;
+			}
+			if (!context.diffuseGICache && binding.kind == ShaderBindingKind::CBV && binding.name == "GIWorldLighting") {
+				// GIが無効な反射では大気の対象ライトを未設定にする
+				const std::array<uint32_t, 4> inactive{ UINT32_MAX, UINT32_MAX, 0, 0 };
+				const auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+					graphicsCore.GetDXObject().GetDevice(), inactive);
+				RootBindingCommand::SetComputeCBV(commandList, location, allocation.gpuAddress);
+				continue;
+			}
+			if (!context.diffuseGICache && binding.kind == ShaderBindingKind::SRV &&
+				(binding.name == "gGIProbeLookup" || binding.name == "gGIPreviousProbeLookup" || binding.name == "gGIEmitters")) {
+				const auto* instances = context.bufferRegistry.Find("gRaytracingSceneInstances");
+				if (instances) {
+					RootBindingCommand::SetComputeSRV(commandList, location, instances->gpuAddress, instances->srvGPUHandle);
+					continue;
+				}
 			}
 			ReportFailure(pass,
 				"unresolved buffer: " + binding.name);

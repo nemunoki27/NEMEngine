@@ -214,6 +214,22 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 
 		EditorAntialiasingMenu::Draw(context);
 
+		if (ImGui::BeginMenu("グローバルイルミネーション")) {
+			bool enabled = runtime.useDynamicGI;
+			int quality = static_cast<int>(preferences.dynamicGIQuality);
+			int debug = static_cast<int>(preferences.dynamicGIDebug);
+			ImGui::BeginDisabled(!support.SupportsDynamicGI());
+			bool changed = ImGui::Checkbox("動的GIを有効", &enabled);
+			ImGui::BeginDisabled(!enabled);
+			changed |= ImGui::Combo("品質", &quality, "軽量\0標準\0高品質\0");
+			changed |= ImGui::Combo("デバッグ表示", &debug, "通常\0間接光のみ\0キャッシュ更新箇所\0");
+			ImGui::EndDisabled();
+			ImGui::EndDisabled();
+			if (changed) featureController.SetDynamicGI(enabled, static_cast<DynamicGIQuality>(quality), static_cast<DynamicGIDebug>(debug));
+			if (!support.SupportsDynamicGI()) ImGui::TextDisabled("DXR Tier 1.1とShader Model 6.6に対応したGPUが必要です");
+			ImGui::EndMenu();
+		}
+
 		// レイトレーシングの影と反射を設定
 		if (ImGui::BeginMenu("レイトレーシング")) {
 			bool allowInlineRayTracing = preferences.allowInlineRayTracing;

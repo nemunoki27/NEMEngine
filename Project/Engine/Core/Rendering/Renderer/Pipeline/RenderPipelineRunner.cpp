@@ -392,7 +392,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		// 編集中に全形状を隠しても、直前に使った描画先は再表示まで保持する
 		const auto& platform = graphicsCore.GetDXObject();
 		const bool editing = request.FindView(RenderViewKind::Scene) &&
-			(platform.ShouldUseDispatchRays() || platform.ShouldUseInlineRayTracing());
+			platform.ShouldBuildRaytracingScene();
 		if (context.raytracing.instanceCount != 0) viewState.lastGeometryFrame = GraphicsFrameState::GetFrameSerial();
 		context.targetRegistry->EndFrame(editing && context.raytracing.instanceCount == 0 ?
 			viewState.lastGeometryFrame : UINT64_MAX);

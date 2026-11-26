@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <algorithm>
@@ -71,8 +72,10 @@ void Engine::RenderFeatureTemporalState::PrepareHistory(GraphicsCore& graphicsCo
 	uint64_t runtimeGeneration, uint64_t materialGeneration) {
 
 	HistoryState& state = historyStates_[historyKey];
-	const bool resetHistory = !state.valid ||
-		std::chrono::steady_clock::now() - state.lastWrittenTime > std::chrono::milliseconds(250) || state.width != width ||
+	// ワールド空間の履歴は連続描画中のGPU待機や読戻しでは失効しない
+	const bool expired = worldSpaceHistory_ ? HasExpiredGraphicsResource(state.lastWrittenFrame, GraphicsFrameState::GetFrameSerial()) :
+		std::chrono::steady_clock::now() - state.lastWrittenTime > std::chrono::milliseconds(250);
+	const bool resetHistory = !state.valid || expired || state.width != width ||
 		state.height != height ||
 		state.runtimeGeneration != runtimeGeneration ||
 		state.raytracingMaterialGeneration !=
@@ -100,6 +103,7 @@ void Engine::RenderFeatureTemporalState::MarkWritten(const std::string& historyK
 	HistoryState& state = historyStates_[historyKey];
 	state.valid = true;
 	state.lastWrittenTime = std::chrono::steady_clock::now();
+	state.lastWrittenFrame = GraphicsFrameState::GetFrameSerial();
 	// 実際に描画した回だけ履歴を交代する
 	state.writeIndex = 1u - state.writeIndex;
 }

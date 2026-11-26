@@ -75,6 +75,7 @@ namespace Engine {
 		uint64_t geometryGeneration = 0;
 		// 非同期テクスチャが全て確定しているか
 		bool materialTexturesReady = true;
+		bool usesRenderTextureInputs = false;
 		std::span<const Matrix4x4> instanceWorldMatrices;
 		std::span<const RaytracingGeometryBounds> geometryBounds;
 		std::span<const RaytracingInstanceShaderData> instanceData;
@@ -100,6 +101,10 @@ namespace Engine {
 		// 最終出力へ適用するCameraの画面設定
 		ResolvedCameraView postProcessCamera{};
 		RenderTexture2D* ambientOcclusion = nullptr;
+		RenderTexture2D* diffuseGI = nullptr;
+		RenderTexture2D* diffuseGICache = nullptr;
+		RenderTexture2D* diffuseGIMoments = nullptr;
+		uint32_t diffuseGIDebug = 0;
 		MultiRenderTarget* defaultSurface = nullptr;
 		// このCameraのトーンマッピング結果をFXAAへ渡す
 		MultiRenderTarget* antialiasingSource = nullptr;

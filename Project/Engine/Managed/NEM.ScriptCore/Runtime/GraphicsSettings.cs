@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 namespace NEMEngine;
 
 public enum DisplayOutputMode { SDR, HDR10, ScRGB }
+public enum DynamicGIQuality { Low, Standard, High }
+public enum DynamicGIDebug { None, Indirect, CacheUpdates }
 public enum AntialiasingMethod { None, FXAA }
 
 //============================================================================
@@ -28,6 +30,15 @@ public sealed class GraphicsSettingsData {
 	public float fxaaEdgeThreshold { get => Read<float>("fxaaEdgeThreshold"); set => Write("fxaaEdgeThreshold", value); }
 	public float fxaaMinimumThreshold { get => Read<float>("fxaaMinimumThreshold"); set => Write("fxaaMinimumThreshold", value); }
 	public float fxaaSubpixelStrength { get => Read<float>("fxaaSubpixelStrength"); set => Write("fxaaSubpixelStrength", value); }
+	public bool dynamicGI { get => Read<bool>("dynamicGI"); set => Write("dynamicGI", value); }
+	public DynamicGIQuality dynamicGIQuality {
+		get => Enum.Parse<DynamicGIQuality>(Read<string>("dynamicGIQuality"));
+		set => Write("dynamicGIQuality", value.ToString());
+	}
+	public DynamicGIDebug dynamicGIDebug {
+		get => Enum.Parse<DynamicGIDebug>(Read<string>("dynamicGIDebug"));
+		set => Write("dynamicGIDebug", value.ToString());
+	}
 	public bool rayTracingShadows { get => Read<bool>("allowInlineRayTracing"); set => Write("allowInlineRayTracing", value); }
 	public bool rayTracingReflections { get => Read<bool>("allowDispatchRays"); set => Write("allowDispatchRays", value); }
 	public bool rayTracingDownsampling { get => Read<bool>("allowRaytracingDownsampling"); set => Write("allowRaytracingDownsampling", value); }
@@ -65,6 +76,8 @@ public sealed class GraphicsRuntimeState {
 	public uint renderHeight => Read<uint>("renderHeight");
 	public uint outputWidth => Read<uint>("outputWidth");
 	public uint outputHeight => Read<uint>("outputHeight");
+	public bool dynamicGISupported => Read<bool>("dynamicGISupported");
+	public bool dynamicGIEnabled => Read<bool>("dynamicGIEnabled");
 	public bool rayTracingSupported => Read<bool>("rayTracingSupported");
 	public bool inlineRayTracingSupported => Read<bool>("inlineRayTracingSupported");
 	public bool meshShaderEnabled => Read<bool>("meshShaderEnabled");

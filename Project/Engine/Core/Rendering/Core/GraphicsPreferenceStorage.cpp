@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -83,6 +84,10 @@ namespace {
 
 void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& preferences) {
 
+	nlohmann::json project;
+	if (JsonFile::TryLoad(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGlobalIllumination), project) && project.is_object()) {
+		Read(project, preferences);
+	}
 	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
@@ -131,6 +136,13 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 		ReadFloatSetting(data, "fxaaSubpixelStrength", preferences.fxaa.subpixelStrength), 0.0f, 1.0f);
 	preferences.fxaaSettingsMigrated = ReadBoolSetting(data, "fxaaSettingsMigrated", preferences.fxaaSettingsMigrated);
 
+	preferences.dynamicGI = ReadBoolSetting(data, "dynamicGI", preferences.dynamicGI);
+	preferences.dynamicGIQuality = EnumAdapter<DynamicGIQuality>::FromString(
+		ReadStringSetting(data, "dynamicGIQuality", EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality)))
+		.value_or(preferences.dynamicGIQuality);
+	preferences.dynamicGIDebug = EnumAdapter<DynamicGIDebug>::FromString(
+		ReadStringSetting(data, "dynamicGIDebug", EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug)))
+		.value_or(preferences.dynamicGIDebug);
 	preferences.allowMeshShader = ReadBoolSetting(data,
 		"allowMeshShader", preferences.allowMeshShader);
 	preferences.allowInlineRayTracing = ReadBoolSetting(data,
@@ -170,7 +182,21 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 
 void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& preferences) {
 
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), Write(preferences));
+	auto values = Write(preferences);
+	values.erase("dynamicGI");
+	values.erase("dynamicGIQuality");
+	values.erase("dynamicGIDebug");
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), values);
+}
+
+bool Engine::GraphicsPreferenceStorage::SaveDynamicGI(const GraphicsFeaturePreferences& preferences) {
+
+	const nlohmann::json settings = {
+		{"dynamicGI", preferences.dynamicGI},
+		{"dynamicGIQuality", EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality)},
+		{"dynamicGIDebug", EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug)}
+	};
+	return JsonFile::SaveCanonical(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGlobalIllumination), settings, 2);
 }
 
 nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePreferences& preferences) {
@@ -182,6 +208,9 @@ nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePre
 	data["fxaaMinimumThreshold"] = preferences.fxaa.minimumThreshold;
 	data["fxaaSubpixelStrength"] = preferences.fxaa.subpixelStrength;
 	data["fxaaSettingsMigrated"] = preferences.fxaaSettingsMigrated;
+	data["dynamicGI"] = preferences.dynamicGI;
+	data["dynamicGIQuality"] = EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality);
+	data["dynamicGIDebug"] = EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug);
 	data["allowMeshShader"] = preferences.allowMeshShader;
 	data["allowInlineRayTracing"] = preferences.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences.allowDispatchRays;

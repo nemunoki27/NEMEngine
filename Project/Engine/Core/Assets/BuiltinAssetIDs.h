@@ -12,6 +12,9 @@ namespace Engine::BuiltinAssets {
 	// 移動に強い参照にするため、エンジン内蔵アセットは.metaのGUIDで固定参照する
 	//============================================================================
 	namespace Materials {
+		inline constexpr AssetID GICache{ 0x4e454d4153534554ull, 0x4749000000000004ull };
+		inline constexpr AssetID GIGather{ 0x4e454d4153534554ull, 0x4749000000000014ull };
+		inline constexpr AssetID GIResolve{ 0x4e454d4153534554ull, 0x4749000000000024ull };
 
 		inline constexpr AssetID FXAA{ 0xd2827571ebe9ec84ull, 0x33dfde5afde335eaull };
 
@@ -127,6 +130,9 @@ namespace Engine::BuiltinAssets {
 	}
 
 	namespace Shaders {
+		inline constexpr AssetID GICache{ 0x4e454d4153534554ull, 0x4749000000000002ull };
+		inline constexpr AssetID GIGather{ 0x4e454d4153534554ull, 0x4749000000000012ull };
+		inline constexpr AssetID GIResolve{ 0x4e454d4153534554ull, 0x4749000000000022ull };
 
 		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0xda1b7b9bf8074065ull };
 		inline constexpr AssetID ReflectionCompositeInPlace{ 0x4e454d4153534554ull, 0x9ef313c263b8d692ull };
@@ -159,7 +165,7 @@ namespace Engine::BuiltinAssets {
 			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
 			AtmosphereTransmittance, AtmosphereMultiScattering, AtmosphereSkyView, AtmosphereCubemap, AtmosphereAerial,
 			HeightFog,
-			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial,
+			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial, GICache, GIGather, GIResolve,
 		};
 
 		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };
@@ -195,6 +201,7 @@ namespace Engine::BuiltinAssets {
 			Pipelines::ParticleGPUDraw, Pipelines::ParticleGPUDraw2D,
 			Pipelines::ParticleGPUTrailUpdate, Pipelines::ParticleGPUTrailPrepare, Pipelines::ParticleGPURibbonSelect,
 			Pipelines::ParticleGPUTrailDraw, Pipelines::ParticleGPUTrailDraw2D, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,
+			Materials::GICache, Materials::GIGather, Materials::GIResolve,
 			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial,
 		};
 	}

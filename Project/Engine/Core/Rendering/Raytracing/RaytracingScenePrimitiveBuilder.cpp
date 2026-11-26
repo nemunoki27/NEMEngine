@@ -145,6 +145,8 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instanceShaderData.vertexDescriptorIndex = geometry->GetVertexDescriptorIndex();
 		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
+		// 閉じた不透明な発光箱は受光点を向く面だけを積分できる
+		instanceShaderData._pad = renderer.type == PrimitiveType::Cube && MaterialRenderPolicy::IsOpaqueGeometry(material, src.surfaceMode) ? 1u : 0u;
 		instanceShaderData.entityIndex = src.entity.index;
 		instanceShaderData.entityGeneration = src.entity.generation;
 		instanceShaderData.geometryDataOffset =
@@ -170,7 +172,8 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 			geometry->boundsCenter.z, geometry->boundsRadius};
 		work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 		work.scene.result.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
-			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent});
+			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent,
+			geometry->clothVertices != nullptr, GetEmissiveTriangleCount(subMeshData, geometry->indexCount)});
 
 		RaytracingTLASInstance instance{};
 		instance.blas = geometry->blas.GetResource();

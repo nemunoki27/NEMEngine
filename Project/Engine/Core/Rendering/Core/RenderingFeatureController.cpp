@@ -98,6 +98,20 @@ void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 	Logger::Output(LogType::Engine, "Inline RayTracing経路: {}", GetEnabledText(runtimeFeatures_.useInlineRayTracing));
 }
 
+void Engine::GraphicsFeatureController::SetDynamicGI(bool enabled, DynamicGIQuality quality, DynamicGIDebug debug) {
+
+	if (preferences_.dynamicGI == enabled && preferences_.dynamicGIQuality == quality && preferences_.dynamicGIDebug == debug) return;
+	auto updated = preferences_;
+	updated.dynamicGI = enabled;
+	updated.dynamicGIQuality = quality;
+	updated.dynamicGIDebug = debug;
+	if (!runtimeOverrideActive_ && !GraphicsPreferenceStorage::SaveDynamicGI(updated)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "動的GIの設定を保存できませんでした");
+		return;
+	}
+	ApplyRuntimePreferences(updated);
+}
+
 void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
 
 	if (preferences_.allowDispatchRays == enabled) {
@@ -276,6 +290,7 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "専用VRAM: {:.2f} GB", vramGB);
 	Logger::Output(LogType::Engine, "実行時Mesh Shader: {}", GetEnabledText(runtimeFeatures_.useMeshShader));
 	Logger::Output(LogType::Engine, "実行時Inline RayTracing: {}", GetEnabledText(runtimeFeatures_.useInlineRayTracing));
+	Logger::Output(LogType::Engine, "実行時動的GI: {}", GetEnabledText(runtimeFeatures_.useDynamicGI));
 	Logger::Output(LogType::Engine, "実行時DispatchRays: {}", GetEnabledText(runtimeFeatures_.useDispatchRays));
 	Logger::Output(LogType::Engine, "実行時Raytracingダウンサンプリング: {}",
 		GetEnabledText(runtimeFeatures_.useRaytracingDownsampling));

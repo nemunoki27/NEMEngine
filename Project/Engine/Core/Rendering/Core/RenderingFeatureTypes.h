@@ -46,6 +46,7 @@ namespace Engine {
 			return D3D_SHADER_MODEL_6_5 <= highestShaderModel &&
 				D3D12_RAYTRACING_TIER_1_1 <= raytracingTier;
 		}
+		bool SupportsDynamicGI() const { return SupportsShaderModel6_6() && SupportsInlineRayTracingPath(); }
 		bool SupportsDispatchRaysPath() const {
 			return D3D_SHADER_MODEL_6_3 <= highestShaderModel &&
 				D3D12_RAYTRACING_TIER_1_0 <= raytracingTier;
@@ -82,6 +83,9 @@ namespace Engine {
 		FXAA,
 	};
 
+	enum class DynamicGIQuality : uint8_t { Low, Standard, High };
+	enum class DynamicGIDebug : uint8_t { None, Indirect, CacheUpdates };
+
 	// グラフィックス設定で共有するFXAAの調整値
 	struct FXAASettings {
 
@@ -104,6 +108,9 @@ namespace Engine {
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
+		bool dynamicGI = false;
+		DynamicGIQuality dynamicGIQuality = DynamicGIQuality::Standard;
+		DynamicGIDebug dynamicGIDebug = DynamicGIDebug::None;
 		bool allowDispatchRays = false;
 		// DispatchRaysと後段フィルターを縮小解像度で実行するか
 		bool allowRaytracingDownsampling = true;
@@ -130,6 +137,7 @@ namespace Engine {
 		// 対応状況とユーザー設定を解決した最終的な描画経路
 		bool useMeshShader = false;
 		bool useInlineRayTracing = false;
+		bool useDynamicGI = false;
 		bool useDispatchRays = false;
 		bool useRaytracingDownsampling = true;
 		uint32_t softShadowSampleCount = 4;
@@ -139,7 +147,7 @@ namespace Engine {
 		bool useContributionCulling = false;
 		bool useNormalConeCulling = false;
 
-		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
+		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays || useDynamicGI; }
 	};
 
 	// エディター汎用関数

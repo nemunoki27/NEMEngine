@@ -19,6 +19,7 @@ namespace Engine {
 	//============================================================================
 	class RenderFeatureTemporalState {
 	public:
+		explicit RenderFeatureTemporalState(bool worldSpaceHistory = false) : worldSpaceHistory_(worldSpaceHistory) {}
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -47,6 +48,7 @@ namespace Engine {
 			uint64_t runtimeGeneration = 0;
 			uint64_t raytracingMaterialGeneration = 0;
 			std::chrono::steady_clock::time_point lastWrittenTime{};
+			uint64_t lastWrittenFrame = 0;
 			uint32_t writeIndex = 0;
 			bool valid = false;
 		};
@@ -60,6 +62,7 @@ namespace Engine {
 			uint32_t underBudgetSamples = 0;
 		};
 
+		bool worldSpaceHistory_;
 		std::unordered_map<std::string, HistoryState> historyStates_{};
 		std::unordered_map<std::string, AdaptiveResolutionState>
 			adaptiveResolutionStates_{};

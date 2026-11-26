@@ -24,6 +24,13 @@ namespace Engine {
 
 namespace Engine::RaytracingSceneGeometryUtility {
 
+	inline uint32_t GetEmissiveTriangleCount(const MeshSubMeshShaderData& material, uint32_t indexCount) {
+
+		const auto& color = material.emissiveColor;
+		return (material._materialPad >> 16u) != static_cast<uint32_t>(MaterialSurfaceMode::Transparent) &&
+			color.a > 0.0f && (color.r > 0.0f || color.g > 0.0f || color.b > 0.0f) ? indexCount / 3u : 0u;
+	}
+
 	// 描画Flagを変換する
 	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags,
 		uint32_t renderingLayerMask = 0xFFFFFFFFu);

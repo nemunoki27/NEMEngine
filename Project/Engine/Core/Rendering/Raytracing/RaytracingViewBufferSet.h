@@ -63,6 +63,13 @@ namespace Engine {
 		uint32_t environmentBRDFIndex = UINT32_MAX;
 		uint32_t physicalEnvironmentEnabled = 0;
 		uint32_t environmentIrradianceIndex = UINT32_MAX;
+		uint32_t giWorldCacheIndex = UINT32_MAX;
+		uint32_t giWorldMomentsIndex = UINT32_MAX;
+		uint32_t emitterCount = 0;
+		uint32_t cullingMask = 0;
+		uint32_t rayCount = 0;
+		uint32_t giResolvedIndex = UINT32_MAX;
+		uint32_t giPadding[2]{};
 	};
 	static_assert(sizeof(RaytracingViewConstantsGPU) % 16 == 0,
 		"RaytracingViewConstantsGPU must be 16 byte aligned");

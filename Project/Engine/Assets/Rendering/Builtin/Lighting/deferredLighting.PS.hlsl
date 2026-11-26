@@ -15,6 +15,7 @@ Texture2D<float4> gWorldPos : register(t2);
 Texture2D<float4> gMaterial : register(t3);
 Texture2D<float4> gEmissive : register(t4);
 Texture2D<uint> gFlags : register(t5);
+Texture2D<float4> gDiffuseGI : register(t20);
 Texture2D<float4> gAmbientOcclusion : register(t17);
 StructuredBuffer<uint> gFilteredRaytracedShadows : register(t18);
 StructuredBuffer<uint> gShadowLightIndices : register(t19);
@@ -86,7 +87,7 @@ cbuffer DeferredLightingConstants : register(b1) {
 	float ambientOcclusionIntensity;
 	float reflectionIntensity;
 	uint filteredShadowAvailable;
-	float _surfacePad;
+	uint diffuseGIMode;
 
 	float4x4 shadowViewProjections[4];
 	float4 shadowCascadeSplits;
@@ -356,7 +357,7 @@ bool LoadScreenSpaceDepthDelta(float2 uv, float sampleDepth,
 
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
-	float roughness, float ao, float3 emissive, uint flags,
+	float roughness, float ao, float screenAO, float3 emissive, uint flags,
 	bool useShadow);
 
 // 粗いMarchで見つけた交差区間を二分探索して縞状の欠落を防ぐ
@@ -433,7 +434,7 @@ bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
 				reflectionColor = EvaluateSurfaceLighting(
 					hitPixel, hitWorldPos, hitNormal, normalize(-direction),
 					hitAlbedo, hitMaterial.r, max(hitMaterial.g, 0.04f),
-					hitMaterial.b, hitEmissive, hitFlags, useShadow);
+					hitMaterial.b, 1.0f, hitEmissive, hitFlags, useShadow);
 				return true;
 			}
 		}
@@ -577,7 +578,7 @@ float3 EvaluateDiffuseEnvironment(float3 N, float3 V, float3 albedo, float metal
 // GBufferのMaterialへ通常描画と同じ直接光と拡散環境光を適用
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
-	float roughness, float ao, float3 emissive, uint flags,
+	float roughness, float ao, float screenAO, float3 emissive, uint flags,
 	bool useShadow) {
 
 	if ((flags & kMaterialFlagLighting) == 0u) {
@@ -669,7 +670,13 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 
 	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
 
-		color += EvaluateDiffuseEnvironment(N, V, albedo, metallic, ao, F0);
+		float4 gi = float4(0, 0, 0, -1);
+		if (diffuseGIMode != 0u) gi = gDiffuseGI.Load(int3(pixel, 0));
+		if (gi.a >= 0.0f) {
+			color += gi.rgb * DiffuseGIReflectance(albedo, metallic) * ao;
+		} else {
+			color += EvaluateDiffuseEnvironment(N, V, albedo, metallic, ao * screenAO, F0);
+		}
 	}
 	return color + emissive;
 }
@@ -731,7 +738,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		max(ambientOcclusionIntensity, 0.0f));
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
-		roughness, ao * ambientAO, emissive, flags, useShadow);
+		roughness, ao, ambientAO, emissive, flags, useShadow);
 
 	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
 	if ((flags & kMaterialFlagLighting) != 0u &&

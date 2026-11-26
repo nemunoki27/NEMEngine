@@ -67,6 +67,13 @@ cbuffer RaytracingViewConstants : register(b0) {
 	uint gEnvironmentBRDFIndex;
 	uint gPhysicalEnvironmentEnabled;
 	uint gEnvironmentIrradianceIndex;
+	uint gGIWorldCacheIndex;
+	uint gGIWorldMomentsIndex;
+	uint emitterCount;
+	uint cullingMask;
+	uint rayCount;
+	uint gGIResolvedIndex;
+	uint2 gGIPadding;
 };
 
 struct ReflectionPayload {
@@ -124,7 +131,6 @@ SamplerState gEnvironmentSampler : register(s1);
 // TLAS用途別マスク
 static const uint kRaytracingMaskShadowCaster = 1u;
 static const uint kRaytracingMaskReflectionCaster = 1u << 1;
-static const float kMaxReflectionSampleLuminance = 3.0f;
 
 RWTexture2D<float4> gDestColor : register(u0);
 RWTexture2D<float> gReflectionHitDistance : register(u1);
@@ -142,21 +148,13 @@ float3 SafeNormalize(float3 v, float3 fallbackValue) {
 	return v * rsqrt(lenSq);
 }
 
-float3 ClampReflectionSample(float3 radiance) {
+// HDRの色比を保ったまま反射先のFP16に収める
+float3 StoreReflectionRadiance(float3 radiance) {
 
-	if (!all(radiance == radiance) || any(abs(radiance) >= 65504.0f.xxx)) {
-		return 0.0f.xxx;
-	}
+	if (!all(isfinite(radiance))) return 0.0f.xxx;
 	radiance = max(radiance, 0.0f.xxx);
-	float luminance = dot(radiance,
-		float3(0.2126f, 0.7152f, 0.0722f));
-	return radiance * min(1.0f,
-		kMaxReflectionSampleLuminance / max(luminance, 1e-4f));
-}
-
-float3 ResolveReflectionSampleRadiance(float3 radiance) {
-
-	return ClampReflectionSample(radiance);
+	float peak = max(radiance.r, max(radiance.g, radiance.b));
+	return radiance * (60000.0f / max(peak, 60000.0f));
 }
 
 float3 LoadPrimaryWorldPosition(uint2 pixel) {
@@ -268,42 +266,13 @@ float3 ComputeBarycentrics(float2 bary) {
 
 ByteAddressBuffer gRaytracingMaterialParameters : register(t0, space34);
 
-void ResolveHitPrimitiveSurface(SubMeshShaderData subMesh, MeshVertex v0, MeshVertex v1, MeshVertex v2,
-	float3 bary, float2 localUV, out float2 uv, out float4 vertexColor) {
-
-	uv = mul(float4(localUV, 0.0f, 1.0f), subMesh.uvMatrix).xy;
-	vertexColor = 1.0f.xxxx;
-	if (subMesh.primitiveShape == 0u) return;
-
-	uint offset = subMesh.primitiveShapeOffset;
-	float4 shape = asfloat(gRaytracingMaterialParameters.Load4(offset));
-	if (subMesh.primitiveShape == 1u) {
-		float2 position = v0.position.xy * bary.x + v1.position.xy * bary.y + v2.position.xy * bary.z;
-		float4 basis = float4(subMesh.uvMatrix[0].xy, subMesh.uvMatrix[1].xy);
-		uv = ResolvePrimitivePixelUV(uv, float4(position, localUV), shape, basis);
-	} else {
-		PrimitiveInstance instance = (PrimitiveInstance)0;
-		instance.shapeParams0 = shape;
-		instance.shapeParams1 = asfloat(gRaytracingMaterialParameters.Load4(offset + 16u));
-		instance.topColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 32u));
-		instance.centerColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 48u));
-		instance.bottomColor = asfloat(gRaytracingMaterialParameters.Load4(offset + 64u));
-		vertexColor = ResolvePrimitiveVertexColor(v0.position.xyz, instance) * bary.x +
-			ResolvePrimitiveVertexColor(v1.position.xyz, instance) * bary.y +
-			ResolvePrimitiveVertexColor(v2.position.xyz, instance) * bary.z;
-	}
-}
-
-float4 SampleHitTexture(uint textureIndex, HexTilingData hex,
-	float mipLevel, float4 fallbackValue, bool normalMap = false) {
-
-	if (textureIndex == kNoTexture) {
-		return fallbackValue;
-	}
-	Texture2D<float4> texture =
-		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
-	return SampleHexLevel(texture, gSampler, hex, mipLevel, normalMap);
-}
+#include "GlobalIllumination/giGrid.hlsli"
+#include "GlobalIllumination/giEmitters.hlsli"
+#define ambientIntensity 0.03f
+#define hasCoarseBricks 1u
+#include "GlobalIllumination/giWorldRadiance.hlsli"
+#undef hasCoarseBricks
+#undef ambientIntensity
 
 void ResolveRaytracingHitGeometry(
 	in BuiltInTriangleIntersectionAttributes attr,
@@ -631,6 +600,36 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 		material.metallic, material.roughness, F0);
 }
 
+bool MatchRasterSurface(float3 worldPosition,float3 normal,out int2 pixel) {
+
+	float viewDepth;
+	if(!ProjectWorldToPixel(worldPosition,pixel,viewDepth)) return false;
+	if((gSourceFlags.Load(int3(pixel,0))&kMaterialFlagSurface)==0u) return false;
+	float3 rasterNormal=DecodeWorldNormal(gSourceNormal.Load(int3(pixel,0)).xyz);
+	if(dot(rasterNormal,normal)<0.95f) return false;
+	float3 delta=gSourcePosition.Load(int3(pixel,0)).xyz-worldPosition;
+	float clipW=abs(viewDepth*gProjection[2][3]+gProjection[3][3]);
+	float2 footprint=2.0f*clipW*gInvRenderSize/max(abs(float2(gProjection[0][0],gProjection[1][1])),1e-6f);
+	float tolerance=clamp(max(footprint.x,footprint.y)*1.5f,0.0002f,0.05f);
+	return dot(delta,delta)<=tolerance*tolerance && abs(dot(delta,rasterNormal))<=max(0.0002f,tolerance*0.1f);
+}
+
+float3 ReflectionHitIrradiance(float3 worldPosition,float3 normal) {
+
+	int2 pixel;
+	if(gGIResolvedIndex!=kNoTexture && MatchRasterSurface(worldPosition,normal,pixel)) {
+		Texture2D<float4> resolved=ResourceDescriptorHeap[gGIResolvedIndex];
+		float4 gi=resolved.Load(int3(pixel,0));
+		if(gi.a>=0.0f) return gi.rgb;
+	}
+	Texture2D<float4> cache=ResourceDescriptorHeap[gGIWorldCacheIndex];
+	Texture2D<float2> moments=ResourceDescriptorHeap[gGIWorldMomentsIndex];
+	float4 cached=SampleCachedIrradiance(cache,moments,worldPosition+0.002f*normal,normal,false,true);
+	float3 irradiance=cached.rgb;
+	if(cached.a<1.0f) irradiance+=(1.0f-cached.a)*TraceDistantIrradiance(cache,moments,worldPosition,normal);
+	return irradiance+GIEmitterIrradiance(worldPosition,normal,false);
+}
+
 float3 EvaluateRaytracingSurfaceLighting(
 	float3 worldPosition,
 	ResolvedPBRMaterial material,
@@ -710,7 +709,10 @@ float3 EvaluateRaytracingSurfaceLighting(
 	float3 ambient = 0.0f.xxx;
 	if ((renderFlags & MESH_INSTANCE_FLAG_RECEIVE_IBL) != 0u) {
 
-		if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
+		if (gGIWorldCacheIndex != kNoTexture) {
+			float3 irradiance = ReflectionHitIrradiance(worldPosition,material.N);
+			ambient = irradiance * DiffuseGIReflectance(material.baseColor.rgb, material.metallic) * material.ao;
+		} else if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 			TextureCube<float4> skybox = ResourceDescriptorHeap[
 				NonUniformResourceIndex(gSkyboxCubemapIndex)];
@@ -791,16 +793,10 @@ float3 ResolveReflectionTransparency(float3 color, float opacity, float transmis
 Texture2D<float4> gSourceEmissive : register(t0, space6);
 
 // 同じ面が画面内にあるときはラスタライズ済みの材質を使う
-bool LoadRasterHitMaterial(float3 worldPosition, float footprint, inout ResolvedPBRMaterial material) {
+bool LoadRasterHitMaterial(float3 worldPosition, inout ResolvedPBRMaterial material) {
 
 	int2 pixel;
-	float viewDepth;
-	if (!ProjectWorldToPixel(worldPosition, pixel, viewDepth)) return false;
-	if ((gSourceFlags.Load(int3(pixel, 0)) & kMaterialFlagSurface) == 0u) return false;
-	float3 rasterPosition = gSourcePosition.Load(int3(pixel, 0)).xyz;
-	float tolerance = clamp(footprint * 1.5f, 0.0002f, 0.05f);
-	float3 delta = rasterPosition - worldPosition;
-	if (dot(delta, delta) > tolerance * tolerance) return false;
+	if (!MatchRasterSurface(worldPosition,material.N,pixel)) return false;
 
 	float4 packed = gSourceMaterial.Load(int3(pixel, 0));
 	material.baseColor = gSourceAlbedo.Load(int3(pixel, 0));
@@ -845,7 +841,7 @@ void ReflectionClosestHit(
 	RaytracingGeometryShaderData geometry = gRaytracingGeometries[instanceData.geometryDataOffset + GeometryIndex()];
 	SubMeshShaderData subMesh = gRaytracingSubMeshes[geometry.subMeshDataIndex];
 	// GBufferに合成済みのDecalを重ねない
-	if (subMesh.useRasterHitMaterial == 0u || !LoadRasterHitMaterial(worldPosition, footprint, material)) {
+	if (subMesh.useRasterHitMaterial == 0u || !LoadRasterHitMaterial(worldPosition, material)) {
 		ApplyRaytracingDecals(instanceData.geometryDataOffset + GeometryIndex(), worldPosition, footprint,
 			instanceData.renderFlags >> 8u, gSampler, material.baseColor.rgb, material.N,
 			material.metallic, material.roughness, material.emissive);
@@ -1000,8 +996,7 @@ void ReflectionRayGen() {
 			float2 integral = brdf.SampleLevel(gEnvironmentSampler, float2(NdotV, roughness), 0.0f).rg;
 			sampleWeight = F0 * integral.x + integral.y;
 		}
-		reflectedRadiance += ResolveReflectionSampleRadiance(
-			incomingRadiance * sampleWeight);
+		reflectedRadiance += incomingRadiance * sampleWeight;
 		++acceptedSampleCount;
 	}
 	if (acceptedSampleCount == 0u) {
@@ -1012,7 +1007,7 @@ void ReflectionRayGen() {
 	reflectedRadiance *= gReflectionIntensity * roughnessVisibility;
 
 	// Trace結果は後続フィルタへ一度だけ書き込む
-	StoreReflectionTrace(pixel, float4(reflectedRadiance, roughnessVisibility),
+	StoreReflectionTrace(pixel, float4(StoreReflectionRadiance(reflectedRadiance), roughnessVisibility),
 		accumulatedHitDistance / float(acceptedSampleCount), hitSampleCount != 0u ?
 		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) : 0.0f.xxxx);
 }

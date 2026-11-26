@@ -35,6 +35,13 @@ float3 FresnelSchlick(float cosTheta, float3 F0) {
 	return F0 + (1.0f - F0) * pow(saturate(1.0f - cosTheta), 5.0f);
 }
 
+// 半球上で余弦加重したSchlick反射率を拡散反射分から除く
+float3 DiffuseGIReflectance(float3 albedo, float metallic) {
+
+	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
+	return albedo * (1.0f - metallic) * (1.0f - F0) * (20.0f / 21.0f);
+}
+
 float3 DisneyDiffuse(float NdotL, float NdotV, float LdotH, float roughness, float3 albedo) {
 
 	float energyBias = lerp(0.0f, 0.5f, roughness);

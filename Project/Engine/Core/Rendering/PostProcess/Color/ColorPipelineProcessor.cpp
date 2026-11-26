@@ -252,6 +252,7 @@ Engine::ColorPipelineProcessor::BuildConstants(
 	constants.outputMode = static_cast<uint32_t>(output.mode);
 	constants.paperWhiteNits = output.paperWhiteNits;
 	constants.maxLuminanceNits = output.maxLuminanceNits;
+	constants.diffuseGIDebug = context.diffuseGIDebug;
 	return constants;
 }
 
@@ -373,6 +374,10 @@ bool Engine::ColorPipelineProcessor::DrawToneMap(
 
 	toneMapBindingCache_.Sync(*pipeline);
 	RenderTexture2D* sourceColor = source.GetColorTexture(0);
+	if (context.diffuseGIDebug != 0 && context.diffuseGI) {
+		sourceColor = context.diffuseGI;
+		sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
 	if (!sourceColor || !toneMapBindingCache_.Has(toneMapConstantsSlot_) ||
 		!toneMapBindingCache_.Has(toneMapSourceSlot_) ||
 		!toneMapBindingCache_.Has(toneMapExposureSlot_)) {

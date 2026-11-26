@@ -352,8 +352,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	const bool sceneChanged = sceneInstance && cameraState.precisionScene != sceneInstance->instanceID;
 	const bool prepareHiddenMeshes = editorView && sceneChanged;
 	// 初回のスキニングにも反射で使うメッシュを渡す
-	if (sceneChanged && meshBackend_ && request.assetDatabase && context.postProcessCamera.surfaceSettings.reflectionEnabled &&
-		graphicsCore.GetDXObject().ShouldUseDispatchRays() && !scenePreparation_.visibleMeshes_.empty() &&
+	const auto& platform = graphicsCore.GetDXObject();
+	if (sceneChanged && meshBackend_ && request.assetDatabase &&
+		(platform.ShouldUseDynamicGI() || (context.postProcessCamera.surfaceSettings.reflectionEnabled && platform.ShouldUseDispatchRays())) && !scenePreparation_.visibleMeshes_.empty() &&
 		!meshBackend_->AreMeshesReady(scenePreparation_.visibleMeshes_)) {
 		meshBackend_->PreloadMeshes(graphicsCore, *request.assetDatabase, scenePreparation_.visibleMeshes_);
 	}

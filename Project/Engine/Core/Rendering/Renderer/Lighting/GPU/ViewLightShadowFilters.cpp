@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 
 void Engine::ViewLightBufferSet::UpdateShadowFilters(const PerViewLightSet& lightSet,
 	const RaytracingSceneBuilder* scene) {
@@ -31,6 +32,7 @@ void Engine::ViewLightBufferSet::UpdateShadowFilters(const PerViewLightSet& ligh
 	if (shadowFilterScratch_ != shadowFilterData_) {
 		shadowFilterData_.swap(shadowFilterScratch_);
 		++data_.dataSerial_;
-		++shadowFilterRevision_;
+		shadowFilterRevision_ = Algorithm::MixHashString(0, { reinterpret_cast<const char*>(shadowFilterData_.data()),
+			shadowFilterData_.size() * sizeof(uint32_t) });
 	}
 }

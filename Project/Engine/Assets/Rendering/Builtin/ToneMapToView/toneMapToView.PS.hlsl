@@ -57,7 +57,7 @@ cbuffer ColorPipelineConstants : register(b0) {
 	uint outputMode;
 	float paperWhiteNits;
 	float maxLuminanceNits;
-	float _pad7;
+	uint diffuseGIDebug;
 };
 
 //============================================================================
@@ -113,6 +113,10 @@ float3 ApplyFilmicControls(float3 color) {
 float4 main(VSOutput input) : SV_TARGET0 {
 
 	float4 src = gTexture.Sample(gSampler, input.texcoord);
+	if (diffuseGIDebug != 0u) {
+		float3 diagnostic = diffuseGIDebug == 1u ? src.rgb : saturate(src.a).xxx;
+		return float4(src.a < 0.0f ? 0.0f.xxx : diagnostic, 1.0f);
+	}
 	// 無効時は露出と色補正を加えずLinear色を出力
 	if (postProcessEnabled == 0.0f) return float4(max(src.rgb, 0.0f.xxx), 1.0f);
 

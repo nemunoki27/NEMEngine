@@ -9,6 +9,7 @@
 
 // c++
 #include <cstdint>
+#include <span>
 #include <string>
 #include <unordered_map>
 
@@ -21,6 +22,12 @@ namespace Engine {
 		bool allowInlineRayTracing = false;
 		bool useConfiguredResolution = false;
 		bool allowInPlaceReflectionComposite = false;
+		bool worldSpaceHistory = false;
+	};
+
+	struct RenderFeatureSharedOutput {
+		const char* shaderResource;
+		MultiRenderTarget* surface;
 	};
 
 	//============================================================================
@@ -44,6 +51,9 @@ namespace Engine {
 			SceneExecutionContext& context) override;
 
 		bool HasExecutionSucceeded() const { return executionSucceeded_; }
+		// 同じフレームで計算済みのパス出力を別Viewの履歴へ引き継ぐ
+		void ExecuteWithSharedOutputs(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
+			SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs);
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RenderFeature; }
 

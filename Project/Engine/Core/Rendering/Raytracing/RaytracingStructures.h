@@ -109,6 +109,8 @@ namespace Engine {
 		float radius = 0.0f;
 		uint32_t instanceIndex = 0;
 		bool receiveDecals = false;
+		bool deformed = false;
+		uint32_t emissiveTriangleCount = 0;
 	};
 	// GPUへ渡すシーン共通データ
 	struct RaytracingScene {

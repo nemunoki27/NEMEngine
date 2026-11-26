@@ -36,6 +36,7 @@
 
 // c++
 #include <algorithm>
+#include <optional>
 #include <string_view>
 
 using namespace Engine::RenderFeatureResourceUtility;
@@ -54,12 +55,18 @@ namespace {
 //	RenderFeaturePass classMethods
 //============================================================================
 Engine::RenderFeaturePass::RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor,
-	const RenderFeaturePassOptions& options) : deps_(deps), anchor_(anchor), options_(options) {
+	const RenderFeaturePassOptions& options) : deps_(deps), anchor_(anchor), options_(options), temporalState_(options.worldSpaceHistory) {
 
 }
 
 void Engine::RenderFeaturePass::Execute(
 	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+
+	ExecuteWithSharedOutputs(graphicsCore, passBuckets, context, {}, {});
+}
+
+void Engine::RenderFeaturePass::ExecuteWithSharedOutputs(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
+	SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs) {
 
 	executionSucceeded_ = false;
 	if (!context.resources || !context.targetRegistry || !deps_.assetLibrary || !deps_.pipelineCache ||
@@ -115,7 +122,10 @@ void Engine::RenderFeaturePass::Execute(
 		const bool skipSelection = selectionGroup && selection.skippedSelection == selectionGroup;
 		const RenderFeaturePassSettings& pass = *node.pass;
 		const std::string& profileName = node.profileName;
-		ScopedGPUProfile gpuProfile{graphicsCore.GetDXObject().GetDxCommand()->GetCommandList(), profileName};
+		const bool sharedPass = pass.id == passID && !outputs.empty();
+		auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+		std::optional<ScopedGPUProfile> gpuProfile;
+		if (!sharedPass) gpuProfile.emplace(commandList, profileName);
 
 		const float dependencyScale = node.sourceNodeIndex < nodeIndex ? resolutionScales_[node.sourceNodeIndex] : 1.0f;
 		float adaptiveScale = 1.0f;
@@ -137,6 +147,24 @@ void Engine::RenderFeaturePass::Execute(
 		}
 
 		MultiRenderTarget* primaryTarget = ResolveOutputTarget(*context.targetRegistry, targets.primaryReference);
+		if (sharedPass && targets.outputTargets.size() == outputs.size()) {
+			const bool compatible = std::all_of(outputs.begin(), outputs.end(), [&](const auto& output) {
+				const auto found = targets.outputTargets.find(output.shaderResource);
+				return found != targets.outputTargets.end() && CanCopyColor(output.surface, found->second);
+			});
+			if (compatible) {
+				gpuProfile.emplace(commandList, profileName + " (Shared)");
+				for (const auto& output : outputs) {
+					auto* destination = targets.outputTargets.at(output.shaderResource);
+					if (!MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, output.surface, destination)) return;
+					output.surface->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
+					destination->TransitionForShaderRead(*graphicsCore.GetDXObject().GetDxCommand());
+				}
+				for (const auto& key : targets.writtenHistoryKeys) temporalState_.MarkWritten(key);
+				continue;
+			}
+		}
+		if (!gpuProfile) gpuProfile.emplace(commandList, profileName);
 		const bool isolatedSource = selectionBegin && selectionGroup && !skipSelection &&
 									selectionGroup->selection.mode == RenderFeatureSelectionMode::IsolatedLayer;
 		MultiRenderTarget* sourceTarget =

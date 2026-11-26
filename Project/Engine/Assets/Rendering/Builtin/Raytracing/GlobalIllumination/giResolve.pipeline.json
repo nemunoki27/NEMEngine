@@ -1,0 +1,21 @@
+{
+  "name": "giResolve",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d41535345544749000000000022",
+      "staticSamplers": [
+        {
+          "shaderRegister": 0,
+          "registerSpace": 0,
+          "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+          "addressU": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+          "addressV": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+          "addressW": "D3D12_TEXTURE_ADDRESS_MODE_WRAP"
+        }
+      ],
+      "requiresInlineRayTracing": true
+    }
+  ]
+}

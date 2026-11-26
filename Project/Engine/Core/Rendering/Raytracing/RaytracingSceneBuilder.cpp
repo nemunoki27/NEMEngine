@@ -309,10 +309,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 		requiredMeshes.emplace_back(meshAssetID);
 	}
-	const bool prepareReflection = state.cachedSceneInstanceID != context.sceneInstance->instanceID &&
-		context.postProcessCamera.surfaceSettings.reflectionEnabled && graphicsCore.GetDXObject().ShouldUseDispatchRays();
+	const bool prepareMaterialHits = state.cachedSceneInstanceID != context.sceneInstance->instanceID &&
+		(graphicsCore.GetDXObject().ShouldUseDynamicGI() ||
+		 (context.postProcessCamera.surfaceSettings.reflectionEnabled && graphicsCore.GetDXObject().ShouldUseDispatchRays()));
 	if (meshBackend && !requiredMeshes.empty()) {
-		if (prepareReflection && !meshBackend->AreMeshesReady(requiredMeshes)) meshBackend->PreloadMeshes(graphicsCore, assetDatabase, requiredMeshes);
+		if (prepareMaterialHits && !meshBackend->AreMeshesReady(requiredMeshes)) meshBackend->PreloadMeshes(graphicsCore, assetDatabase, requiredMeshes);
 		else meshBackend->RequestMeshes(graphicsCore, assetDatabase, requiredMeshes);
 	}
 
@@ -327,7 +328,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.result.materialParameterWords_.clear();
 	state.result.sceneGeometryBounds_.clear();
 	state.result.sceneSubMeshScratch_.clear();
-	state.materialResolver.ResetPending(prepareReflection);
+	state.materialResolver.ResetPending(prepareMaterialHits);
 
 	// BLASの構築とTLASインスタンスの準備
 	std::vector<RaytracingTLASInstance> tlasInstances;
@@ -470,6 +471,7 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 
 	state.result.Publish(context, state.tlasState.GetResource(), state.sceneMaterialGeneration, !state.materialResolver.HasPendingTextures(), state.cachedTLASInstances);
 	context.raytracing.geometryGeneration = state.tlasState.GetContentGeneration();
+	context.raytracing.usesRenderTextureInputs = !state.renderTextureInputs.empty();
 	context.raytracing.resolveLegacyTLAS = [&state](GraphicsCore& graphicsCore) {
 		const uint64_t generation = state.tlasState.GetContentGeneration();
 		if (state.legacyGeneration != generation || !state.legacyTLAS.IsBuilt()) {

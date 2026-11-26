@@ -128,19 +128,19 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		gSourcePosition.Load(int3(centerGeometry, 0)).xyz);
 	float3 centerNormal = DecodeGBufferNormal(
 		gSourceNormal.Load(int3(centerGeometry, 0)).xyz);
-	if (0.5f < antiFirefly) {
-
-		gDestColor[dispatchThreadID.xy] = RemoveIsolatedFirefly(
-			dispatchThreadID.xy, outputSize, geometrySize,
-			centerColor, centerDepth, centerNormal);
-		return;
-	}
 	float roughness = saturate(
 		gSourceMaterial.Load(int3(centerGeometry, 0)).g);
 	float filterAmount = smoothstep(
 		kMirrorRoughness, kDiffuseReflectionRoughness, roughness);
 	if (filterAmount <= 1e-4f) {
 		gDestColor[dispatchThreadID.xy] = centerColor;
+		return;
+	}
+	if (0.5f < antiFirefly) {
+
+		gDestColor[dispatchThreadID.xy] = RemoveIsolatedFirefly(
+			dispatchThreadID.xy, outputSize, geometrySize,
+			centerColor, centerDepth, centerNormal);
 		return;
 	}
 	float3 centerPosition = gSourcePosition.Load(

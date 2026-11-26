@@ -377,6 +377,15 @@ namespace NEMTests {
 			return false;
 		}
 
+		// GIだけを有効にしても共有TLASを構築する
+		Engine::GraphicsFeaturePreferences gi{};
+		gi.allowInlineRayTracing = false;
+		if (Engine::GraphicsFeatureSelection::Resolve(supported, gi).UsesAnyRayTracing()) return false;
+		gi.dynamicGI = true;
+		const auto giOnly = Engine::GraphicsFeatureSelection::Resolve(supported, gi);
+		if (!giOnly.useDynamicGI || !giOnly.UsesAnyRayTracing() || giOnly.useDispatchRays || giOnly.useInlineRayTracing ||
+			Engine::GraphicsFeatureSelection::Resolve(unsupported, gi).UsesAnyRayTracing()) return false;
+
 		// RT Tierだけでなく各経路が必要とするShader Modelも確認する
 		Engine::GraphicsFeatureSupport shaderModel60 = supported;
 		shaderModel60.highestShaderModel = D3D_SHADER_MODEL_6_0;

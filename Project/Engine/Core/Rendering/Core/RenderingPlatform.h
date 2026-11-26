@@ -62,6 +62,7 @@ namespace Engine {
 
 		bool ShouldUseMeshShader() const { return featureController_.ShouldUseMeshShader(); }
 		bool ShouldUseInlineRayTracing() const { return featureController_.ShouldUseInlineRayTracing(); }
+		bool ShouldUseDynamicGI() const { return featureController_.ShouldUseDynamicGI(); }
 		bool ShouldUseDispatchRays() const { return featureController_.ShouldUseDispatchRays(); }
 		bool ShouldBuildRaytracingScene() const { return featureController_.ShouldBuildRaytracingScene(); }
 		bool ShouldUseRayTracing() const { return featureController_.ShouldBuildRaytracingScene(); }

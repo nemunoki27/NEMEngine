@@ -97,7 +97,7 @@ namespace Engine {
 			float ambientOcclusionIntensity = 0.0f;
 			float reflectionIntensity = 1.0f;
 			uint32_t filteredShadowAvailable = 0;
-			float _surfacePad1 = 0.0f;
+			uint32_t diffuseGIMode = 0;
 
 			std::array<Matrix4x4, 4> shadowViewProjections{};
 			Vector4 shadowCascadeSplits = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -165,6 +165,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID materialSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID emissiveSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID flagsSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID diffuseGISlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID ambientOcclusionSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID constantsSlot_ = PipelineBindingCache::kInvalidSlot;
 		std::array<PipelineBindingCache::SlotID, 4> shadowMapSlots_{};

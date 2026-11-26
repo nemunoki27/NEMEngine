@@ -51,7 +51,7 @@ cbuffer ColorPipelineConstants : register(b0) {
 	uint outputMode;
 	float paperWhiteNits;
 	float maxLuminanceNits;
-	float _pad7;
+	uint diffuseGIDebug;
 };
 
 //============================================================================

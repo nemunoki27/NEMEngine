@@ -49,6 +49,7 @@ Engine::LightingPass::LightingPass(const RenderPipelineDeps& deps) : deps_(deps)
 	materialSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 3, 0);
 	emissiveSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 4, 0);
 	flagsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 5, 0);
+	diffuseGISlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 20, 0);
 	ambientOcclusionSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 17, 0);
 	constantsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 1, 0);
 	for (uint32_t cascade = 0; cascade < kShadowCascadeCount; ++cascade) {
@@ -294,6 +295,14 @@ void Engine::LightingPass::Execute(
 		!context.postProcessCamera.surfaceSettings.reflectionEnabled ||
 		(runtimeFeatures.useDispatchRays && tlasAvailable) ? 1u : 0u;
 	constants.reflectionIntensity = context.postProcessCamera.surfaceSettings.reflectionIntensity;
+	if (context.diffuseGI) {
+		context.diffuseGI->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		BindGBufferSRV(commandList, diffuseGISlot_, context.diffuseGI);
+		constants.diffuseGIMode = 1;
+	} else if (bindCache_.Has(diffuseGISlot_)) {
+		RootBindingCommand::SetGraphicsSRV(commandList, bindCache_.Get(diffuseGISlot_), 0,
+			graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture()->gpuHandle);
+	}
 	constants.ambientOcclusionIntensity = context.ambientOcclusion ?
 		context.postProcessCamera.surfaceSettings.ambientOcclusionIntensity : 0.0f;
 	// 遮蔽がないViewは白Textureを使う

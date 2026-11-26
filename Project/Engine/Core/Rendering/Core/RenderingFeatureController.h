@@ -34,6 +34,7 @@ namespace Engine {
 		void ApplyRuntimePreferences(const GraphicsFeaturePreferences& preferences);
 		void SetRuntimeOverrideActive(bool active) { runtimeOverrideActive_ = active; }
 		void SetAllowInlineRayTracing(bool enabled);
+		void SetDynamicGI(bool enabled, DynamicGIQuality quality, DynamicGIDebug debug);
 		void SetAllowDispatchRays(bool enabled);
 		void SetAllowRaytracingDownsampling(bool enabled);
 		void SetSoftShadowSampleCount(uint32_t count);
@@ -59,6 +60,7 @@ namespace Engine {
 
 		bool ShouldUseMeshShader() const { return runtimeFeatures_.useMeshShader; }
 		bool ShouldUseInlineRayTracing() const { return runtimeFeatures_.useInlineRayTracing; }
+		bool ShouldUseDynamicGI() const { return runtimeFeatures_.useDynamicGI; }
 		bool ShouldUseDispatchRays() const { return runtimeFeatures_.useDispatchRays; }
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }

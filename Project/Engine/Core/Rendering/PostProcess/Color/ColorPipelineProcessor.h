@@ -127,7 +127,7 @@ namespace Engine {
 			uint32_t outputMode = 0;
 			float paperWhiteNits = 200.0f;
 			float maxLuminanceNits = 1000.0f;
-			float _pad7 = 0.0f;
+			uint32_t diffuseGIDebug = 0;
 		};
 
 		struct OutputTransformConstants {

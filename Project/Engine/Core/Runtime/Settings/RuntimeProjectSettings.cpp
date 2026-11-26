@@ -69,6 +69,7 @@ nlohmann::json Engine::RuntimeProjectSettings::ReadEffective() const {
 	const auto& size = graphics_.GetContext().GetWindowSetting().gameSize;
 	return {{"meshShaderSupported", support.SupportsMeshShaderPath()}, {"rayTracingSupported", support.SupportsRayTracingPath()},
 		{"inlineRayTracingSupported", support.SupportsInlineRayTracingPath()}, {"meshShaderEnabled", features.useMeshShader},
+		{"dynamicGISupported", support.SupportsDynamicGI()}, {"dynamicGIEnabled", features.useDynamicGI},
 		{"rayTracingShadowsEnabled", features.useInlineRayTracing}, {"rayTracingReflectionsEnabled", features.useDispatchRays},
 		{"doubleBufferingEnabled", GraphicsFrameState::GetActiveCount() == 2},
 		{"displayOutputMode", static_cast<int>(graphics_.GetDisplayOutputSettings().mode)},
@@ -128,6 +129,8 @@ bool Engine::RuntimeProjectSettings::Request(const nlohmann::json& settings) {
 		(candidate["width"].get<int>() > maximum.x || candidate["height"].get<int>() > maximum.y))) return false;
 	const auto mode = candidate["displayOutputMode"].get<std::string>();
 	if (mode != "SDR" && mode != "HDR10" && mode != "ScRGB") return false;
+	if (!EnumAdapter<DynamicGIQuality>::FromString(candidate["dynamicGIQuality"].get<std::string>()) ||
+		!EnumAdapter<DynamicGIDebug>::FromString(candidate["dynamicGIDebug"].get<std::string>())) return false;
 	if (!EnumAdapter<AntialiasingMethod>::FromString(candidate["antialiasing"].get<std::string>())) return false;
 	GraphicsFeaturePreferences preferences = graphics_.GetDXObject().GetFeatureController().GetPreferences();
 	GraphicsPreferenceStorage::Read(candidate, preferences);

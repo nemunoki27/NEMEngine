@@ -1,0 +1,17 @@
+{
+  "name": "giCache",
+  "domain": "Compute",
+  "parameters": {
+    "rayCount": 8,
+    "cullingMask": 16777215,
+    "updatePeriod": 8,
+    "ambientIntensity": 0.03
+  },
+  "passes": [
+    {
+      "passKind": "PostProcess",
+      "pipeline": "4e454d41535345544749000000000003",
+      "preferredVariant": "Compute"
+    }
+  ]
+}
