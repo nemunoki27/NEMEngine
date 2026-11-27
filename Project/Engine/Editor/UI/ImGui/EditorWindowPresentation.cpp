@@ -32,6 +32,7 @@ namespace {
 		{ "engine.timeline", "\xee\x8a\x9c" },
 		{ "engine.render_features", "\xef\x97\xbd" },
 		{ "engine.material_editor", "\xef\x94\xbf" },
+		{ "engine.material_paint", "\xef\x87\xbc" },
 		{ "engine.shader_graph", "\xef\x95\x82" },
 		{ "engine.tag_manager", "\xef\x80\xac" },
 		{ "engine.logic_placement", "\xef\x86\xb3" },

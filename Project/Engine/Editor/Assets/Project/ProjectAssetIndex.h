@@ -82,6 +82,7 @@ namespace Engine {
 		ProjectAssetIndex() = default;
 		~ProjectAssetIndex() = default;
 
+		bool ApplyAdditions(const AssetDatabase& database, uint64_t previous);
 		bool Rebuild(const AssetDatabase& database, ProjectAssetSource source);
 
 		//--------- accessor -----------------------------------------------------
@@ -106,6 +107,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 構築用の索引へファイル一覧を収集する
+		void AddAsset(const AssetMeta& meta, const std::filesystem::path& relative, bool sorted);
 		void BuildRoot(const AssetDatabase& database, ProjectAssetSource source);
 
 		// ブラウザ上に表示しないファイルかを判定する

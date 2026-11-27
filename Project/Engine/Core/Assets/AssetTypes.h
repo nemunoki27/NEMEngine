@@ -42,6 +42,8 @@ namespace Engine {
 		DefaultAsset,
 		Text,
 		Timeline,
+		PaintMaterial,
+		PaintAtlas,
 	};
 
 	// アセット参照の診断種別

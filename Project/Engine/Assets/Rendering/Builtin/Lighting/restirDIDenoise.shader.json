@@ -1,0 +1,11 @@
+{
+  "name": "restirDIDenoise",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345545244490000000011",
+      "entry": "denoise",
+      "profile": "cs_6_6"
+    }
+  ]
+}

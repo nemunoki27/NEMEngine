@@ -48,6 +48,7 @@ namespace Engine {
 			return D3D_SHADER_MODEL_6_5 <= highestShaderModel &&
 				D3D12_RAYTRACING_TIER_1_1 <= raytracingTier;
 		}
+		bool SupportsReSTIRDI() const { return SupportsShaderModel6_6() && SupportsInlineRayTracingPath(); }
 		bool SupportsDynamicGI() const { return SupportsShaderModel6_6() && SupportsInlineRayTracingPath(); }
 		bool SupportsDispatchRaysPath() const {
 			return D3D_SHADER_MODEL_6_3 <= highestShaderModel &&
@@ -110,6 +111,7 @@ namespace Engine {
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
+		bool enableReSTIRDI = false;
 		bool dynamicGI = true;
 		DynamicGIQuality dynamicGIQuality = DynamicGIQuality::High;
 		DynamicGIDebug dynamicGIDebug = DynamicGIDebug::None;
@@ -142,6 +144,7 @@ namespace Engine {
 		// 対応状況とユーザー設定を解決した最終的な描画経路
 		bool useMeshShader = false;
 		bool useInlineRayTracing = false;
+		bool useReSTIRDI = false;
 		bool useDynamicGI = false;
 		bool useDispatchRays = false;
 		bool useAmbientOcclusion = false;

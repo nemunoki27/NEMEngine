@@ -13,6 +13,7 @@
 #include "SceneSaveController.h"
 #include "PrefabEditSession.h"
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
+#include <Engine/Core/Rendering/Materials/MaterialPaintMask.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/StartupProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
@@ -60,6 +61,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 		// 完了した非同期保存をメインスレッドのAssetDatabaseと未保存状態へ反映する
 		UpdateSceneSave();
+		// SceneViewが非表示の間も、保存済みマスクを監視通知より先に登録する
+		PublishMaterialPaintMasks(assetDatabase_, false);
 	}
 
 	// アセットの外部編集を非同期検知し、変更があればtexture/modelをホットリロードする

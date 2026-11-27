@@ -45,6 +45,7 @@ public sealed class GraphicsSettingsData {
 		get => (JsonObject)values["reflectionParameters"]!.DeepClone();
 		set => values["reflectionParameters"] = value.DeepClone();
 	}
+	public bool enableReSTIRDI { get => Read<bool>("enableReSTIRDI"); set => Write("enableReSTIRDI", value); }
 	public bool dynamicGI { get => Read<bool>("dynamicGI"); set => Write("dynamicGI", value); }
 	public DynamicGIQuality dynamicGIQuality {
 		get => Enum.Parse<DynamicGIQuality>(Read<string>("dynamicGIQuality"));
@@ -93,6 +94,8 @@ public sealed class GraphicsRuntimeState {
 	public uint outputHeight => Read<uint>("outputHeight");
 	public bool ambientOcclusionSupported => Read<bool>("ambientOcclusionSupported");
 	public bool ambientOcclusionEnabled => Read<bool>("ambientOcclusionEnabled");
+	public bool reSTIRDISupported => Read<bool>("reSTIRDISupported");
+	public bool reSTIRDIEnabled => Read<bool>("reSTIRDIEnabled");
 	public bool dynamicGISupported => Read<bool>("dynamicGISupported");
 	public bool dynamicGIEnabled => Read<bool>("dynamicGIEnabled");
 	public bool rayTracingSupported => Read<bool>("rayTracingSupported");

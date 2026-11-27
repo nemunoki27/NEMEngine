@@ -59,6 +59,7 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 		static_cast<SceneViewCameraController*>(Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
 	LoadViewportPanelState();
 
+	assetPreviews_ = std::make_unique<ProjectAssetPreview>();
 	gameBuildSession_ = std::make_unique<EditorGameBuildSession>();
 	developerLauncher_ = std::make_unique<EditorDeveloperLauncher>();
 
@@ -118,6 +119,7 @@ void Engine::EditorManager::Finalize() {
 	requestBuildDefaultDockLayout_ = false;
 
 	panels_.clear();
+	assetPreviews_.reset();
 	gameBuildSession_.reset();
 	developerLauncher_.reset();
 	tagSettings_ = {};

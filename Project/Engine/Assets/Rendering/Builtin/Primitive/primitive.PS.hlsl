@@ -6,6 +6,8 @@
 #include "../Mesh/Common/pbrShading.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Particle/GPU/particlePaintRead.hlsli"
+#define NEM_MATERIAL_PAINT_RASTER
+#include "../Common/materialPaint.hlsli"
 
 //============================================================================
 //	output
@@ -70,9 +72,15 @@ ResolvedPBRMaterial ResolvePrimitiveMaterial(VSOutput input) {
 //============================================================================
 //	main
 //============================================================================
-GBufferOutput main(VSOutput input) {
+GBufferOutput main(VSOutput input, uint primitive : SV_PrimitiveID) {
 
 	ResolvedPBRMaterial m = ResolvePrimitiveMaterial(input);
+	if (HasMaterialPaint(input.flags)) {
+		float2 uv = ResolvePrimitivePixelUV(input.texcoord,input.uvCoordinates,input.ringParams,input.uvBasis);
+		PaintFootprint f = {ddx(input.worldPos),ddy(input.worldPos),0};
+		ApplyMaterialPaint(uint2(input.entityIndex,input.entityGeneration),primitive,0,input.worldPos,input.normal,
+			uv,ddx(uv),ddy(uv),f,gSampler,m.baseColor.rgb,m.N,m.roughness,m.metallic,m.ao,m.emissive);
+	}
 
 	MeshSurface surface;
 	surface.albedo = m.baseColor.rgb;

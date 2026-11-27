@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Rendering/Materials/PaintMaterialAsset.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
@@ -118,7 +119,7 @@ namespace {
 			// 未描画の材質も保存済みの値を編集できる
 			std::vector<MaterialParameterID> stored;
 			for (const auto& record : draft.parameters.GetRecords()) {
-				if (!reflectedNames.contains(record.namedValue.first) &&
+				if (!IsPaintSettingParameter(record.namedValue.first) && !reflectedNames.contains(record.namedValue.first) &&
 					MaterialParameterEditor::IsExposedParameter(record.id, parameterVisibility)) {
 					stored.push_back(record.id);
 				}
@@ -291,6 +292,42 @@ namespace {
 		}
 	}
 }
+}
+
+Engine::ValueEditResult Engine::MaterialAssetFields::DrawPaintSettings(const EditorPanelContext& context, MaterialAsset& draft) {
+
+	ValueEditResult result{};
+	if (draft.domain != MaterialDomain::Surface || draft.renderState.surfaceMode != MaterialSurfaceMode::Opaque ||
+		(draft.usage != MaterialUsage::Mesh && draft.usage != MaterialUsage::Generic) ||
+		!MyGUI::CollapsingHeader("ペイント設定", false)) return result;
+
+	PaintMaterialAsset paint = MakePaintMaterialSample(draft);
+	const auto store = [&](ValueEditResult edit, const char* name, const auto& value) {
+		result.Merge(edit);
+		if (edit.valueChanged) draft.parameters.Set(name, {.value = value});
+	};
+	const auto channel = [&](const char* label, uint32_t mask) {
+		bool enabled = (paint.channels & mask) != 0;
+		const auto edit = MyGUI::CheckboxField(label, enabled);
+		if (edit.valueChanged) paint.channels = enabled ? paint.channels | mask : paint.channels & ~mask;
+		store(edit, "paintChannels", paint.channels);
+	};
+	channel("Base Colorを使用", 1);
+	channel("Normalを使用", 2);
+	channel("Roughnessを使用", 4);
+	channel("Metallicを使用", 8);
+	channel("AOを使用", 16);
+	channel("Emissiveを使用", 32);
+	const auto number = [&](const char* label, const char* name, float& value, float min, float max) {
+		auto edit = MyGUI::DragFloat(label, value, {.dragSpeed = 0.01f, .minValue = min, .maxValue = max});
+		store(edit, name, value);
+	};
+	number("タイリング", "paintTiling", paint.tiling, 0.001f, 10000.0f);
+	number("Normal Strength", "paintNormalStrength", paint.normalStrength, 0.0f, 8.0f);
+	number("Height", "paintHeight", paint.height, 0.0f, 1.0f);
+	auto edit = MyGUI::AssetReferenceField("Height Texture", paint.heightTexture, context.editorContext->assetDatabase, {AssetType::Texture});
+	store(edit, "paintHeightTexture", paint.heightTexture);
+	return result;
 }
 
 Engine::ValueEditResult Engine::MaterialAssetFields::Draw(const EditorPanelContext& context, MaterialAsset& draft) {

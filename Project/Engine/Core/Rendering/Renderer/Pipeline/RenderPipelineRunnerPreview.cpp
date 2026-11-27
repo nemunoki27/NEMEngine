@@ -137,6 +137,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 	SceneExecutionContext context{};
 	context.kind = RenderViewKind::Scene;
+	if (request.kind == EntityPreviewKind::MaterialThumbnail) context.previewClearColor = request.clearColor;
 	context.sceneInstance = &previewScene;
 	context.view = &previewView;
 	context.defaultSurface = request.surface;
@@ -163,6 +164,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	previewLightBuffers.Upload(previewResources_.previewLightSet_);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
 	// PreviewのEntity番号へ本描画の塗装を対応付けない
+	previewPaint_.Prepare(graphicsCore, request.world, request.assetDatabase, renderAssetLibrary_, request.paintSample, request.systemContext);
+	context.materialPaintRevision = previewPaint_.Publish(context.bufferRegistry);
 	previewResources_.previewFeedback_.Publish(graphicsCore, context.bufferRegistry);
 
 	auto* meshBackendBase = previewResources_.previewBackendRegistry_.Find(RenderBackendID::Mesh);
@@ -179,7 +182,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	}
 
 	if (materialPreview) {
-		auto& view = request.kind == EntityPreviewKind::ShaderGraph ? previewResources_.graphView_ : previewResources_.materialView_;
+		auto& view = request.kind == EntityPreviewKind::MaterialThumbnail ? previewResources_.thumbnailView_ :
+			request.kind == EntityPreviewKind::ShaderGraph ? previewResources_.graphView_ : previewResources_.materialView_;
 		if (!view) {
 			view = std::make_unique<RenderPreviewResources::MaterialView>();
 			view->color.BeginFrame();

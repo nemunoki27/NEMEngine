@@ -1,4 +1,5 @@
 #include "AssetWatchService.h"
+#include "PublishedAssetChanges.h"
 
 //============================================================================
 //	include
@@ -10,6 +11,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <algorithm>
 
 //============================================================================
 //	AssetWatchService classMethods
@@ -122,6 +124,10 @@ void Engine::AssetWatchService::Update() {
 	// callback内で停止・再開始したら旧sessionの残りを破棄する
 	const uint64_t sessionRevision = sessionRevision_;
 	for (const auto& path : ready) {
+		const bool rootChanged = std::any_of(watchers_.begin(), watchers_.end(), [&](const auto& watcher) {
+			return watcher->GetDirectory() == path;
+		});
+		if (!rootChanged && assetDatabase_ && PublishedAssetChanges::Matches(*assetDatabase_, path)) continue;
 		const bool reloaded = DispatchReload(path);
 		if (sessionRevision != sessionRevision_) {
 			return;
@@ -222,6 +228,11 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		const auto callback = meshReloadCallback_;
 		callback(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] Model変更により再読み込みを要求します: {}", assetPath);
+	} else if (meta->type == AssetType::PaintMaterial) {
+
+		const AssetID id = meta->guid;
+		if (!assetDatabase_->RefreshDependencies(id)) return false;
+		assetDatabase_->NotifyContentChanged(id);
 	} else if ((meta->type == AssetType::Material || meta->type == AssetType::Shader ||
 		meta->type == AssetType::RenderPipeline || meta->type == AssetType::Font) &&
 		renderAssetReloadCallback_) {

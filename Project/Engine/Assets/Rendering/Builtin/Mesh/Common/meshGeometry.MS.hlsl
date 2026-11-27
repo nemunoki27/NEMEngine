@@ -12,10 +12,12 @@ groupshared float gMeshletOrientationSign;
 //============================================================================
 //	main
 //============================================================================
+struct MeshPrimitiveOutput { uint triangleIndex : SV_PrimitiveID; };
+
 [outputtopology("triangle")]
 [numthreads(128, 1, 1)]
 void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in payload MeshDispatchPayload payload,
-	out vertices VSOutput outVerts[64], out indices uint3 outTris[124]) {
+	out vertices VSOutput outVerts[64], out indices uint3 outTris[124], out primitives MeshPrimitiveOutput primitiveIDs[124]) {
 
 	uint meshletIndex = payload.meshletIndices[groupID.x];
 	uint instanceIndex = payload.instanceIndices[groupID.x];
@@ -36,6 +38,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 
 	if (groupThreadID < meshlet.primitiveCount) {
 
+		primitiveIDs[groupThreadID].triangleIndex = 0x80000000u | (meshlet.primitiveOffset + groupThreadID);
 		outTris[groupThreadID] = UnpackPrimitiveIndex(gMeshletPrimitiveIndices[meshlet.primitiveOffset + groupThreadID]);
 	}
 

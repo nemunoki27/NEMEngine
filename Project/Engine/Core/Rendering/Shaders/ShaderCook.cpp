@@ -1,4 +1,5 @@
 #include "ShaderCook.h"
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 
 //============================================================================
 //	include
@@ -214,6 +215,8 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			}
 			return false;
 		}
+		if (artifact.compileOutput.paintGraph)
+			cookedManifest["paintGraphs"][ToString(artifact.opaqueShaderID)] = WriteDecalGraph(*artifact.compileOutput.paintGraph);
 		if (artifact.opaqueShader.guid &&
 			!cookShader(std::move(artifact.opaqueShader), meta->assetPath)) {
 			return false;

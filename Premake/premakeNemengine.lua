@@ -5,6 +5,7 @@ project "NEMCore"
 
     NEM_ApplyDefaultCppSettings()
     NEM_AddCoreProjectFiles()
+    files { path.join(NEM_PROJECT_ROOT, "Externals/xatlas/xatlas.cpp") }
     NEM_AddEngineIncludeSettings()
     NEM_ApplyDefaultConfigFilters()
 

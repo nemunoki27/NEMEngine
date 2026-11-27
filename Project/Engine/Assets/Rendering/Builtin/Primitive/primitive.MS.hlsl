@@ -25,11 +25,13 @@ StructuredBuffer<uint> gIndices : register(t2);
 // RingのUV補間情報を含めてMSの出力サイズ上限に収める
 #define PRIMITIVE_GROUP_TRIANGLES 32
 
+struct PrimitiveOutput { uint triangleIndex : SV_PrimitiveID; };
+
 [numthreads(PRIMITIVE_GROUP_TRIANGLES, 1, 1)]
 [outputtopology("triangle")]
 void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 	out vertices VSOutput verts[PRIMITIVE_GROUP_TRIANGLES * 3],
-	out indices uint3 tris[PRIMITIVE_GROUP_TRIANGLES]) {
+	out indices uint3 tris[PRIMITIVE_GROUP_TRIANGLES], out primitives PrimitiveOutput primitiveIDs[PRIMITIVE_GROUP_TRIANGLES]) {
 
 	const uint totalTriangles = indexCount / 3u;
 	const uint triangleBase = triangleOffset + groupID.x * PRIMITIVE_GROUP_TRIANGLES;
@@ -45,6 +47,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 	PrimitiveInstance instance = gInstances[instanceOffset + groupID.y];
 	const uint localTriangle = groupThreadID;
 	const uint indexBase = (triangleBase + localTriangle) * 3u;
+	primitiveIDs[localTriangle].triangleIndex = triangleBase + localTriangle;
 
 	for (uint k = 0; k < 3u; ++k) {
 

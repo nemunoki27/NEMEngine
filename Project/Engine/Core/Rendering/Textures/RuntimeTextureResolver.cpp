@@ -63,6 +63,17 @@ namespace Engine::RuntimeTextureResolver {
 			MakeThumbnailAssetPath(assetPath));
 	}
 
+	std::array<std::string, 5> GetTextureCacheKeys(const AssetDatabase& database, AssetID texture) {
+
+		const std::string path = Algorithm::PathToUTF8(database.ResolveFullPath(texture));
+		auto settings = ResolveImportSettings(&database, texture);
+		const auto color = MakeTextureKey(path, settings, TextureColorSpace::SRGB);
+		const auto linear = MakeTextureKey(path, settings, TextureColorSpace::Linear);
+		const auto automatic = MakeTextureKey(path, settings, TextureColorSpace::Auto);
+		settings.colorSpace = TextureColorSpace::Linear;
+		return {MakeThumbnailKey(path), color, linear, automatic, MakeTextureKey(path, settings, TextureColorSpace::Linear) + ":normal"};
+	}
+
 	TextureFileRequestDesc MakeThumbnailRequest(const std::string& assetPath,
 		const AssetDatabase* assetDatabase) {
 

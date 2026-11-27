@@ -20,6 +20,9 @@ Texture2D<float4> gAmbientOcclusion : register(t17);
 StructuredBuffer<uint> gFilteredRaytracedShadows : register(t18);
 StructuredBuffer<uint> gShadowLightIndices : register(t19);
 
+#include "restirDIReservoir.hlsli"
+StructuredBuffer<uint2> gReSTIRRadiance : register(t21);
+
 SamplerState gSampler : register(s0);
 
 //============================================================================
@@ -28,30 +31,6 @@ SamplerState gSampler : register(s0);
 #include "lightShaderData.hlsli"
 #include "lightAttenuation.hlsli"
 #include "rectAreaLight.hlsli"
-
-struct LightClusterHeader {
-
-	uint offset;
-	uint count;
-};
-cbuffer LightClusterConstants : register(b2) {
-
-	uint clusterTileCountX;
-	uint clusterTileCountY;
-	uint clusterZSliceCount;
-	uint clusterTileSize;
-
-	float clusterNearClip;
-	float clusterFarClip;
-	float clusterSliceScale;
-	float clusterSliceBias;
-
-	uint clusterCount;
-	uint clusterMaxLights;
-	uint2 _clusterPad;
-};
-StructuredBuffer<LightClusterHeader> gLightClusterHeaders : register(t9);
-StructuredBuffer<uint> gLightClusterIndices : register(t11);
 
 //============================================================================
 //	ライティングパス定数
@@ -95,7 +74,7 @@ cbuffer DeferredLightingConstants : register(b1) {
 	uint environmentSpecularIndex;
 	uint environmentBRDFIndex;
 	uint physicalEnvironmentEnabled;
-	uint _environmentPad;
+	uint restirDIAvailable;
 	float4 atmosphereSun;
 	float4 atmosphereSolar;
 	float4 atmosphereMoon;
@@ -130,155 +109,7 @@ float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
 }
 
 
-float3 EvaluatePBRLight(float3 N, float3 V, float3 L, float3 radiance,
-	float3 albedo, float metallic, float roughness, float3 F0) {
-
-	float NdotL = saturate(dot(N, L));
-	if (NdotL <= 0.0f) {
-		return 0.0f.xxx;
-	}
-
-	float NdotV = saturate(dot(N, V));
-	float3 H = normalize(V + L);
-	float NdotH = saturate(dot(N, H));
-	float HdotV = saturate(dot(H, V));
-	float LdotH = saturate(dot(L, H));
-
-	float3 F = FresnelSchlick(HdotV, F0);
-	float D = EvalD(NdotH, roughness);
-	float G = EvalG(NdotV, NdotL, roughness);
-
-	float3 specular = D * G * F / max(4.0f * NdotV * NdotL, 1e-4f);
-	float3 kD = (1.0f - F) * (1.0f - metallic);
-	float3 diffuse = kD * DisneyDiffuse(NdotL, NdotV, LdotH, roughness, albedo);
-
-	return (diffuse + specular) * NdotL * radiance;
-}
-float3 Square(float3 value) {
-	return value * value;
-}
-
-float3 EvaluatePointLightIndex(uint lightIndex,
-	float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0,
-	uint flags, bool useShadow, uint2 pixel) {
-
-	PointLight light = gPointLights[lightIndex];
-	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
-	float3 toLight = light.pos - worldPos;
-	float dist = length(toLight);
-	if (dist <= 1e-5f) {
-		return 0.0f.xxx;
-	}
-	float attenuation =
-		ComputeDistanceAttenuation(dist, light.radius, light.decay);
-	if (attenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
-	float3 L = toLight / dist;
-	float shadow = 1.0f;
-	if (useShadow && light.shadowStrength > 0.0f &&
-		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + lightIndex) :
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex, light.shadowFilterIndex);
-		shadow = 1.0f - occlusion * light.shadowStrength;
-	}
-	float3 radiance =
-		light.color.rgb * light.intensity * attenuation * shadow;
-	return EvaluatePBRLight(
-		N, V, L, radiance, albedo, metallic, roughness, F0);
-}
-
-float3 EvaluateSpotLightIndex(uint lightIndex,
-	float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0,
-	uint flags, bool useShadow, uint2 pixel) {
-
-	SpotLight light = gSpotLights[lightIndex];
-	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
-	float3 toLight = light.pos - worldPos;
-	float dist = length(toLight);
-	if (dist <= 1e-5f) {
-		return 0.0f.xxx;
-	}
-	float distanceAttenuation =
-		ComputeDistanceAttenuation(dist, light.distance, light.decay);
-	if (distanceAttenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
-	float3 L = toLight / dist;
-	float3 lightDir = normalize(light.direction);
-	float cosTheta = dot(-L, lightDir);
-	float coneRange =
-		max(light.cosFalloffStart - light.cosAngle, 1e-4f);
-	float coneAttenuation =
-		saturate((cosTheta - light.cosAngle) / coneRange);
-	coneAttenuation *= coneAttenuation;
-	if (coneAttenuation <= 0.0f) {
-		return 0.0f.xxx;
-	}
-	float shadow = 1.0f;
-	if (useShadow && light.shadowStrength > 0.0f &&
-		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, directionalCount + pointCount + lightIndex) :
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex, light.shadowFilterIndex);
-		shadow = 1.0f - occlusion * light.shadowStrength;
-	}
-	float3 radiance = light.color.rgb * light.intensity *
-		distanceAttenuation * coneAttenuation * shadow;
-	return EvaluatePBRLight(
-		N, V, L, radiance, albedo, metallic, roughness, F0);
-}
-
-float3 EvaluateRectLightIndex(uint lightIndex,
-	float3 worldPos, float3 N, float3 V,
-	float3 albedo, float metallic, float roughness, float3 F0,
-	uint flags, bool useShadow, uint2 pixel) {
-
-	RectLight light = gRectLights[lightIndex];
-	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
-	if (ComputeRectRangeAttenuation(light, worldPos) * ComputeRectBarnAttenuation(light, worldPos) <= 0.0f ||
-		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
-	float shadow = 1.0f;
-	if (useShadow && light.shadowStrength > 0.0f &&
-		(flags & kMaterialFlagReceiveShadow) != 0u) {
-
-		float occlusion = filteredShadowAvailable != 0u ?
-			LoadFilteredShadow(pixel, directionalCount + pointCount + spotCount + lightIndex) :
-			TraceRectShadow(worldPos, N, light, pixel, pointCount + spotCount + lightIndex);
-		shadow = 1.0f - occlusion * light.shadowStrength;
-	}
-
-	return shadow * EvaluateRectAreaPBR(light, worldPos, N, V, albedo, metallic, roughness, F0);
-}
-
-bool ResolveLightCluster(int2 pixel, float3 worldPos,
-	out LightClusterHeader header) {
-
-	header.offset = 0;
-	header.count = 0;
-	if (clusterCount == 0u || clusterTileCountX == 0u ||
-		clusterTileCountY == 0u || clusterZSliceCount == 0u) {
-		return false;
-	}
-
-	uint2 tile = min(
-		uint2(max(pixel, int2(0, 0))) / max(clusterTileSize, 1u),
-		uint2(clusterTileCountX - 1u, clusterTileCountY - 1u));
-	float viewDepth = mul(float4(worldPos, 1.0f), viewMatrix).z;
-	uint zSlice = (uint)clamp(
-		floor(log2(max(viewDepth, clusterNearClip)) *
-			clusterSliceScale + clusterSliceBias),
-		0.0f, float(clusterZSliceCount - 1u));
-	uint clusterIndex =
-		(zSlice * clusterTileCountY + tile.y) *
-		clusterTileCountX + tile.x;
-	if (clusterCount <= clusterIndex) {
-		return false;
-	}
-	header = gLightClusterHeaders[clusterIndex];
-	return true;
-}
+#include "localDirectLighting.hlsli"
 
 //============================================================================
 //	背景、スカイボックス
@@ -358,7 +189,7 @@ bool LoadScreenSpaceDepthDelta(float2 uv, float sampleDepth,
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float screenAO, float3 emissive, uint flags,
-	bool useShadow);
+	bool useShadow, bool primarySurface);
 
 // 粗いMarchで見つけた交差区間を二分探索して縞状の欠落を防ぐ
 bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
@@ -434,7 +265,7 @@ bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
 				reflectionColor = EvaluateSurfaceLighting(
 					hitPixel, hitWorldPos, hitNormal, normalize(-direction),
 					hitAlbedo, hitMaterial.r, max(hitMaterial.g, 0.04f),
-					hitMaterial.b, 1.0f, hitEmissive, hitFlags, useShadow);
+					hitMaterial.b, 1.0f, hitEmissive, hitFlags, useShadow, false);
 				return true;
 			}
 		}
@@ -579,7 +410,7 @@ float3 EvaluateDiffuseEnvironment(float3 N, float3 V, float3 albedo, float metal
 float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	float3 N, float3 V, float3 albedo, float metallic,
 	float roughness, float ao, float screenAO, float3 emissive, uint flags,
-	bool useShadow) {
+	bool useShadow, bool primarySurface) {
 
 	if ((flags & kMaterialFlagLighting) == 0u) {
 		return albedo + emissive;
@@ -611,60 +442,17 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 			radiance, albedo, metallic, roughness, F0);
 	}
 
-	LightClusterHeader clusterHeader;
-	if (ResolveLightCluster(pixel, worldPos, clusterHeader)) {
-
-		[loop]
-		for (uint clusterLight = 0u;
-			clusterLight < clusterHeader.count; ++clusterLight) {
-
-			uint localIndex =
-				gLightClusterIndices[clusterHeader.offset + clusterLight];
-			if (localIndex < pointCount) {
-
-				color += EvaluatePointLightIndex(localIndex,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-				continue;
-			}
-			uint spotIndex = localIndex - pointCount;
-			if (spotIndex < spotCount) {
-
-				color += EvaluateSpotLightIndex(spotIndex,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-				continue;
-			}
-			uint rectIndex = spotIndex - spotCount;
-			if (rectIndex < rectCount) {
-
-				color += EvaluateRectLightIndex(rectIndex,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-			}
-		}
+	if (primarySurface && restirDIAvailable != 0u) {
+		color += UnpackReSTIRRadiance(gReSTIRRadiance[pixel.y * viewportSize.x + pixel.x]).rgb;
 	} else {
-
+		LightClusterHeader clusterHeader;
+		bool clustered = ResolveLightCluster(pixel, worldPos, clusterHeader);
+		uint count = clustered ? clusterHeader.count : localCount;
 		[loop]
-		for (uint index = 0u; index < pointCount; ++index) {
-
-			color += EvaluatePointLightIndex(index,
-				worldPos, N, V, albedo, metallic, roughness,
-				F0, flags, useShadow, pixel);
-		}
-		[loop]
-		for (uint index = 0u; index < spotCount; ++index) {
-
-			color += EvaluateSpotLightIndex(index,
-				worldPos, N, V, albedo, metallic, roughness,
-				F0, flags, useShadow, pixel);
-		}
-		[loop]
-		for (uint index = 0u; index < rectCount; ++index) {
-
-			color += EvaluateRectLightIndex(index,
-				worldPos, N, V, albedo, metallic, roughness,
-				F0, flags, useShadow, pixel);
+		for (uint i = 0; i < count; ++i) {
+			uint lightIndex = clustered ? gLightClusterIndices[clusterHeader.offset + i] : i;
+			color += EvaluateLocalLight(lightIndex, worldPos, N, V, albedo, metallic,
+				roughness, F0, flags, useShadow, pixel);
 		}
 	}
 
@@ -738,7 +526,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		max(ambientOcclusionIntensity, 0.0f));
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
-		roughness, ao, ambientAO, emissive, flags, useShadow);
+		roughness, ao, ambientAO, emissive, flags, useShadow, true);
 
 	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
 	if ((flags & kMaterialFlagLighting) != 0u &&

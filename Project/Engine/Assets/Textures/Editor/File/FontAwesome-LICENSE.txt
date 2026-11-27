@@ -1,4 +1,5 @@
-Timeline icon rendered from Font Awesome Free Solid, Fonticons, Inc.
+Timeline and Paintbrush icons rendered from Font Awesome Free Solid, Fonticons, Inc.
+Paintbrush source: https://fontawesome.com/icons/paintbrush?f=classic&s=solid
 Source: https://fontawesome.com/icons/classic/solid/timeline
 Font license: SIL Open Font License 1.1, reproduced below.
 

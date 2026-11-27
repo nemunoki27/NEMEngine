@@ -92,6 +92,12 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 	}
 	// 長時間確認とScene反復は専用プロセスだけで行う
 	wchar_t setting[32]{};
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_SAMPLE_FRAMES", setting, 32) > 0u) {
+		sampleFrameCount_ = static_cast<uint32_t>(std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 10000ul));
+	}
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_CAPTURE_FRAMES", setting, 32) > 0u) {
+		captureFrameCount_ = static_cast<uint32_t>(std::min(std::wcstoul(setting, nullptr, 10), 32ul));
+	}
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_PHASE_COUNT", setting, 32) > 0u) {
 		phaseCount_ = static_cast<uint32_t>(std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 128ul));
 	}
@@ -388,6 +394,8 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	}
 	auto& profiler = FrameProfiler::GetInstance();
 	const double seconds = std::chrono::duration<double>(elapsed).count();
+	if (sampleFrameCount_ && (!profiler.HasGPUData() || profiler.GetGPUPassTimes().empty() ||
+		(!frames_.empty() && frames_.back().at("gpuFrameID") == profiler.GetGPUFrameID()))) return;
 	if (holdSeconds_ > 0u && !frames_.empty() && seconds - frames_.back().at("elapsedSeconds").get<double>() < 1.0) return;
 	nlohmann::json sample = { { "frameMs", deltaTime * 1000.0f },
 		{ "elapsedSeconds", seconds },
@@ -407,6 +415,7 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		{ "gpuValid", profiler.HasGPUData() }, { "gpuMs", profiler.GetGPUTotalMs() },
 		{ "passes", nlohmann::json::array() } };
 	// 描画時間とGPUメモリの圧迫を対応付ける
+	if (sampleFrameCount_) sample["gpuFrameID"] = profiler.GetGPUFrameID();
 	auto& platform = graphicsCore.GetDXObject();
 	Microsoft::WRL::ComPtr<IDXGIAdapter3> adapter;
 	DXGI_QUERY_VIDEO_MEMORY_INFO memory{};
@@ -465,7 +474,11 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 			{ "viewID", pass.viewID }, { "frameID", pass.frameID } });
 	}
 	frames_.push_back(std::move(sample));
-	if ((holdSeconds_ == 0u && frames_.size() == (quickCheck_ ? 30u : 180u)) ||
+	if (frames_.size() <= captureFrameCount_) {
+		const auto prefix = std::to_string(frames_.size()) + "-";
+		CaptureViews(graphicsCore, prefix.c_str());
+	}
+	if ((holdSeconds_ == 0u && frames_.size() == (sampleFrameCount_ ? sampleFrameCount_ : (quickCheck_ ? 30u : 180u))) ||
 		(holdSeconds_ > 0u && seconds >= 30.0 + double(holdSeconds_))) {
 		FinishPhase(graphicsCore);
 	}

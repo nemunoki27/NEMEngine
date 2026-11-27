@@ -233,6 +233,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--bistro-normals") {
 		return RunTest("TestBistroNormalTextures", TestBistroNormalTextures) ? 0 : 53;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--material-paint") {
+		return RunTest("TestMaterialPaint", TestMaterialPaint) ? 0 : 53;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--exr-textures") {
 		return RunTest("TestEXRTextures", TestEXRTextures) ? 0 : 53;
 	}

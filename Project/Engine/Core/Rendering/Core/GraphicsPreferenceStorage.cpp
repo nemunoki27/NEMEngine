@@ -17,7 +17,7 @@
 namespace {
 
 	constexpr const char* kProjectLightingKeys[] = {
-		"dynamicGI", "dynamicGIQuality", "dynamicGIDebug", "allowDispatchRays",
+		"enableReSTIRDI", "dynamicGI", "dynamicGIQuality", "dynamicGIDebug", "allowDispatchRays",
 		"reflectionQuality", "reflectionIntensity", "reflectionMaxDistance", "reflectionParameters", "ambientOcclusionEnabled",
 		"ambientOcclusionQuality", "ambientOcclusionRadius", "ambientOcclusionIntensity",
 		"indirectIntensity", "emissiveContribution", "giUpdateSpeed"
@@ -165,6 +165,7 @@ void Engine::GraphicsPreferenceStorage::Read(const nlohmann::json& data, Graphic
 	preferences.ambientOcclusionQuality = ReadQualitySetting(data, "ambientOcclusionQuality", preferences.ambientOcclusionQuality);
 	preferences.ambientOcclusionEnabled = ReadBoolSetting(data, "ambientOcclusionEnabled", preferences.ambientOcclusionEnabled);
 	if (auto it = data.find("reflectionParameters"); it != data.end() && it->is_object()) preferences.reflectionParameters = *it;
+	preferences.enableReSTIRDI = ReadBoolSetting(data, "enableReSTIRDI", preferences.enableReSTIRDI);
 	preferences.dynamicGI = ReadBoolSetting(data, "dynamicGI", preferences.dynamicGI);
 	preferences.dynamicGIQuality = EnumAdapter<DynamicGIQuality>::FromString(
 		ReadStringSetting(data, "dynamicGIQuality", EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality)))
@@ -244,6 +245,7 @@ nlohmann::json Engine::GraphicsPreferenceStorage::Write(const GraphicsFeaturePre
 	data["indirectIntensity"] = preferences.indirectIntensity;
 	data["emissiveContribution"] = preferences.emissiveContribution;
 	data["giUpdateSpeed"] = preferences.giUpdateSpeed;
+	data["enableReSTIRDI"] = preferences.enableReSTIRDI;
 	data["dynamicGI"] = preferences.dynamicGI;
 	data["dynamicGIQuality"] = EnumAdapter<DynamicGIQuality>::ToString(preferences.dynamicGIQuality);
 	data["dynamicGIDebug"] = EnumAdapter<DynamicGIDebug>::ToString(preferences.dynamicGIDebug);

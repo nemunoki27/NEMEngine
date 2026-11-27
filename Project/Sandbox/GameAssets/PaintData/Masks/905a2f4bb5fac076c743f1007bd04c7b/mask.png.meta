@@ -1,0 +1,18 @@
+{
+    "guid": "905a2f4bb5fac076c743f1007bd04c7b",
+    "importer": "TextureImporter",
+    "importerVersion": 2,
+    "schemaVersion": 2,
+    "settings": {
+        "addressU": "Clamp",
+        "addressV": "Clamp",
+        "alphaColorBleed": false,
+        "colorSpace": "Linear",
+        "filter": "Anisotropic",
+        "generateMipmaps": true,
+        "maxAnisotropy": 8,
+        "normalConvention": "OpenGL",
+        "preset": "Data"
+    },
+    "type": "Texture"
+}

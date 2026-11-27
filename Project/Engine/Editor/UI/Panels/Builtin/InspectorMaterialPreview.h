@@ -5,10 +5,15 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/EditorToolRenderResources.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Materials/PaintMaterialAsset.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 
+#include <optional>
+
 namespace Engine {
+
+	enum class EntityPreviewKind : uint8_t;
 
 	//============================================================================
 	//	InspectorMaterialPreview class
@@ -17,13 +22,19 @@ namespace Engine {
 	class InspectorMaterialPreview {
 	public:
 		void Draw(const EditorPanelContext& context, const MaterialAsset& material);
-		void DrawImage(const EditorPanelContext& context, const MaterialAsset& material, ImVec2 size, bool animate);
+		void Draw(const EditorPanelContext& context, AssetID id, const PaintMaterialAsset& paint);
+		void DrawImage(const EditorPanelContext& context, const MaterialAsset& material, ImVec2 size, bool animate,
+			const PaintMaterialAsset* paint = nullptr);
+		bool RenderThumbnail(const EditorPanelContext& context, const MaterialAsset& material,
+			EditorToolRenderTexture& output, const Color4& background);
 		void Invalidate() { rendered_ = false; }
 	private:
 		EditorToolRenderResources resources_;
 		std::unique_ptr<ECSWorld> world_;
 		std::weak_ptr<const uint8_t> databaseLifetime_;
 		AssetID materialID_{};
+		std::optional<PaintMaterialAsset> paintSample_;
+		Entity subject_ = Entity::Null();
 		Entity root_ = Entity::Null();
 		Entity effectSubject_ = Entity::Null();
 		ParticleSystem particles_;
@@ -43,7 +54,9 @@ namespace Engine {
 		Vector2I pendingSize_{};
 		double resizeDeadline_ = 0.0;
 
-		void Rebuild(const EditorPanelContext& context, const MaterialAsset& material);
+		void Rebuild(const EditorPanelContext& context, const MaterialAsset& material, bool thumbnail = false);
+		bool RenderSample(const EditorPanelContext& context, const MaterialAsset& material, EditorToolRenderTexture& output,
+			EntityPreviewKind kind, float deltaTime, const Color4& background, const PaintMaterialAsset* paint);
 		void UpdateEffectSubject(SystemContext& system, const MaterialAsset& material);
 		void ResetView();
 	};

@@ -11,5 +11,6 @@ namespace Engine {
 
 		// 編集値を表示して保存要求を返す
 		ValueEditResult Draw(const EditorPanelContext& context, MaterialAsset& draft);
+		ValueEditResult DrawPaintSettings(const EditorPanelContext& context, MaterialAsset& draft);
 	} // MaterialAssetFields
 } // Engine

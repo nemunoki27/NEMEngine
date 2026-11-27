@@ -11,6 +11,7 @@
 namespace Engine {
 
 	// front
+	class ProjectAssetPreview;
 	class IEditorPanelHost;
 	class EditorGameBuildSession;
 	class ProjectTagSettings;
@@ -40,6 +41,7 @@ namespace Engine {
 		// グラフィックス機能の状態を管理
 		GraphicsPlatform* graphicsPlatform = nullptr;
 		// エディタツールのプレビュー描画で使用する描画パイプライン
+		ProjectAssetPreview* assetPreviews = nullptr;
 		RenderPipelineRunner* renderPipeline = nullptr;
 		// ビューポート描画に必要なリソースを管理するサービス
 		const ViewportRenderService* viewportRenderService = nullptr;

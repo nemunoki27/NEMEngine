@@ -6,6 +6,7 @@ $engineRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $externalRoot = Join-Path $engineRoot 'Project\Externals'
 if (-not $OutputPath) { $OutputPath = Join-Path $externalRoot 'dependencies.lock.json' }
 $libraries = @(
+    @{ name = 'xatlas'; versionFile = 'VERSION.txt'; pattern = '^([a-f0-9]{40})' },
     @{ name = 'imgui'; versionFile = 'imgui.h'; pattern = '^#define IMGUI_VERSION\s+"([^"]+)"' },
     @{ name = 'meshoptimizer'; versionFile = 'include\meshoptimizer.h'; pattern = 'meshoptimizer - version ([0-9.]+)' },
     @{ name = 'OpenEXRCore'; versionFile = 'VERSION.txt'; pattern = '^OpenEXRCore ([0-9.]+)' },

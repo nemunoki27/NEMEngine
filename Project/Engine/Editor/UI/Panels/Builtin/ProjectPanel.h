@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
-#include "ProjectModelPreview.h"
 #include <Engine/Editor/Assets/Project/ProjectGitIgnoreService.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetIndex.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetThumbnailCache.h>
@@ -54,7 +53,6 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// モデル一覧のプレビュー
-		ProjectModelPreview modelPreview_;
 		// Gitの状態取得と除外設定
 		ProjectGitIgnoreService gitIgnore_;
 
@@ -150,7 +148,7 @@ namespace Engine {
 		void DrawAssetGridItem(
 			const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset, float iconSize);
 		// アセット種別ごとのアイコンを解決する
-		ImTextureID ResolveAssetIconTextureID(const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1);
+		ImTextureID ResolveAssetIconTextureID(const EditorPanelContext& context, const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1);
 		// アセットのドラッグソースを描画する
 		void DrawAssetDragDropSource(const ProjectAssetEntry& asset, ImGuiDragDropFlags flags = ImGuiDragDropFlags_None);
 		// 空白部分の右クリックメニューを描画する

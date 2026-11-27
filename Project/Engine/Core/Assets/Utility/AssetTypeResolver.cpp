@@ -95,6 +95,8 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (extension == ".animclip") {
 		return AssetType::AnimationClip;
 	}
+	if (extension == ".paintmaterial") return AssetType::PaintMaterial;
+	if (extension == ".paintatlas") return AssetType::PaintAtlas;
 	if (extension == ".timeline") return AssetType::Timeline;
 	if (extension == ".csv" || extension == ".json" || extension == ".txt") {
 		return AssetType::Text;
@@ -126,6 +128,7 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::Material:
 	case AssetType::AnimationClip:
 	case AssetType::Timeline:
+	case AssetType::PaintMaterial:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
 	case AssetType::ShaderGraph:
@@ -147,6 +150,6 @@ bool Engine::AssetTypeResolver::IsJsonAssetFile(AssetType type, const std::files
 		return false;
 	}
 	return extension == ".json" || extension == ".scene" || extension == ".prefab" ||
-		extension == ".material" || extension == ".shadergraph" ||
+		extension == ".material" || extension == ".paintmaterial" || extension == ".shadergraph" ||
 		extension == ".shader" || extension == ".animclip" || extension == ".timeline";
 }

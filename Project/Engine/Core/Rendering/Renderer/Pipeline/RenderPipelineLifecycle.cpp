@@ -133,6 +133,7 @@ void RenderPipelineRunner::Finalize() {
 	renderPath_.Finalize();
 	previewResources_.materialView_.reset();
 	previewResources_.graphView_.reset();
+	previewResources_.thumbnailView_.reset();
 	previewResources_.effectView_.Release();
 	previewResources_.effectScene_.Finalize();
 	backendRegistry_.Clear();

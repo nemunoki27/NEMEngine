@@ -271,6 +271,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		particleMeshSources_.Prepare(graphicsCore, *request.world, *request.assetDatabase,
 			*meshBackend, renderAssetLibrary_, pipelineStateCache_);
 	}
+	materialPaint_.Prepare(graphicsCore, request.world, request.assetDatabase, renderAssetLibrary_, {}, request.systemContext);
 	// 粒子のGPU更新を全Viewより前に1回だけ記録する
 	if (particleBackend_) {
 		auto& profiler = GPUFrameProfiler::GetInstance();
@@ -328,6 +329,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			context.targetRegistry->EndFrame();
 			return;
 		}
+		context.materialPaintRevision = materialPaint_.Publish(context.bufferRegistry);
 		if (particleBackend_) particleBackend_->PublishFeedback(graphicsCore, context.bufferRegistry);
 		// 出力先を同じ描画の入力から除外
 		RuntimeTextureResolver::BeginRenderTextureWrite(view.targetTexture);

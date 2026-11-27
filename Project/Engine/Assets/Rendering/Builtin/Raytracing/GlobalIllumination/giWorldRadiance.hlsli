@@ -1,3 +1,5 @@
+#include "../../Common/materialPaint.hlsli"
+
 static const float kGITraceDistance = 100000.0f;
 
 cbuffer GIWorldLighting : register(b0, space36) {
@@ -21,6 +23,7 @@ struct GISurface {
 	float3 position;
 	float3 normal;
 	float3 diffuse;
+	float3 paintEmission;
 	float ambientOcclusion;
 	uint flags;
 };
@@ -28,7 +31,7 @@ struct GISurface {
 
 
 GISurface ResolveGISurface(GIQuery query, RayDesc ray) {
-	GISurface hit;
+	GISurface hit=(GISurface)0;
 	MeshVertex a,b,c;
 	SubMeshShaderData mat;
 	float2 uv;
@@ -49,8 +52,25 @@ GISurface ResolveGISurface(GIQuery query, RayDesc ray) {
 	hit.flags = gRaytracingSceneInstances[query.CommittedInstanceID()].renderFlags;
 	hit.diffuse = saturate(mat.color.rgb * mat.importedBaseColor.rgb * color.rgb *
 		SampleHitTexture(mat.baseColorTextureIndex,hex,mip,1.0f.xxxx).rgb);
-	if ((hit.flags & kMaterialFlagLighting)!=0u) hit.diffuse = DiffuseGIReflectance(hit.diffuse,metallic);
 	hit.ambientOcclusion = saturate(SampleHitTexture(mat.occlusionTextureIndex,hex,mip,1.0f.xxxx).r);
+	if (HasMaterialPaint(hit.flags)) {
+		RaytracingInstanceShaderData instance = gRaytracingSceneInstances[query.CommittedInstanceID()];
+		RaytracingGeometryShaderData geometry = gRaytracingGeometries[instance.geometryDataOffset+query.CommittedGeometryIndex()];
+		PaintFootprint f = {0.0f.xxx,0.0f.xxx,mip};
+		float roughness = mat.roughness;
+		float3 geometryNormal = hit.normal;
+		float3 T=a.tangent*(1-bary.x-bary.y)+b.tangent*bary.x+c.tangent*bary.y;
+		T=mul((float3x3)query.CommittedObjectToWorld3x4(),mul(T,(float3x3)mat.localMatrix));
+		T-=geometryNormal*dot(T,geometryNormal);
+		T=dot(T,T)>1e-8f ? normalize(T) : normalize(cross(geometryNormal,abs(geometryNormal.y)<0.99f ? float3(0,1,0) : float3(1,0,0)));
+		float signT=a.tangentSign*(1-bary.x-bary.y)+b.tangentSign*bary.x+c.tangentSign*bary.y;
+		float orientation=determinant((float3x3)query.CommittedObjectToWorld3x4())<0 ? -1 : 1;
+		float3 B=cross(geometryNormal,T)*(signT<0 ? -1 : 1)*mat.localOrientationSign*orientation;
+		ApplyMaterialPaintSurface(uint2(instance.entityIndex,instance.entityGeneration),query.CommittedPrimitiveIndex(),
+			geometry.indexOffset/3,hit.position,geometryNormal,uv,0,0,f,gSampler,true,T,B,color.rgb,hit.diffuse,hit.normal,
+			roughness,metallic,hit.ambientOcclusion,hit.paintEmission);
+	}
+	if ((hit.flags & kMaterialFlagLighting)!=0u) hit.diffuse = DiffuseGIReflectance(hit.diffuse,metallic);
 	
 	return hit;
 }
@@ -132,13 +152,14 @@ float3 EmissiveIrradiance(float3 position,float3 normal,bool secondary) {
 }
 
 float3 SurfaceRadiance(GISurface hit,Texture2D<float4> cache,Texture2D<float2> moments,bool previous) {
-	if ((hit.flags & kMaterialFlagLighting)==0u || !any(hit.diffuse)) return hit.diffuse;
+	float3 emission=hit.paintEmission*emissiveContribution;
+	if ((hit.flags & kMaterialFlagLighting)==0u || !any(hit.diffuse)) return hit.diffuse+emission;
 	float3 irradiance = DirectGI(hit);
 	if ((hit.flags & kMaterialFlagReceiveIBL)!=0u && hit.ambientOcclusion>0.0f) {
 		irradiance += hit.ambientOcclusion*(EmissiveIrradiance(hit.position,hit.normal,true)+
 			CachedIrradiance(cache,moments,hit.position+0.002f*hit.normal,hit.normal,previous,hasCoarseBricks!=0u));
 	}
-	return hit.diffuse*irradiance;
+	return hit.diffuse*irradiance + emission;
 }
 
 float3 TraceDistantIrradiance(Texture2D<float4> cache,Texture2D<float2> moments,float3 position,float3 normal) {

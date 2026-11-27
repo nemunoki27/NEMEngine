@@ -3,6 +3,8 @@
 #include "ViewportClothGizmo.h"
 #include "ViewportMotionGizmo.h"
 #include <Engine/Editor/Utility/LogicPlacementPreview.h>
+#include <Engine/Editor/Tools/Builtin/MaterialPaint/MaterialPaintTool.h>
+#include <Engine/Core/Tools/Registry/ToolRegistry.h>
 
 //============================================================================
 //	include
@@ -316,6 +318,9 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		const ImGuiHoveredFlags imageHoverFlags = kind_ == ViewportPanelKind::Scene && context.editorState->regionPick.pressed
 			? ImGuiHoveredFlags_AllowWhenBlockedByActiveItem : ImGuiHoveredFlags_None;
 		const bool imageHovered = ImGui::IsItemHovered(imageHoverFlags) && !blockOrientation;
+		auto* paintTool = kind_ == ViewportPanelKind::Scene ?
+			static_cast<MaterialPaintTool*>(ToolRegistry::GetInstance().Find("engine.material_paint")) : nullptr;
+		const bool paintGesture = paintTool && paintTool->DrawScene(context, imagePos, viewSize_, imageHovered);
 		if (kind_ == ViewportPanelKind::Scene) {
 			context.editorState->sceneOrientationHovered = overOrientation && !objectEditing;
 			context.editorState->sceneOrientationActive = orientationGizmo_.IsActive();
@@ -333,7 +338,7 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			}
 
 			// ダブルクリックで選択EntityへCameraを寄せる
-			if (imageHovered && !context.editorState->sceneCameraNavigating && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+			if (imageHovered && !paintGesture && !context.editorState->sceneCameraNavigating && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 
 				Engine::ECSWorld* world = context.GetWorld();
 				if (world && world->IsAlive(context.editorState->selectedEntity)) {
@@ -360,7 +365,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 			DrawLogicPlacementPreview(context, imagePos, viewSize_);
 			ViewportClothGizmo::Draw(context, imagePos, viewSize_);
 			ViewportMotionGizmo::Draw(context, imagePos, viewSize_);
-			if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
+			if (paintGesture) context.editorState->useSceneGizmo = true;
+			else if (!splineGizmo_.Draw(context, imagePos, viewSize_)) gizmoSession_.DrawSceneGizmo(context);
 			blockDragByGizmo = context.editorState && context.editorState->useSceneGizmo;
 		}
 		const bool regionGesture = kind_ == ViewportPanelKind::Scene &&

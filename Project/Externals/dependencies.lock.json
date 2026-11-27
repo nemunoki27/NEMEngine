@@ -3,6 +3,41 @@
   "hashScope": "rg-visible files excluding build outputs",
   "libraries": [
     {
+      "name": "xatlas",
+      "version": "f700c7790aaa030e794b52ba7791a05c085faf0c",
+      "versionEvidence": "VERSION.txt",
+      "upstreamCommit": null,
+      "upstreamComparison": "unknown",
+      "knownLocalChanges": [],
+      "patches": [],
+      "licenseFiles": [
+        "LICENSE"
+      ],
+      "treeSHA256": "790113a5c1cb2010e73440e936aab9a8dc36001ff83535b36655a556b137bfa6",
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 1075,
+          "sha256": "2c16d5b1c2808277fe975b4f70f0fd9afc9b3bcf04e6c676665a82cb2d5579e3"
+        },
+        {
+          "path": "VERSION.txt",
+          "size": 120,
+          "sha256": "e25c3d8078863fe2d89acf87f77dacce8a28615410e832859e6cb0fe46c278f7"
+        },
+        {
+          "path": "xatlas.cpp",
+          "size": 332735,
+          "sha256": "0ed0283aad005c94738cb0cc4612dba264379d29dea5b3c9b242f2d4752d5df4"
+        },
+        {
+          "path": "xatlas.h",
+          "size": 9904,
+          "sha256": "e7675335ad8ab1c1cc9060ad153cf6b8ba2ee914282044eb5f02c49590218fbd"
+        }
+      ]
+    },
+    {
       "name": "imgui",
       "version": "1.92.9 WIP",
       "versionEvidence": "imgui.h",

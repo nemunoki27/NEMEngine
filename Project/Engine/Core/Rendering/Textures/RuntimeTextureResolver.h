@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
+#include <array>
 
 namespace Engine {
 
@@ -44,6 +45,8 @@ namespace Engine {
 			bool thumbnail = false);
 		// ProjectPanelの画像とモデルで縮小画像を共有する
 		std::string MakeThumbnailKey(const std::string& assetPath);
+		// 同じ画像から非同期生成される各用途のキャッシュキーを取得する
+		std::array<std::string, 5> GetTextureCacheKeys(const AssetDatabase& database, AssetID texture);
 		TextureFileRequestDesc MakeThumbnailRequest(const std::string& assetPath,
 			const AssetDatabase* assetDatabase);
 		// アセットの.metaから正規化済みImporter設定を取得する

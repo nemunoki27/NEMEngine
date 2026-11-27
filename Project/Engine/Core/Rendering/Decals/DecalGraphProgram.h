@@ -17,7 +17,7 @@ namespace Engine {
 		Lerp, Saturate, Sine, Cosine, Absolute, Floor,
 		Fraction, SquareRoot, Negate, Step, Smoothstep, Clamp,
 		Branch, Ceiling, Round, Sign, Truncate, Tangent,
-		Reciprocal, Exponential, Log, Modulo, Output,
+		Reciprocal, Exponential, Log, Modulo, Output, Time,
 	};
 
 	struct DecalGraphInstruction {
@@ -38,6 +38,8 @@ namespace Engine {
 
 	bool SupportsDecalGraphNode(ShaderGraphNodeKind kind);
 	bool CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
+		DecalGraphProgram& program, std::vector<ShaderGraphDiagnostic>& diagnostics);
+	bool CompilePaintGraph(const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
 		DecalGraphProgram& program, std::vector<ShaderGraphDiagnostic>& diagnostics);
 	bool ReadDecalGraph(const nlohmann::json& data, DecalGraphProgram& program);
 	nlohmann::json WriteDecalGraph(const DecalGraphProgram& program);

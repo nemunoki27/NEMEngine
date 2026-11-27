@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiManager.h>
+#include <Engine/Editor/UI/Panels/Builtin/ProjectAssetPreview.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include "EditorRequestSession.h"
 #include <Engine/Editor/Build/EditorGameBuildSession.h>
@@ -189,6 +190,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// パネルとツールで共有するアセット画像
+		std::unique_ptr<ProjectAssetPreview> assetPreviews_;
 		// 製品ビルドの入力と子プロセス
 		std::unique_ptr<EditorGameBuildSession> gameBuildSession_;
 		std::unique_ptr<EditorDeveloperLauncher> developerLauncher_;

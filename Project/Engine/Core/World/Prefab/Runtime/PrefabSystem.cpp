@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/Materials/MaterialPaintMask.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabOwnership.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabInstantiator.h>
@@ -50,7 +51,8 @@ bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
 bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWorld& world, const Entity& root,
 	const std::vector<Entity>& entities, const std::string& prefabAssetPath, UUID prefabInstanceID) const {
 
-	return PrefabSnapshotBuilder::SavePrefabFromEntities(database, world, root, entities, prefabAssetPath, prefabInstanceID);
+	return PublishMaterialPaintMasks(database, world, entities) &&
+		PrefabSnapshotBuilder::SavePrefabFromEntities(database, world, root, entities, prefabAssetPath, prefabInstanceID);
 }
 
 bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem,

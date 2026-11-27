@@ -14,6 +14,7 @@ void Engine::RenderPreviewResources::BeginFrame(GraphicsCore& graphicsCore) {
 		previewBackendRegistry_.BeginFrame(graphicsCore);
 		previewLightBufferPool_.BeginFrame();
 		if (materialView_) materialView_->color.BeginFrame();
+		if (thumbnailView_) thumbnailView_->color.BeginFrame();
 		if (graphView_) graphView_->color.BeginFrame();
 		previewBackendFrameStarted_ = true;
 	}

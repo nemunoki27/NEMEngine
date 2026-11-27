@@ -50,6 +50,7 @@ namespace Engine {
 		std::vector<ShaderGraphDiagnostic> diagnostics;
 		ShaderGraphIRModule ir;
 		std::shared_ptr<DecalGraphProgram> decalGraph;
+		std::shared_ptr<DecalGraphProgram> paintGraph;
 
 		// エラー診断がないことを確認する
 		bool Succeeded() const;

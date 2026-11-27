@@ -9,7 +9,7 @@
     foreach ($entry in $cookManifest.files) {
         $entry.source = Get-ChildPath -Root $stageDirectory -Relative ([string]$entry.destination)
         Assert-FileHash ([string]$entry.source) ([long]$entry.size) ([string]$entry.sha256)
-        if ($entry.destination -like '*.material.json') {
+        if ($entry.destination -like '*.material' -or $entry.destination -like '*.material.json') {
             $material = Get-Content -LiteralPath $entry.source -Raw -Encoding UTF8 | ConvertFrom-Json
             if ($material.PSObject.Properties.Name -contains 'passes') {
                 $passes = @($material.passes | Where-Object { $_.passKind -ne 'EditorPicking' })
@@ -62,7 +62,8 @@
 
     # MaterialはCook済みPassだけを参照し、製品AssetDatabaseへGraph依存を残さない
     $detachedMaterialCount = 0
-    Get-ChildItem -LiteralPath $stageDirectory -Recurse -File -Filter "*.material.json" |
+    Get-ChildItem -LiteralPath $stageDirectory -Recurse -File |
+        Where-Object { $_.Name -like '*.material' -or $_.Name -like '*.material.json' } |
         ForEach-Object {
             $material = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
             if ($material.PSObject.Properties.Name -contains "shaderGraph") {
@@ -82,6 +83,8 @@
             $lower.EndsWith(".hlsli") -or
             $lower.EndsWith(".hlsl.meta") -or
             $lower.EndsWith(".hlsli.meta") -or
+            $lower.EndsWith(".shadergraph") -or
+            $lower.EndsWith(".shadergraph.meta") -or
             $lower.EndsWith(".shadergraph.json") -or
             $lower.EndsWith(".shadergraph.json.meta")
         } |

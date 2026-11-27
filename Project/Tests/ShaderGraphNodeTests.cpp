@@ -5,6 +5,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSourceUtility.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
@@ -21,6 +23,30 @@ namespace NEMTests {
 	// 演算ノードの既定値と保存値を確認する
 	bool TestShaderGraphNodeDefaults() {
 
+		// Time出力とPBRの発光ピンを保存後の投影式でも識別する
+		for (const auto target : {Engine::ShaderGraphTarget::Mesh, Engine::ShaderGraphTarget::Primitive3D}) {
+			auto graph = Engine::CreateDefaultSurfaceShaderGraph("PaintTime", target);
+			const auto time = Engine::UUID::New();
+			graph.nodes.push_back({.id = time, .kind = Engine::ShaderGraphNodeKind::Time});
+			std::erase_if(graph.links, [&](const auto& link) { return link.inputNode == graph.outputNode && link.inputSlot == 5; });
+			graph.links.push_back({.id = Engine::UUID::New(), .outputNode = time, .outputSlot = 1, .inputNode = graph.outputNode, .inputSlot = 5});
+			const auto compiled = Engine::ShaderGraphCompiler::Compile(graph, "surface.hlsli");
+			if (!compiled.Succeeded() || !compiled.paintGraph) return false;
+			Engine::MaterialAsset material;
+			material.shaderGraph = Engine::AssetID::New();
+			material.paintGraph = compiled.paintGraph;
+			Engine::MaterialAsset loaded;
+			if (!Engine::FromJson(Engine::ToJson(material), loaded) || !loaded.paintGraph ||
+				!Engine::MaterialRenderPolicy::GetMaterialPaintUnsupportedReason(loaded).empty()) return false;
+			loaded.shaderGraph = {};
+			if (!Engine::MaterialRenderPolicy::GetMaterialPaintUnsupportedReason(loaded).empty()) return false;
+			const auto has = [&](Engine::DecalGraphOp op, float port) {
+				return std::ranges::any_of(loaded.paintGraph->instructions, [&](const auto& i) { return i.op == op && i.value.x == port; });
+			};
+			if (!has(Engine::DecalGraphOp::Time, 1) || !has(Engine::DecalGraphOp::Output, 5)) return false;
+			graph.surfaceMode = Engine::ShaderGraphSurfaceMode::Transparent;
+			if (Engine::ShaderGraphCompiler::Compile(graph, "surface.hlsli").paintGraph) return false;
+		}
 		// 非公開値とGlobal値も保存された既定値を持つ
 		for (const auto scope : {Engine::ShaderGraphParameterScope::PerMaterial,
 			Engine::ShaderGraphParameterScope::PerInstance, Engine::ShaderGraphParameterScope::Global}) {

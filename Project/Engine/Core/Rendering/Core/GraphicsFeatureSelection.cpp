@@ -15,6 +15,7 @@ Engine::GraphicsRuntimeFeatures Engine::GraphicsFeatureSelection::Resolve(
 	features.useInlineRayTracing = support.SupportsInlineRayTracingPath() && preferences.allowInlineRayTracing;
 	features.useAmbientOcclusion = support.SupportsInlineRayTracingPath() && support.SupportsShaderModel6_6() && preferences.ambientOcclusionEnabled;
 	features.useDynamicGI = support.SupportsDynamicGI() && preferences.dynamicGI;
+	features.useReSTIRDI = support.SupportsReSTIRDI() && preferences.allowInlineRayTracing && preferences.enableReSTIRDI;
 	features.useDispatchRays = SupportsMaterialReflections(support) && preferences.reflectionEnabled;
 	features.useRaytracingDownsampling =
 		preferences.allowRaytracingDownsampling;

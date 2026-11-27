@@ -27,6 +27,12 @@ namespace Engine {
 		size_t sizeInBytes = 0;
 	};
 
+	struct FrameUploadBufferRegion {
+		ID3D12Resource* resource = nullptr;
+		uint8_t* mapped = nullptr;
+		size_t offset = 0, size = 0;
+	};
+
 	//============================================================================
 	//	FrameUploadBufferAllocator class
 	// 転送ごとに領域を切り出し、GPU完了まで保持する
@@ -55,6 +61,9 @@ namespace Engine {
 		// 可変長データをGPU用に転送してGPUアドレスを返す
 		FrameUploadBufferAllocation AllocateAndUploadBytes(GraphicsResourceRetirement& retirement,
 			ID3D12Device* device, std::span<const uint8_t> bytes);
+		// 行ピッチ付きの画像など、転送元を直接書き込む領域を確保する
+		FrameUploadBufferRegion Reserve(GraphicsResourceRetirement& retirement, ID3D12Device* device,
+			size_t size, size_t alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 	private:
 		//============================================================================
 		//	private Methods

@@ -2,115 +2,6 @@
     "Entities": [
         {
             "Components": {
-                "DirectionalLight": {
-                    "color": {
-                        "a": 1.0,
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "direction": {
-                        "x": 0.0741230770945549,
-                        "y": -0.9813710451126099,
-                        "z": 0.1772473305463791
-                    },
-                    "drawDebug": true,
-                    "enabled": true,
-                    "influence": {
-                        "renderingLayerMask": 16777215,
-                        "shadowExcludedLayerMask": 0,
-                        "shadowExclusions": []
-                    },
-                    "intensity": 20.0,
-                    "shadowAngularRadius": 0.009999999776482582,
-                    "shadowStrength": 0.9200000166893005
-                },
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 1
-                },
-                "Name": {
-                    "name": "DirectionalLight"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "00249dab78c46c6e",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "SkyAtmosphere": {
-                    "aerialPerspectiveDistance": 32000.0,
-                    "aerialPerspectiveStrength": 1.0,
-                    "atmosphereHeightKm": 100.0,
-                    "enabled": true,
-                    "groundAlbedo": {
-                        "b": 0.30000001192092896,
-                        "g": 0.30000001192092896,
-                        "r": 0.30000001192092896
-                    },
-                    "iblIntensity": 1.0,
-                    "mieAbsorption": 0.0004440000047907233,
-                    "mieAnisotropy": 0.800000011920929,
-                    "mieScaleHeightKm": 1.2000000476837158,
-                    "mieScattering": 0.003996000159531832,
-                    "moonAngularRadius": 0.2840000092983246,
-                    "moonDiskBrightness": 1.0,
-                    "moonDiskColor": {
-                        "b": 1.0,
-                        "g": 1.0,
-                        "r": 1.0
-                    },
-                    "moonDiskEnabled": true,
-                    "moonEntity": {
-                        "kind": "Scene",
-                        "localFileId": "",
-                        "sourceAsset": ""
-                    },
-                    "ozoneAbsorption": {
-                        "b": 8.499999967170879e-05,
-                        "g": 0.0018810000037774444,
-                        "r": 0.0006500000017695129
-                    },
-                    "ozoneCenterHeightKm": 25.0,
-                    "ozoneWidthKm": 30.0,
-                    "planetRadiusKm": 6360.0,
-                    "rayleighScaleHeightKm": 8.0,
-                    "rayleighScattering": {
-                        "b": 0.03310000151395798,
-                        "g": 0.013558000326156616,
-                        "r": 0.005801999941468239
-                    },
-                    "renderingLayerMask": 1,
-                    "sunEntity": {
-                        "kind": "Scene",
-                        "localFileId": "",
-                        "sourceAsset": ""
-                    }
-                },
-                "Transform": {
-                    "dimension": 1,
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "00249dab78c46c6e"
-        },
-        {
-            "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 0
@@ -119,10 +10,6 @@
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
-                    "ambientOcclusionEnabled": true,
-                    "ambientOcclusionIntensity": 20.31999969482422,
-                    "ambientOcclusionQuality": 2,
-                    "ambientOcclusionRadius": 23.639999389648438,
                     "colorPipeline": {
                         "colorGrading": {
                             "colorFilter": {
@@ -191,11 +78,6 @@
                     "postProcessEnabled": true,
                     "priority": 0,
                     "projectionMode": "Perspective",
-                    "reflectionEnabled": true,
-                    "reflectionIntensity": 1.0,
-                    "reflectionMaxDistance": 600.0,
-                    "reflectionParameters": {},
-                    "reflectionQuality": 2,
                     "renderPasses": "4e454d4153534554525450524f46494c",
                     "targetTexture": "",
                     "viewportHeight": 1.0,
@@ -9872,13 +9754,1199 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 0.039999209344387054,
-                        "y": 0.039999209344387054,
-                        "z": 0.039999209344387054
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
                     }
                 }
             },
             "LocalFileID": "16aab0950b2598b1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Sphere"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Sphere",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "24c471605fe025b0",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 46.225990295410156,
+                        "y": 41.583824157714844,
+                        "z": 55.142906188964844
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 44.01239013671875,
+                        "y": 44.01239013671875,
+                        "z": 44.01239013671875
+                    }
+                }
+            },
+            "LocalFileID": "24c471605fe025b0"
+        },
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.3244881331920624,
+                        "y": -0.937346339225769,
+                        "z": 0.1268433928489685
+                    },
+                    "drawDebug": true,
+                    "enabled": true,
+                    "influence": {
+                        "renderingLayerMask": 16777215,
+                        "shadowExcludedLayerMask": 0,
+                        "shadowExclusions": []
+                    },
+                    "intensity": 4.0,
+                    "shadowAngularRadius": 0.27000001072883606,
+                    "shadowStrength": 1.0
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Directional"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "605cb30fd9e29669",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkyAtmosphere": {
+                    "aerialPerspectiveDistance": 32000.0,
+                    "aerialPerspectiveStrength": 1.0,
+                    "atmosphereHeightKm": 100.0,
+                    "enabled": true,
+                    "groundAlbedo": {
+                        "b": 0.30000001192092896,
+                        "g": 0.30000001192092896,
+                        "r": 0.30000001192092896
+                    },
+                    "iblIntensity": 1.0,
+                    "mieAbsorption": 0.0004440000047907233,
+                    "mieAnisotropy": 0.800000011920929,
+                    "mieScaleHeightKm": 1.2000000476837158,
+                    "mieScattering": 0.003996000159531832,
+                    "moonAngularRadius": 0.2840000092983246,
+                    "moonDiskBrightness": 1.0,
+                    "moonDiskColor": {
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "moonDiskEnabled": true,
+                    "moonEntity": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    },
+                    "ozoneAbsorption": {
+                        "b": 8.499999967170879e-05,
+                        "g": 0.0018810000037774444,
+                        "r": 0.0006500000017695129
+                    },
+                    "ozoneCenterHeightKm": 25.0,
+                    "ozoneWidthKm": 30.0,
+                    "planetRadiusKm": 6360.0,
+                    "rayleighScaleHeightKm": 8.0,
+                    "rayleighScattering": {
+                        "b": 0.03310000151395798,
+                        "g": 0.013558000326156616,
+                        "r": 0.005801999941468239
+                    },
+                    "renderingLayerMask": 1,
+                    "sunEntity": {
+                        "kind": "Scene",
+                        "localFileId": "",
+                        "sourceAsset": ""
+                    }
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "605cb30fd9e29669"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "PrimitiveRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "crossPlane": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "planeCount": 2,
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "cube": {
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        }
+                    },
+                    "cylinder": {
+                        "bottomColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "bottomRadius": 1.0,
+                        "bottomRadiusWeight": 0.0,
+                        "cap": "Both",
+                        "centerColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "centerRadius": 1.0,
+                        "height": 2.0,
+                        "heightDivide": 8,
+                        "maxAngleDegrees": 360.0,
+                        "radialDivide": 16,
+                        "topColor": {
+                            "a": 1.0,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "topRadius": 1.0,
+                        "topRadiusWeight": 0.0,
+                        "uvMode": "None"
+                    },
+                    "hemisphere": {
+                        "bottomCap": true,
+                        "latitudeDivide": 8,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "materialInstance": [],
+                    "order": 0,
+                    "plane": {
+                        "axis": "XY",
+                        "divideX": 1,
+                        "divideY": 1,
+                        "pivot": {
+                            "x": 0.5,
+                            "y": 0.5
+                        },
+                        "size": {
+                            "x": 1.0,
+                            "y": 1.0
+                        }
+                    },
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderSpace": "World3D",
+                    "renderingLayerMask": 1,
+                    "ring": {
+                        "divide": 16,
+                        "endAngle": 360.0,
+                        "innerRadius": 0.5,
+                        "outerRadius": 1.0,
+                        "startAngle": 0.0
+                    },
+                    "sphere": {
+                        "latitudeDivide": 16,
+                        "longitudeDivide": 24,
+                        "radius": 1.0
+                    },
+                    "type": "Cube",
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "6f5ccf4fd042a0f3",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 49.1142692565918,
+                        "y": 63.690059661865234,
+                        "z": -162.2932891845703
+                    },
+                    "localRotation": {
+                        "w": 0.9272187948226929,
+                        "x": 0.17128710448741913,
+                        "y": 0.2856338918209076,
+                        "z": 0.17128710448741913
+                    },
+                    "localScale": {
+                        "x": 66.38972473144531,
+                        "y": 66.38975524902344,
+                        "z": 66.38970184326172
+                    }
+                }
+            },
+            "LocalFileID": "6f5ccf4fd042a0f3"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "Name": {
+                    "name": "Point"
+                },
+                "PointLight": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "decay": 0.8899999856948853,
+                    "drawDebug": true,
+                    "enabled": true,
+                    "influence": {
+                        "renderingLayerMask": 16777215,
+                        "shadowExcludedLayerMask": 0,
+                        "shadowExclusions": []
+                    },
+                    "intensity": 500.0,
+                    "radius": 12000.0,
+                    "shadowRadius": 0.05000000074505806,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d83de990f0daac50",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 233.1099090576172,
+                        "y": 93.81636047363281,
+                        "z": -45.1322021484375
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "d83de990f0daac50"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "69bb86df79f016fcb493e18c616c2323",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveDecals": true,
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderSettings": {
+                        "backFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "cullMode": "BACK",
+                        "depthComparison": "LESS_EQUAL",
+                        "depthTest": true,
+                        "depthWrite": true,
+                        "fillMode": "Solid",
+                        "frontFace": {
+                            "comparison": "ALWAYS",
+                            "depthFail": "KEEP",
+                            "fail": "KEEP",
+                            "pass": "KEEP"
+                        },
+                        "inheritMaterial": true,
+                        "separateBackFace": false,
+                        "stencilEnabled": false,
+                        "stencilReadMask": 255,
+                        "stencilReference": 1,
+                        "stencilWriteMask": 255
+                    },
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6800000071525574,
+                                        "g": 0.7099999785423279,
+                                        "r": 0.7250000238418579
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "00_Floor",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "6b3a485a9076212c",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6800000071525574,
+                                        "g": 0.7099999785423279,
+                                        "r": 0.7250000238418579
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "01_Ceiling",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 2.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 1,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "af60fc8e2b0f7b97",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 1.0,
+                                        "g": 1.0,
+                                        "r": 1.0
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "02_BackWall",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 1.0,
+                                "z": -1.0
+                            },
+                            "sourceSubMeshIndex": 2,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "d7756b8533df0f08",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.09099999815225601,
+                                        "g": 0.44999998807907104,
+                                        "r": 0.14000000059604645
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "03_RightWall",
+                            "sourcePivot": {
+                                "x": -1.0,
+                                "y": 1.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 3,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "ae1d2ef2d9b07e81",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.05000000074505806,
+                                        "g": 0.06499999761581421,
+                                        "r": 0.6299999952316284
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "04_LeftWall",
+                            "sourcePivot": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 4,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "3970dc47472e0793",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.9069973230361938,
+                                        "g": 0.9048946499824524,
+                                        "r": 0.11568432301282883
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "05_ShortBox",
+                            "sourcePivot": {
+                                "x": -0.3286309540271759,
+                                "y": 0.30000001192092896,
+                                "z": 0.3745918273925781
+                            },
+                            "sourceSubMeshIndex": 5,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "6683d250b8c675b9",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.9247121214866638,
+                                        "g": 0.05651474371552467,
+                                        "r": 0.4363991320133209
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "06_TallBox",
+                            "sourcePivot": {
+                                "x": 0.33543920516967773,
+                                "y": 0.6000000238418579,
+                                "z": -0.29141485691070557
+                            },
+                            "sourceSubMeshIndex": 6,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "263b0d7040bb1933",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        },
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "31d4f90ec37c453f",
+                                    "name": "emissiveIntensity",
+                                    "semantic": "EmissiveIntensity",
+                                    "value": 16.0
+                                },
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.23529399931430817,
+                                        "g": 0.7058820128440857,
+                                        "r": 1.0
+                                    }
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.23529399931430817,
+                                        "g": 0.7058820128440857,
+                                        "r": 1.0
+                                    }
+                                },
+                                {
+                                    "id": "c65b493a4e9d7f55",
+                                    "name": "roughness",
+                                    "semantic": "Roughness",
+                                    "value": 1.0
+                                },
+                                {
+                                    "id": "df9e0c473a8555c8",
+                                    "name": "metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
+                                }
+                            ],
+                            "name": "07_Light",
+                            "sourcePivot": {
+                                "x": 0.004999995231628418,
+                                "y": 1.9800000190734863,
+                                "z": -0.030000001192092896
+                            },
+                            "sourceSubMeshIndex": 7,
+                            "sourceSurfaceMode": "Opaque",
+                            "stableID": "45f2cc9361c705e6",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "cornell_box"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "dc3f98b8217fe7ee",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 596.5089111328125,
+                        "y": -0.014082908630371094,
+                        "z": -22.906978607177734
+                    },
+                    "localRotation": {
+                        "w": 0.9454651474952698,
+                        "x": 0.0,
+                        "y": -0.3257233202457428,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 117.59291076660156,
+                        "y": 117.59285736083984,
+                        "z": 117.59291076660156
+                    }
+                }
+            },
+            "LocalFileID": "dc3f98b8217fe7ee"
         }
     ],
     "Header": {

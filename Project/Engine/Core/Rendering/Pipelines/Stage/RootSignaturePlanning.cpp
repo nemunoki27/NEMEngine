@@ -292,13 +292,18 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 		return lhs.bindPoint < rhs.bindPoint;
 	});
 	plan.visibilities.reserve(plan.bindings.size());
+	const bool paintInputs = std::ranges::any_of(plan.bindings, [](const auto& binding) {
+		return binding.name == "gMaterialPaintScene";
+	});
 	size_t rootCost = 0;
 	for (size_t index = 0; index < plan.bindings.size(); ++index) {
 
 		auto& binding = plan.bindings[index];
 		binding.rootParameterIndex = static_cast<UINT>(index);
-		// 追加の粒子入力はTableへまとめてルート引数を抑える
-		binding.parameterType = ((particleResources && binding.space >= 2) || binding.name == "gParticlePaintReceivers") &&
+		// 反射はペイントとライトクラスタの既存SRVを使い64 DWORD以内に収める
+		const bool paintTable = paintInputs && (binding.name == "gMaterialPaintScene" || binding.name == "gMaterialPaintAtlas" ||
+			binding.name == "gLightClusterHeaders" || binding.name == "gLightClusterIndices");
+		binding.parameterType = ((particleResources && binding.space >= 2) || binding.name == "gParticlePaintReceivers" || paintTable) &&
 			(binding.kind == ShaderBindingKind::SRV || binding.kind == ShaderBindingKind::UAV) ?
 			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE : DecideRootParameterType(binding);
 		plan.visibilities.push_back(ToVisibility(pipelineType, binding.stageMask));

@@ -389,6 +389,7 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		}
 	}
 	Algorithm::HashCombine(environment, state.atmosphereRevision);
+	Algorithm::HashCombine(environment, context.materialPaintRevision);
 	const bool globalChange = directionalChanged || state.materialGeneration != scene.materialGeneration ||
 		state.environmentRevision != environment;
 	if (globalChange) {

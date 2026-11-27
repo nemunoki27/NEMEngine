@@ -6,4 +6,5 @@ namespace NEMTests {
 	bool TestEditorViewportVisibility();
 	bool TestBistroNormalTextures();
 	bool TestEXRTextures();
+	bool TestMaterialPaint();
 }

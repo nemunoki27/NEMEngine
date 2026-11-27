@@ -54,6 +54,7 @@ namespace Engine {
 		};
 		std::unique_ptr<MaterialView> materialView_;
 		std::unique_ptr<MaterialView> graphView_;
+		std::unique_ptr<MaterialView> thumbnailView_;
 		RaytracingSceneBuilder effectScene_;
 		RaytracingViewBufferSet effectView_;
 	};

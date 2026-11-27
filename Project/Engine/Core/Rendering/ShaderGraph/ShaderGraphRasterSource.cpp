@@ -124,7 +124,9 @@ namespace Engine::ShaderGraphStageSource {
 			"}\n\n";
 		// 描画方式に応じて表面の値を出力する
 		if (!transparent) {
-			source += "GBufferOutput main(VSOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
+			source += "#define NEM_MATERIAL_PAINT_RASTER\n"
+					  "#include \"Builtin/Common/materialPaint.hlsli\"\n"
+					  "GBufferOutput main(VSOutput input, bool isFrontFace : SV_IsFrontFace, uint primitive : SV_PrimitiveID) {\n"
 					  "\tShaderGraphSurface graph = EvaluatePrimitiveShaderGraph(input, isFrontFace);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "\tMeshSurface surface;\n"
@@ -137,6 +139,12 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tsurface.emissive = graph.emissive;\n"
 					  "\tsurface.motion = ComputeGBufferMotion(input.currentClipPosition, input.previousClipPosition);\n"
 					  "\tsurface.flags = BuildMaterialFlags(input.flags);\n"
+					  "\tif (HasMaterialPaint(input.flags)) {\n"
+					  "\t\tfloat2 paintUV=ResolvePrimitivePixelUV(input.texcoord,input.uvCoordinates,input.ringParams,input.uvBasis);\n"
+					  "\t\tPaintFootprint footprint={ddx(input.worldPos),ddy(input.worldPos),0};\n"
+					  "\t\tApplyMaterialPaint(uint2(input.entityIndex,input.entityGeneration),primitive,0,input.worldPos,input.normal,\n"
+					  "\t\t\tpaintUV,ddx(paintUV),ddy(paintUV),footprint,gSampler,surface.albedo,surface.normal,surface.roughness,surface.metallic,surface.occlusion,surface.emissive);\n"
+					  "\t}\n"
 					  "\treturn EncodeGBuffer(surface);\n"
 					  "}\n";
 		} else {

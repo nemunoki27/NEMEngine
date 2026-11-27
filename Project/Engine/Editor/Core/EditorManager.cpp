@@ -426,6 +426,8 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
 	panelContext.sceneViewCamera = GetSceneViewCameraState();
+	panelContext.assetPreviews = assetPreviews_.get();
+	if (context.assetDatabase) assetPreviews_->Prepare(panelContext, *context.assetDatabase);
 
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);

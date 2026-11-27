@@ -47,6 +47,8 @@ namespace Engine::AssetMetaStorage {
 		case Engine::AssetType::Scene:            return "SceneImporter";
 		case Engine::AssetType::Prefab:           return "PrefabImporter";
 		case Engine::AssetType::Material:         return "MaterialImporter";
+		case Engine::AssetType::PaintMaterial:    return "PaintMaterialImporter";
+		case Engine::AssetType::PaintAtlas:       return "PaintAtlasImporter";
 		case Engine::AssetType::Shader:           return "ShaderImporter";
 		case Engine::AssetType::RenderPipeline:   return "RenderPipelineImporter";
 		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";

@@ -378,6 +378,19 @@ namespace NEMTests {
 			return false;
 		}
 
+		Engine::GraphicsFeaturePreferences localLights{};
+		if (Engine::GraphicsFeatureSelection::Resolve(supported, localLights).useReSTIRDI) return false;
+		Engine::GraphicsPreferenceStorage::Read({{"enableReSTIRDI", true}}, localLights);
+		Engine::GraphicsFeaturePreferences restoredLights{};
+		Engine::GraphicsPreferenceStorage::Read(Engine::GraphicsPreferenceStorage::Write(localLights), restoredLights);
+		if (!Engine::GraphicsFeatureSelection::Resolve(supported, restoredLights).useReSTIRDI ||
+			Engine::GraphicsFeatureSelection::Resolve(unsupported, restoredLights).useReSTIRDI) return false;
+		auto shaderModel65 = supported;
+		shaderModel65.highestShaderModel = D3D_SHADER_MODEL_6_5;
+		if (Engine::GraphicsFeatureSelection::Resolve(shaderModel65, restoredLights).useReSTIRDI) return false;
+		restoredLights.allowInlineRayTracing = false;
+		if (Engine::GraphicsFeatureSelection::Resolve(supported, restoredLights).useReSTIRDI) return false;
+
 		// GIだけを有効にしても共有TLASを構築する
 		Engine::GraphicsFeaturePreferences gi{};
 		if (!gi.dynamicGI || !gi.reflectionEnabled || !gi.ambientOcclusionEnabled) return false;

@@ -6505,6 +6505,14 @@
       ]
     },
     {
+      "id": 83,
+      "registryName": "MaterialPaint",
+      "nativeType": "MaterialPaintComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/MaterialPaintComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "エディターで編集した表面の塗り分けを保存する"
+    },
+    {
       "id": 82,
       "registryName": "Cloth",
       "nativeType": "ClothComponent",

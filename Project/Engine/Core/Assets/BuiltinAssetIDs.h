@@ -155,6 +155,10 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID EnvironmentBRDF{ 0x4e454d4153534554ull, 0x454e5649524f0002ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
 		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
+		inline constexpr AssetID ReSTIRShade{ 0x4e454d4153534554ull, 0x5244490000000003ull };
+		inline constexpr AssetID ReSTIRDenoise{ 0x4e454d4153534554ull, 0x5244490000000004ull };
+		inline constexpr AssetID ReSTIRInitial{ 0x4e454d4153534554ull, 0x5244490000000001ull };
+		inline constexpr AssetID ReSTIRSpatial{ 0x4e454d4153534554ull, 0x5244490000000002ull };
 		inline constexpr AssetID InlineShadowTrace{ 0x4e454d4153534554ull, 0x5348445700000001ull };
 		inline constexpr AssetID InlineShadowTemporal{ 0x4e454d4153534554ull, 0x5348445700000002ull };
 		inline constexpr AssetID InlineShadowSpatial{ 0x4e454d4153534554ull, 0x5348445700000003ull };
@@ -165,7 +169,7 @@ namespace Engine::BuiltinAssets {
 			SkyboxIrradiance, EnvironmentSpecular, EnvironmentBRDF, DepthVisualize, Skybox,
 			AtmosphereTransmittance, AtmosphereMultiScattering, AtmosphereSkyView, AtmosphereCubemap, AtmosphereAerial,
 			HeightFog,
-			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial, GICache, GIGather, GIResolve,
+			InlineShadowTrace, InlineShadowTemporal, InlineShadowSpatial, ReSTIRInitial, ReSTIRSpatial, ReSTIRShade, ReSTIRDenoise, GICache, GIGather, GIResolve,
 		};
 
 		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };
@@ -202,7 +206,7 @@ namespace Engine::BuiltinAssets {
 			Pipelines::ParticleGPUTrailUpdate, Pipelines::ParticleGPUTrailPrepare, Pipelines::ParticleGPURibbonSelect,
 			Pipelines::ParticleGPUTrailDraw, Pipelines::ParticleGPUTrailDraw2D, RenderPasses::Default, Textures::RectLTCMatrix, Textures::RectLTCAmplitude,
 			Materials::GICache, Materials::GIGather, Materials::GIResolve,
-			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial,
+			Shaders::InlineShadowTrace, Shaders::InlineShadowTemporal, Shaders::InlineShadowSpatial, Shaders::ReSTIRInitial, Shaders::ReSTIRSpatial, Shaders::ReSTIRShade, Shaders::ReSTIRDenoise,
 		};
 	}
 

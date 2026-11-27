@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/DirectionalShadowMapRenderer.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/InlineShadowRenderer.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/ReSTIRDIRenderer.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
@@ -105,7 +106,7 @@ namespace Engine {
 			uint32_t environmentSpecularIndex = UINT32_MAX;
 			uint32_t environmentBRDFIndex = UINT32_MAX;
 			uint32_t physicalEnvironmentEnabled = 0;
-			uint32_t _environmentPad = 0;
+			uint32_t restirDIAvailable = 0;
 			Vector4 atmosphereSun{};
 			Vector4 atmosphereSolar{};
 			Vector4 atmosphereMoon{};
@@ -178,6 +179,7 @@ namespace Engine {
 		const RenderPipelineDeps& deps_;
 		DirectionalShadowMapRenderer directionalShadows_;
 		InlineShadowRenderer inlineShadows_;
+		ReSTIRDIRenderer restirDI_;
 		ViewConstantBuffer<DirectionalShadowConstants> directionalShadowConstants_{"DirectionalShadowConstants"};
 		ViewConstantBuffer<ParticleEnvironmentConstants> particleEnvironmentConstants_{"ParticleEnvironmentConstants"};
 

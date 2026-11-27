@@ -238,6 +238,19 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 			DrawGraphicsTooltip("ライトごとの影レイ数です。1レイでも画素ごとに分散して柔らかい境界を維持します");
 			ImGui::EndDisabled();
 
+			const bool reSTIRSupported = support.SupportsReSTIRDI();
+			bool enableReSTIRDI = preferences.enableReSTIRDI;
+			ImGui::BeginDisabled(!reSTIRSupported || !allowInlineRayTracing);
+			if (ImGui::Checkbox("ReSTIR DI（ローカルライト）", &enableReSTIRDI)) {
+				auto settings = preferences;
+				settings.enableReSTIRDI = enableReSTIRDI;
+				featureController.SetProjectLighting(settings);
+			}
+			ImGui::EndDisabled();
+			DrawGraphicsTooltip("Point・Spot・Rectライトの候補を画素間・フレーム間で再利用します");
+			if (!reSTIRSupported) ImGui::TextDisabled("DXR Tier 1.1とShader Model 6.6が必要です");
+			else if (!allowInlineRayTracing) ImGui::TextDisabled("インラインシャドウを有効にしてください");
+
 			bool allowRaytracingDownsampling = preferences.allowRaytracingDownsampling;
 			ImGui::BeginDisabled(!runtime.useDispatchRays);
 			if (ImGui::Checkbox("ダウンサンプリング", &allowRaytracingDownsampling)) {

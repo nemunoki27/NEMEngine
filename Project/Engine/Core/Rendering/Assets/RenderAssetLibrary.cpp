@@ -108,13 +108,17 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
 void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	MaterialAsset& asset) {
 
-	if (!asset.shaderGraph) {
-		return;
-	}
-	// 製品では保存済みPassとCook済みShaderを使用し、Graphソースを要求しない
+	// 製品のMaterialには元のGraph参照を残さず、Draw PassのShaderから投影式を取得する
 	if (ShaderCook::IsCookedProduct()) {
+		for (const auto& pass : asset.passes) {
+			if (pass.shaderOverride && (pass.passKind == MaterialPassKind::Draw || pass.passKind == MaterialPassKind::Masked)) {
+				asset.paintGraph = ShaderCook::LoadPaintGraph(pass.shaderOverride);
+				break;
+			}
+		}
 		return;
 	}
+	if (!asset.shaderGraph) return;
 	ShaderGraphAsset graph{};
 	if (!ShaderGraphAssetReferences::LoadSource(asset.shaderGraph, database_, graph)) {
 		return;

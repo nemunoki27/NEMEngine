@@ -8,6 +8,10 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/DecalProjectorComponent.h>
+#include <Engine/Core/World/Components/Rendering/BeamRendererComponent.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleMaterialCompatibility.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -33,9 +37,29 @@ namespace {
 		{0x522eff67a5284d07, 0x9128206abb3198c7},
 	};
 
+	Engine::MaterialUsage ResolvePreviewUsage(const Engine::MaterialAsset& material) {
+
+		using namespace Engine;
+		if (material.usage != MaterialUsage::Generic) return material.usage;
+		// usage未記録の標準素材は、実際のパイプラインに対応するRendererを使う
+		for (const auto& pass : material.passes) {
+			using namespace BuiltinAssets::Pipelines;
+			if (pass.pipeline == DefaultSprite) return MaterialUsage::Sprite;
+			if (pass.pipeline == DefaultText) return MaterialUsage::Text;
+			if (pass.pipeline == DefaultLine) return MaterialUsage::Line;
+			if (pass.pipeline == DefaultMesh || pass.pipeline == DefaultMeshMasked || pass.pipeline == DefaultMeshTransparent)
+				return MaterialUsage::Mesh;
+		}
+		return MaterialUsage::Generic;
+	}
+
 	bool IsFlat(const Engine::MaterialAsset& material) {
-		return material.domain == Engine::MaterialDomain::UI || material.usage == Engine::MaterialUsage::Sprite ||
-			material.usage == Engine::MaterialUsage::Text;
+
+		using namespace Engine;
+		const auto usage = ResolvePreviewUsage(material);
+		const auto* pass = FindPass(material, MaterialPassKind::Draw);
+		return material.domain == MaterialDomain::UI || usage == MaterialUsage::Sprite || usage == MaterialUsage::Text ||
+			(pass && pass->pipeline == BuiltinAssets::Pipelines::DefaultPrimitive2D) || material.guid == BuiltinAssets::Materials::ProgressPrimitive;
 	}
 
 	constexpr Engine::AssetID kPreviewFont{0x9422a58504c749af, 0x8109eaa8cb648c42};
@@ -44,7 +68,17 @@ namespace {
 
 		const auto* pass = FindPass(material, Engine::MaterialPassKind::Transparent);
 		return material.usage == Engine::MaterialUsage::Particle && pass &&
-			pass->preferredVariant == Engine::PipelineVariantKind::GraphicsMesh;
+			Engine::IsTrailMaterialPass(material, *pass);
+	}
+
+	void ApplyStandardAppearance(Engine::PrimitiveRendererComponent& renderer, const Engine::MaterialAsset& material) {
+
+		renderer.material = Engine::BuiltinAssets::Materials::DefaultPrimitive;
+		const auto sample = MakePaintMaterialSample(material);
+		renderer.materialInstance.Set(Engine::MaterialParameterIDs::BaseColor, Engine::MaterialParameterNames::BaseColor,
+			Engine::MaterialParameterSemantic::BaseColor, {.value = sample.baseColor});
+		renderer.materialInstance.Set(Engine::MaterialParameterIDs::BaseColorTexture, Engine::MaterialParameterNames::BaseColorTexture,
+			Engine::MaterialParameterSemantic::BaseColorTexture, {.value = sample.baseColorTexture});
 	}
 
 	void SamplePreviewTrail(Engine::TrailRendererRecord& trail, float deltaTime) {
@@ -56,7 +90,7 @@ namespace {
 	}
 }
 
-void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context, const MaterialAsset& material) {
+void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context, const MaterialAsset& material, bool thumbnail) {
 
 	world_ = std::make_unique<ECSWorld>();
 	missingFont_ = false;
@@ -77,7 +111,9 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 	};
 
 	const bool flat = IsFlat(material);
+	const auto usage = ResolvePreviewUsage(material);
 	const Entity subject = create({});
+	subject_ = subject;
 	if (material.domain == MaterialDomain::Decal) {
 		auto& receiver = world_->AddComponent<PrimitiveRendererComponent>(subject);
 		receiver.type = PrimitiveType::Cube;
@@ -86,6 +122,16 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 		auto& decal = world_->AddComponent<DecalProjectorComponent>(projector);
 		decal.material = material.guid;
 		decal.size = {2.0f, 2.0f, 0.4f};
+	} else if (material.guid == BuiltinAssets::Materials::DefaultBeam) {
+		effectSubject_ = subject;
+		world_->AddComponent<BeamRendererComponent>(subject);
+		BeamRendererSettings settings{};
+		settings.material = material.guid;
+		settings.start.position = {-1.1f, -0.45f, 0.0f};
+		settings.end.position = {1.1f, 0.45f, 0.0f};
+		settings.width = 0.28f;
+		SetBeamRendererSettings(*world_, subject, settings);
+		PlayBeam(*world_, subject);
 	} else if (trailSubject_) {
 		effectSubject_ = subject;
 		world_->AddComponent<TrailRendererComponent>(subject);
@@ -121,7 +167,11 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 		warmup.mode = WorldMode::Play;
 		warmup.deltaTime = warmup.unscaledDeltaTime = 1.0f / 60.0f;
 		for (int i = 0; i < 60; ++i) particles_.Update(*world_, warmup);
-	} else if (material.usage == MaterialUsage::Text) {
+	} else if (usage == MaterialUsage::Line) {
+		auto& sphere = world_->AddComponent<PrimitiveRendererComponent>(subject);
+		sphere.type = PrimitiveType::Sphere;
+		ApplyStandardAppearance(sphere, material);
+	} else if (usage == MaterialUsage::Text) {
 		auto& text = world_->AddComponent<TextRendererComponent>(subject);
 		text.font = kPreviewFont;
 		missingFont_ = !context.editorContext->assetDatabase->Find(kPreviewFont);
@@ -129,17 +179,17 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 		text.text = "Aa";
 		text.fontSize = 120.0f;
 		text.pivot = Vector2::AnyInit(0.5f);
-	} else if (material.usage == MaterialUsage::Sprite) {
+	} else if (usage == MaterialUsage::Sprite) {
 		auto& sprite = world_->AddComponent<SpriteRendererComponent>(subject);
 		sprite.material = material.guid;
 		sprite.size = Vector2::AnyInit(208.0f);
-	} else if (material.usage == MaterialUsage::Mesh) {
+	} else if (usage == MaterialUsage::Mesh) {
 		auto& mesh = world_->AddComponent<MeshRendererComponent>(subject);
 		mesh.mesh = kPreviewMeshes[shape_];
 		mesh.material = material.guid;
 	} else {
 		auto& primitive = world_->AddComponent<PrimitiveRendererComponent>(subject);
-		if (material.domain == MaterialDomain::Surface || flat) primitive.material = material.guid;
+		if (!paintSample_ && (material.domain == MaterialDomain::Surface || flat)) primitive.material = material.guid;
 		primitive.type = flat || shape_ == 2 ? PrimitiveType::Plane : shape_ == 0 ? PrimitiveType::Sphere : PrimitiveType::Cube;
 		primitive.renderSpace = flat ? PrimitiveRenderSpace::Screen2D : PrimitiveRenderSpace::World3D;
 		primitive.plane.size = Vector2::AnyInit(flat ? 208.0f : 2.0f);
@@ -163,11 +213,14 @@ void Engine::InspectorMaterialPreview::Rebuild(const EditorPanelContext& context
 			MaterialParameterSemantic::BaseColor, MaterialParameterValue{.value = color});
 		block.receiveDecals = false;
 	};
-	for (int i = -5; i <= 5; ++i) {
-		const Color4 color = i % 2 ? Color4(0.11f, 0.16f, 0.21f, 1.0f) : Color4(0.42f, 0.36f, 0.26f, 1.0f);
-		backdrop({0.65f * i, 1.0f, 2.3f}, {0.65f, 7.0f, 0.12f}, color);
+	if (!thumbnail || material.domain == MaterialDomain::Fullscreen || material.domain == MaterialDomain::Compute ||
+		material.domain == MaterialDomain::RayTracing) {
+		for (int i = -5; i <= 5; ++i) {
+			const Color4 color = i % 2 ? Color4(0.11f, 0.16f, 0.21f, 1.0f) : Color4(0.42f, 0.36f, 0.26f, 1.0f);
+			backdrop({0.65f * i, 1.0f, 2.3f}, {0.65f, 7.0f, 0.12f}, color);
+		}
+		backdrop({0.0f, -1.18f, 0.0f}, {15.0f, 0.14f, 15.0f}, Color4(0.16f, 0.17f, 0.18f, 1.0f));
 	}
-	backdrop({0.0f, -1.18f, 0.0f}, {15.0f, 0.14f, 15.0f}, Color4(0.16f, 0.17f, 0.18f, 1.0f));
 	const Entity light = create({});
 	auto& sun = world_->AddComponent<DirectionalLightComponent>(light);
 	sun.direction = Vector3(0.4f, -0.6f, 0.7f).Normalize();
@@ -189,6 +242,64 @@ void Engine::InspectorMaterialPreview::UpdateEffectSubject(SystemContext& system
 	}
 }
 
+bool Engine::InspectorMaterialPreview::RenderThumbnail(const EditorPanelContext& context, const MaterialAsset& material,
+	EditorToolRenderTexture& output, const Color4& background) {
+
+	if (material.domain == MaterialDomain::RayTracing &&
+		(!context.graphicsCore->GetDXObject().ShouldUseDispatchRays() ||
+		context.renderPipeline->PrepareRaytracingPreview(*context.graphicsCore, material) != RaytracingPipelineReadiness::Ready)) return false;
+	time_ = 0.5f;
+	const bool customSurface = material.domain == MaterialDomain::Surface && ResolvePreviewUsage(material) == MaterialUsage::Generic &&
+		!material.shaderGraph && !MaterialRenderPolicy::IsStandardSurface(material);
+	if (IsFlat(material) || customSurface) {
+		// 専用の頂点・インスタンス入力を球へ流用せず、標準色とテクスチャを表示する
+		const MaterialAsset sphere{};
+		Rebuild(context, sphere, true);
+		auto& renderer = world_->GetComponent<PrimitiveRendererComponent>(subject_);
+		ApplyStandardAppearance(renderer, material);
+		return RenderSample(context, sphere, output, EntityPreviewKind::MaterialThumbnail, 0.0f, background, nullptr);
+	}
+	Rebuild(context, material, true);
+	return !missingFont_ && RenderSample(context, material, output, EntityPreviewKind::MaterialThumbnail, 0.0f, background, nullptr);
+}
+
+bool Engine::InspectorMaterialPreview::RenderSample(const EditorPanelContext& context, const MaterialAsset& material,
+	EditorToolRenderTexture& output, EntityPreviewKind kind, float deltaTime, const Color4& background, const PaintMaterialAsset* paint) {
+
+	auto& database = *context.editorContext->assetDatabase;
+	const bool flat = IsFlat(material);
+	const bool effect = material.domain == MaterialDomain::Fullscreen || material.domain == MaterialDomain::Compute ||
+		material.domain == MaterialDomain::RayTracing;
+	SystemContext system{};
+	system.world = world_.get();
+	system.assetDatabase = &database;
+	system.renderAssetLibrary = &context.renderPipeline->GetRenderAssetLibrary();
+	system.deltaTime = system.smoothDeltaTime = system.unscaledDeltaTime = deltaTime;
+	time_ += system.deltaTime;
+	system.time = system.unscaledTime = time_;
+	UpdateEffectSubject(system, material);
+	EntityPreviewRenderRequest request{};
+	request.world = world_.get();
+	request.rootEntity = root_;
+	request.surface = output.GetRenderTarget();
+	request.systemContext = &system;
+	request.assetDatabase = &database;
+	request.kind = kind;
+	request.useThumbnailTextures = kind == EntityPreviewKind::MaterialThumbnail;
+	request.clearColor = background;
+	if (effect) request.materialPreviewEffect = material.guid;
+	if (paint) request.paintSample = {subject_, paint};
+	auto& camera = request.camera;
+	camera.enableOrthographic = flat;
+	camera.orthographicZoom = 4.3f / distance_ * static_cast<float>(output.size.y) / kHeight;
+	camera.transform2D.pos = {-0.5f * output.size.x / camera.orthographicZoom, -0.5f * output.size.y / camera.orthographicZoom, 0.0f};
+	camera.perspectiveFovY = 36.0f;
+	camera.transform3D.rotation = {pitch_, yaw_, 0.0f};
+	const auto rotation = Matrix4x4::MakeRotateMatrix(camera.transform3D.rotation);
+	camera.transform3D.pos = Vector3(rotation.m[2][0], rotation.m[2][1], rotation.m[2][2]) * -distance_;
+	return context.renderPipeline->RenderEntityPreview(*context.graphicsCore, request);
+}
+
 void Engine::InspectorMaterialPreview::ResetView() {
 
 	yaw_ = 0.0f;
@@ -202,8 +313,16 @@ void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, c
 	if (MyGUI::CollapsingHeader("プレビュー", true)) DrawImage(context, material, {}, false);
 }
 
+void Engine::InspectorMaterialPreview::Draw(const EditorPanelContext& context, AssetID id, const PaintMaterialAsset& paint) {
+
+	if (!MyGUI::CollapsingHeader("プレビュー", true)) return;
+	MaterialAsset surface;
+	surface.guid = id;
+	DrawImage(context, surface, {}, false, &paint);
+}
+
 void Engine::InspectorMaterialPreview::DrawImage(const EditorPanelContext& context, const MaterialAsset& material,
-	ImVec2 size, bool animate) {
+	ImVec2 size, bool animate, const PaintMaterialAsset* paint) {
 
 	const bool embedded = size.x > 0.0f;
 	if (!context.graphicsCore || !context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) return;
@@ -216,13 +335,20 @@ void Engine::InspectorMaterialPreview::DrawImage(const EditorPanelContext& conte
 			: "このGPUはDXRに対応していません");
 		return;
 	}
-	if ((!embedded && (effect || material.usage == MaterialUsage::Particle)) || material.usage == MaterialUsage::Line) {
+	if (!embedded && (effect || material.usage == MaterialUsage::Particle)) {
 		ImGui::TextDisabled("この描画対象はマテリアルプレビューに対応していません");
 		return;
 	}
 
 	auto& database = *context.editorContext->assetDatabase;
-	if (materialID_ != material.guid || domain_ != material.domain || usage_ != material.usage ||
+	const bool paintModeChanged = paintSample_.has_value() != (paint != nullptr);
+	if (paint && (!paintSample_ || *paintSample_ != *paint)) {
+		paintSample_ = *paint;
+		Invalidate();
+	} else if (!paint) {
+		paintSample_.reset();
+	}
+	if (!world_ || paintModeChanged || materialID_ != material.guid || domain_ != material.domain || usage_ != material.usage ||
 		trailSubject_ != IsTrailMaterial(material)) {
 		if (materialID_ != material.guid) hasImage_ = false;
 		materialID_ = material.guid;
@@ -307,31 +433,8 @@ void Engine::InspectorMaterialPreview::DrawImage(const EditorPanelContext& conte
 		const auto revision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
 		const bool advancing = embedded ? animate : playing_;
 		if (!rendered_ || advancing || revision != textureRevision_) {
-			SystemContext system{};
-			system.world = world_.get();
-			system.assetDatabase = &database;
-			system.renderAssetLibrary = &context.renderPipeline->GetRenderAssetLibrary();
-			system.deltaTime = system.smoothDeltaTime = system.unscaledDeltaTime = advancing ? io.DeltaTime : 0.0f;
-			time_ += system.deltaTime;
-			system.time = system.unscaledTime = time_;
-			UpdateEffectSubject(system, material);
-			EntityPreviewRenderRequest request{};
-			request.world = world_.get();
-			request.rootEntity = root_;
-			request.surface = output->GetRenderTarget();
-			request.systemContext = &system;
-			request.assetDatabase = &database;
-			request.kind = embedded ? EntityPreviewKind::ShaderGraph : EntityPreviewKind::Material;
-			if (effect) request.materialPreviewEffect = material.guid;
-			auto& camera = request.camera;
-			camera.enableOrthographic = flat;
-			camera.orthographicZoom = 4.3f / distance_ * static_cast<float>(output->size.y) / kHeight;
-			camera.transform2D.pos = {-0.5f * output->size.x / camera.orthographicZoom, -0.5f * output->size.y / camera.orthographicZoom, 0.0f};
-			camera.perspectiveFovY = 36.0f;
-			camera.transform3D.rotation = {pitch_, yaw_, 0.0f};
-			const auto rotation = Matrix4x4::MakeRotateMatrix(camera.transform3D.rotation);
-			camera.transform3D.pos = Vector3(rotation.m[2][0], rotation.m[2][1], rotation.m[2][2]) * -distance_;
-			rendered_ = context.renderPipeline->RenderEntityPreview(*context.graphicsCore, request);
+			rendered_ = RenderSample(context, material, *output, embedded ? EntityPreviewKind::ShaderGraph : EntityPreviewKind::Material,
+				advancing ? io.DeltaTime : 0.0f, Color4::Black(), paint);
 			hasImage_ = rendered_;
 			textureRevision_ = revision;
 		}

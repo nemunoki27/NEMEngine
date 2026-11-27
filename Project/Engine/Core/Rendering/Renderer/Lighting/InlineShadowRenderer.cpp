@@ -61,7 +61,7 @@ namespace {
 		std::vector<std::byte> signature;
 	};
 
-	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights, uint64_t filterRevision) {
+	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights, uint64_t filterRevision, bool directionalOnly) {
 
 		ShadowLightSelection result;
 		const auto filterBytes = std::as_bytes(std::span{ &filterRevision, 1 });
@@ -86,6 +86,7 @@ namespace {
 		};
 		// GPUのライト配列と同じ順序で対応表を作る
 		append(lights.directionalLights);
+		if (directionalOnly) return result;
 		append(lights.pointLights);
 		append(lights.spotLights);
 		append(lights.rectLights);
@@ -292,15 +293,19 @@ void Engine::InlineShadowRenderer::RetainViews(const std::unordered_set<std::str
 }
 
 bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecutionContext& context,
-	const RenderPipelineDeps& deps) {
+	const RenderPipelineDeps& deps, bool directionalOnly) {
 
 	const auto& features = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	const auto* tlas = context.bufferRegistry.Find("gSceneTLAS");
 	if (!features.useInlineRayTracing || context.disableInlineRayTracing || !context.viewLights || !camera ||
 		!tlas || tlas->gpuAddress == 0 || !context.hasShadowCastingLight) return false;
-	auto selection = SelectShadowLights(*context.viewLights, context.lightShadowFilterRevision);
-	if (selection.sources.empty() || !implementation_->EnsurePipelines(graphicsCore)) return false;
+	auto selection = SelectShadowLights(*context.viewLights, context.lightShadowFilterRevision, directionalOnly);
+	if (selection.sources.empty()) {
+		implementation_->views.erase(context.view->GetHistoryKey());
+		return false;
+	}
+	if (!implementation_->EnsurePipelines(graphicsCore)) return false;
 	auto& owner = implementation_->views[context.view->GetHistoryKey()];
 	const uint32_t width = context.resources->GetSceneMain()->GetWidth();
 	const uint32_t height = context.resources->GetSceneMain()->GetHeight();

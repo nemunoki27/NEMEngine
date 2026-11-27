@@ -5,6 +5,7 @@
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
+#include <Engine/Core/World/Components/Rendering/MaterialPaintComponent.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -350,6 +351,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		const uint32_t renderingLayerMask = src.renderer ? src.renderer->renderingLayerMask : kRenderingLayerMaskBits;
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(renderFlags, renderingLayerMask);
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
+		if (src.world && src.world->TryGetComponent<MaterialPaintComponent>(src.entity)) instanceShaderData.renderFlags |= 1u << 7;
 		work.scene.result.sceneInstanceScratch_.emplace_back(instanceShaderData);
 		work.scene.result.scenePickRecordOffsets_.emplace_back(pickRecordOffset);
 

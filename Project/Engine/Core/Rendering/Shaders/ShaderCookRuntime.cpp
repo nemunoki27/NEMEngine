@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderCookStorage.h"
+#include <Engine/Core/Rendering/Decals/DecalGraphProgram.h>
 #include <Engine/Core/Assets/Package/ProductContentPack.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -47,6 +48,7 @@ namespace {
 		std::filesystem::path manifestPath;
 		std::unordered_map<Engine::AssetID, CookedShaderRecord> shaders;
 		std::unordered_map<Engine::AssetID, Engine::RenderPipelineAsset> pipelines;
+		std::unordered_map<Engine::AssetID, std::shared_ptr<const Engine::DecalGraphProgram>> paintGraphs;
 		bool loaded = false;
 		bool valid = false;
 	};
@@ -76,6 +78,15 @@ namespace {
 			manifest.value("schemaVersion", 0u) != kShaderCookSchemaVersion ||
 			!manifest.value("cookedOnly", false)) {
 			return false;
+		}
+		if (const auto graphs = manifest.find("paintGraphs"); graphs != manifest.end()) {
+			if (!graphs->is_object()) return false;
+			for (const auto& [guid, data] : graphs->items()) {
+				const auto id = Engine::TryParseAssetGUID32Hex(guid);
+				auto program = std::make_shared<Engine::DecalGraphProgram>();
+				if (!id || !Engine::ReadDecalGraph(data, *program)) return false;
+				g_runtimeState.paintGraphs.emplace(*id, std::move(program));
+			}
 		}
 		for (const nlohmann::json& item :
 			manifest.value("shaders", nlohmann::json::array())) {
@@ -159,6 +170,14 @@ bool Engine::ShaderCook::LoadShaderAsset(AssetID shaderID,
 	}
 	outAsset = found->second.asset;
 	return true;
+}
+
+std::shared_ptr<const Engine::DecalGraphProgram> Engine::ShaderCook::LoadPaintGraph(AssetID shaderID) {
+
+	std::scoped_lock lock(g_runtimeMutex);
+	if (!LoadRuntimeManifest()) return {};
+	const auto found = g_runtimeState.paintGraphs.find(shaderID);
+	return found != g_runtimeState.paintGraphs.end() ? found->second : nullptr;
 }
 
 bool Engine::ShaderCook::LoadPipelineAsset(AssetID pipelineID,

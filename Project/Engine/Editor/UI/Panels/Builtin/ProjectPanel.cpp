@@ -160,6 +160,10 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	AssetDatabase& database = *context.editorContext->assetDatabase;
 	thumbnailCache_.SetAssetDatabase(&database);
 	const auto structureRevision = database.GetStructureRevision();
+	if (!dirty_ && !failedStructureRevision_ && structureRevision != lastSeenStructureRevision_ &&
+		assetIndex_.ApplyAdditions(database, lastSeenStructureRevision_)) {
+		lastSeenStructureRevision_ = structureRevision;
+	}
 	if (dirty_ || (structureRevision != lastSeenStructureRevision_ && failedStructureRevision_ != structureRevision)) {
 		RebuildIndex(database);
 	}
@@ -174,7 +178,6 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
 	HandleExternalFileDrop(context, database);
-	modelPreview_.PrepareModelPreviews(context, database);
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);

@@ -88,6 +88,9 @@ void Engine::InspectorMaterialSession::DrawMaterialAssetInspector(const EditorPa
 		ImGui::EndDisabled();
 	}
 
+	ImGui::BeginDisabled(readOnly_);
+	edit.Merge(MaterialAssetFields::DrawPaintSettings(context, materialDraft_));
+	ImGui::EndDisabled();
 	if (readOnly_) return;
 	if (edit.valueChanged) {
 		pendingEdit_ = true;

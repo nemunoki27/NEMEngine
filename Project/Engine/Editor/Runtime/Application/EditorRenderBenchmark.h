@@ -92,6 +92,8 @@ namespace Engine {
 		// 切替後の読込とフレーム安定を待つ
 		uint32_t phase_ = 0;
 		uint32_t phaseCount_ = 3;
+		uint32_t sampleFrameCount_ = 0;
+		uint32_t captureFrameCount_ = 0;
 		uint32_t holdSeconds_ = 0;
 		nlohmann::json sceneSequence_ = nlohmann::json::array();
 		// 通常Editorと同じ非同期Scene切替を計測する

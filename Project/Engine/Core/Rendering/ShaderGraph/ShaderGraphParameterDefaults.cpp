@@ -1,4 +1,5 @@
 #include "ShaderGraphParameterDefaults.h"
+#include <Engine/Core/Rendering/Materials/PaintMaterialAsset.h>
 
 // c++
 #include <algorithm>
@@ -62,6 +63,11 @@ void Engine::ShaderGraphParameterDefaults::ImportLegacyOverrides(const ShaderGra
 void Engine::ShaderGraphParameterDefaults::RestoreOverrides(const ShaderGraphAsset& graph,
 	const MaterialAsset& previous, MaterialAsset& material) {
 
+	for (const auto& field : previous.parameters.GetRecords()) {
+		if (IsPaintSettingParameter(field.namedValue.first) && field.id == MaterialParameterID::FromName(field.namedValue.first)) {
+			material.parameters.Set(field.id, field.namedValue.first, field.semantic, field.namedValue.second);
+		}
+	}
 	const auto exposed = CollectExposed(graph);
 	for (const auto id : previous.graphOverrides) {
 		if (std::ranges::find(exposed, id) == exposed.end()) continue;

@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Components/Physics/ClothComponent.h>
 #include "RaytracingSceneGeometryUtility.h"
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
+#include <Engine/Core/World/Components/Rendering/MaterialPaintComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
 #include <Engine/Core/Rendering/Materials/MaterialRenderPolicy.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -154,6 +155,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
 			renderer.renderFlags, renderer.renderingLayerMask);
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
+		if (src.world && src.world->TryGetComponent<MaterialPaintComponent>(src.entity)) instanceShaderData.renderFlags |= 1u << 7;
 		work.scene.result.sceneInstanceScratch_.emplace_back(instanceShaderData);
 
 		const uint32_t pickRecordIndex =

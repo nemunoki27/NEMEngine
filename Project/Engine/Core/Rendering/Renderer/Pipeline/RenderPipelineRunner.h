@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderColorPrecisionPolicy.h>
+#include <Engine/Core/Rendering/Materials/MaterialPaintScene.h>
 #include "RenderPreviewResources.h"
 #include "RenderPickingState.h"
 #include "RenderAssetReloadService.h"
@@ -111,6 +112,7 @@ namespace Engine {
 		RenderTexture2D* diffuseGICache = nullptr;
 		RenderTexture2D* diffuseGIMoments = nullptr;
 		uint32_t diffuseGIDebug = 0;
+		uint64_t materialPaintRevision = 0;
 		MultiRenderTarget* defaultSurface = nullptr;
 		// このCameraのトーンマッピング結果をFXAAへ渡す
 		MultiRenderTarget* antialiasingSource = nullptr;
@@ -131,6 +133,7 @@ namespace Engine {
 		uint32_t viewportHeight = 0;
 		// 複数Cameraを合成するときだけ既定サーフェスを最初にクリアする
 		bool clearDefaultSurface = true;
+		std::optional<Color4> previewClearColor;
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
@@ -170,7 +173,7 @@ namespace Engine {
 		float screenSpaceOutlineMaskAlphaThreshold = 0.1f;
 	};
 
-	enum class EntityPreviewKind : uint8_t { Model, Material, ShaderGraph };
+	enum class EntityPreviewKind : uint8_t { Model, Material, ShaderGraph, MaterialThumbnail };
 
 	// エディタツール用のEntityプレビュー描画要求
 	struct EntityPreviewRenderRequest {
@@ -203,6 +206,7 @@ namespace Engine {
 		bool useThumbnailTextures = false;
 		EntityPreviewKind kind = EntityPreviewKind::Model;
 		AssetID materialPreviewEffect{};
+		PaintMaterialSample paintSample{};
 	};
 
 	//============================================================================
@@ -362,6 +366,8 @@ namespace Engine {
 		LightExtractorRegistry lightExtractorRegistry_{};
 
 		// 描画アセット
+		MaterialPaintScene materialPaint_;
+		MaterialPaintScene previewPaint_;
 		RenderAssetLibrary renderAssetLibrary_;
 		PipelineStateCache pipelineStateCache_;
 		MaterialResolver materialResolver_;

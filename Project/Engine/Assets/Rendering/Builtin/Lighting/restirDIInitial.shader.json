@@ -1,0 +1,11 @@
+{
+  "name": "restirDIInitial",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345545244490000000011",
+      "entry": "initialTemporal",
+      "profile": "cs_6_6"
+    }
+  ]
+}

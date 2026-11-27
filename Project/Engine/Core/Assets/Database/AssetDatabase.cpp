@@ -172,6 +172,7 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 			throw std::runtime_error("Asset directory is unavailable: " + Algorithm::PathToUTF8(scanRoot));
 		}
 
+		std::vector<std::filesystem::path> legacyPaint;
 		auto it = std::filesystem::recursive_directory_iterator(scanRoot);
 		const std::filesystem::recursive_directory_iterator end{};
 
@@ -194,9 +195,17 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 				continue;
 			}
 
+			if (Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension())) == ".paintmaterial" &&
+				RuntimePaths::ToAssetPath(fullPath).starts_with("GameAssets/")) {
+				legacyPaint.push_back(fullPath);
+				continue;
+			}
 			if (!RegisterAssetFile(fullPath)) {
 				throw std::runtime_error("Asset registration failed: " + Algorithm::PathToUTF8(fullPath));
 			}
+		}
+		for (const auto& path : legacyPaint) {
+			if (!RegisterAssetFile(AssetMaintenance::MigratePaintMaterial(path))) throw std::runtime_error("移行したMaterialを登録できません");
 		}
 	}
 }

@@ -420,6 +420,13 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	material.roughness = roughness;
 	material.ao = ao;
 	material.emissive = emissive;
+	if (HasMaterialPaint(instanceData.renderFlags)) {
+		RaytracingGeometryShaderData geometry = gRaytracingGeometries[instanceData.geometryDataOffset+GeometryIndex()];
+		PaintFootprint f = {0.0f.xxx,0.0f.xxx,textureMip};
+		ApplyMaterialPaint(uint2(instanceData.entityIndex,instanceData.entityGeneration),PrimitiveIndex(),geometry.indexOffset/3,
+			worldPosition,tangentToWorld[2],uv,0,0,f,gSampler,material.baseColor.rgb,material.N,
+			material.roughness,material.metallic,material.ao,material.emissive);
+	}
 	return material;
 }
 

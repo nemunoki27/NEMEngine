@@ -17,6 +17,7 @@
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
+#include <Engine/Core/World/Components/Rendering/MaterialPaintComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
@@ -232,6 +233,7 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 
 			instance.flags |= kInstanceFlagFlipScreenV;
 		}
+		if (item->world && item->world->TryGetComponent<MaterialPaintComponent>(item->entity)) instance.flags |= 1u << 7;
 		outInstances.emplace_back(instance);
 	}
 }

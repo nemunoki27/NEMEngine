@@ -29,7 +29,7 @@ namespace Engine {
 		InlineShadowRenderer& operator=(const InlineShadowRenderer&) = delete;
 
 		// 光源別の遮蔽率を生成してLightingへ公開する
-		bool Render(GraphicsCore& graphicsCore, SceneExecutionContext& context, const RenderPipelineDeps& deps);
+		bool Render(GraphicsCore& graphicsCore, SceneExecutionContext& context, const RenderPipelineDeps& deps, bool directionalOnly);
 		// 使用しなくなったViewの履歴を回収する
 		void RetainViews(const std::unordered_set<std::string>& viewKeys);
 

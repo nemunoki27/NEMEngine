@@ -1,4 +1,5 @@
 #include "ProjectPanel.h"
+#include "ProjectAssetPreview.h"
 
 //============================================================================
 //	include
@@ -211,32 +212,20 @@ void Engine::ProjectPanel::DrawFolderGridItem(
 	ImGui::PopID();
 }
 
-ImTextureID Engine::ProjectPanel::ResolveAssetIconTextureID(const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1) {
+ImTextureID Engine::ProjectPanel::ResolveAssetIconTextureID(const EditorPanelContext& context, const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1) {
 
 	outUV0 = ImVec2(0.0f, 0.0f);
 	outUV1 = ImVec2(1.0f, 1.0f);
 
-	ImTextureID textureID = {};
+	ImTextureID textureID{};
+	if (context.assetPreviews && (asset.type == AssetType::Mesh || asset.type == AssetType::Material)) {
+		if (context.assetPreviews->TryGetImage(asset.assetID, textureID, outUV0, outUV1)) return textureID;
+		if (asset.type == AssetType::Material) return {};
+	}
 	if (const AssetActionDescriptor* action = assetActionRegistry_.Find(asset.type)) {
-		if (action->iconResolver) {
-			textureID = action->iconResolver(thumbnailCache_, asset);
-		}
+		if (action->iconResolver) textureID = action->iconResolver(thumbnailCache_, asset);
 	}
-	if (textureID == ImTextureID{}) {
-		textureID = ResolveDefaultAssetIcon(thumbnailCache_, asset);
-	}
-	if (asset.type == AssetType::Mesh) {
-
-		// モデルプレビューAtlasが用意できているときだけ実プレビューへ差し替える
-		ImTextureID previewTextureID = static_cast<ImTextureID>(0);
-		ImVec2 previewUV0{};
-		ImVec2 previewUV1{};
-		if (modelPreview_.TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
-			textureID = previewTextureID;
-			outUV0 = previewUV0;
-			outUV1 = previewUV1;
-		}
-	}
+	if (textureID == ImTextureID{}) textureID = ResolveDefaultAssetIcon(thumbnailCache_, asset);
 	return textureID;
 }
 
@@ -262,10 +251,10 @@ void Engine::ProjectPanel::DrawAssetGridItem(
 	ImVec2 uv1(1.0f, 1.0f);
 	// 画面外の画像は読込を要求しない
 	const bool visible = ImGui::IsRectVisible(ImVec2(iconSize, iconSize));
-	if (visible && asset.type == AssetType::Mesh) {
-		modelPreview_.RequestVisibleMesh(asset.assetID);
+	if (visible && context.assetPreviews && (asset.type == AssetType::Mesh || asset.type == AssetType::Material)) {
+		context.assetPreviews->Request(asset.assetID);
 	}
-	ImTextureID textureID = visible ? ResolveAssetIconTextureID(asset, uv0, uv1) : ImTextureID{};
+	ImTextureID textureID = visible ? ResolveAssetIconTextureID(context, asset, uv0, uv1) : ImTextureID{};
 
 	bool clicked = false;
 	Vector2 textureSize{};
@@ -303,7 +292,11 @@ void Engine::ProjectPanel::DrawAssetGridItem(
 		clicked = ImGui::InvisibleButton("##AssetButton", ImVec2(iconSize, iconSize));
 	} else {
 
-		clicked = DrawProjectIconButton("##AssetButton", textureID, iconSize, uv0, uv1);
+		std::string label = "##AssetButton";
+		if (textureID == ImTextureID{} && asset.type == AssetType::Material && context.assetPreviews) {
+			label = std::string(context.assetPreviews->GetFallbackLabel(asset.assetID)) + "###AssetButton";
+		}
+		clicked = DrawProjectIconButton(label.c_str(), textureID, iconSize, uv0, uv1);
 	}
 	if (clicked) {
 

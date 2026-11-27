@@ -71,6 +71,7 @@ nlohmann::json Engine::RuntimeProjectSettings::ReadEffective() const {
 		{"inlineRayTracingSupported", support.SupportsInlineRayTracingPath()}, {"meshShaderEnabled", features.useMeshShader},
 		{"ambientOcclusionSupported", support.SupportsInlineRayTracingPath() && support.SupportsShaderModel6_6()},
 		{"ambientOcclusionEnabled", features.useAmbientOcclusion},
+		{"reSTIRDISupported", support.SupportsReSTIRDI()}, {"reSTIRDIEnabled", features.useReSTIRDI},
 		{"dynamicGISupported", support.SupportsDynamicGI()}, {"dynamicGIEnabled", features.useDynamicGI},
 		{"rayTracingShadowsEnabled", features.useInlineRayTracing}, {"rayTracingReflectionsEnabled", features.useDispatchRays},
 		{"doubleBufferingEnabled", GraphicsFrameState::GetActiveCount() == 2},
@@ -184,6 +185,7 @@ void Engine::RuntimeProjectSettings::BeginPlay() {
 	original_ = Capture();
 	defaults_ = original_;
 	playing_ = true;
+	graphics_.GetDXObject().GetFeatureController().SetRuntimeOverrideActive(true);
 	LoadUserSettings();
 }
 

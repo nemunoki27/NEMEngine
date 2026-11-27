@@ -87,7 +87,7 @@ bool Engine::SupportsDecalGraphNode(ShaderGraphNodeKind kind) {
 	return Operation(kind).has_value();
 }
 
-bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
+static bool CompileSurfaceProgram(bool paint, const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
 	DecalGraphProgram& program, std::vector<ShaderGraphDiagnostic>& diagnostics) {
 
 	DecalGraphProgram result;
@@ -114,8 +114,8 @@ bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphI
 			return false;
 		}
 		const auto& node = *it;
-		std::array<uint32_t, 6> inputs{};
-		std::array<bool, 6> linked{};
+		std::array<uint32_t, 11> inputs{};
+		std::array<bool, 11> linked{};
 		if (node.kind == Kind::TextureSample) inputs[1] = 2;
 		if (node.kind == Kind::TilingAndOffset) { inputs[0] = 2; inputs[1] = 1; }
 		if (node.kind == Kind::Power || node.kind == Kind::Divide || node.kind == Kind::Smoothstep) inputs[1] = 1;
@@ -128,10 +128,20 @@ bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphI
 			auto source = registers.find(input.sourceNode.value);
 			if (source == registers.end()) return error(node, "Decalの入力が見つかりません");
 			const Register reg = source->second;
+			if (paint && node.id == graph.outputNode && input.destinationPort >= 6u) {
+				// 透明度や切り抜きが動的に変わる表面は不透明ペイントとして扱えない
+				if (input.destinationPort == 9u) continue;
+				const float expected = input.destinationPort == 6u ? 1.0f : 0.0f;
+				if (reg.kind != Kind::Constant || reg.index < 4u ||
+					result.instructions[reg.index - 4u].value.x != expected) return error(node, "透過・切り抜きの設定はペイントで使用できません");
+				continue;
+			}
 			const bool textureInput = node.kind == Kind::TextureSample && input.destinationPort == 0;
 			if (reg.texture != textureInput) return error(node, "Texture2Dを数値入力に接続することはできません");
 			uint32_t index = reg.index;
-			if (reg.kind == Kind::Split || (reg.kind == Kind::TextureSample && input.sourcePort >= 2)) {
+			if (reg.kind == Kind::Time) {
+				index = emit({Op::Time, 0, Vector4(static_cast<float>(input.sourcePort), 0, 0, 0)});
+			} else if (reg.kind == Kind::Split || (reg.kind == Kind::TextureSample && input.sourcePort >= 2)) {
 				const auto channel = reg.kind == Kind::Split ? input.sourcePort : input.sourcePort - 2;
 				index = emit({Op::Split, index, Vector4(static_cast<float>(channel), 0, 0, 0)});
 			}
@@ -146,15 +156,17 @@ bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphI
 			linked[i] = true;
 		}
 		if (node.id == graph.outputNode) {
-			if (node.kind != Kind::DecalOutput) return error(node, "Decal Surface出力が必要です");
+			if (node.kind != (paint ? Kind::SurfaceOutput : Kind::DecalOutput)) return error(node, "対応するSurface出力が必要です");
 			const uint32_t flags[]{1, 2, 4, 4, 8, 0};
-			for (uint32_t i = 0; i < inputs.size(); ++i) {
+			for (uint32_t i = 0; i < std::size(flags); ++i) {
 				if (!linked[i]) continue;
 				result.channels |= flags[i];
 				emit({Op::Output, inputs[i], Vector4(static_cast<float>(i), 0, 0, 0)});
 			}
 			if (!result.channels) result.channels = 1;
 			if (result.instructions.empty()) emit({Op::Output, 1u});
+		} else if (paint && node.kind == Kind::Time) {
+			registers.emplace(node.id.value, Register{0, node.kind, false});
 		} else {
 			const auto op = Operation(node.kind);
 			if (!op) return error(node, std::string(GetShaderGraphNodeName(node.kind)) + " はDecalの投影式では使用できません");
@@ -186,6 +198,21 @@ bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphI
 	return true;
 }
 
+bool Engine::CompileDecalGraph(const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
+	DecalGraphProgram& program, std::vector<ShaderGraphDiagnostic>& diagnostics) {
+
+	return CompileSurfaceProgram(false, graph, ir, program, diagnostics);
+}
+
+bool Engine::CompilePaintGraph(const ShaderGraphAsset& graph, const ShaderGraphIRModule& ir,
+	DecalGraphProgram& program, std::vector<ShaderGraphDiagnostic>& diagnostics) {
+
+	if (graph.vertexOutputNode || graph.domain != ShaderGraphDomain::Surface ||
+		(graph.target != ShaderGraphTarget::Mesh && graph.target != ShaderGraphTarget::Primitive3D) ||
+		graph.surfaceMode != ShaderGraphSurfaceMode::Opaque || graph.renderState.alphaClipping) return false;
+	return CompileSurfaceProgram(true, graph, ir, program, diagnostics);
+}
+
 nlohmann::json Engine::WriteDecalGraph(const DecalGraphProgram& program) {
 
 	nlohmann::json instructions = nlohmann::json::array(), exposed = nlohmann::json::array();
@@ -208,7 +235,7 @@ bool Engine::ReadDecalGraph(const nlohmann::json& data, DecalGraphProgram& progr
 		result.channels = data.at("channels").get<uint32_t>() & 15u;
 		for (const auto& value : data.at("instructions")) {
 			const uint32_t op = value.at("op"), inputs = value.at("inputs");
-			if (op > static_cast<uint32_t>(Op::Output)) return false;
+			if (op > static_cast<uint32_t>(Op::Time)) return false;
 			for (uint32_t shift = 0; shift < 32; shift += 8) {
 				if (((inputs >> shift) & 255u) >= result.instructions.size() + 4) return false;
 			}

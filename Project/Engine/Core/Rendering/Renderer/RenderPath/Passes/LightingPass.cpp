@@ -161,6 +161,7 @@ void Engine::LightingPass::BindGBufferSRV(
 void Engine::LightingPass::RetainViews(const std::unordered_set<std::string>& viewKeys) {
 
 	inlineShadows_.RetainViews(viewKeys);
+	restirDI_.RetainViews(viewKeys);
 	directionalShadows_.RetainViews(viewKeys);
 	std::erase_if(shadowRequirements_, [&](const auto& entry) { return !viewKeys.contains(entry.first); });
 }
@@ -198,7 +199,9 @@ void Engine::LightingPass::Execute(
 		!context.disableInlineRayTracing;
 	// 散乱と粒子の受光に必要なときだけ追加のCascadeを用意する
 	const bool volumetricShadows = RequiresDirectionalShadowMap(graphicsCore, passBuckets, context);
-	const bool useShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_);
+	const bool useReSTIR = restirDI_.Render(graphicsCore, context, deps_);
+	const bool filteredShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_, useReSTIR);
+	const bool useShadow = filteredShadow || (requestShadow && useReSTIR);
 	profiler.BeginPass(commandList, profilePrefix + " ShadowMap");
 	const bool shadowMapAvailable = (!useShadow || volumetricShadows) &&
 		directionalShadows_.Render(graphicsCore, passBuckets, context, deps_);
@@ -280,7 +283,7 @@ void Engine::LightingPass::Execute(
 	constants.atmosphereLunar = {atmosphere.lunarLuminance.x, atmosphere.lunarLuminance.y, atmosphere.lunarLuminance.z, 0};
 	constants.ambientIntensity = 0.03f;
 	const auto& lighting = graphicsCore.GetDXObject().GetFeatureController().GetPreferences();
-	constants.skyboxColor = skybox.found ? skybox.color : graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
+	constants.skyboxColor = skybox.found ? skybox.color : context.previewClearColor.value_or(graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor);
 	constants.skyboxCubemapIndex = skybox.found ? skybox.cubemapIndex : 0xFFFFFFFF;
 	constants.hasSkybox = skybox.found ? 1u : 0u;
 	constants.irradianceCubemapIndex = irradianceCubemapIndex;
@@ -289,7 +292,8 @@ void Engine::LightingPass::Execute(
 	constants.environmentSpecularIndex = skybox.specularIndex;
 	constants.environmentBRDFIndex = skybox.brdfIndex;
 	constants.softShadowSampleCount = runtimeFeatures.softShadowSampleCount;
-	constants.filteredShadowAvailable = useShadow ? 1u : 0u;
+	constants.filteredShadowAvailable = filteredShadow ? 1u : 0u;
+	constants.restirDIAvailable = useReSTIR ? 1u : 0u;
 	constants.shadowMapAvailable = shadowMapAvailable && !useShadow ? 1u : 0u;
 	constants.shadowMapLightIndex = directionalShadows_.GetState().lightIndex;
 	constants.reflectionFeatureActive =
@@ -331,7 +335,7 @@ void Engine::LightingPass::Execute(
 
 		// 透視カメラが無い場合はskyboxを出さずambientと発光だけにする
 		constants.hasSkybox = 0;
-		constants.skyboxColor = graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor;
+		constants.skyboxColor = context.previewClearColor.value_or(graphicsCore.GetContext().GetGraphicsSetting().sceneClearColor);
 	}
 
 	DxConstBuffer<LightingConstants>& buffer = AllocateConstantBuffer(graphicsCore);

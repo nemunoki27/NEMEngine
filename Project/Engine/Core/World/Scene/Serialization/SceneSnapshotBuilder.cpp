@@ -1,4 +1,5 @@
 #include "SceneSnapshotBuilder.h"
+#include <Engine/Core/Rendering/Materials/MaterialPaintMask.h>
 
 //============================================================================
 //	include
@@ -89,7 +90,7 @@ bool Engine::SceneSnapshotBuilder::CaptureSaveSnapshot(
 			sceneEntities.emplace_back(entity);
 			});
 	}
-	if (!ValidateWorldLocalFileIDs(world, sceneEntities)) {
+	if (!ValidateWorldLocalFileIDs(world, sceneEntities) || !PublishMaterialPaintMasks(database, world, sceneEntities)) {
 		return false;
 	}
 

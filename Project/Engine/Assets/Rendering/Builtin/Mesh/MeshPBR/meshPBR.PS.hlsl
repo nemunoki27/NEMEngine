@@ -6,6 +6,8 @@
 #include "../Common/meshPBRMaterial.hlsli"
 #include "../Common/meshPBR.hlsli"
 #include "../Common/deferredGBuffer.hlsli"
+#define NEM_MATERIAL_PAINT_RASTER
+#include "../../Common/materialPaint.hlsli"
 
 //============================================================================
 //	output
@@ -31,9 +33,17 @@ GBufferOutput EncodeMeshPBRGBuffer(
 //============================================================================
 //	main
 //============================================================================
-GBufferOutput main(VSOutput input) {
+GBufferOutput main(VSOutput input, uint primitive : SV_PrimitiveID) {
 
-	return EncodeMeshPBRGBuffer(input, ResolvePBRMaterial(input));
+	ResolvedPBRMaterial m = ResolvePBRMaterial(input);
+	MeshInstance instance = gMeshInstances[input.instanceID];
+	if (HasMaterialPaint(instance.flags)) {
+		float2 uv = mul(float4(input.uv,0,1),GetInstanceSubMesh(input.instanceID,input.subMeshIndex).uvMatrix).xy;
+		PaintFootprint f = {ddx(input.worldPos),ddy(input.worldPos),0};
+		ApplyMaterialPaint(uint2(instance.entityIndex,instance.entityGeneration),primitive,meshIndexOffset/3,
+			input.worldPos,input.normal,uv,ddx(uv),ddy(uv),f,gSampler,m.baseColor.rgb,m.N,m.roughness,m.metallic,m.ao,m.emissive);
+	}
+	return EncodeMeshPBRGBuffer(input, m);
 }
 
 GBufferOutput mainMasked(VSOutput input) {

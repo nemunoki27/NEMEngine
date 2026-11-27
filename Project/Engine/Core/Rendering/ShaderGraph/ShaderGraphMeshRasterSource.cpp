@@ -57,7 +57,9 @@ namespace Engine::ShaderGraphStageSource {
 				  "}\n\n";
 
 		if (!transparent) {
-			source += "GBufferOutput main(VSOutput input, bool isFrontFace : SV_IsFrontFace) {\n\n"
+			source += "#define NEM_MATERIAL_PAINT_RASTER\n"
+					  "#include \"Builtin/Common/materialPaint.hlsli\"\n"
+					  "GBufferOutput main(VSOutput input, bool isFrontFace : SV_IsFrontFace, uint primitive : SV_PrimitiveID) {\n"
 					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input, isFrontFace);\n"
 					  "\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 					  "\tMeshSurface surface;\n"
@@ -70,6 +72,13 @@ namespace Engine::ShaderGraphStageSource {
 					  "\tsurface.emissive = graph.emissive;\n"
 					  "\tsurface.motion = ComputeGBufferMotion(input.currentClipPosition, input.previousClipPosition);\n"
 					  "\tsurface.flags = BuildMaterialFlags(gMeshInstances[input.instanceID].flags);\n"
+					  "\tMeshInstance instance = gMeshInstances[input.instanceID];\n"
+					  "\tif (HasMaterialPaint(instance.flags)) {\n"
+					  "\t\tfloat2 paintUV=mul(float4(input.uv,0,1),GetInstanceSubMesh(input.instanceID,input.subMeshIndex).uvMatrix).xy;\n"
+					  "\t\tPaintFootprint footprint={ddx(input.worldPos),ddy(input.worldPos),0};\n"
+					  "\t\tApplyMaterialPaint(uint2(instance.entityIndex,instance.entityGeneration),primitive,meshIndexOffset/3,input.worldPos,input.normal,\n"
+					  "\t\t\tpaintUV,ddx(paintUV),ddy(paintUV),footprint,gSampler,surface.albedo,surface.normal,surface.roughness,surface.metallic,surface.occlusion,surface.emissive);\n"
+					  "\t}\n"
 					  "\treturn EncodeGBuffer(surface);\n"
 					  "}\n";
 		} else {
@@ -269,13 +278,14 @@ namespace Engine::ShaderGraphStageSource {
 
 		std::string source = BuildMeshVertexCommonSource(graph, surfaceIncludeFile, context);
 		// Meshlet内で変換行列を共有する
-		source += "groupshared float4x4 gGraphWorldMatrix;\n"
+		source += "struct GraphPrimitiveOutput { uint triangleIndex : SV_PrimitiveID; };\n"
+				  "groupshared float4x4 gGraphWorldMatrix;\n"
 				  "groupshared float4x4 gGraphNormalMatrix;\n"
 				  "groupshared float gGraphOrientationSign;\n\n"
 				  "[outputtopology(\"triangle\")]\n"
 				  "[numthreads(128, 1, 1)]\n"
 				  "void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in payload MeshDispatchPayload "
-				  "payload, out vertices VSOutput outVerts[64], out indices uint3 outTris[124]) {\n\n"
+				  "payload, out vertices VSOutput outVerts[64], out indices uint3 outTris[124], out primitives GraphPrimitiveOutput ids[124]) {\n\n"
 				  "\tuint meshletIndex = payload.meshletIndices[groupID.x];\n"
 				  "\tuint instanceIndex = payload.instanceIndices[groupID.x];\n"
 				  "\tMeshletDrawDesc meshlet = gMeshlets[meshletIndex];\n"
@@ -287,6 +297,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\t\tgGraphOrientationSign = GetInstanceSubMeshOrientationSign(instanceIndex, localSubMeshIndex);\n"
 				  "\t}\n"
 				  "\tGroupMemoryBarrierWithGroupSync();\n"
+				  "\tif (groupThreadID < meshlet.primitiveCount) ids[groupThreadID].triangleIndex = 0x80000000u | (meshlet.primitiveOffset + groupThreadID);\n"
 				  "\tif (groupThreadID < meshlet.primitiveCount) outTris[groupThreadID] = "
 				  "UnpackPrimitiveIndex(gMeshletPrimitiveIndices[meshlet.primitiveOffset + groupThreadID]);\n"
 				  "\tif (groupThreadID < meshlet.vertexCount) {\n"

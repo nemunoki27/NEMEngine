@@ -34,6 +34,7 @@ namespace Engine {
 	//	ShaderCook class
 	//	製品向けDXILとReflectionの生成と読み込みを管理する
 	//============================================================================
+	struct DecalGraphProgram;
 	class ShaderCook {
 	public:
 		//========================================================================
@@ -57,6 +58,7 @@ namespace Engine {
 		// Shader Graphから派生したPipelineを取得する
 		static bool LoadPipelineAsset(AssetID pipelineID,
 			RenderPipelineAsset& outAsset);
+		static std::shared_ptr<const DecalGraphProgram> LoadPaintGraph(AssetID shaderID);
 		// Cook済みDXILとReflectionを取得する
 		static bool Load(const ShaderCookRequest& request,
 			CompiledShader& outShader);

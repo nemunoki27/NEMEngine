@@ -36,7 +36,7 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 	case ProjectAssetFileKind::Prefab:
 		return "Prefab";
 	case ProjectAssetFileKind::DecalMaterial:
-		return "デカールMaterial";
+		return "Decal Material";
 	case ProjectAssetFileKind::Material:
 		return "Material";
 	case ProjectAssetFileKind::AnimationClip:

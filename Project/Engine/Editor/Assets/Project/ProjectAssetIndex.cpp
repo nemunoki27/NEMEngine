@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Assets/Database/AssetFileUtility.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
+#include <Engine/Core/Assets/Watch/PublishedAssetChanges.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -123,21 +124,43 @@ void Engine::ProjectAssetIndex::BuildRoot(const AssetDatabase& database, Project
 			continue;
 		}
 
-		// ブラウザエントリーの作成
-		ProjectAssetEntry browserEntry{};
-		browserEntry.assetID = meta->guid;
-		browserEntry.type = meta->type == AssetType::Unknown ? GuessBrowserAssetType(fullPath) : meta->type;
-		browserEntry.assetPath = assetPath;
-		browserEntry.fileName = Algorithm::PathToUTF8(fullPath.filename());
-		browserEntry.displayName = MakeDisplayName(fullPath);
-
-		// ディレクトリノードに追加
-		std::filesystem::path directory = std::filesystem::relative(fullPath.parent_path(), rootDesc.fullPath);
-		ProjectDirectoryNode* dirNode = EnsureDirectory(directory);
-		dirNode->assets.emplace_back(std::move(browserEntry));
+		AddAsset(*meta, fullPath.lexically_relative(rootDesc.fullPath), false);
 	}
 	// ディレクトリノードをソート
 	SortRecursive(root_);
+}
+
+void Engine::ProjectAssetIndex::AddAsset(const AssetMeta& meta, const std::filesystem::path& relative, bool sorted) {
+
+	ProjectAssetEntry entry{};
+	entry.assetID = meta.guid;
+	entry.type = meta.type == AssetType::Unknown ? GuessBrowserAssetType(relative) : meta.type;
+	entry.assetPath = meta.assetPath;
+	entry.fileName = Algorithm::PathToUTF8(relative.filename());
+	entry.displayName = MakeDisplayName(relative);
+	auto& assets = EnsureDirectory(relative.parent_path())->assets;
+	if (sorted) {
+		auto pos = std::ranges::lower_bound(assets, entry.displayName, {}, &ProjectAssetEntry::displayName);
+		assets.insert(pos, std::move(entry));
+	} else {
+		assets.emplace_back(std::move(entry));
+	}
+}
+
+bool Engine::ProjectAssetIndex::ApplyAdditions(const AssetDatabase& database, uint64_t previous) {
+
+	std::vector<AssetID> additions;
+	if (!PublishedAssetChanges::CollectAdditions(database, previous, additions)) return false;
+	const std::string prefix = root_.virtualPath + "/";
+	for (const AssetID id : additions) {
+		const auto* meta = database.Find(id);
+		if (!meta) return false;
+		if (meta->assetPath.starts_with(prefix)) {
+			const auto relative = Algorithm::PathFromUTF8(meta->assetPath.substr(prefix.size()));
+			if (!ShouldHideInBrowser(database.ResolveFullPath(id))) AddAsset(*meta, relative, true);
+		}
+	}
+	return true;
 }
 
 const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindDirectory(const std::string& virtualPath) const {
@@ -207,17 +230,15 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 
 		const std::string name = Algorithm::PathToUTF8(part);
 		currentPath += "/" + name;
-		auto it = std::find_if(current->children_.begin(), current->children_.end(),
-			[&](const std::unique_ptr<ProjectDirectoryNode>& child) { return child->name == name; });
+		auto it = std::ranges::lower_bound(current->children_, name, {}, &ProjectDirectoryNode::name);
 
 		// 存在しない場合は新規作成して移動、存在する場合はそのノードに移動
-		if (it == current->children_.end()) {
+		if (it == current->children_.end() || (*it)->name != name) {
 
 			auto child = std::make_unique<ProjectDirectoryNode>();
 			child->name = name;
 			child->virtualPath = currentPath;
-			current->children_.emplace_back(std::move(child));
-			current = current->children_.back().get();
+			current = current->children_.insert(it, std::move(child))->get();
 		} else {
 
 			current = it->get();
@@ -228,11 +249,7 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 
 void Engine::ProjectAssetIndex::SortRecursive(ProjectDirectoryNode& node) {
 
-	// 子ディレクトリを名前順にソート
-	std::sort(node.children_.begin(), node.children_.end(),
-		[](const std::unique_ptr<ProjectDirectoryNode>& a, const std::unique_ptr<ProjectDirectoryNode>& b) {
-			return a->name < b->name;
-		});
+
 	// ディレクトリ内のアセットを表示名順にソート
 	std::sort(node.assets.begin(), node.assets.end(),
 		[](const ProjectAssetEntry& a, const ProjectAssetEntry& b) { return a.displayName < b.displayName; });

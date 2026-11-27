@@ -17,6 +17,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/RenderTextureAssetInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Asset/PaintMaterialInspectorDrawer.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -38,6 +39,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
 	assetInspectorRegistry_.Register(std::make_unique<RenderTextureAssetInspectorDrawer>());
+	assetInspectorRegistry_.Register(std::make_unique<PaintMaterialInspectorDrawer>());
 }
 
 nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
@@ -383,11 +385,12 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 		// Asset種別の編集Drawerへ渡す
 		if (IAssetInspectorDrawer* drawer = assetInspectorRegistry_.Find(meta->type)) {
 
+			const AssetID mesh = meta->type == AssetType::Mesh ? meta->guid : AssetID{};
 			assetEditSession_.TrackDrawer(drawer, meta->guid);
 			drawer->Draw(context, *meta);
-			if (meta->type == AssetType::Mesh) {
-				// インポート設定とモデルプレビューを同時に表示する
-				modelPreview_.DrawMeshAssetInspector(context, *meta);
+			// 保存で索引が更新された場合も最新のメタデータで描画する
+			if (mesh) {
+				if (const auto* current = database->Find(mesh)) modelPreview_.DrawMeshAssetInspector(context, *current);
 			}
 			return;
 		}

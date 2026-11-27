@@ -1,0 +1,155 @@
+{
+    "domain": "Surface",
+    "name": "Ground",
+    "parameters": [
+        {
+            "id": "01e6363c4c61eeb4",
+            "name": "displacementScale",
+            "semantic": "DisplacementScale",
+            "value": 0.0
+        },
+        {
+            "id": "0e12d0e09248bd95",
+            "name": "occlusionTexture",
+            "semantic": "AmbientOcclusionTexture",
+            "value": ""
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "EmissiveIntensity",
+            "value": 0.0
+        },
+        {
+            "id": "4ae1438c7dd5db5c",
+            "name": "paintHeight",
+            "semantic": "None",
+            "value": 0.5
+        },
+        {
+            "id": "6cce61cdfda392e5",
+            "name": "normalTexture",
+            "semantic": "NormalTexture",
+            "value": "841b0ba1d1217ceca942949338384a0b"
+        },
+        {
+            "id": "705e9ed6cc68138c",
+            "name": "ambientOcclusion",
+            "semantic": "AmbientOcclusion",
+            "value": 1.0
+        },
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "78cbaf8477fc55f0",
+            "name": "paintTiling",
+            "semantic": "None",
+            "value": 0.1599999964237213
+        },
+        {
+            "id": "7a1423ddf4f58917",
+            "name": "paintHeightTexture",
+            "semantic": "None",
+            "value": ""
+        },
+        {
+            "id": "8c3c2536347c7023",
+            "name": "metallicTexture",
+            "semantic": "MetallicTexture",
+            "value": ""
+        },
+        {
+            "id": "93c33e46dc8a4e8e",
+            "name": "baseColorTexture",
+            "semantic": "BaseColorTexture",
+            "value": "026340a3df37c668ee802577699a55d7"
+        },
+        {
+            "id": "c4617cc0ecd319d1",
+            "name": "emissiveColor",
+            "semantic": "EmissiveColor",
+            "value": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            }
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "Roughness",
+            "value": 0.5
+        },
+        {
+            "id": "d13b9d746f1c0e8b",
+            "name": "paintChannels",
+            "semantic": "None",
+            "value": {
+                "value": 31,
+                "valueType": "uint"
+            }
+        },
+        {
+            "id": "d75beb6df6e1c204",
+            "name": "roughnessTexture",
+            "semantic": "RoughnessTexture",
+            "value": "f565c5c9c8f2de59c70b235d6fe73ea3"
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "Metallic",
+            "value": 0.0
+        },
+        {
+            "id": "e021b96b50184d6a",
+            "name": "displacementMidpoint",
+            "semantic": "DisplacementMidpoint",
+            "value": 0.5
+        },
+        {
+            "id": "fffedad8a3e27265",
+            "name": "paintNormalStrength",
+            "semantic": "None",
+            "value": 1.0
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "ZPrepass",
+            "pipeline": "4e454d4153534554f09836087840b1d2",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "4e454d41535345548d50435034671c2c",
+            "preferredVariant": "GraphicsVertex"
+        },
+        {
+            "passKind": "Draw",
+            "pipeline": "4e454d4153534554966f3e8a34595313",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Masked",
+            "pipeline": "4e454d4153534554966f3e8a34595314",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "4e454d4153534554b8996e4516e31236",
+            "preferredVariant": "GraphicsMesh"
+        }
+    ],
+    "usage": "Mesh"
+}

@@ -3,6 +3,7 @@
 
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Rendering/Materials/MaterialPaintMask.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -185,6 +186,11 @@ void EditorGameBuildSession::AdvanceBuildRequest(const EditorPanelContext& conte
 	}
 	GameBuildSettings settings = std::move(*pendingSettings_);
 	pendingSettings_.reset();
+	if (context.editorContext && context.editorContext->assetDatabase &&
+		!PublishMaterialPaintMasks(*context.editorContext->assetDatabase, true)) {
+		buildError_ = "ペイントマスクを保存できなかったため、ビルドを開始できません";
+		return;
+	}
 	if (!context.editorContext || !context.editorContext->assetDatabase ||
 		!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
 			context.editorContext->sceneStorage.get())) {

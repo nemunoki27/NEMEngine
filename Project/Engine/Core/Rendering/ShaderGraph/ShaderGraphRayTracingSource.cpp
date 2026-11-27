@@ -20,7 +20,7 @@ namespace Engine::ShaderGraphStageSource {
 							 "#include \"" +
 							 std::string(surfaceIncludeFile) + "\"\n\n";
 		// 命中面の属性を表面評価へ渡す
-		source += "ShaderGraphSurface EvaluateRayTracingShaderGraph(out SubMeshShaderData subMesh,\n"
+		source += "ShaderGraphSurface EvaluateRayTracingShaderGraph(out SubMeshShaderData subMesh, bool applyPaint,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
 				  "\tRaytracingInstanceShaderData instanceData =\n"
 				  "\t\tgRaytracingSceneInstances[InstanceID()];\n"
@@ -90,13 +90,18 @@ namespace Engine::ShaderGraphStageSource {
 				  BuildSphereBoundsAssignments("geometryData.boundsSphere.xyz", "geometryData.boundsSphere.w", "graphWorld") +
 				  "\tgraphInput.isFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;\n"
 				  "\tShaderGraphSurface graph = EvaluateShaderGraphSurface(\n"
-				  "\t\tgraphInput, gRaytracingMaterialParameters.Load<ShaderGraphParameters>(geometryData.parameterOffset));\n\tgraph.baseColor *= vertexColor;\n\treturn graph;\n"
+				  "\t\tgraphInput, gRaytracingMaterialParameters.Load<ShaderGraphParameters>(geometryData.parameterOffset));\n\tgraph.baseColor *= vertexColor;\n"
+				  "\tif (applyPaint && HasMaterialPaint(instanceData.renderFlags)) {\n"
+				  "\t\tPaintFootprint footprint={0.0f.xxx,0.0f.xxx,log2(1+RayTCurrent()*0.02f)};\n"
+				  "\t\tApplyMaterialPaint(uint2(instanceData.entityIndex,instanceData.entityGeneration),PrimitiveIndex(),geometryData.indexOffset/3,\n"
+				  "\t\t\tgraphInput.worldPosition,worldNormal,graphInput.uv,0,0,footprint,gSampler,graph.baseColor.rgb,graph.normal,graph.roughness,graph.metallic,graph.ambientOcclusion,graph.emissive);\n"
+				  "\t}\n\treturn graph;\n"
 				  "}\n\n"
 				  "[shader(\"anyhit\")]\n"
 				  "void ReflectionAnyHit(inout ReflectionPayload payload,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
 				  "\tSubMeshShaderData subMesh;\n"
-				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, attr);\n"
+				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, false, attr);\n"
 				  "\tif (graph.baseColor.a * graph.opacity < graph.alphaClip) {\n"
 				  "\t\tIgnoreHit();\n"
 				  "\t}\n"
@@ -105,7 +110,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "void ReflectionClosestHit(inout ReflectionPayload payload,\n"
 				  "\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
 				  "\tSubMeshShaderData subMesh;\n"
-				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, attr);\n"
+				  "\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(subMesh, true, attr);\n"
 				  "\tRaytracingInstanceShaderData instanceData =\n"
 				  "\t\tgRaytracingSceneInstances[InstanceID()];\n"
 				  "\tfloat3 worldPosition = WorldRayOrigin() +\n"

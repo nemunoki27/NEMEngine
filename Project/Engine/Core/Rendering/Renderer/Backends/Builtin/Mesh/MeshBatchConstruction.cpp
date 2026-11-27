@@ -15,6 +15,7 @@
 #include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/HexTilingComponent.h>
+#include <Engine/Core/World/Components/Rendering/MaterialPaintComponent.h>
 #include <Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -285,6 +286,9 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 					outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
 			}
 
+			if (item->world && !gpuMesh.isSkinned && item->world->TryGetComponent<MaterialPaintComponent>(item->entity)) {
+				instance.flags |= 1u << 7;
+			}
 			instance.outlineDataIndex = static_cast<uint32_t>(outlineScratch_.size());
 			instance.entityIndex = item->entity.index;
 			instance.entityGeneration = item->entity.generation;

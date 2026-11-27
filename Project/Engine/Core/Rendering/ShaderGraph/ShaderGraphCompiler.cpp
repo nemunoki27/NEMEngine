@@ -71,6 +71,12 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 		BuildParameterBindings(expandedGraph, output);
 		return output;
 	}
+	if (IsShaderGraph3DTarget(expandedGraph.target)) {
+		auto program = std::make_shared<DecalGraphProgram>();
+		std::vector<ShaderGraphDiagnostic> paintDiagnostics;
+		if (CompilePaintGraph(expandedGraph, output.ir, *program, paintDiagnostics))
+			output.paintGraph = std::move(program);
+	}
 	// 共通のSampler配置から各描画経路を生成する
 	BuildSamplerBindings(expandedGraph, output);
 	ShaderGraphExpressionCompiler context(expandedGraph, output);

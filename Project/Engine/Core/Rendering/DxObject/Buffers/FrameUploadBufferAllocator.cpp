@@ -87,6 +87,18 @@ FrameUploadBufferAllocation FrameUploadBufferAllocator::AllocateAndUploadBytes(
 	GraphicsResourceRetirement& retirement, ID3D12Device* device, std::span<const uint8_t> bytes) {
 
 	if (bytes.empty()) return {};
+	const auto region = Reserve(retirement, device, bytes.size());
+	std::memcpy(region.mapped, bytes.data(), bytes.size());
+	std::memset(region.mapped + bytes.size(), 0, region.size - bytes.size());
+	return {region.resource->GetGPUVirtualAddress() + region.offset, region.size};
+}
+
+FrameUploadBufferRegion FrameUploadBufferAllocator::Reserve(GraphicsResourceRetirement& retirement,
+	ID3D12Device* device, size_t size, size_t alignment) {
+
+	if (!size) return {};
+	if (alignment != D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT && alignment != D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT)
+		throw std::invalid_argument("転送Bufferのアラインメントが不正です");
 	if (!device || (retirement_ && retirement_ != &retirement)) {
 		throw std::logic_error("転送BufferのDeviceまたは回収先が不正です");
 	}
@@ -96,23 +108,22 @@ FrameUploadBufferAllocation FrameUploadBufferAllocator::AllocateAndUploadBytes(
 	});
 	BeginFrame();
 	auto& state = frameStates_[GraphicsFrameState::GetCurrentIndex()];
-	const size_t alignedSize = AlignAllocation(bytes.size());
+	const size_t alignedSize = AlignAllocation(size);
 	if (alignedSize > SIZE_MAX - state.usedBytes) throw std::length_error("frame内の転送使用量が多すぎます");
 	if (state.shrinkCapacity) {
 		EnsureCapacity(device, state, (std::max)(state.shrinkCapacity, alignedSize));
 	}
-	if (!state.resource || alignedSize > state.capacity - state.offset) {
+	const size_t padding = (alignment - (state.offset % alignment)) % alignment;
+	if (!state.resource || padding > state.capacity - state.offset || alignedSize > state.capacity - state.offset - padding) {
 		const size_t doubled = state.capacity <= SIZE_MAX / 2 ? state.capacity * 2 : state.capacity;
 		EnsureCapacity(device, state, (std::max)({ initialCapacity_, doubled, alignedSize }));
-	}
+	} else state.offset += padding;
 
 	// 公開済みアドレスとは別の領域へ書き込む
 	const size_t offset = state.offset;
-	std::memset(state.mappedData + offset, 0, alignedSize);
-	std::memcpy(state.mappedData + offset, bytes.data(), bytes.size());
 	state.offset += alignedSize;
 	state.usedBytes += alignedSize;
-	return { state.resource->GetGPUVirtualAddress() + offset, alignedSize };
+	return {state.resource.Get(), state.mappedData + offset, offset, alignedSize};
 }
 
 void FrameUploadBufferAllocator::EnsureCapacity(ID3D12Device* device, FrameAllocationState& state, size_t requiredSize) {

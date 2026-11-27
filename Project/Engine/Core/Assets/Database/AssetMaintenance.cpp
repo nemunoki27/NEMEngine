@@ -4,10 +4,62 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetFileUtility.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
+#include <Engine/Core/Assets/Database/AssetMetaStorage.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Materials/PaintMaterialAsset.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 namespace Engine::AssetMaintenance {
+
+	std::filesystem::path MigratePaintMaterial(const std::filesystem::path& source) {
+
+		const auto metaPath = AssetMetaStorage::MetaPathOf(source);
+		const auto revision = StorageFileUtility::FileRevision(source);
+		const auto metaRevision = StorageFileUtility::FileRevision(metaPath);
+		PaintMaterialAsset paint;
+		if (!LoadPaintMaterialAsset(source, paint)) throw std::runtime_error("旧ペイント素材を読み込めません: " + Algorithm::PathToUTF8(source));
+		AssetMeta meta{};
+		nlohmann::json previous = nlohmann::json::object();
+		const bool hasMeta = std::filesystem::exists(metaPath);
+		if (hasMeta) {
+			if (!JsonFile::TryLoad(metaPath, previous) || !AssetMetaStorage::ParseMeta(previous, meta))
+				throw std::runtime_error("旧ペイント素材のmetaを読み込めません: " + Algorithm::PathToUTF8(metaPath));
+		} else {
+			meta.guid = AssetID::New();
+		}
+		meta.type = AssetType::Material;
+		meta.importer = AssetMetaStorage::ResolveImporterName(meta.type);
+		nlohmann::json migratedMeta;
+		if (!AssetMetaStorage::BuildMetaDocument(meta, previous, migratedMeta)) throw std::runtime_error("Materialのmetaを作成できません");
+
+		auto dest = source;
+		dest.replace_extension(".material");
+		for (size_t i = 1; std::filesystem::exists(dest) || std::filesystem::exists(AssetMetaStorage::MetaPathOf(dest)); ++i) {
+			dest = source.parent_path() / source.stem();
+			dest += "_Paint" + std::to_string(i) + ".material";
+		}
+		const auto asset = ConvertLegacyPaintMaterial(Algorithm::PathToUTF8(source.stem()), paint);
+		std::vector<JsonFileChange> changes{
+			{.path = dest, .data = ToJson(asset), .canonicalize = true, .createOnly = true},
+			{.path = AssetMetaStorage::MetaPathOf(dest), .data = migratedMeta, .canonicalize = true, .createOnly = true},
+			{.path = source, .remove = true},
+		};
+		if (hasMeta) changes.push_back({.path = metaPath, .remove = true});
+		const auto scope = AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::Material);
+		std::string error;
+		const auto recover = [&](const auto& directory, std::string& message) {
+			return JsonFileJournal::Recover(scope, directory, message, [](const auto&) {});
+		};
+		const auto verify = [&]() {
+			if (revision != StorageFileUtility::FileRevision(source) || metaRevision != StorageFileUtility::FileRevision(metaPath))
+				throw std::runtime_error("移行前に旧ペイント素材が変更されました");
+		};
+		if (!JsonFileJournal::Commit(scope, changes, "ペイント素材の移行", error, recover, verify)) throw std::runtime_error(error);
+		return dest;
+	}
 
 	// 有効なTexture参照は修復対象から除外する
 	static bool HasValidAtlas(const AssetDatabase& database, const nlohmann::json& data) {

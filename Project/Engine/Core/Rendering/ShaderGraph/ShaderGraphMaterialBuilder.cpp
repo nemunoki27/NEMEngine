@@ -128,6 +128,7 @@ namespace Engine::ShaderGraphMaterialBuilder {
 	void ApplyToMaterial(const ShaderGraphArtifact& artifact, MaterialAsset& material) {
 
 		material.decalGraph = artifact.compileOutput.decalGraph;
+		material.paintGraph = artifact.compileOutput.paintGraph;
 		ShaderGraphParameterDefaults::ApplyToMaterial(artifact.compileOutput.defaultParameters,
 			artifact.compileOutput.parameters, material.parameters);
 
