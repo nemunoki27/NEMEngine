@@ -1,0 +1,11 @@
+{
+  "name": "giCacheSelect",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345544749000000000001",
+      "entry": "Select",
+      "profile": "cs_6_6"
+    }
+  ]
+}

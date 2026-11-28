@@ -1,4 +1,5 @@
 #include "DxDepthStencilView.h"
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 
 using namespace Engine;
 
@@ -22,6 +23,18 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 	if (!device_ || width == 0 || height == 0) {
 		throw std::invalid_argument("Depth Resourceの作成条件が不正です");
 	}
+	if (depthClearFormat == ViewDepth::kDSVFormat && viewDepthDevice_ != device_) {
+		auto supports = [&](DXGI_FORMAT format, UINT required) {
+			D3D12_FEATURE_DATA_FORMAT_SUPPORT support{format};
+			return SUCCEEDED(device_->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) &&
+				(support.Support1 & required) == required;
+		};
+		if (!supports(depthClearFormat, D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL) ||
+			!supports(ViewDepth::kSRVFormat, D3D12_FORMAT_SUPPORT1_TEXTURE2D | D3D12_FORMAT_SUPPORT1_SHADER_LOAD)) {
+			throw std::runtime_error("Viewの浮動小数点深度とステンシルを使用できません");
+		}
+		viewDepthDevice_ = device_;
+	}
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;                                   // Textureの幅
@@ -39,7 +52,7 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 
 	// 深度値のクリア設定
 	D3D12_CLEAR_VALUE depthClearValue{};
-	depthClearValue.DepthStencil.Depth = 1.0f; // 1.0f(最大値)でクリア
+	depthClearValue.DepthStencil.Depth = ViewDepth::ToDeviceDepth(depthClearFormat, 1.0f);
 	depthClearValue.Format = depthClearFormat; // フォーマット、Resourceに合わせる
 
 	ComPtr<ID3D12Resource> candidate;

@@ -66,7 +66,7 @@ EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(
 
 	if (withDepth) {
 
-		DepthTextureCreateDesc depthDesc{};
+		auto depthDesc = DepthTextureCreateDesc::View();
 		depthDesc.width = size.x;
 		depthDesc.height = size.y;
 		depthDesc.debugName =

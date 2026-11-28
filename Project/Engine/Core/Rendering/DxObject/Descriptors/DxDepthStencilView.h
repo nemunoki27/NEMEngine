@@ -48,6 +48,7 @@ namespace Engine {
 		ComPtr<ID3D12Resource> resource_;
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle_;
 		D3D12_GPU_DESCRIPTOR_HANDLE dsvGPUHandle_;
+		ID3D12Device* viewDepthDevice_ = nullptr;
 		uint32_t frameDSVIndex_ = UINT32_MAX;
 
 		//--------- functions ----------------------------------------------------

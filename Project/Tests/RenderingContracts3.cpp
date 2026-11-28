@@ -50,7 +50,7 @@ namespace NEMTests {
 
 		// 真上の平行投影でも画面幅と奥行きを保つ
 		camera.projectionMode = Engine::ResolvedProjectionMode::Orthographic;
-		camera.matrices.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(-4.0f, 2.0f, 4.0f, -2.0f, 0.1f, 100.0f);
+		camera.matrices.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(-4.0f, 2.0f, 4.0f, -2.0f, 100.0f, 0.1f);
 		camera.matrices.inverseProjectionMatrix = Engine::Matrix4x4::Inverse(camera.matrices.projectionMatrix);
 		camera.matrices.viewProjectionMatrix = camera.matrices.viewMatrix * camera.matrices.projectionMatrix;
 		if (!Engine::SceneGridLayout::BuildVisibleGroundPolygon(camera, 4, 0.0f, 1000.0f, polygon)) {
@@ -79,7 +79,7 @@ namespace NEMTests {
 		// 透視投影も視野角に合う平面範囲を保つ
 		camera.projectionMode = Engine::ResolvedProjectionMode::Perspective;
 		camera.matrices.inverseViewMatrix = inverseView;
-		camera.matrices.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(90.0f, 2.0f, 0.1f, 100.0f);
+		camera.matrices.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(90.0f, 2.0f, 100.0f, 0.1f);
 		camera.matrices.inverseProjectionMatrix = Engine::Matrix4x4::Inverse(camera.matrices.projectionMatrix);
 		camera.matrices.viewProjectionMatrix = camera.matrices.viewMatrix * camera.matrices.projectionMatrix;
 		if (!Engine::SceneGridLayout::BuildVisibleGroundPolygon(camera, 4, 0.0f, 1000.0f, polygon)) {

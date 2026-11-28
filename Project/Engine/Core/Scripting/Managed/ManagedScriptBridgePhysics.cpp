@@ -9,6 +9,7 @@
 #include <Engine/Core/Physics/Collision/CollisionQuery.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Rendering/Renderer/Views/GameViewCameraSnapshot.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
@@ -105,8 +106,8 @@ namespace Engine {
 		// GameViewピクセル座標をNDCへ写し、near/far点をunprojectして方向を作る
 		const float ndcX = (x / camera.width) * 2.0f - 1.0f;
 		const float ndcY = 1.0f - (y / camera.height) * 2.0f;
-		const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, 0.0f), camera.inverseViewProjection);
-		const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, 1.0f), camera.inverseViewProjection);
+		const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, ViewDepth::kNear), camera.inverseViewProjection);
+		const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, ViewDepth::kFar), camera.inverseViewProjection);
 
 		const Vector3 rayDirection = Vector3::NormalizeOr(farPoint - nearPoint, Vector3::AnyInit(0.0f));
 		if (rayDirection.Length() <= 0.0001f) {

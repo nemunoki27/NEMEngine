@@ -22,6 +22,8 @@
 
 namespace Engine {
 
+	class MeshSurfaceGeometry;
+
 	//============================================================================
 	//	MeshResourceTypes structures
 	//============================================================================
@@ -237,6 +239,8 @@ namespace Engine {
 	// workerで構築した描画用配列
 	struct MeshUploadData {
 
+		std::shared_ptr<const MeshSurfaceGeometry> probeSurface;
+
 		Vector3 boundsCenter{};
 		float boundsRadius = 0.0f;
 		bool useIndex16 = false;
@@ -357,6 +361,8 @@ namespace Engine {
 	};
 	// GPU上のメッシュリソース
 	struct MeshGPUResource {
+
+		std::shared_ptr<const MeshSurfaceGeometry> probeSurface;
 
 		// アセットID
 		AssetID assetID{};

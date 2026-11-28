@@ -16,4 +16,14 @@ float3 DecodePackedDirection(uint packed) {
 	return normalize(normal);
 }
 
+// UVが退化して接線が法線に重なる面にも直交基底を用意する
+float3 OrthogonalizeTangent(float3 tangent, float3 normal) {
+
+	tangent -= normal * dot(tangent, normal);
+	float lengthSquared = dot(tangent, tangent);
+	if (lengthSquared > 1e-10f) return tangent * rsqrt(lengthSquared);
+	float3 axis = abs(normal.y) < 0.9f ? float3(0, 1, 0) : float3(1, 0, 0);
+	return normalize(cross(axis, normal));
+}
+
 #endif

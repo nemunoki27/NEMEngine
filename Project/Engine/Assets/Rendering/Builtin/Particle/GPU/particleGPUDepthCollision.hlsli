@@ -1,3 +1,4 @@
+#include "../../Common/sceneViewDepth.hlsli"
 #ifndef NEM_PARTICLE_GPU_DEPTH_COLLISION
 #define NEM_PARTICLE_GPU_DEPTH_COLLISION
 
@@ -31,15 +32,15 @@ ParticleGPUCollisionHit ParticleSweepDepth(float3 start, float3 end, float radiu
 		float2 uv = uvStart + deltaUV * lerp(low, high, float(i) / steps);
 		int2 pixel = clamp((int2) (uv * depthParameters.xy), 0, (int2) depthParameters.xy - 1);
 		float depth = gGPUCollisionDepth.Load(int3(pixel, 0));
-		if (depth >= 1 || depth < 0) continue;
+		if (depth <= kSceneFarDepth || depth > kSceneNearDepth) continue;
 		int2 px = pixel + int2(pixel.x + 1 < (int) depthParameters.x ? 1 : -1, 0);
 		int2 py = pixel + int2(0, pixel.y + 1 < (int) depthParameters.y ? 1 : -1);
 		float dx = gGPUCollisionDepth.Load(int3(px, 0));
 		float dy = gGPUCollisionDepth.Load(int3(py, 0));
-		if (dx >= 1 || dy >= 1) continue;
+		if (dx <= kSceneFarDepth || dy <= kSceneFarDepth) continue;
 		float3 surface = ParticleDepthWorld(pixel, depth);
 		float3 normal = ParticleNormalize(cross(ParticleDepthWorld(px, dx) - surface, ParticleDepthWorld(py, dy) - surface), float3(0, 1, 0));
-		float4 nearClip = mul(float4(0, 0, 0, 1), depthInverseViewProjection);
+		float4 nearClip = mul(float4(0, 0, kSceneNearDepth, 1), depthInverseViewProjection);
 		float3 nearPoint = nearClip.xyz / nearClip.w;
 		if (dot(normal, nearPoint - surface) < 0) normal = -normal;
 		float a = dot(start - surface, normal) - radius;

@@ -40,6 +40,7 @@ namespace {
 		float depth = 0.5f;
 		bool reverse = false;
 		bool clearColor = false;
+		bool alphaBlend = false;
 		Vector4 color = Vector4(1, 0, 0, 1);
 	};
 
@@ -62,7 +63,7 @@ namespace {
 	class RasterFixture {
 	public:
 
-		RasterFixture() : directory_("RendererRenderSettingsGPU") {
+		explicit RasterFixture(bool reversed) : directory_("RendererRenderSettingsGPU") {
 
 			const auto shader = directory_.GetPath() / "test.hlsl";
 			std::ofstream file(shader);
@@ -78,7 +79,9 @@ namespace {
 			depths_.SetRetirementQueue(gpu_.retirement);
 			color_.Create(gpu_.device.Get(), &targets_, &gpu_.descriptors,
 				{.width = kSize, .height = kSize, .format = DXGI_FORMAT_R32G32B32A32_FLOAT});
-			depth_.Create(&depths_, &gpu_.descriptors, {.width = kSize, .height = kSize});
+			auto depth = reversed ? DepthTextureCreateDesc::View() : DepthTextureCreateDesc{};
+			depth.width = depth.height = kSize;
+			depth_.Create(&depths_, &gpu_.descriptors, depth);
 		}
 
 		~RasterFixture() {
@@ -102,7 +105,7 @@ namespace {
 			commands->ClearRenderTargetView(target, clear, 0, nullptr);
 			if (!externalDepth) {
 				commands->ClearDepthStencilView(depth, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-					clearDepth, clearStencil, 0, nullptr);
+					ViewDepth::ToDeviceDepth(depthTexture.GetDSVFormat(), clearDepth), clearStencil, 0, nullptr);
 			}
 			commands->OMSetRenderTargets(1, &target, FALSE, &depth);
 			const D3D12_VIEWPORT viewport{0, 0, kSize, kSize, 0, 1};
@@ -120,10 +123,10 @@ namespace {
 				desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 				desc.depthStencil.DepthEnable = FALSE;
 				desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-				desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+				desc.dsvFormat = depthTexture.GetDSVFormat();
 				desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 				desc.numRenderTargets = 1;
-				desc.disableNormalBlending = true;
+				desc.disableNormalBlending = !draw.alphaBlend;
 				ApplyRendererPipelineSettings(desc, NormalizeRendererPipelineSettings(&draw.settings));
 				auto pipeline = PipelineStateBuilder::CreateGraphics(gpu_.retirement, gpu_.device.Get(), &gpu_.compiler, desc);
 				if (!pipeline) throw std::runtime_error("Renderer settings pipeline creation failed");
@@ -131,7 +134,7 @@ namespace {
 				commands->SetGraphicsRootSignature(pipeline->GetRootSignature());
 				commands->SetPipelineState(pipeline->GetGraphicsPipeline(BlendMode::Normal));
 				commands->OMSetStencilRef(draw.settings.stencilReference);
-				const Constants values{draw.color, draw.depth, draw.reverse ? 1u : 0u};
+				const Constants values{draw.color, ViewDepth::ToDeviceDepth(depthTexture.GetDSVFormat(), draw.depth), draw.reverse ? 1u : 0u};
 				const auto allocation = gpu_.constants.AllocateAndUpload(gpu_.retirement, gpu_.device.Get(), values);
 				RootBindingCommand::SetGraphicsCBV(commands,
 					pipeline->FindBindingByName("Settings", ShaderBindingKind::CBV), allocation.gpuAddress);
@@ -190,7 +193,7 @@ namespace {
 			if (!original) return false;
 			ComPtr<ID3D12Resource> originalResource = original->GetResource();
 			gpu_.commands.GetCommandList()->ClearDepthStencilView(original->GetDSVCPUHandle(),
-				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0, 37, 0, nullptr);
+				D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, ViewDepth::ToDeviceDepth(original->GetDSVFormat(), 0.0f), 37, 0, nullptr);
 			if (prepare(&targetA, 0) != original || original->GetResource() != originalResource.Get()) return false;
 			auto* otherDomain = prepare(&targetA, 1);
 			auto* otherTarget = prepare(&targetB, 0);
@@ -257,12 +260,12 @@ namespace {
 	}
 }
 
-bool NEMTests::TestRendererRenderSettingsGPU() {
+static bool CheckRendererSettings(bool reversed) {
 
 	try {
-		RasterFixture fixture;
+		RasterFixture fixture(reversed);
 		if (!Check("Depth attachments and snapshot", fixture.CheckAttachments())) return false;
-		if (!Check("Reflection without depth write", fixture.CheckReflections())) return false;
+		if (!reversed && !Check("Reflection without depth write", fixture.CheckReflections())) return false;
 		Draw draw;
 		draw.settings.inheritMaterial = false;
 		draw.settings.cullMode = RendererCullMode::NONE;
@@ -308,6 +311,16 @@ bool NEMTests::TestRendererRenderSettingsGPU() {
 			const auto result = fixture.Render(draws);
 			if (!Check("Depth write", result.center.x == (write ? 1.0f : 0.0f))) return false;
 		}
+		Draw transparent = draw;
+		transparent.alphaBlend = true;
+		transparent.settings.depthWrite = false;
+		transparent.color = Vector4(0, 1, 0, 0.5f);
+		draw.settings.depthWrite = true;
+		transparent.depth = 0.75f;
+		if (!Check("Occluded transparent", fixture.Render(std::array{draw, transparent}).center.x == 1)) return false;
+		transparent.depth = 0.125f;
+		const auto blended = fixture.Render(std::array{draw, transparent});
+		if (!Check("Visible transparent", blended.center.x == 0.5f && blended.center.y == 0.5f)) return false;
 		draw.settings.depthTest = false;
 		draw.settings.stencilEnabled = true;
 		draw.settings.stencilReference = 17;
@@ -373,4 +386,8 @@ bool NEMTests::TestRendererRenderSettingsGPU() {
 		std::cerr << "Renderer settings GPU: " << error.what() << '\n';
 		return false;
 	}
+}
+bool NEMTests::TestRendererRenderSettingsGPU() {
+
+	return CheckRendererSettings(false) && CheckRendererSettings(true);
 }

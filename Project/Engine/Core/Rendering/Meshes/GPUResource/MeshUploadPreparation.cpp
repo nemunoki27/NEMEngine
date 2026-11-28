@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshSurfaceGeometry.h>
 
 // c++
 #include <algorithm>
@@ -164,6 +165,7 @@ Engine::MeshUploadData Engine::MeshUploadPreparation::Build(const ImportedMeshAs
 
 	// worker上で描画用配列と境界球を確定する
 	MeshUploadData data{};
+	data.probeSurface = MeshSurfaceGeometry::Build(imported);
 	data.hasVertexColors = !imported.vertexColors.empty();
 	if (data.hasVertexColors && imported.vertexColors.size() != imported.vertices.size()) {
 		throw std::runtime_error("Meshの頂点色と頂点数が一致しません");

@@ -30,10 +30,10 @@ void Engine::DebugOverlayPass::Execute([[maybe_unused]] GraphicsCore& graphicsCo
 
 			// GameViewのNDC四隅をワールドへ戻し、2Dゲームカメラの描画範囲を重ねる
 			const std::array<Vector3, 4> kNdcCorners = {
-				Vector3(-1.0f, 1.0f, 0.0f),
-				Vector3(1.0f, 1.0f, 0.0f),
-				Vector3(1.0f, -1.0f, 0.0f),
-				Vector3(-1.0f, -1.0f, 0.0f),
+				Vector3(-1.0f, 1.0f, ViewDepth::kNear),
+				Vector3(1.0f, 1.0f, ViewDepth::kNear),
+				Vector3(1.0f, -1.0f, ViewDepth::kNear),
+				Vector3(-1.0f, -1.0f, ViewDepth::kNear),
 			};
 			const Matrix4x4 inverseViewProjection = Matrix4x4::Inverse(
 				context.gameView->orthographic.matrices.viewProjectionMatrix);

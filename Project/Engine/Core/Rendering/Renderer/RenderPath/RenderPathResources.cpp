@@ -288,12 +288,9 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	desc.colors.emplace_back(color6);
 
 	// 深度バッファ
-	DepthTextureCreateDesc depth{};
+	auto depth = DepthTextureCreateDesc::View();
 	depth.width = width;
 	depth.height = height;
-	depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
-	depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 	depth.debugName = L"SceneDepth";
 	desc.depth = depth;
 

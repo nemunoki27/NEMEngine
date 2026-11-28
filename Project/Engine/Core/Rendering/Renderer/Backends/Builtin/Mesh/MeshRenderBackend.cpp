@@ -366,6 +366,14 @@ void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, Mesh
 		source.vertexOffset = vertexOffset;
 		source.bufferGeneration = resources.GetSkinningBufferGeneration();
 		source.poseGeneration = resources.GetSkinningResultGeneration();
+		const auto cached = skinnedSourceLookup_.find(key);
+		if (cached != skinnedSourceLookup_.end() && cached->second.resource == source.resource &&
+			cached->second.vertexOffset == vertexOffset && cached->second.poseGeneration == source.poseGeneration &&
+			cached->second.bufferGeneration == source.bufferGeneration) continue;
+		if (const auto* mesh = FindMeshResource(meshAssetID); mesh && mesh->vertexCount && vertexOffset % mesh->vertexCount == 0) {
+			source.bounds = resources.GetSkinnedBounds(*mesh);
+			source.boundsOffset = size_t(vertexOffset / mesh->vertexCount) * mesh->subMeshes.size();
+		}
 
 		// 同一エンティティが複数回描画される場合は、最後のものが登録される
 		skinnedSourceLookup_[key] = source;

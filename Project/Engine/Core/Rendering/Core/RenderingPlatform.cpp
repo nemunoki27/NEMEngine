@@ -23,16 +23,6 @@ using namespace Engine;
 //============================================================================
 //	GraphicsPlatform classMethods
 //============================================================================
-namespace {
-#if defined(D3D_SHADER_MODEL_6_8)
-	constexpr D3D_SHADER_MODEL kRequestedHighestShaderModel = D3D_SHADER_MODEL_6_8;
-#elif defined(D3D_SHADER_MODEL_6_7)
-	constexpr D3D_SHADER_MODEL kRequestedHighestShaderModel = D3D_SHADER_MODEL_6_7;
-#else
-	constexpr D3D_SHADER_MODEL kRequestedHighestShaderModel = D3D_SHADER_MODEL_6_6;
-#endif
-}
-
 GraphicsPlatform::~GraphicsPlatform() {
 
 	// 初期化途中でも記録済みGPU処理を終えてからDeviceを破棄する
@@ -96,15 +86,16 @@ void GraphicsPlatform::InitDXDevice() {
 
 D3D_SHADER_MODEL GraphicsPlatform::QueryHighestShaderModel() const {
 
-	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
-	shaderModel.HighestShaderModel = kRequestedHighestShaderModel;
+	// 古いランタイムは未認識のShader ModelにE_INVALIDARGを返す
+	for (int model = D3D_HIGHEST_SHADER_MODEL; D3D_SHADER_MODEL_6_0 <= model; --model) {
 
-	const HRESULT hr = dxDevice_->Get()->CheckFeatureSupport(
-		D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
-	if (FAILED(hr)) {
-		return D3D_SHADER_MODEL_5_1;
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{ static_cast<D3D_SHADER_MODEL>(model) };
+		const HRESULT hr = dxDevice_->Get()->CheckFeatureSupport(
+			D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
+		if (SUCCEEDED(hr)) return shaderModel.HighestShaderModel;
+		if (hr != E_INVALIDARG) break;
 	}
-	return shaderModel.HighestShaderModel;
+	return D3D_SHADER_MODEL_5_1;
 }
 
 void GraphicsPlatform::DetectFeatureSupport() {

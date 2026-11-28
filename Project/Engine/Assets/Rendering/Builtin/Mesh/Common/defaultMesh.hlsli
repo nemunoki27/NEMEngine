@@ -174,7 +174,7 @@ float3x3 BuildMeshTBN(VSOutput input) {
 
 	float3 N = normalize(input.normal);
 	// Gram-Schmidtで接線を再直交化
-	float3 T = normalize(input.tangent - dot(input.tangent, N) * N);
+	float3 T = OrthogonalizeTangent(input.tangent, N);
 	float3 B = BuildMeshBitangent(N, T, input.tangentSign, input.orientationSign);
 	return float3x3(T, B, N);
 }

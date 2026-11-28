@@ -92,18 +92,27 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		return flags;
 	}
 
-	const Engine::PipelineVariantDesc* ResolvePrimitivePipelineVariant(
+	uint32_t ResolveEmitterFaceFlags(const D3D12_RASTERIZER_DESC& rasterizer, const RendererRenderSettings* settings) {
+
+		const auto cull = settings && !settings->inheritMaterial ? static_cast<D3D12_CULL_MODE>(settings->cullMode) : rasterizer.CullMode;
+		if (cull == D3D12_CULL_MODE_NONE) return 0u;
+		const bool reverse = (cull == D3D12_CULL_MODE_FRONT) != (rasterizer.FrontCounterClockwise != FALSE);
+		return reverse ? 4u : 2u;
+	}
+
+	const Engine::PipelineVariantDesc* ResolveSurfacePipelineVariant(
 		Engine::RenderAssetLibrary& assetLibrary,
 		const Engine::MaterialAsset& material,
 		Engine::MaterialSurfaceMode surfaceMode,
-		const Engine::GraphicsRuntimeFeatures& runtimeFeatures) {
+		const Engine::GraphicsRuntimeFeatures& runtimeFeatures, bool maskedPass) {
 
 		const Engine::MaterialPassKind passKind =
 			surfaceMode == Engine::MaterialSurfaceMode::Transparent ?
 			Engine::MaterialPassKind::Transparent :
 			Engine::MaterialPassKind::Draw;
-		const Engine::MaterialPassBinding* pass =
-			Engine::FindPass(material, passKind);
+		const Engine::MaterialPassBinding* pass = maskedPass && surfaceMode == Engine::MaterialSurfaceMode::Masked ?
+			Engine::FindPass(material, Engine::MaterialPassKind::Masked) : nullptr;
+		if (!pass) pass = Engine::FindPass(material, passKind);
 		if (!pass) {
 			return nullptr;
 		}
@@ -113,28 +122,6 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			Engine::ResolveBestVariant(
 				*pipeline, pass->preferredVariant, runtimeFeatures) :
 			nullptr;
-	}
-
-	uint64_t ComputeGeometryLayoutHash(std::span<const Engine::SubMeshMaterial> subMeshes, uint32_t geometryCount) {
-
-		uint64_t hash = geometryCount;
-		for (uint32_t index = 0; index < geometryCount; ++index) {
-			Engine::Algorithm::HashCombine(hash,
-				index < subMeshes.size() && !subMeshes[index].visible ? 0u : 1u);
-
-			const Engine::Matrix4x4 localMatrix =
-				index < subMeshes.size() ?
-				Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[index]) :
-				Engine::Matrix4x4::Identity();
-			for (uint32_t row = 0; row < 4; ++row) {
-				for (uint32_t column = 0; column < 4; ++column) {
-
-					Engine::Algorithm::HashCombine(hash,
-						std::bit_cast<uint32_t>(localMatrix.m[row][column]));
-				}
-			}
-		}
-		return hash;
 	}
 
 	uint64_t ComputeSceneMaterialHash(std::span<const Engine::MeshSubMeshShaderData> subMeshes) {

@@ -24,8 +24,11 @@
 
 // c++
 #include <algorithm>
+#include <bit>
+#include <cmath>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <span>
 #include <variant>
 
@@ -70,11 +73,10 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		}
 		work.staticScene = work.staticScene && !meshResource->isSkinned;
 		work.blasGeometryCount += visibleSubMeshCount;
-		const uint64_t geometryTransformHash =
-			ComputeGeometryLayoutHash(subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
-		uint64_t geometryLayoutHash = geometryTransformHash;
-		const bool hasCustomGeometryTransforms =
-			geometryTransformHash != ComputeGeometryLayoutHash({}, static_cast<uint32_t>(meshResource->subMeshes.size()));
+		uint64_t geometryTransformHash = meshResource->subMeshes.size();
+		uint64_t geometryLayoutHash = visibleSubMeshCount;
+		const Matrix4x4 identity = Matrix4x4::Identity();
+		bool hasCustomGeometryTransforms = visibleSubMeshCount != meshResource->subMeshes.size();
 		StaticInstanceBLASKey staticInstanceKey{};
 		StaticInstanceBLASEntry* staticInstanceEntry = nullptr;
 		bool usesInstanceBLAS = false;
@@ -128,7 +130,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			const SubMeshDesc& importedSubMesh = meshResource->subMeshes[subMeshIndex];
 			const bool hasMesh = subMeshIndex < subMeshes.size();
 			const Matrix4x4 localMatrix =
-				hasMesh ? MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[subMeshIndex]) : Matrix4x4::Identity();
+				hasMesh ? MeshSubMeshRuntime::BuildRenderLocalMatrix(subMeshes[subMeshIndex]) : identity;
+			Algorithm::HashCombine(geometryTransformHash, subMeshIndex);
+			if (localMatrix != identity) {
+				hasCustomGeometryTransforms = true;
+				for (const auto& row : localMatrix.m) {
+					for (float value : row) Algorithm::HashCombine(geometryTransformHash, std::bit_cast<uint32_t>(value));
+				}
+			}
 
 			RaytracingBLASGeometryInput geometry{};
 			geometry.vertexAddress = vertexAddress;
@@ -151,6 +160,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			}
 			const auto* material = work.assetLibrary.LoadMaterial(work.materialResolver.ResolveORDefault(
 				work.assetDatabase, renderState.material, DefaultMaterialSlot::Mesh));
+			// 独自頂点シェーダーの変位にはCPU上で保証できる境界がない
+			if (!material || !MaterialRenderPolicy::IsStandardSurface(*material)) work.scene.result.probeReceiversCovered_ = false;
 			if (material && material->renderState.overridesRenderer && !renderState.surfaceModeOverridden) {
 				renderState.surfaceMode = material->renderState.surfaceMode;
 			}
@@ -206,13 +217,37 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			geometryData.boundsSphere = {bounds.center.x, bounds.center.y, bounds.center.z, bounds.radius};
 			work.scene.result.sceneGeometryScratch_.emplace_back(geometryData);
 			bounds.emissiveTriangleCount = GetEmissiveTriangleCount(subMeshData, importedSubMesh.indexCount);
+			if (bounds.emissiveTriangleCount && material) {
+				const auto* variant = ResolveSurfacePipelineVariant(work.assetLibrary, *material, renderState.surfaceMode, work.runtimeFeatures, true);
+				if (variant) bounds.emitterFaceFlags = ResolveEmitterFaceFlags(variant->rasterizer, src.renderer ? &src.renderer->renderSettings : nullptr);
+			}
 			bounds.deformed = hasSkinnedSource;
+			if (!hasSkinnedSource) {
+				bounds.probeBounds = geometryData.boundsSphere;
+				bounds.probeSurface = meshResource->probeSurface;
+				bounds.probeSubMesh = subMeshIndex;
+				bounds.probeLocalMatrix = localMatrix;
+				bounds.probeBoundsGuaranteed = true;
+			} else if (skinnedSource.bounds && skinnedSource.boundsOffset + subMeshIndex < skinnedSource.bounds->size()) {
+				const auto& pose = (*skinnedSource.bounds)[skinnedSource.boundsOffset + subMeshIndex];
+				if (pose.sphere.w >= 0.0f) {
+					Vector3 center{pose.sphere.x, pose.sphere.y, pose.sphere.z};
+					bounds.probeHalfExtent = MeshBoundsUtility::TransformHalfExtent(localMatrix, center, pose.halfExtent);
+					center = Vector3::Transform(center, localMatrix);
+					const auto& half = bounds.probeHalfExtent;
+					const float radius = std::nextafter(std::hypot(half.x, half.y, half.z), std::numeric_limits<float>::infinity());
+					bounds.probeBounds = {center.x, center.y, center.z, radius};
+					bounds.probeBoundsGuaranteed = std::isfinite(radius) && std::isfinite(center.x) &&
+						std::isfinite(center.y) && std::isfinite(center.z);
+				}
+			}
 			bounds.instanceIndex = static_cast<uint32_t>(work.scene.result.sceneInstanceScratch_.size());
 			bounds.receiveDecals = src.renderer && src.renderer->receiveDecals && !meshResource->isSkinned &&
 				renderState.surfaceMode != MaterialSurfaceMode::Transparent;
 			work.scene.result.sceneGeometryBounds_.push_back(bounds);
 		}
 
+		Algorithm::HashCombine(geometryLayoutHash, geometryTransformHash);
 		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
 
 			staticInstanceKey.world = src.world;

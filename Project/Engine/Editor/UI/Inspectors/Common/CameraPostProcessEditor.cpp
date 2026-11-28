@@ -23,8 +23,15 @@ Engine::ValueEditResult Engine::CameraPostProcessEditor::Draw(
 	result.editFinished |= preExposureChanged;
 	accumulate(MyGUI::DragFloat("最小EV100", settings.exposure.minEV100));
 	accumulate(MyGUI::DragFloat("最大EV100", settings.exposure.maxEV100));
-	accumulate(MyGUI::DragFloat("明順応速度", settings.exposure.speedUp));
-	accumulate(MyGUI::DragFloat("暗順応速度", settings.exposure.speedDown));
+	const auto drawAdaptationSpeed = [&](const char* label, float& speed, const char* tooltip) {
+
+		ImGui::BeginGroup();
+		accumulate(MyGUI::DragFloat(label, speed, {.minValue = 0.0f}));
+		ImGui::EndGroup();
+		ImGui::SetItemTooltip("%s", tooltip);
+	};
+	drawAdaptationSpeed("明順応速度", settings.exposure.speedUp, "暗い場所から明るい場所に出たときの順応速度（EV/秒）");
+	drawAdaptationSpeed("暗順応速度", settings.exposure.speedDown, "明るい場所から暗い場所に入ったときの順応速度（EV/秒）");
 
 	// フィルム特性と色補正を編集する
 	accumulate(MyGUI::DragFloat("Slope", settings.filmic.slope));

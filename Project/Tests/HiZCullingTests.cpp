@@ -112,7 +112,7 @@ bool NEMTests::CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* qu
 			// 画面端の球を包む立方体の投影範囲が欠けないか確認する
 			" float4x4 view = (float4x4)0; view[0][0] = 1; view[1][1] = 1; view[2][2] = 1; view[3][3] = 1;\n"
 			" float4x4 projection = (float4x4)0; projection[0][0] = 1; projection[1][1] = 1;\n"
-			" projection[2][2] = 100.0 / 99.0; projection[2][3] = 1; projection[3][2] = -100.0 / 99.0;\n"
+			" projection[2][2] = -1.0 / 99.0; projection[2][3] = 1; projection[3][2] = 100.0 / 99.0;\n"
 			" float3 center = float3((id.x < 3) ? 1.0 : -1.0, 2.0 + id.x, 10.0); center.x *= 5.0 + id.x;\n"
 			" float2 uvMin, uvMax; float depth;\n"
 			" bool projectionCovered = CalcSphereOcclusionProjection(projection, view, 1.0, float2(1,1),\n"
@@ -122,7 +122,7 @@ bool NEMTests::CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* qu
 			" float3 pointValueWorld = center + pointValue;\n"
 			" float4 clip = mul(float4(pointValueWorld,1), projection);\n"
 			" float2 uv = saturate(clip.xy / clip.w * float2(0.5,-0.5) + 0.5);\n"
-			" projectionCovered = projectionCovered && all(uv >= uvMin - 0.00001) && all(uv <= uvMax + 0.00001); }\n"
+			" projectionCovered = projectionCovered && all(uv >= uvMin - 0.00001) && all(uv <= uvMax + 0.00001) && clip.z / clip.w <= depth + 0.00001; }\n"
 			" gOutput[offset + 8] = projectionCovered ? 1 : 0; }\n";
 		if (!source) return false;
 	}

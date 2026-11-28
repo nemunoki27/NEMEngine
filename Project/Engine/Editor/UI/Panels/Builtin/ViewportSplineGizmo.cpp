@@ -7,6 +7,7 @@
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -128,8 +129,8 @@ bool ViewportSplineGizmo::Draw(const EditorPanelContext& context, ImVec2 imagePo
 			1 - (mouse.y - imagePosition.y) / imageSize.y * 2, depth_);
 		auto local = Vector3::Transform(Vector3::Transform(ndc, inverseView), inverseWorld);
 		if (draft_.is2D) {
-			const auto nearPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, 0), inverseView), inverseWorld);
-			const auto farPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, 1), inverseView), inverseWorld);
+			const auto nearPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, ViewDepth::kNear), inverseView), inverseWorld);
+			const auto farPoint = Vector3::Transform(Vector3::Transform(Vector3(ndc.x, ndc.y, ViewDepth::kFar), inverseView), inverseWorld);
 			const auto direction = farPoint - nearPoint;
 			if (std::abs(direction.z) < 0.000001f) return captured;
 			local = nearPoint - direction * (nearPoint.z / direction.z);

@@ -14,4 +14,6 @@ namespace Engine::MeshBoundsUtility {
 	void Calculate(std::span<const MeshVertex> vertices, std::span<const uint32_t> indices, Vector3& center, float& radius);
 	// 非一様ScaleとShearを含む変換後も球を欠かさない
 	void TransformSphere(const Matrix4x4& matrix, Vector3& center, float& radius);
+	// 拡大・回転後のAABBと変換した中心との丸め誤差を含む
+	Vector3 TransformHalfExtent(const Matrix4x4& matrix, const Vector3& center, const Vector3& halfExtent);
 }

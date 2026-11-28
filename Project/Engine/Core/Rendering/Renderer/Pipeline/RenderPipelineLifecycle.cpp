@@ -108,6 +108,7 @@ void RenderPipelineRunner::Init() {
 	historySceneInstance_ = {};
 
 	// ビューライトバッファの初期化
+	worldLightIndex_.Release();
 	gameViewState_.lightBuffers.Release();
 	sceneViewState_.lightBuffers.Release();
 	previewResources_.previewLightBufferPool_.Clear();
@@ -155,6 +156,7 @@ void RenderPipelineRunner::Finalize() {
 	gameViewState_.lightSet.Clear();
 	sceneViewState_.lightSet.Clear();
 	previewResources_.previewLightSet_.Clear();
+	worldLightIndex_.Release();
 	gameViewState_.lightBuffers.Release();
 	sceneViewState_.lightBuffers.Release();
 	previewResources_.previewLightBufferPool_.Clear();

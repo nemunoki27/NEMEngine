@@ -10,6 +10,10 @@
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Meshes/MeshImportService.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshSurfaceGeometry.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshBoundsUtility.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/GIProbeSurfaceMask.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Rendering/Meshes/Import/ModelFileDependencyCollector.h>
@@ -19,6 +23,10 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <cmath>
+#include <limits>
+#include <thread>
 #include <fstream>
 #include <iostream>
 
@@ -337,6 +345,132 @@ namespace {
 	}
 }
 
+bool NEMTests::TestGIProbeSurfaceMask() {
+
+	using namespace Engine;
+	ImportedMeshAsset mesh;
+	for (uint32_t triangle = 0; triangle < 20; ++triangle) {
+		const float x = 4.0f * triangle;
+		for (const Vector4 position : {Vector4{x,0,0,1}, Vector4{x+1,0,0,1}, Vector4{x,1,0,1}}) {
+			mesh.indices.push_back(static_cast<uint32_t>(mesh.vertices.size()));
+			mesh.vertices.emplace_back().position = position;
+		}
+	}
+	mesh.subMeshes.resize(2);
+	mesh.subMeshes[0].indexCount = 57;
+	mesh.subMeshes[1].indexOffset = 57;
+	mesh.subMeshes[1].indexCount = 3;
+	const auto surface = MeshSurfaceGeometry::Build(mesh);
+	if (!surface || !surface->IntersectsSphere(0, {.25f,.25f,.49f}, .5f) ||
+		surface->IntersectsSphere(0, {.25f,.25f,.51f}, .5f) ||
+		surface->IntersectsSphere(0, {.9f,.9f,0}, .1f) ||
+		surface->IntersectsSphere(0, {76.25f,.25f,0}, .1f) ||
+		!surface->IntersectsSphere(1, {76.25f,.25f,0}, .1f)) return false;
+	mesh.isSkinned = true;
+	if (MeshSurfaceGeometry::Build(mesh)) return false;
+	mesh.boneCount = 2;
+	mesh.vertexInfluences.resize(mesh.vertices.size());
+	for (uint32_t i = 0; i < mesh.vertices.size(); ++i) {
+		auto& weights = mesh.vertexInfluences[i];
+		weights.jointIndices[0] = i < 57 ? 0 : 1;
+		weights.weights[0] = 1;
+	}
+	// 遠く離れた別サブメッシュのボーン、混合ウェイト、未加重頂点を分けて扱う
+	mesh.vertexInfluences[0].jointIndices[1] = 1;
+	mesh.vertexInfluences[0].weights = {2, 3, 0, 0};
+	mesh.vertexInfluences.back() = {};
+	auto skin = MeshSurfaceGeometry::Build(mesh);
+	if (!skin) return false;
+	std::array<WellForGPU, 2> pose{};
+	pose[0].skeletonSpaceMatrix.m[3][0] = 1000;
+	pose[1].skeletonSpaceMatrix.m[3][0] = 10;
+	pose[1].skeletonSpaceMatrix.m[3][1] = 2;
+	pose[1].skeletonSpaceMatrix.m[3][2] = -3;
+	const auto contains = [](const Vector4& sphere, const Vector3& p) {
+		return (Vector3{sphere.x, sphere.y, sphere.z} - p).Length() <= sphere.w;
+	};
+	const auto firstSkin = skin->GetSkinnedBounds(0, pose);
+	const auto lastSkin = skin->GetSkinnedBounds(1, pose);
+	if (!contains(firstSkin.sphere, {406, 1.2f, -1.8f}) || !contains(lastSkin.sphere, {86, 2, -3}) ||
+		!contains(lastSkin.sphere, {87, 2, -3}) || !contains(lastSkin.sphere, {76, 1, 0}) || lastSkin.sphere.w >= 6 ||
+		lastSkin.halfExtent.x < 5.5f || lastSkin.halfExtent.x > 5.51f || lastSkin.halfExtent.z < 1.5f) return false;
+	pose[0].skeletonSpaceMatrix.m[3][0] = -2000;
+	if (skin->GetSkinnedBounds(1, pose).sphere != lastSkin.sphere || skin->GetSkinnedBounds(1, std::span(pose).first(1)).sphere.w >= 0) return false;
+	auto local = Matrix4x4::Identity();
+	local.m[0][0] = -2;
+	local.m[0][1] = 3;
+	local.m[2][2] = -0.5f;
+	local.m[3][1] = 9;
+	const Vector3 bindCenter{lastSkin.sphere.x, lastSkin.sphere.y, lastSkin.sphere.z};
+	const auto transformed = MeshBoundsUtility::TransformHalfExtent(local, bindCenter, lastSkin.halfExtent);
+	for (const Vector3 p : {Vector3{86,2,-3}, Vector3{87,2,-3}, Vector3{76,1,0}}) {
+		const auto delta = Vector3::Transform(p, local) - Vector3::Transform(bindCenter, local);
+		if (std::abs(delta.x) > transformed.x || std::abs(delta.y) > transformed.y || std::abs(delta.z) > transformed.z) return false;
+	}
+	pose[1].skeletonSpaceMatrix.m[3][0] = std::numeric_limits<float>::infinity();
+	if (skin->GetSkinnedBounds(1, pose).sphere.w >= 0) return false;
+	mesh.vertexInfluences[0].jointIndices[0] = 7;
+	if (MeshSurfaceGeometry::Build(mesh)) return false;
+
+	GIProbeSurfaceMask mask;
+	SceneExecutionContext context{};
+	std::array<Matrix4x4,1> worlds{Matrix4x4::Identity()};
+	RaytracingGeometryBounds bounds{};
+	bounds.probeBoundsGuaranteed = true;
+	bounds.probeBounds = {0,0,0,100};
+	bounds.probeSurface = surface;
+	context.raytracing.instanceWorldMatrices = worlds;
+	context.raytracing.geometryBounds = {&bounds,1};
+	context.raytracing.probeReceiversCovered = true;
+	const std::array<GIProbeSurfaceMask::Brick,1> bricks{{{0,0,0,1}}};
+	std::vector<uint64_t> live;
+	const auto update = [&] { mask.Update(context, bricks, .75f, 2, live); };
+	const auto end = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	do {
+		update();
+		if (live.size() != 1) return false;
+		if (live.front() != UINT64_MAX) break;
+		std::this_thread::yield();
+	} while (std::chrono::steady_clock::now() < end);
+	if ((live.front() & 1u) == 0 || (live.front() & (uint64_t{1} << 63)) != 0) return false;
+	// スキニングは変形後の境界を使い、前フレームの剛体メッシュを参照しない
+	bounds.deformed = true;
+	bounds.probeBounds = {.375f,.375f,.375f,0};
+	bounds.radius = .02f;
+	GIProbeSurfaceMask::Bounds dirtyBounds;
+	if (!GIProbeSurfaceMask::TryGetWorldBounds(bounds, worlds[0], dirtyBounds) || dirtyBounds.sphere != bounds.probeBounds) return false;
+	update();
+	if ((live.front() & 1u) == 0 || (live.front() & (uint64_t{1} << 63)) != 0) return false;
+	worlds[0].m[3][0] = 1000;
+	if (!GIProbeSurfaceMask::TryGetWorldBounds(bounds, worlds[0], dirtyBounds) || dirtyBounds.sphere.x != 1000.375f) return false;
+	update();
+	if (live.front() != 0) return false;
+	// 非一様・負のスケールとせん断を含むボーン境界も、全ての角を含める
+	bounds.probeBounds = {0, 0, 0, 5};
+	bounds.probeHalfExtent = {2, 1, .25f};
+	worlds[0] = Matrix4x4::Identity();
+	worlds[0].m[0][0] = -2;
+	worlds[0].m[0][1] = 3;
+	worlds[0].m[2][2] = .5f;
+	if (!GIProbeSurfaceMask::TryGetWorldBounds(bounds, worlds[0], dirtyBounds)) return false;
+	for (int corner = 0; corner < 8; ++corner) {
+		const Vector3 point{(corner & 1) ? 2.0f : -2.0f, (corner & 2) ? 1.0f : -1.0f, (corner & 4) ? .25f : -.25f};
+		const Vector3 p = Vector3::Transform(point, worlds[0]);
+		if (!(dirtyBounds.GetProbeMask(p, 1, .001f, 0) & 1)) return false;
+	}
+	if ((dirtyBounds.GetProbeMask({0, 0, .5f}, 1, .25f, 0) & 1u) != 0 ||
+		dirtyBounds.GetProbeMask({}, 1, 1, UINT64_MAX) != 0) return false;
+	// 未知の境界とTLAS外の受光面はどちらも全プローブ有効へ戻す
+	bounds.probeBoundsGuaranteed = false;
+	if (GIProbeSurfaceMask::TryGetWorldBounds(bounds, worlds[0], dirtyBounds)) return false;
+	update();
+	if (!live.empty()) return false;
+	bounds.probeBoundsGuaranteed = true;
+	context.raytracing.probeReceiversCovered = false;
+	update();
+	return live.empty();
+}
+
 bool NEMTests::TestMeshAuthoringCache() {
 
 	using namespace Engine;
@@ -431,6 +565,7 @@ bool NEMTests::TestMeshAuthoringCache() {
 	const auto* roughness = matched[0].materialInstance.FindByName(MaterialParameterNames::Roughness);
 	return roughness && std::get<float>(roughness->value) == 0.65f &&
 		   !MeshSubMeshAuthoring::SyncComponentToLayout(layout, matched, true) &&
+		   RunTest("GIProbeSurfaceMask", TestGIProbeSurfaceMask) &&
 		   RunTest("TriangleMeshSelection", TestTriangleMeshSelection) &&
 		   RunTest("TriangleSkeletonSelection", TestTriangleSkeletonSelection) &&
 		   RunTest("MaterialTextureSelection", TestMaterialTextureSelection) &&

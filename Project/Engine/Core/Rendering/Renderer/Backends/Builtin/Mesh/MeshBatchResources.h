@@ -16,6 +16,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshSkinningSharedTypes.h>
+#include <Engine/Core/Rendering/Meshes/Utility/MeshSurfaceGeometry.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
@@ -105,6 +106,8 @@ namespace Engine {
 
 		// スキニングするインスタンスの頂点オフセットを取得する
 		bool FindSkinnedVertexOffset(const ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const;
+		// 転送済みパレットと未加重頂点を含むローカル境界球
+		std::shared_ptr<const std::vector<MeshSurfaceGeometry::PoseBounds>> GetSkinnedBounds(const MeshGPUResource& mesh);
 
 		// 同じポーズとパイプラインの計算結果を再利用する
 		bool CanReuseSkinningOutput(uint64_t pipelineID) const;
@@ -253,6 +256,8 @@ namespace Engine {
 		// スキニング用の毎バッチ再利用するデータ
 		std::vector<WellForGPU> paletteScratch_{};
 		std::vector<WellForGPU> paletteCandidateScratch_{};
+		std::shared_ptr<std::vector<MeshSurfaceGeometry::PoseBounds>> skinnedPoseBounds_;
+		uint64_t boundsPoseGeneration_ = UINT64_MAX;
 
 		std::unordered_map<MeshEntityLookupKey, uint32_t,
 			MeshEntityLookupKeyHash> skinnedVertexOffsetMap_{};

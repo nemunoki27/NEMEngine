@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphFrameConstants.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
@@ -195,7 +196,7 @@ void ShaderGraphNodePreviewGPUFixture::CreateInputs() {
 			continue;
 		}
 		sceneTextures_[index].Transition(gpu_.commands, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		const float clear[4]{.25f, .5f, .75f, 1};
+		const float clear[4]{index == 1 ? ViewDepth::ToDeviceDepth(ViewDepth::kDSVFormat, .25f) : .25f, .5f, .75f, 1};
 		gpu_.commands.GetCommandList()->ClearRenderTargetView(sceneTextures_[index].GetRenderTarget().rtvHandle, clear, 0, nullptr);
 		sceneTextures_[index].Transition(gpu_.commands, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}

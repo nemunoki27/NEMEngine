@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeatureResourceUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Editor/Utility/ViewportImageFile.h>
 #include <cmath>
 #include <cstring>
@@ -26,6 +27,8 @@ void Engine::EditorRenderBenchmark::InitCaptureSettings() {
 	else if (mode == L"Intermediate") captureMode_ = CaptureMode::Intermediate;
 	else if (mode == L"HDR") captureMode_ = CaptureMode::HDR;
 	else throw std::runtime_error("描画画像の保存範囲が不正です");
+	const auto extras = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_ATTACHMENTS");
+	if (!extras.empty()) report_["captureAttachments"] = JsonFile::Load(extras, false).get<std::vector<std::string>>();
 	report_["captureMode"] = mode.empty() ? "Final" : Algorithm::PathToUTF8(std::filesystem::path(mode));
 }
 
@@ -36,9 +39,14 @@ void Engine::EditorRenderBenchmark::CaptureViews(GraphicsCore& graphicsCore, con
 	for (const auto kind : { RenderViewKind::Game, RenderViewKind::Scene }) {
 		const std::string aoRaw = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionTrace, "Raw"});
 		const std::string aoFiltered = RenderFeatureResourceUtility::MakeOutputAlias({CameraSurfacePassIDs::AmbientOcclusionFilter, "Color"});
-		for (const char* attachment : { "", "InlineShadowRaw", "InlineShadowFiltered", aoRaw.c_str(), aoFiltered.c_str(), RenderTargetNames::kAmbientOcclusion, RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
+		std::vector<std::string> attachments{ "", "InlineShadowRaw", "InlineShadowFiltered", aoRaw.c_str(), aoFiltered.c_str(), RenderTargetNames::kAmbientOcclusion, RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain,
 			RenderTargetNames::kScenePositionMain, RenderTargetNames::kSceneMaterialMain,
-			RenderTargetNames::kSceneColorFinal, ViewportRenderService::GetPrimaryColorName(kind) }) {
+			RenderTargetNames::kSceneColorFinal, ViewportRenderService::GetPrimaryColorName(kind) };
+		if (report_.contains("captureAttachments")) {
+			attachments = report_["captureAttachments"].get<std::vector<std::string>>();
+		}
+		for (const auto& name : attachments) {
+			const char* attachment = name.c_str();
 			// 通常の確認では最終出力だけを保存する
 			if (captureMode_ == CaptureMode::Final && *attachment) continue;
 			const auto* texture = application_->GetRenderedViewTexture(kind, attachment);

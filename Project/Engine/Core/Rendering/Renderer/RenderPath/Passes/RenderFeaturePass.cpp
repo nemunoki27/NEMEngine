@@ -66,7 +66,7 @@ void Engine::RenderFeaturePass::Execute(
 }
 
 void Engine::RenderFeaturePass::ExecuteWithSharedOutputs(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-	SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs) {
+	SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs, const RenderFeatureComputeWorkQueue* queue) {
 
 	executionSucceeded_ = false;
 	if (!context.resources || !context.targetRegistry || !deps_.assetLibrary || !deps_.pipelineCache ||
@@ -125,7 +125,7 @@ void Engine::RenderFeaturePass::ExecuteWithSharedOutputs(GraphicsCore& graphicsC
 		const bool sharedPass = pass.id == passID && !outputs.empty();
 		auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
 		std::optional<ScopedGPUProfile> gpuProfile;
-		if (!sharedPass) gpuProfile.emplace(commandList, profileName);
+		if (!sharedPass && (!queue || queue->pass != pass.id)) gpuProfile.emplace(commandList, profileName);
 
 		const float dependencyScale = node.sourceNodeIndex < nodeIndex ? resolutionScales_[node.sourceNodeIndex] : 1.0f;
 		float adaptiveScale = 1.0f;
@@ -164,7 +164,7 @@ void Engine::RenderFeaturePass::ExecuteWithSharedOutputs(GraphicsCore& graphicsC
 				continue;
 			}
 		}
-		if (!gpuProfile) gpuProfile.emplace(commandList, profileName);
+		if (!gpuProfile && (!queue || queue->pass != pass.id)) gpuProfile.emplace(commandList, profileName);
 		const bool isolatedSource = selectionBegin && selectionGroup && !skipSelection &&
 									selectionGroup->selection.mode == RenderFeatureSelectionMode::IsolatedLayer;
 		MultiRenderTarget* sourceTarget =
@@ -285,6 +285,24 @@ void Engine::RenderFeaturePass::ExecuteWithSharedOutputs(GraphicsCore& graphicsC
 						.pass = pass.id,
 						.output = output->name,
 					});
+				}
+				if (queue && queue->pass == pass.id) {
+					auto& commands = *graphicsCore.GetDXObject().GetDxCommand();
+					PostProcessExecutionDesc selectionDesc = desc;
+					selectionDesc.material = queue->selectionMaterial;
+					selectionDesc.dispatchMode = ComputeDispatchMode::Fixed;
+					selectionDesc.groupCountX = queue->selectGroupsX;
+					selectionDesc.groupCountY = queue->selectGroupsY;
+					{
+						ScopedGPUProfile selectionProfile(commandList, profileName + "/Selection");
+						if (!deps_.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{}, context,
+							*deps_.assetLibrary, *deps_.pipelineCache, selectionDesc)) return;
+					}
+					queue->jobs.Transition(commands, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+					queue->arguments.Transition(commands, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+					desc.indirectSignature = queue->signature;
+					desc.indirectArguments = queue->arguments.GetResource();
+					gpuProfile.emplace(commandList, profileName);
 				}
 				if (!deps_.postProcessExecutor->Execute(
 						graphicsCore, RenderFrameRequest{}, context, *deps_.assetLibrary, *deps_.pipelineCache, desc)) {

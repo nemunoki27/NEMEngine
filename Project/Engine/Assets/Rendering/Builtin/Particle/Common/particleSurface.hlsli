@@ -6,6 +6,7 @@
 #define NEM_POINT_LIGHTS_REGISTER t1, space7
 #define NEM_SPOT_LIGHTS_REGISTER t2, space7
 #define NEM_RECT_LIGHTS_REGISTER t3, space7
+#include "../../Common/sceneViewDepth.hlsli"
 #include "../../Mesh/Common/pbrShading.hlsli"
 #include "../../Common/descriptorHeapCompatibility.hlsli"
 
@@ -94,7 +95,7 @@ float ParticleSoftFade(float4 position, float3 world) {
 	gParticleSceneDepth.GetDimensions(width, height);
 	int2 pixel = clamp(int2(position.xy), 0, int2(width, height) - 1);
 	float depth = gParticleSceneDepth.Load(int3(pixel, 0));
-	if (depth >= 1.0f) return 1;
+	if (depth <= kSceneFarDepth) return 1;
 	float2 uv = (float2(pixel) + 0.5f) / float2(width, height);
 	float4 scene = mul(float4(uv * float2(2, -2) + float2(-1, 1), depth, 1), particleInverseViewProjection);
 	float separation = dot(scene.xyz / scene.w - world, particleCameraForward.xyz);

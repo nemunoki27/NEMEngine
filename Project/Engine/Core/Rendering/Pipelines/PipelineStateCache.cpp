@@ -66,7 +66,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.rendererSettings = NormalizeRendererPipelineSettings(renderSettings);
 	key.formatHash = HashFormats(ResolveRTVFormats(*stateVariant, runtimeRTVFormats),
-		(stateVariant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? stateVariant->dsvFormat : runtimeDSVFormat);
+		ResolveDSVFormat(*stateVariant, runtimeDSVFormat));
 
 	if (auto found = cache_.find(key); found != cache_.end()) {
 		return found->second.get();
@@ -187,7 +187,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		key.twoSidedRasterizer = forceTwoSidedRasterizer;
 		key.rendererSettings = NormalizeRendererPipelineSettings(renderSettings);
 		key.formatHash = HashFormats(ResolveRTVFormats(*variant, runtimeRTVFormats),
-			variant->dsvFormat != DXGI_FORMAT_UNKNOWN ? variant->dsvFormat : runtimeDSVFormat);
+			ResolveDSVFormat(*variant, runtimeDSVFormat));
 	}
 	key.samplerHash = HashStaticSamplerOverrides(samplerOverrides);
 

@@ -163,6 +163,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		});
 	previewLightBuffers.Upload(previewResources_.previewLightSet_);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
+	context.maxWorldCellLights = worldLightIndex_.Publish(graphicsCore, previewResources_.previewLightSet_, context.bufferRegistry);
 	// PreviewのEntity番号へ本描画の塗装を対応付けない
 	previewPaint_.Prepare(graphicsCore, request.world, request.assetDatabase, renderAssetLibrary_, request.paintSample, request.systemContext);
 	context.materialPaintRevision = previewPaint_.Publish(context.bufferRegistry);

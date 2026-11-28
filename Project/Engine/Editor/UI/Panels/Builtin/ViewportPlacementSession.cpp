@@ -167,8 +167,8 @@ Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const Edit
 	const Matrix4x4 invViewProj = camera.matrices.inverseProjectionMatrix * camera.matrices.inverseViewMatrix;
 	const float ndcX = nx * 2.0f - 1.0f;
 	const float ndcY = 1.0f - ny * 2.0f;
-	const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, 0.0f), invViewProj);
-	const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, 1.0f), invViewProj);
+	const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, ViewDepth::kNear), invViewProj);
+	const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, ViewDepth::kFar), invViewProj);
 	const Vector3 direction = Vector3::Normalize(farPoint - nearPoint);
 	// 平行投影では画面上の位置から光線を出す
 	const Vector3 origin = camera.projectionMode == ResolvedProjectionMode::Orthographic ? nearPoint : camera.cameraPos;

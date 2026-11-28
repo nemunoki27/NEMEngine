@@ -1,6 +1,5 @@
 #include "../../Mesh/Common/deferredGBuffer.hlsli"
 #include "../../PostProcess/Common/postProcessFrame.hlsli"
-#include "giGrid.hlsli"
 #include "../raytracingSceneData.hlsli"
 #include "../../Common/hexTiling.hlsli"
 #include "../../Primitive/primitiveUV.hlsli"
@@ -12,6 +11,7 @@
 #define NEM_SPOT_LIGHTS_REGISTER t18
 #define NEM_RECT_LIGHTS_REGISTER t19
 #include "../../Mesh/Common/lightingCommon.hlsli"
+#include "giGrid.hlsli"
 #include "../../Common/pbrMath.hlsli"
 
 cbuffer RaytracingViewConstants : register(b3) {
@@ -69,7 +69,6 @@ StructuredBuffer<SubMeshShaderData> gRaytracingSubMeshes : register(t3);
 ByteAddressBuffer gRaytracingMaterialParameters : register(t0, space34);
 
 cbuffer GIChangeBounds : register(b4) {
-	float4 changeBounds[8];
 	uint lightingChanged;
 	uint emitterCount;
 	uint cacheFrame;
@@ -78,6 +77,9 @@ cbuffer GIChangeBounds : register(b4) {
 	uint showCacheUpdates;
 	uint updateSpeed;
 	uint layoutChanged;
+	uint allLayersVisible;
+	uint copyAllMoments;
+	uint directRevision;
 };
 
 #include "giEmitters.hlsli"

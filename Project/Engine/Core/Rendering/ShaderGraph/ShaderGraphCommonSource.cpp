@@ -17,7 +17,8 @@ namespace Engine::ShaderGraphStageSource {
 		// 各描画経路で使う表面入力を宣言する
 		std::string source = "#ifndef NEM_GENERATED_SHADER_GRAPH_COMMON\n"
 							 "#define NEM_GENERATED_SHADER_GRAPH_COMMON\n\n"
-							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n"
+							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n"
+							 "#include \"Builtin/Common/sceneViewDepth.hlsli\"\n\n"
 							 "#ifdef NEM_SHADER_GRAPH_EXPLICIT_LOD\n"
 							 "#define NEM_SAMPLE_GRAPH_TEXTURE(texture, sampler, uv) texture.SampleLevel(sampler, uv, 0.0f)\n"
 							 "#else\n"

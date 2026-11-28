@@ -12,6 +12,12 @@
 
 namespace Engine {
 
+	// メインビューのデバイス深度
+	namespace ViewDepth {
+		inline constexpr float kNear = 1.0f;
+		inline constexpr float kFar = 0.0f;
+	}
+
 	//============================================================================
 	//	RenderViewKind structures
 	//============================================================================

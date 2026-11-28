@@ -59,7 +59,7 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
-	if (dist <= 1e-5f) {
+	if (dist <= 1e-5f || dot(N, toLight) <= 0.0f) {
 		return 0.0f.xxx;
 	}
 	float attenuation =
@@ -71,13 +71,14 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion =
+		float occlusion = -1.0f;
 #ifndef NEM_RESTIR_SHADE
-			filteredShadowAvailable != 0u && restirDIAvailable == 0u ? LoadFilteredShadow(pixel, directionalCount + lightIndex) :
+		if (filteredShadowAvailable != 0u && restirDIAvailable == 0u) occlusion = LoadFilteredShadow(pixel, directionalCount + lightIndex);
 #endif
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex, light.shadowFilterIndex);
+		if (occlusion < 0.0f) occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, lightIndex, light.shadowFilterIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
+	if (shadow <= 0.0f) return 0.0f.xxx;
 	float3 radiance =
 		light.color.rgb * light.intensity * attenuation * shadow;
 	return EvaluatePBRLight(
@@ -93,12 +94,10 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	float3 toLight = light.pos - worldPos;
 	float dist = length(toLight);
-	if (dist <= 1e-5f) {
+	if (dist <= 1e-5f || dot(N, toLight) <= 0.0f) {
 		return 0.0f.xxx;
 	}
-	float distanceAttenuation =
-		ComputeDistanceAttenuation(dist, light.distance, light.decay);
-	if (distanceAttenuation <= 0.0f) {
+	if (light.distance <= 0.0001f || dist >= light.distance) {
 		return 0.0f.xxx;
 	}
 	float3 L = toLight / dist;
@@ -112,16 +111,19 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	if (coneAttenuation <= 0.0f) {
 		return 0.0f.xxx;
 	}
+	float distanceAttenuation = ComputeDistanceAttenuation(dist, light.distance, light.decay);
+	if (distanceAttenuation <= 0.0f) return 0.0f.xxx;
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
-		float occlusion =
+		float occlusion = -1.0f;
 #ifndef NEM_RESTIR_SHADE
-			filteredShadowAvailable != 0u && restirDIAvailable == 0u ? LoadFilteredShadow(pixel, directionalCount + pointCount + lightIndex) :
+		if (filteredShadowAvailable != 0u && restirDIAvailable == 0u) occlusion = LoadFilteredShadow(pixel, directionalCount + pointCount + lightIndex);
 #endif
-			TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex, light.shadowFilterIndex);
+		if (occlusion < 0.0f) occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist, light.shadowRadius, pixel, pointCount + lightIndex, light.shadowFilterIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
+	if (shadow <= 0.0f) return 0.0f.xxx;
 	float3 radiance = light.color.rgb * light.intensity *
 		distanceAttenuation * coneAttenuation * shadow;
 	return EvaluatePBRLight(
@@ -137,18 +139,25 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 	if (!IsLightRenderingLayerEnabled(light.renderingLayerMask, flags >> 8u)) return 0.0f.xxx;
 	if (ComputeRectRangeAttenuation(light, worldPos) * ComputeRectBarnAttenuation(light, worldPos) <= 0.0f ||
 		light.sourceWidth <= 0.0f || light.sourceHeight <= 0.0f) return 0.0f;
+	// 四隅がすべて受光面の裏なら、LTC積分とシャドウレイの寄与はゼロ
+	float3 halfRight = light.right * (light.sourceWidth * 0.5f);
+	float3 halfUp = light.up * (light.sourceHeight * 0.5f);
+	float furthest = dot(light.pos - worldPos, N) + abs(dot(halfRight, N)) + abs(dot(halfUp, N));
+	float roundoff = dot(abs(light.pos) + abs(worldPos) + abs(halfRight) + abs(halfUp), abs(N)) * 1e-6f;
+	if (furthest < -roundoff) return 0.0f.xxx;
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 
-		float occlusion =
+		float occlusion = -1.0f;
 #ifndef NEM_RESTIR_SHADE
-			filteredShadowAvailable != 0u && restirDIAvailable == 0u ? LoadFilteredShadow(pixel, directionalCount + pointCount + spotCount + lightIndex) :
+		if (filteredShadowAvailable != 0u && restirDIAvailable == 0u) occlusion = LoadFilteredShadow(pixel, directionalCount + pointCount + spotCount + lightIndex);
 #endif
-			TraceRectShadow(worldPos, N, light, pixel, pointCount + spotCount + lightIndex);
+		if (occlusion < 0.0f) occlusion = TraceRectShadow(worldPos, N, light, pixel, pointCount + spotCount + lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
 	}
 
+	if (shadow <= 0.0f) return 0.0f.xxx;
 	return shadow * EvaluateRectAreaPBR(light, worldPos, N, V, albedo, metallic, roughness, F0);
 }
 

@@ -111,6 +111,13 @@ namespace Engine {
 		bool receiveDecals = false;
 		bool deformed = false;
 		uint32_t emissiveTriangleCount = 0;
+		uint32_t emitterFaceFlags = 0;
+		bool probeBoundsGuaranteed = false;
+		Vector4 probeBounds{};
+		Vector3 probeHalfExtent{-1, -1, -1};
+		std::shared_ptr<const MeshSurfaceGeometry> probeSurface;
+		uint32_t probeSubMesh = 0;
+		Matrix4x4 probeLocalMatrix = Matrix4x4::Identity();
 	};
 	// GPUへ渡すシーン共通データ
 	struct RaytracingScene {

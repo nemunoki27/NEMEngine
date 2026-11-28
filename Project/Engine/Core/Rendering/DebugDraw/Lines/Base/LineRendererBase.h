@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameResourceArray.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
@@ -207,7 +208,7 @@ namespace Engine {
 		// ビューのデフォルトサーフェスに合わせる
 		desc.numRenderTargets = 1;
 		desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		desc.dsvFormat = Engine::ViewDepth::kDSVFormat;
 
 		if constexpr (std::is_same_v<T, Vector3>) {
 			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;

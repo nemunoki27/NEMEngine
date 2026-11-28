@@ -90,6 +90,7 @@ void Engine::EditorRenderBenchmark::CaptureContinuousFrame(GraphicsCore& graphic
 		{"lastGPUFrameID", capturedGPUFrameID_}, {"gpuValid", captureTimes_.contains("gpuMs")},
 		{"passes", nlohmann::json::array()}, {"distributions", nlohmann::json::object()},
 		{"assetsReady", application_->AreSceneMeshesReady() && !graphicsCore.GetTextureUploadService().HasPendingRequests()} };
+	if (sampleFrameCount_) sample["frameTimingsMs"] = captureTimes_["frameMs"];
 	for (auto& [name, values] : captureTimes_) {
 
 		const auto distribution = SummarizeTimes(values);

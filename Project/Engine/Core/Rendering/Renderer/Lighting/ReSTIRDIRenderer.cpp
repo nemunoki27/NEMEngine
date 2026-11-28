@@ -29,7 +29,7 @@ namespace {
 	struct ReSTIRParameters {
 		uint32_t width, height, frameIndex, resetHistory;
 		Vector3 cameraPos;
-		float padding;
+		uint32_t remapLights;
 		Matrix4x4 viewMatrix;
 		float shadowNormalBias, shadowMaxDistance;
 		uint32_t shadowSamples, historyLimit;
@@ -43,10 +43,11 @@ namespace {
 		std::array<StructuredRWBuffer<std::array<uint32_t, 2>>, 3> radiance;
 		uint32_t filtered = 1, samplingFrame = 0;
 		uint32_t stableFrames = 0, shadowSamples = 0;
+		bool usedExact = false, exactHistoryReady = false;
 		ShadowSceneStamp stamp;
 		uint64_t lightRevision = 0, geometryGeneration = 0, filterRevision = 0, materialGeneration = 0;
 		StructuredInstanceBuffer<uint32_t> remap;
-		std::vector<LightKey> previousLights;
+		std::vector<LightKey> previousLights, currentLights;
 		std::weak_ptr<const ECSWorldLifetime> world;
 		Entity camera = Entity::Null();
 		Vector3 position{}, forward{};
@@ -57,7 +58,8 @@ namespace {
 	};
 
 	bool UploadLightRemap(ViewState& state, const PerViewLightSet& lights) {
-		std::vector<LightKey> current;
+		auto& current = state.currentLights;
+		current.clear();
 		current.reserve(lights.GetLocalLightCount());
 		const auto append = [&](const auto& group, uint32_t type) {
 			for (const auto* item : group) {
@@ -68,19 +70,20 @@ namespace {
 		append(lights.pointLights, 0);
 		append(lights.spotLights, 1);
 		append(lights.rectLights, 2);
-		std::vector<uint32_t> remap((std::max)(size_t{1}, state.previousLights.size()), UINT32_MAX);
 		const bool reordered = current != state.previousLights;
 		if (!reordered) {
-			for (uint32_t i = 0; i < current.size(); ++i) remap[i] = i;
-		} else {
-			std::map<LightKey, uint32_t> indices;
-			for (uint32_t i = 0; i < current.size(); ++i) indices.emplace(current[i], i);
-			for (size_t i = 0; i < state.previousLights.size(); ++i) {
-				if (const auto it = indices.find(state.previousLights[i]); it != indices.end()) remap[i] = it->second;
-			}
+			if (state.remap.GetResource()) state.remap.RetainCurrentForFrame();
+			else state.remap.EnsureCapacity(1);
+			return false;
+		}
+		std::vector<uint32_t> remap((std::max)(size_t{1}, state.previousLights.size()), UINT32_MAX);
+		std::map<LightKey, uint32_t> indices;
+		for (uint32_t i = 0; i < current.size(); ++i) indices.emplace(current[i], i);
+		for (size_t i = 0; i < state.previousLights.size(); ++i) {
+			if (const auto it = indices.find(state.previousLights[i]); it != indices.end()) remap[i] = it->second;
 		}
 		state.remap.Upload(remap);
-		state.previousLights = std::move(current);
+		state.previousLights.swap(current);
 		return reordered;
 	}
 }
@@ -93,10 +96,10 @@ struct Engine::ReSTIRDIRenderer::Implementation {
 	FrameConstantBufferAllocator constants;
 	uint64_t constantFrame = UINT64_MAX;
 
-	bool EnsurePipelines(GraphicsCore& graphics) {
+	bool EnsurePipelines(GraphicsCore& graphics, bool exact, bool stable) {
 		auto& platform = graphics.GetDXObject();
 		for (size_t i = 0; i < pipelines.size(); ++i) {
-			if (pipelines[i]) continue;
+			if (pipelines[i] || (exact && i != (stable ? 3u : 2u))) continue;
 			ComputePipelineDesc desc{};
 			desc.compute.file = "Builtin/Lighting/restirDI.CS.hlsl";
 			constexpr AssetID shaders[]{BuiltinAssets::Shaders::ReSTIRInitial, BuiltinAssets::Shaders::ReSTIRSpatial,
@@ -132,7 +135,7 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 		if (!impl.views.empty()) impl.views.erase(context.view->GetHistoryKey());
 		return false;
 	}
-	if (!impl.EnsurePipelines(graphics)) return false;
+	const bool exact = lights->GetLocalLightCount() <= 64 || context.maxWorldCellLights <= 64;
 	auto* gbuffer = context.resources->GetSceneMain();
 	const uint32_t width = gbuffer->GetWidth(), height = gbuffer->GetHeight();
 	const uint64_t pixels = uint64_t(width) * height;
@@ -147,25 +150,28 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 		next->remap.Init(device, srv);
 		for (auto* buffer : {&next->history, &next->candidates}) {
 			buffer->Init(device, srv);
-			buffer->EnsureCapacity(static_cast<uint32_t>(pixels));
 		}
 		for (auto& buffer : next->radiance) {
 			buffer.Init(device, srv);
-			buffer.EnsureCapacity(static_cast<uint32_t>(pixels));
 		}
 		owner = std::move(next);
 	}
 
 	auto& state = *owner;
+	const uint32_t historyPixels = exact ? 1u : static_cast<uint32_t>(pixels);
+	state.history.EnsureCapacity(historyPixels);
+	state.candidates.EnsureCapacity(historyPixels);
+	state.radiance[0].EnsureCapacity(static_cast<uint32_t>(pixels));
+	state.radiance[1].EnsureCapacity(historyPixels);
+	state.radiance[2].EnsureCapacity(historyPixels);
 	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
-	const auto delta = camera->cameraPos - state.position;
 	const auto now = std::chrono::steady_clock::now();
-	bool reset = state.lastFrame == UINT64_MAX || serial <= state.lastFrame ||
+	bool reset = state.usedExact != exact || state.lastFrame == UINT64_MAX || serial <= state.lastFrame ||
 		now - state.lastRender > std::chrono::milliseconds(250) ||
 		state.world.lock() != lights->sourceWorldLifetime || state.camera != camera->sourceCamera ||
 		state.projection != camera->matrices.unjitteredProjectionMatrix ||
-		Vector3::Dot(camera->forward, state.forward) < 0.8f || Vector3::Dot(delta, delta) > 25.0f;
-	const bool lightSetChanged = UploadLightRemap(state, *lights);
+		Vector3::Dot(camera->forward, state.forward) < 0.8f;
+	const bool lightSetChanged = !exact && UploadLightRemap(state, *lights);
 	if (impl.constantFrame != serial) {
 		impl.constants.BeginFrame();
 		impl.constantFrame = serial;
@@ -175,19 +181,27 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 		state.materialGeneration != context.raytracing.materialGeneration;
 	// 移動する遮蔽物は再投影先で検査し、光源の入れ替えだけ履歴を切る
 	const auto samples = context.hasShadowCastingLight ? platform.GetFeatureController().GetRuntimeFeatures().softShadowSampleCount : 0u;
-	auto stamp = BuildShadowSceneStamp(graphics, context, deps);
 	constexpr uint32_t settleFrames = 64;
 	const bool wasStable = state.stableFrames == settleFrames;
-	const bool unchanged = !reset && !lightSetChanged && !lightingChanged && samples == state.shadowSamples &&
-		stamp.reusable && stamp == state.stamp;
+	const bool cameraMoved = state.position != camera->cameraPos || state.forward != camera->forward;
+	const bool stableInputs = !reset && !cameraMoved && !lightSetChanged && !lightingChanged && samples == state.shadowSamples;
+	auto stamp = exact && !stableInputs ? ShadowSceneStamp{} : BuildShadowSceneStamp(graphics, context, deps);
+	const bool unchanged = stableInputs && stamp.reusable && stamp == state.stamp;
 	state.stableFrames = unchanged ? (std::min)(settleFrames, state.stableFrames + 1) : 0;
 	state.stamp = std::move(stamp);
 	state.shadowSamples = samples;
 	const bool stable = state.stableFrames == settleFrames;
+	const bool exactStatic = exact && stable;
+	if (!impl.EnsurePipelines(graphics, exact, stable)) return false;
+	// 静止が続いた時だけ、受光面ごとの再利用判定に必要な履歴を確保する
+	if (exactStatic) state.candidates.EnsureCapacity(static_cast<uint32_t>(pixels));
 	reset |= wasStable && !stable;
-	const uint32_t historyLimit = stable ? UINT32_MAX : (lightSetChanged ? 1u : (lightingChanged ? 12u : 32u));
+	uint32_t historyLimit = lightSetChanged ? 1u : ((lightingChanged || cameraMoved) ? 12u : 32u);
+	if (exactStatic) historyLimit = state.exactHistoryReady ? UINT32_MAX - 3u : UINT32_MAX - 2u;
+	else if (exact) historyLimit = UINT32_MAX - 1u;
+	else if (stable) historyLimit = UINT32_MAX;
 	const ReSTIRParameters params{width, height, state.samplingFrame++, reset ? 1u : 0u,
-		camera->cameraPos, 0.0f, camera->matrices.viewMatrix, 0.05f, 100000.0f,
+		camera->cameraPos, lightSetChanged ? 1u : 0u, camera->matrices.viewMatrix, 0.05f, 100000.0f,
 		samples, historyLimit};
 	const auto cb = impl.constants.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), params);
 	auto& cmd = *platform.GetDxCommand();
@@ -200,16 +214,19 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 	const std::string prefix = std::string(EnumAdapter<RenderViewKind>::ToStringView(context.kind)) + "/Lighting ReSTIR ";
 	const uint32_t writeIndex = 3 - state.filtered;
 	constexpr const char* labels[]{"Candidates Temporal", "Spatial", "Visibility", "Denoise"};
-	for (size_t stage = stable ? 3 : 0; stage < impl.pipelines.size(); ++stage) {
-		profiler.BeginPass(list, prefix + (stable ? "Static" : labels[stage]));
+	const size_t end = exact && !stable ? 3u : impl.pipelines.size();
+	for (size_t stage = stable ? 3u : exact ? 2u : 0u; stage < end; ++stage) {
+		profiler.BeginPass(list, prefix + (stable ? "Static" : exact ? "Exact" : labels[stage]));
 		auto& input = stage == 1 ? state.candidates : state.history;
-		auto& output = stage == 0 ? state.candidates : state.history;
+		auto& output = stage == 0 || stage == 3 ? state.candidates : state.history;
 		input.Transition(cmd, kShaderRead);
-		auto& radianceOut = state.radiance[stage == 2 ? 0 : writeIndex];
+		auto& radianceOut = state.radiance[exact || stage == 2 ? 0 : writeIndex];
 		if (stage < 2) output.Transition(cmd, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		else radianceOut.Transition(cmd, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		if (stage == 3) output.Transition(cmd, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		auto& rawInput = state.radiance[exactStatic ? state.filtered : 0u];
 		if (stage == 3) {
-			state.radiance[0].Transition(cmd, kShaderRead);
+			rawInput.Transition(cmd, kShaderRead);
 			state.radiance[state.filtered].Transition(cmd, kShaderRead);
 		}
 		auto& pipe = *impl.pipelines[stage];
@@ -225,7 +242,7 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 			{"gReSTIROutput", ComputeBindValueType::UAV, output.GetGPUAddress(), output.GetUAVGPUHandle()},
 			{"gReSTIRLightRemap", ComputeBindValueType::SRV, state.remap.GetGPUAddress(), state.remap.GetGPUHandle()},
 			{"gSceneTLAS", ComputeBindValueType::AccelStruct, tlas->gpuAddress, tlas->srvGPUHandle},
-			{"gReSTIRRaw", ComputeBindValueType::SRV, state.radiance[0].GetGPUAddress(), state.radiance[0].GetSRVGPUHandle()},
+			{"gReSTIRRaw", ComputeBindValueType::SRV, rawInput.GetGPUAddress(), rawInput.GetSRVGPUHandle()},
 			{"gReSTIRPrevious", ComputeBindValueType::SRV, state.radiance[state.filtered].GetGPUAddress(), state.radiance[state.filtered].GetSRVGPUHandle()},
 			{"gReSTIRRadianceOut", ComputeBindValueType::UAV, radianceOut.GetGPUAddress(), radianceOut.GetUAVGPUHandle()}
 		}};
@@ -236,8 +253,11 @@ bool Engine::ReSTIRDIRenderer::Render(GraphicsCore& graphics, SceneExecutionCont
 		list->Dispatch((width + 7) / 8, (height + 7) / 8, 1);
 		profiler.EndPass(list);
 	}
-	state.filtered = writeIndex;
-	auto& result = state.radiance[writeIndex];
+	if (exactStatic) state.candidates.Transition(cmd, kShaderRead);
+	state.exactHistoryReady = exactStatic;
+	if (!exact) state.filtered = writeIndex;
+	state.usedExact = exact;
+	auto& result = state.radiance[exact ? 0u : writeIndex];
 	result.Transition(cmd, kShaderRead);
 	context.bufferRegistry.Register({"gReSTIRRadiance", result.GetResource(), result.GetGPUAddress(),
 		result.GetSRVGPUHandle(), {}, static_cast<uint32_t>(pixels), sizeof(uint32_t) * 2});

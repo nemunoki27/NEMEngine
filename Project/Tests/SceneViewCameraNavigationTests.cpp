@@ -21,6 +21,26 @@ namespace {
 	using Action = SceneViewCameraAction;
 	using Snapshot = SceneViewCameraInput;
 
+	bool CheckViewDepth() {
+
+		ManualRenderCameraState state{};
+		state.perspectiveNearClip = 0.1f;
+		state.perspectiveFarClip = 8000.0f;
+		for (const auto mode : {CameraProjectionMode::Perspective, CameraProjectionMode::Orthographic}) {
+			state.projectionMode3D = mode;
+			const auto view = CameraViewProjection::BuildManualPerspective(state, 960, 540);
+			const auto depth = [&](float z) {
+				return Vector3::Transform(Vector3(0, 0, z), view.matrices.projectionMatrix).z;
+			};
+			if (std::abs(depth(view.nearClip) - ViewDepth::kNear) > 1.0e-6f ||
+				std::abs(depth(view.farClip) - ViewDepth::kFar) > 1.0e-6f ||
+				depth(2695.0f) <= depth(2695.01f)) return false;
+			const Vector3 restored = Vector3::Transform(Vector3(0, 0, depth(2695.0f)), view.matrices.inverseProjectionMatrix);
+			if (std::abs(restored.z - 2695.0f) > 0.01f) return false;
+		}
+		return true;
+	}
+
 	// ビュー内で入力を開始する
 	SceneViewCameraInput Press(uint8_t buttons, uint8_t modifiers = 0) {
 
@@ -313,5 +333,5 @@ bool NEMTests::TestSceneViewCameraNavigation() {
 
 	return CheckPresets() && CheckInputLifetime() && CheckConflicts() && CheckMovement() && CheckMotion() &&
 		CheckOrientation(CameraProjectionMode::Perspective) && CheckOrientation(CameraProjectionMode::Orthographic) &&
-		CheckRotationContinuity();
+		CheckRotationContinuity() && CheckViewDepth();
 }

@@ -14,6 +14,7 @@
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
@@ -35,6 +36,8 @@
 // c++
 #include <algorithm>
 #include <chrono>
+#include <fstream>
+#include <iomanip>
 
 namespace {
 
@@ -50,6 +53,50 @@ namespace {
 		Engine::Logger::Flush(Engine::LogType::Engine);
 	}
 }
+
+struct Engine::GameApplication::FrameCapture {
+
+	using Clock = std::chrono::steady_clock;
+	std::ofstream frames, passes;
+	Clock::time_point start = Clock::now(), previous = start, flushed = start;
+	uint64_t gpuFrame = UINT64_MAX;
+
+	explicit FrameCapture(const std::filesystem::path& path) : frames(path),
+		passes(std::filesystem::path(path).concat(L".passes.csv")) {
+
+		if (!frames || !passes) throw std::runtime_error("Product frame capture could not open output files");
+		frames << "elapsedSeconds,frameMs,gpuFrameID,gpuMs,updateMs,drawCPUMs,gpuWaitMs,presentCPUMs,cameraValid,cameraX,cameraY,cameraZ\n";
+		passes << "gpuFrameID,pass,ms\n";
+	}
+
+	void Record(const ResolvedCameraView& camera) {
+
+		const auto now = Clock::now();
+		const auto& profiler = FrameProfiler::GetInstance();
+		using Category = FrameProfiler::Category;
+		frames << std::chrono::duration<double>(now - start).count() << ','
+			<< std::chrono::duration<double, std::milli>(now - previous).count() << ','
+			<< profiler.GetGPUFrameID() << ',' << profiler.GetGPUTotalMs() << ','
+			<< profiler.GetLatestMs(Category::Update) << ',' << profiler.GetLatestMs(Category::DrawCPU) << ','
+			<< profiler.GetLatestMs(Category::GPUWait) << ',' << profiler.GetLatestMs(Category::PresentCPU) << ','
+			<< camera.valid << ',' << camera.cameraPos.x << ',' << camera.cameraPos.y << ',' << camera.cameraPos.z << '\n';
+		previous = now;
+		if (profiler.HasGPUData() && gpuFrame != profiler.GetGPUFrameID()) {
+			gpuFrame = profiler.GetGPUFrameID();
+			for (const auto& pass : profiler.GetGPUPassTimes()) {
+				passes << gpuFrame << ',' << std::quoted(pass.name) << ',' << pass.milliseconds << '\n';
+			}
+		}
+		if (now - flushed >= std::chrono::seconds(1)) {
+			frames.flush();
+			passes.flush();
+			flushed = now;
+		}
+	}
+};
+
+Engine::GameApplication::GameApplication() = default;
+Engine::GameApplication::~GameApplication() = default;
 
 void Engine::GameApplication::InitSystems() {
 
@@ -119,6 +166,11 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	StartPlayWorld();
 	PreloadReleaseResources(graphicsCore);
+	const auto capturePath = Algorithm::GetEnvironmentPath(L"NEM_PRODUCT_FRAME_CAPTURE");
+	if (!capturePath.empty()) {
+		frameCapture_ = std::make_unique<FrameCapture>(capturePath);
+		FrameProfiler::GetInstance().SetEnabled(true);
+	}
 	initializationComplete_ = true;
 }
 
@@ -199,6 +251,8 @@ bool Engine::GameApplication::HandleApplicationQuitRequest() {
 }
 
 void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) {
+
+	if (frameCapture_) frameCapture_->Record(renderPipeline_->GetResolvedView(RenderViewKind::Game).perspective);
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	LineRenderer::GetInstance()->BeginFrame();

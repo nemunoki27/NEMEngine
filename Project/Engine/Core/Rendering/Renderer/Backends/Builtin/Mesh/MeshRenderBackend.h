@@ -34,6 +34,8 @@ namespace Engine {
 		uint32_t vertexOffset = 0;
 		uint64_t poseGeneration = 0;
 		uint64_t bufferGeneration = 0;
+		std::shared_ptr<const std::vector<MeshSurfaceGeometry::PoseBounds>> bounds;
+		size_t boundsOffset = 0;
 	};
 
 	//============================================================================

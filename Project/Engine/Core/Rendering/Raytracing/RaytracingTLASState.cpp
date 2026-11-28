@@ -94,6 +94,7 @@ void Engine::RaytracingTLASState::BuildORUpdate(ID3D12Device8* device, ID3D12Gra
 
 		// BLASのアドレスが同じでも境界を更新する
 		RefitORRebuild(commandList, tlasInstances, false);
+		++contentGeneration_;
 	} else {
 
 		MaintainTraceQuality(commandList, tlasInstances);
@@ -136,6 +137,7 @@ void Engine::RaytracingTLASState::RefitORRebuild(
 	ID3D12GraphicsCommandList6* commandList =
 		graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
 	RefitORRebuild(commandList, instances, forceRebuild);
+	++contentGeneration_;
 }
 
 void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* commandList,
@@ -144,9 +146,7 @@ void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* com
 	if (forceRebuild || kMaxConsecutiveTLASRefits <=
 		consecutiveTLASRefitCount_ + 1) {
 
-		// 連続更新で劣化した探索構造を再構築
 		tlas_.Rebuild(commandList, instances);
-		++contentGeneration_;
 		consecutiveTLASRefitCount_ = 0;
 		FrameProfiler::GetInstance().AddTLASBuild();
 		return;
@@ -154,7 +154,6 @@ void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* com
 
 	// 配置の差分だけを更新
 	tlas_.Update(commandList, instances);
-	++contentGeneration_;
 	++consecutiveTLASRefitCount_;
 	lastTLASRefitFrame_ = GraphicsFrameState::GetFrameSerial();
 	FrameProfiler::GetInstance().AddTLASRefit();

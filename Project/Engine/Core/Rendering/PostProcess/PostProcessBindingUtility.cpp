@@ -271,6 +271,13 @@ namespace Engine {
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& dest,
 		std::vector<ComputeBindItem>& outBindItems, const MaterialAsset& material) {
 
+		if (binding.rawType == D3D_SIT_UAV_RWSTRUCTURED || binding.rawType == D3D_SIT_UAV_RWBYTEADDRESS) {
+			const auto* buffer = context.bufferRegistry.Find(binding.name);
+			if (desc.allowInPlace || !buffer || (!buffer->gpuAddress && !buffer->uavGPUHandle.ptr)) return false;
+			outBindItems.push_back({binding.name, ComputeBindValueType::UAV, buffer->gpuAddress,
+				buffer->uavGPUHandle, binding.bindPoint, binding.space});
+			return true;
+		}
 		RenderTexture2D* destColor = nullptr;
 		if (!binding.name.empty()) {
 			const auto output = desc.outputTargets.find(binding.name);

@@ -67,6 +67,7 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	// リソース情報を設定
 	MeshGPUResource mesh{};
 	mesh.assetID = imported.assetID;
+	mesh.probeSurface = upload.probeSurface;
 	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
 	mesh.hasVertexColors = upload.hasVertexColors;
 	mesh.indexCount = static_cast<uint32_t>(imported.indices.size());

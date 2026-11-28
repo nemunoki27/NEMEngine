@@ -1,4 +1,5 @@
 #include "PipelineStateBuilder.h"
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 
 //============================================================================
 //	include
@@ -144,6 +145,19 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 	state.bindings_ = std::move(rootSignatureResult.bindings);
 	state.RebuildBindingLookupTables();
 
+	auto depthStencil = desc.depthStencil;
+	auto rasterizer = desc.rasterizer;
+	if (desc.dsvFormat == ViewDepth::kDSVFormat) {
+		switch (depthStencil.DepthFunc) {
+		case D3D12_COMPARISON_FUNC_LESS: depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_GREATER; break;
+		case D3D12_COMPARISON_FUNC_LESS_EQUAL: depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_GREATER_EQUAL; break;
+		case D3D12_COMPARISON_FUNC_GREATER: depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS; break;
+		case D3D12_COMPARISON_FUNC_GREATER_EQUAL: depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; break;
+		}
+		rasterizer.DepthBias = rasterizer.DepthBias == INT_MIN ? INT_MAX : -rasterizer.DepthBias;
+		rasterizer.SlopeScaledDepthBias = -rasterizer.SlopeScaledDepthBias;
+		rasterizer.DepthBiasClamp = -rasterizer.DepthBiasClamp;
+	}
 	// PSO生成の成否、失敗したBlendModeがあればfalseを返す
 	bool success = true;
 
@@ -170,8 +184,8 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 			}
 		}
 		pipelineDesc.InputLayout = inputLayoutResult.GetDesc();
-		pipelineDesc.RasterizerState = desc.rasterizer;
-		pipelineDesc.DepthStencilState = desc.depthStencil;
+		pipelineDesc.RasterizerState = rasterizer;
+		pipelineDesc.DepthStencilState = depthStencil;
 		pipelineDesc.NumRenderTargets = desc.numRenderTargets;
 		pipelineDesc.SampleDesc = desc.sampleDesc;
 		pipelineDesc.SampleMask = UINT_MAX;
@@ -238,8 +252,8 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 				break;
 			}
 		}
-		pipelineDesc.RasterizerState = desc.rasterizer;
-		pipelineDesc.DepthStencilState = desc.depthStencil;
+		pipelineDesc.RasterizerState = rasterizer;
+		pipelineDesc.DepthStencilState = depthStencil;
 		pipelineDesc.PrimitiveTopologyType = desc.topologyType;
 		pipelineDesc.NumRenderTargets = desc.numRenderTargets;
 		pipelineDesc.SampleDesc = desc.sampleDesc;

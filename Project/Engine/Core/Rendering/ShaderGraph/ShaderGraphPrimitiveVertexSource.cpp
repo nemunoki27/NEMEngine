@@ -63,7 +63,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tgraphInput.objectNormal = vertex.normal;\n"
 				  "\tgraphInput.objectTangent = vertex.tangent;\n"
 				  "\tgraphInput.viewDirection = normalize(cameraPosition - originalWorldPosition.xyz);\n"
-				  "\tgraphInput.screenPosition = mul(originalWorldPosition, viewProjection);\n"
+				  "\tgraphInput.screenPosition = mul(originalWorldPosition, shaderGraphWorldToClip);\n"
 				  "\tgraphInput.vertexColor = vertexColor;\n"
 				  "\tgraphInput.tangentToWorld = float3x3(originalWorldTangent, cross(originalWorldNormal, "
 				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n" +
@@ -202,7 +202,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tgraphInput.objectNormal = vertex.normal;\n"
 				  "\tgraphInput.objectTangent = vertex.tangent;\n"
 				  "\tgraphInput.viewDirection = normalize(cameraPosition - originalWorldPosition.xyz);\n"
-				  "\tgraphInput.screenPosition = mul(originalWorldPosition, viewProjection);\n"
+				  "\tgraphInput.screenPosition = mul(originalWorldPosition, shaderGraphWorldToClip);\n"
 				  "\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 				  "\tgraphInput.tangentToWorld = float3x3(originalWorldTangent, cross(originalWorldNormal, "
 				  "originalWorldTangent) * vertex.tangentSign, originalWorldNormal);\n" +

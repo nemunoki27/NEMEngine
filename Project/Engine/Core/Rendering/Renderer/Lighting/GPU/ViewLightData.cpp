@@ -249,50 +249,36 @@ void Engine::ViewLightData::BuildClusters(
 		bounds.maxZ = depthToSlice(
 			(std::min)(maxDepth, constants.farClip));
 
-		if (viewCenter.z <= radius + constants.nearClip) {
-			bounds.maxX = constants.tileCountX - 1;
-			bounds.maxY = constants.tileCountY - 1;
-		} else {
-			const Vector3 ndc = Vector3::Transform(
-				worldCenter, camera.matrices.viewProjectionMatrix);
-			const float projectionX =
-				std::abs(camera.matrices.projectionMatrix.m[0][0]);
-			const float projectionY =
-				std::abs(camera.matrices.projectionMatrix.m[1][1]);
-			const float radiusNdcX = radius * projectionX / viewCenter.z;
-			const float radiusNdcY = radius * projectionY / viewCenter.z;
-			const float minPixelX = (ndc.x - radiusNdcX) * 0.5f *
-				static_cast<float>(view.width) +
-				0.5f * static_cast<float>(view.width);
-			const float maxPixelX = (ndc.x + radiusNdcX) * 0.5f *
-				static_cast<float>(view.width) +
-				0.5f * static_cast<float>(view.width);
-			const float minPixelY = (0.5f - (ndc.y + radiusNdcY) * 0.5f) *
-				static_cast<float>(view.height);
-			const float maxPixelY = (0.5f - (ndc.y - radiusNdcY) * 0.5f) *
-				static_cast<float>(view.height);
-			const int32_t minTileX = static_cast<int32_t>(
-				std::floor(minPixelX / static_cast<float>(kTileSize)));
-			const int32_t maxTileX = static_cast<int32_t>(
-				std::floor(maxPixelX / static_cast<float>(kTileSize)));
-			const int32_t minTileY = static_cast<int32_t>(
-				std::floor(minPixelY / static_cast<float>(kTileSize)));
-			const int32_t maxTileY = static_cast<int32_t>(
-				std::floor(maxPixelY / static_cast<float>(kTileSize)));
-			if (maxTileX < 0 || maxTileY < 0 ||
-				static_cast<int32_t>(constants.tileCountX) <= minTileX ||
-				static_cast<int32_t>(constants.tileCountY) <= minTileY) {
-				return;
+		// 球の接線で投影範囲を求め、近クリップ面を跨ぐ時はクリップ済みの箱で囲う
+		const auto& projection = camera.matrices.projectionMatrix;
+		const auto projectAxis = [&](float center, uint32_t axis) -> Vector2 {
+			const float scale = projection.m[axis][axis];
+			if (projection.m[3][3] != 0.0f) {
+				return { scale * (center - radius) + projection.m[3][axis], scale * (center + radius) + projection.m[3][axis] };
 			}
-			bounds.minX = static_cast<uint32_t>(std::clamp(
-				minTileX, 0, static_cast<int32_t>(constants.tileCountX - 1)));
-			bounds.maxX = static_cast<uint32_t>(std::clamp(
-				maxTileX, 0, static_cast<int32_t>(constants.tileCountX - 1)));
-			bounds.minY = static_cast<uint32_t>(std::clamp(
-				minTileY, 0, static_cast<int32_t>(constants.tileCountY - 1)));
-			bounds.maxY = static_cast<uint32_t>(std::clamp(
-				maxTileY, 0, static_cast<int32_t>(constants.tileCountY - 1)));
-		}
+			float lower, upper;
+			if (minDepth > constants.nearClip) {
+				const float denom = minDepth * maxDepth;
+				const float tangent = radius * std::sqrt(center * center + denom);
+				lower = (center * viewCenter.z - tangent) / denom;
+				upper = (center * viewCenter.z + tangent) / denom;
+			} else {
+				const float lo = center - radius, hi = center + radius;
+				lower = lo / (lo < 0 ? constants.nearClip : maxDepth);
+				upper = hi / (hi > 0 ? constants.nearClip : maxDepth);
+			}
+			return { lower * scale + projection.m[2][axis], upper * scale + projection.m[2][axis] };
+		};
+		const Vector2 x = projectAxis(viewCenter.x, 0), y = projectAxis(viewCenter.y, 1);
+		if (x.y < -1.0f || x.x > 1.0f || y.y < -1.0f || y.x > 1.0f) return;
+		const auto tile = [](float ndc, uint32_t dimension, uint32_t count) {
+			const float uv = std::clamp(ndc * 0.5f + 0.5f, 0.0f, 1.0f);
+			return (std::min)(static_cast<uint32_t>(uv * dimension) / kTileSize, count - 1);
+		};
+		bounds.minX = tile(x.x, view.width, constants.tileCountX);
+		bounds.maxX = tile(x.y, view.width, constants.tileCountX);
+		bounds.minY = tile(-y.y, view.height, constants.tileCountY);
+		bounds.maxY = tile(-y.x, view.height, constants.tileCountY);
 		clusterBoundsScratch_.emplace_back(bounds);
 		};
 
@@ -304,10 +290,7 @@ void Engine::ViewLightData::BuildClusters(
 	for (uint32_t index = 0;
 		index < static_cast<uint32_t>(lightSet.spotLights.size()); ++index) {
 		const SpotLightItem& light = *lightSet.spotLights[index];
-		const Vector3 direction = Vector3::NormalizeOr(
-			light.direction, Vector3(0.0f, 0.0f, 1.0f));
-		const Vector3 center = light.pos + direction * (light.distance * 0.5f);
-		appendBounds(center, light.distance,
+		appendBounds(light.pos, light.distance,
 			static_cast<uint32_t>(lightSet.pointLights.size()) + index);
 	}
 	for (uint32_t index = 0;

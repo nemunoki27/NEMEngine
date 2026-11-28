@@ -58,6 +58,7 @@ namespace NEMTests {
 	bool TestMaterialParameters();
 	bool TestMaterialParameterHash();
 	bool TestMeshAuthoringCache();
+	bool TestGIProbeSurfaceMask();
 	bool TestModelImportBundle();
 	bool TestPrimitiveTangents();
 	bool TestTransformDimensionSerialization();

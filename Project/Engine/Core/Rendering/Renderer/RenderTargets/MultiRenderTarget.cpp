@@ -186,7 +186,7 @@ void Engine::MultiRenderTarget::Clear(DxCommand& dxCommand, const MultiRenderTar
 		}
 		// 深度クリア
 		commandList->ClearDepthStencilView(depth_->GetDSVCPUHandle(), flags,
-			desc.clearDepthValue, desc.clearStencilValue, 0, nullptr);
+			ViewDepth::ToDeviceDepth(depth_->GetDSVFormat(), desc.clearDepthValue), desc.clearStencilValue, 0, nullptr);
 	}
 }
 

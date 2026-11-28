@@ -63,6 +63,7 @@ static const uint kSampleHeight = 36;
 static const float kMinimumLogLuminance = -12.0f;
 static const float kMaximumLogLuminance = 16.0f;
 static const float kMiddleGray = 0.18f;
+static const float kTransitionEV = 1.5f;
 
 groupshared uint gHistogram[kHistogramBinCount];
 
@@ -78,10 +79,9 @@ void main(uint groupIndex : SV_GroupIndex) {
 			const float targetEV100 = clamp(
 				manualEV100 - exposureCompensation, -20.0f, 30.0f);
 			const float targetExposure = exp2(-targetEV100);
-			const float previousExposure = max(
-				gExposureState[0].x, targetExposure);
+			const float previousExposure = gExposureState[0].x;
 			gExposureState[0] = float4(targetExposure,
-				resetExposure != 0 ? targetExposure : previousExposure,
+				resetExposure != 0 || previousExposure <= 0.0f ? targetExposure : previousExposure,
 				targetEV100, targetEV100);
 		}
 		return;
@@ -120,7 +120,9 @@ void main(uint groupIndex : SV_GroupIndex) {
 		return;
 	}
 
-	float targetEV100 = 0.0f;
+	const float4 previousState = gExposureState[0];
+	const bool hasHistory = resetExposure == 0 && 0.0f < previousState.x;
+	float targetEV100 = hasHistory ? previousState.w : manualEV100 - exposureCompensation;
 	{
 
 		uint totalCount = 0;
@@ -162,20 +164,19 @@ void main(uint groupIndex : SV_GroupIndex) {
 	}
 
 	targetEV100 = clamp(targetEV100, minEV100, maxEV100);
-	const float targetExposure = exp2(-targetEV100);
-	const float4 previousState = gExposureState[0];
-	float currentExposure = previousState.x;
-	if (resetExposure != 0 || currentExposure <= 0.0f) {
-		currentExposure = targetExposure;
-	} else {
-
-		const float adaptationSpeed = currentExposure < targetExposure ?
-			speedUp : speedDown;
-		const float adaptation = 1.0f - exp(-adaptationSpeed * max(deltaTime, 0.0f));
-		currentExposure = lerp(currentExposure, targetExposure, adaptation);
+	float currentEV100 = targetEV100;
+	if (hasHistory) {
+		const float difference = targetEV100 - previousState.w;
+		const float speed = difference > 0.0f ? speedUp : speedDown;
+		const float stepEV = speed * max(deltaTime, 0.0f);
+		const float distanceEV = abs(difference);
+		// 遠方は等速、目標付近は境界で速度が連続する指数順応
+		const float linearStep = min(stepEV, max(distanceEV - kTransitionEV, 0.0f));
+		const float remaining = (distanceEV - linearStep) * exp(-(stepEV - linearStep) / kTransitionEV);
+		currentEV100 -= sign(difference) * remaining;
 	}
-	const float currentEV100 = -log2(max(currentExposure, 1.0e-6f));
+	const float currentExposure = exp2(-currentEV100);
 	gExposureState[0] = float4(currentExposure,
-		resetExposure != 0 ? currentExposure : max(previousState.x, 1.0e-6f),
+		hasHistory ? previousState.x : currentExposure,
 		targetEV100, currentEV100);
 }

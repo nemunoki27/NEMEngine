@@ -1,0 +1,11 @@
+{
+  "name": "giInterpolate",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345544749000000000021",
+      "entry": "Interpolate",
+      "profile": "cs_6_6"
+    }
+  ]
+}

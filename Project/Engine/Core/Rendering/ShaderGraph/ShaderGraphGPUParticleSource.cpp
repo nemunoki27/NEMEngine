@@ -102,7 +102,7 @@ std::string Engine::ShaderGraphStageSource::BuildGPUParticlePixelSource(
 		"\tgraphInput.isFrontFace = isFrontFace;\n" +
 		BuildGPUObjectInputSource(graph.target == ShaderGraphTarget::Trail) +
 		"\tgraphInput.viewDirection = normalize(particleCameraPosition.xyz - input.worldPosition);\n"
-		"\tgraphInput.screenPosition = input.position;\n"
+		"\tgraphInput.screenPosition = SceneRasterPositionToForward(input.position, shaderGraphReversedDepth);\n"
 		"\tgraphInput.vertexColor = input.color;\n"
 		"\tgraphInput.particleColor = input.particleColor;\n"
 		"\tgraphInput.tangentToWorld = tangentToWorld;\n"

@@ -31,7 +31,7 @@ Engine::DepthTexture2D* Engine::RendererDepthAttachments::Prepare(DxCommand& com
 	auto& attachment = frame[target][domain];
 	if (!attachment.texture || attachment.texture->GetWidth() != width || attachment.texture->GetHeight() != height) {
 		auto candidate = std::make_unique<DepthTexture2D>();
-		DepthTextureCreateDesc desc{};
+		auto desc = DepthTextureCreateDesc::View();
 		desc.width = width;
 		desc.height = height;
 		desc.debugName = L"Renderer2DDepthStencil";
@@ -42,7 +42,7 @@ Engine::DepthTexture2D* Engine::RendererDepthAttachments::Prepare(DxCommand& com
 	attachment.texture->Transition(commands, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 	if (attachment.serial != serial) {
 		commands.GetCommandList()->ClearDepthStencilView(attachment.texture->GetDSVCPUHandle(),
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, ViewDepth::ToDeviceDepth(attachment.texture->GetDSVFormat(), 1.0f), 0, 0, nullptr);
 		attachment.serial = serial;
 	}
 	return attachment.texture.get();

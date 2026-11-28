@@ -295,6 +295,11 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 	const bool paintInputs = std::ranges::any_of(plan.bindings, [](const auto& binding) {
 		return binding.name == "gMaterialPaintScene";
 	});
+	const bool reflectionLights = std::ranges::any_of(plan.bindings, [](const auto& binding) {
+		return binding.name == "gWorldLightNodes";
+	}) && std::ranges::any_of(plan.bindings, [](const auto& binding) {
+		return binding.name == "gLightClusterHeaders";
+	});
 	size_t rootCost = 0;
 	for (size_t index = 0; index < plan.bindings.size(); ++index) {
 
@@ -303,7 +308,9 @@ Engine::RootSignaturePlan Engine::RootSignaturePlanning::Build(PipelineType pipe
 		// 反射はペイントとライトクラスタの既存SRVを使い64 DWORD以内に収める
 		const bool paintTable = paintInputs && (binding.name == "gMaterialPaintScene" || binding.name == "gMaterialPaintAtlas" ||
 			binding.name == "gLightClusterHeaders" || binding.name == "gLightClusterIndices");
-		binding.parameterType = ((particleResources && binding.space >= 2) || binding.name == "gParticlePaintReceivers" || paintTable) &&
+		const bool lightTable = reflectionLights && (binding.name == "gWorldLightNodes" || binding.name == "gDirectionalLights" ||
+			binding.name == "gPointLights" || binding.name == "gSpotLights" || binding.name == "gRectLights");
+		binding.parameterType = ((particleResources && binding.space >= 2) || binding.name == "gParticlePaintReceivers" || paintTable || lightTable) &&
 			(binding.kind == ShaderBindingKind::SRV || binding.kind == ShaderBindingKind::UAV) ?
 			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE : DecideRootParameterType(binding);
 		plan.visibilities.push_back(ToVisibility(pipelineType, binding.stageMask));

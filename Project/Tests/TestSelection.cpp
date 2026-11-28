@@ -491,6 +491,9 @@ std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 		return RunTest("TestClothGeometryGPU", TestClothGeometryGPU) && RunTest("TestClothEnvironmentGPU", TestClothEnvironmentGPU) &&
 			RunTest("TestClothSimulationGPU", TestClothSimulationGPU) ? 0 : 27;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--gi-probe-surfaces") {
+		return RunTest("GIProbeSurfaceMask", TestGIProbeSurfaceMask) ? 0 : 1;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--materials") {
 
 		if (!RunTest("TestBlendStates", TestBlendStates) || !RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) ||

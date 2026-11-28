@@ -58,8 +58,8 @@ namespace {
 		uint32_t index = 0;
 		for (float y : {-1.0f, 1.0f}) {
 			for (float x : {-1.0f, 1.0f}) {
-				nearCorners[index] = Engine::Vector3::Transform(Engine::Vector3(x, y, 0.0f), inverseViewProjection);
-				farCorners[index] = Engine::Vector3::Transform(Engine::Vector3(x, y, 1.0f), inverseViewProjection);
+				nearCorners[index] = Engine::Vector3::Transform(Engine::Vector3(x, y, Engine::ViewDepth::kNear), inverseViewProjection);
+				farCorners[index] = Engine::Vector3::Transform(Engine::Vector3(x, y, Engine::ViewDepth::kFar), inverseViewProjection);
 				++index;
 			}
 		}

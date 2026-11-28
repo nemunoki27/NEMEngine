@@ -39,6 +39,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/GPU/WorldLightIndex.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingViewBufferSet.h>
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
@@ -80,6 +81,7 @@ namespace Engine {
 		std::span<const Matrix4x4> instanceWorldMatrices;
 		std::span<const RaytracingGeometryBounds> geometryBounds;
 		uint32_t commonLayers = 0;
+		bool probeReceiversCovered = false;
 		std::span<const RaytracingInstanceShaderData> instanceData;
 		std::span<const RaytracingHitMaterial> hitMaterials;
 		std::function<ID3D12Resource*(GraphicsCore&)> resolveLegacyTLAS;
@@ -144,6 +146,7 @@ namespace Engine {
 		// 現在のビューに影強度が0より大きいライトが存在するか
 		bool hasShadowCastingLight = false;
 		const PerViewLightSet* viewLights = nullptr;
+		uint32_t maxWorldCellLights = UINT32_MAX;
 		uint64_t lightShadowFilterRevision = 0;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
@@ -356,6 +359,7 @@ namespace Engine {
 		RaytracingPipelineStateCache raytracingPipelineStateCache_{};
 		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
+		WorldLightIndex worldLightIndex_{};
 		RayTracingExecutor rayTracingExecutor_{};
 
 		// 描画アイテム抽出器のレジストリ

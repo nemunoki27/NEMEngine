@@ -173,7 +173,7 @@ namespace {
 	bool TryIntersectGroundFromNDC(const Engine::ResolvedCameraView& camera, const Engine::Matrix4x4& invViewProj, float ndcX,
 		float ndcY, float planeY, float maxGroundRayDistance, Engine::Vector3& outPoint) {
 
-		Engine::Vector3 nearP = UnprojectNDC(invViewProj, ndcX, ndcY, 0.0f);
+		Engine::Vector3 nearP = UnprojectNDC(invViewProj, ndcX, ndcY, Engine::ViewDepth::kNear);
 		Engine::Vector3 middleP = UnprojectNDC(invViewProj, ndcX, ndcY, 0.5f);
 
 		GridPoint2D hit2D{};
@@ -269,7 +269,7 @@ bool Engine::SceneGridLayout::BuildVisibleGroundPolygon(const Engine::ResolvedCa
 	const int sampleCount = (std::max)(samplesPerEdge, 4);
 
 	auto addSample = [&](float ndcX, float ndcY) {
-		Engine::Vector3 nearP = UnprojectNDC(invVP, ndcX, ndcY, 0.0f);
+		Engine::Vector3 nearP = UnprojectNDC(invVP, ndcX, ndcY, Engine::ViewDepth::kNear);
 		Engine::Vector3 middleP = UnprojectNDC(invVP, ndcX, ndcY, 0.5f);
 
 		GridPoint2D hit{};

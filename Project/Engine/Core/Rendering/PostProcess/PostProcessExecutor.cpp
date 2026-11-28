@@ -329,7 +329,10 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		dispatchY = DxUtils::RoundUp(height, pipelineState->GetThreadGroupY());
 		dispatchZ = 1;
 	}
-	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
+	if (desc.indirectArguments) {
+		if (!desc.indirectSignature) return false;
+		commandList->ExecuteIndirect(desc.indirectSignature, 1, desc.indirectArguments, 0, nullptr, 0);
+	} else commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 
 	// 名前付き出力も同じ同期地点で読み取り状態へ遷移する
 	outputTextureScratch_.clear();

@@ -33,10 +33,19 @@ Engine::ShaderGraphTimeConstantsGPU Engine::BuildShaderGraphFrameConstants(
 	result.viewToWorld = matrices.inverseViewMatrix;
 	result.viewToClip = matrices.projectionMatrix;
 	result.clipToView = matrices.inverseProjectionMatrix;
-	result.worldToClip = matrices.viewProjectionMatrix;
-	result.clipToWorld = matrices.inverseProjectionMatrix * matrices.inverseViewMatrix;
+	// 公開するClip座標とScene Depthを同じ近0・遠1の規約にそろえる
+	const bool reversedDepth = matrices.projectionMatrix.m[2][2] < 0.0f;
+	if (reversedDepth) {
+		for (uint32_t i = 0; i < 4; ++i) {
+			result.viewToClip.m[i][2] = matrices.projectionMatrix.m[i][3] - matrices.projectionMatrix.m[i][2];
+			result.clipToView.m[3][i] += matrices.inverseProjectionMatrix.m[2][i];
+			result.clipToView.m[2][i] = -matrices.inverseProjectionMatrix.m[2][i];
+		}
+	}
+	result.worldToClip = result.worldToView * result.viewToClip;
+	result.clipToWorld = result.clipToView * result.viewToWorld;
 	result.cameraPosition = {camera->cameraPos.x, camera->cameraPos.y, camera->cameraPos.z, 1.0f};
-	result.cameraDirection = {camera->forward.x, camera->forward.y, camera->forward.z, 0.0f};
+	result.cameraDirection = {camera->forward.x, camera->forward.y, camera->forward.z, reversedDepth ? 1.0f : 0.0f};
 	const bool orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic;
 	result.cameraProjection = {orthographic ? 1.0f : 0.0f, camera->nearClip, camera->farClip, 1.0f};
 	result.screenSize.z = orthographic ? 2.0f / (std::max)(std::abs(matrices.projectionMatrix.m[0][0]), 0.000001f) : 0.0f;

@@ -1,3 +1,4 @@
+#include "sceneViewDepth.hlsli"
 #ifndef NEM_CULLING_HELPERS_HLSLI
 #define NEM_CULLING_HELPERS_HLSLI
 
@@ -255,23 +256,23 @@ bool IsSphereOccludedHiZ(
 		return false;
 	}
 
-	float maxDepth =
+	float farthestDepth =
 		NEM_OCCLUSION_DEPTH_PYRAMID.Load(
 			int3(pixelMin, mipIndex));
-	maxDepth = max(maxDepth,
+	farthestDepth = min(farthestDepth,
 		NEM_OCCLUSION_DEPTH_PYRAMID.Load(
 			int3(uint2(pixelMax.x, pixelMin.y),
 				mipIndex)));
-	maxDepth = max(maxDepth,
+	farthestDepth = min(farthestDepth,
 		NEM_OCCLUSION_DEPTH_PYRAMID.Load(
 			int3(uint2(pixelMin.x, pixelMax.y),
 				mipIndex)));
-	maxDepth = max(maxDepth,
+	farthestDepth = min(farthestDepth,
 		NEM_OCCLUSION_DEPTH_PYRAMID.Load(
 			int3(pixelMax, mipIndex)));
 	// 未生成Mipや無効値を遮蔽面として扱わない
-	return maxDepth > 0.000001f &&
-		nearestDepth > maxDepth + 0.0005f;
+	return farthestDepth > kSceneFarDepth &&
+		nearestDepth < farthestDepth - 0.0005f;
 }
 #endif
 

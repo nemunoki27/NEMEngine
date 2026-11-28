@@ -17,6 +17,7 @@
 namespace Engine {
 	class RenderAssetLibrary;
 	class AssetDatabase;
+	struct RendererRenderSettings;
 	enum class MeshRenderFlags : uint32_t;
 	struct ResolvedRenderView;
 	struct SubMeshMaterial;
@@ -37,16 +38,13 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	// Cull設定を変換する
 	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
 		const D3D12_RASTERIZER_DESC& rasterizer, bool reverseWinding = false);
-	// PrimitiveのPipelineを選択する
-	const Engine::PipelineVariantDesc* ResolvePrimitivePipelineVariant(
+	uint32_t ResolveEmitterFaceFlags(const D3D12_RASTERIZER_DESC& rasterizer, const RendererRenderSettings* settings);
+	// 描画面のPipelineを選択する
+	const Engine::PipelineVariantDesc* ResolveSurfacePipelineVariant(
 		Engine::RenderAssetLibrary& assetLibrary,
 		const Engine::MaterialAsset& material,
 		Engine::MaterialSurfaceMode surfaceMode,
-		const Engine::GraphicsRuntimeFeatures& runtimeFeatures);
-	// Geometry配置を識別する
-	uint64_t ComputeGeometryLayoutHash(
-		std::span<const Engine::SubMeshMaterial> subMeshes,
-		uint32_t geometryCount);
+		const Engine::GraphicsRuntimeFeatures& runtimeFeatures, bool maskedPass = false);
 	// Materialが参照するCamera出力を収集する
 	void CollectRenderTextureParameters(const Engine::MaterialParameterSet& parameters, const Engine::AssetDatabase& database,
 		std::unordered_set<Engine::AssetID>& inputs);

@@ -24,7 +24,8 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 
 	geometryDescs_.resize(input.geometries.size());
 
-	std::vector<GeometryTransform3x4> transforms(input.geometries.size());
+	std::vector<GeometryTransform3x4> transforms;
+	const Matrix4x4 identity = Matrix4x4::Identity();
 
 	for (uint32_t index = 0;
 		index < static_cast<uint32_t>(input.geometries.size()); ++index) {
@@ -34,17 +35,19 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 			throw std::invalid_argument("BLAS Geometryに頂点とインデックスが必要です");
 		}
 
-		// 行ベクトル行列をDXRの3x4行列へ変換
-		const Matrix4x4 matrix = Matrix4x4::Transpose(source.localMatrix);
-		for (uint32_t row = 0; row < 3; ++row) {
-			for (uint32_t column = 0; column < 4; ++column) {
-				transforms[index].value[row][column] =
-					matrix.m[row][column];
-			}
-		}
-
 		D3D12_RAYTRACING_GEOMETRY_DESC& geometry = geometryDescs_[index];
 		geometry = {};
+		// refit時は初回構築と同じTransform3x4の有無を維持する
+		if (input.allowUpdate || source.localMatrix != identity) {
+			const Matrix4x4 matrix = Matrix4x4::Transpose(source.localMatrix);
+			if (transforms.empty()) transforms.reserve(input.geometries.size());
+			auto& transform = transforms.emplace_back();
+			for (uint32_t row = 0; row < 3; ++row) {
+				for (uint32_t column = 0; column < 4; ++column) {
+					transform.value[row][column] = matrix.m[row][column];
+				}
+			}
+		}
 		geometry.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 		geometry.Flags = source.flags;
 
@@ -56,10 +59,14 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 		geometry.Triangles.IndexCount = source.indexCount;
 		geometry.Triangles.IndexBuffer = source.indexAddress;
 	}
+	if (transforms.empty()) return;
 	const auto allocation = geometryTransformBuffer_.AllocateAndUploadBytes(*retirementQueue_, device_,
 		std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(transforms.data()), transforms.size() * sizeof(GeometryTransform3x4)));
+	auto address = allocation.gpuAddress;
 	for (size_t index = 0; index < geometryDescs_.size(); ++index) {
-		geometryDescs_[index].Triangles.Transform3x4 = allocation.gpuAddress + sizeof(GeometryTransform3x4) * index;
+		if (!input.allowUpdate && input.geometries[index].localMatrix == identity) continue;
+		geometryDescs_[index].Triangles.Transform3x4 = address;
+		address += sizeof(GeometryTransform3x4);
 	}
 }
 

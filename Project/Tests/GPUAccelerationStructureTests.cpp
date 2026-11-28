@@ -83,8 +83,8 @@ RWStructuredBuffer<uint> results : register(u0);
 cbuffer Params : register(b0) { uint outputIndex; };
 [numthreads(1,1,1)] void main() {
     float hitDistance;
-    uint filter = outputIndex < 13 ? 0xFFFFFFFFu : (outputIndex == 14 ? 1u : 0u);
-    bool hit = TraceShadowRay(float3(0.25, 0.25, -1), float3(0, 0, 1), outputIndex == 15 ? 1.5 : 100, hitDistance, filter);
+    uint filter = (outputIndex < 13 || outputIndex >= 16) ? 0xFFFFFFFFu : (outputIndex == 14 ? 1u : 0u);
+    bool hit = TraceShadowRay(float3(outputIndex == 16 ? 10.25 : 0.25, 0.25, -1), float3(0, 0, 1), outputIndex == 15 ? 1.5 : 100, hitDistance, filter);
     results[outputIndex] = hit && (outputIndex != 13 || hitDistance > 1.9) ? 1 : 0;
 })";
 			if (!file) return false;
@@ -106,8 +106,8 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		desc.pRootSignature = root.Get();
 		desc.CS = { shader.GetBytecodePointer(), shader.GetBytecodeSize() };
 		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
-		DxUtils::CreateReadbackBufferResource(device, readback, 64);
-		DxUtils::CreateUavBufferResource(device, output, 64);
+		DxUtils::CreateReadbackBufferResource(device, readback, 18 * sizeof(uint32_t));
+		DxUtils::CreateUavBufferResource(device, output, 18 * sizeof(uint32_t));
 		const std::array<uint32_t, 7> filterData{4, 1, 5, 2, 0, 0, 1};
 		DxUtils::CreateUploadBufferResource(device, shadowFilters, sizeof(filterData));
 		if (FAILED(shadowFilters->Map(0, nullptr, &mapped))) return false;
@@ -198,6 +198,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	source.Rebuild(commands, input);
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
 	trace(9, state.GetResource());
+	const uint64_t stableContentGeneration = state.GetContentGeneration();
 	// 配置が落ち着いた後だけ再構築し、以降は再利用する
 	auto& profiler = Engine::FrameProfiler::GetInstance();
 	profiler.BeginFrame(0, 0);
@@ -206,8 +207,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, false);
 	trace(10, state.GetResource());
 	profiler.BeginFrame(0, 0);
-	if (profiler.GetRenderingStatistics().tlasBuildCount != 1) return false;
-	const uint64_t stableContentGeneration = state.GetContentGeneration();
+	if (profiler.GetRenderingStatistics().tlasBuildCount != 1 || state.GetContentGeneration() != stableContentGeneration) return false;
 	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, false);
 	trace(11, state.GetResource());
 	profiler.BeginFrame(0, 0);
@@ -222,6 +222,17 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	ID3D12Resource* staticResource = staticBLAS.GetResource();
 	staticBLAS.Rebuild(commands, input);
 	if (staticBLAS.GetResource() != staticResource || staticBLAS.GetRetainedScratchBytes() != 0) return false;
+	if (canQuery) {
+		// 単位行列と変換ありのGeometryを同じBLASに入れて両方へレイを当てる
+		std::array<Engine::RaytracingBLASGeometryInput, 2> mixed{ geometry, geometry };
+		mixed[1].localMatrix.m[3][0] = 10;
+		staticBLAS.Build(device8.Get(), commands, { mixed, false });
+		auto splitInstances = instances;
+		splitInstances[0].blas = staticBLAS.GetResource();
+		top.Build(device8.Get(), commands, splitInstances, true);
+		trace(16);
+		trace(17);
+	}
 	staticBLAS.Release();
 	input.allowUpdate = true;
 	if (canQuery) {
@@ -238,7 +249,7 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commands->ResourceBarrier(1, &barrier);
-		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 64);
+		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 18 * sizeof(uint32_t));
 		retirement.Retire(std::move(shadowFilters));
 		retirement.Retire(std::move(output));
 		retirement.Retire(std::move(root));

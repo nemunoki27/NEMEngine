@@ -20,6 +20,7 @@
 // c++
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <chrono>
 #include <span>
@@ -61,7 +62,7 @@ namespace {
 		std::vector<std::byte> signature;
 	};
 
-	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights, uint64_t filterRevision, bool directionalOnly) {
+	ShadowLightSelection SelectShadowLights(const PerViewLightSet& lights, uint64_t filterRevision, bool directionalOnly, uint64_t maxSlots) {
 
 		ShadowLightSelection result;
 		const auto filterBytes = std::as_bytes(std::span{ &filterRevision, 1 });
@@ -71,7 +72,7 @@ namespace {
 		const auto append = [&](const auto& items) {
 
 			for (const auto* item : items) {
-				if (item->shadowStrength > 0.0f && item->intensity > 0.0f) {
+				if (result.sources.size() < maxSlots && item->shadowStrength > 0.0f && item->intensity > 0.0f) {
 
 					result.indices[index] = static_cast<uint32_t>(result.sources.size());
 					result.sources.push_back(index);
@@ -300,15 +301,20 @@ bool Engine::InlineShadowRenderer::Render(GraphicsCore& graphicsCore, SceneExecu
 	const auto* tlas = context.bufferRegistry.Find("gSceneTLAS");
 	if (!features.useInlineRayTracing || context.disableInlineRayTracing || !context.viewLights || !camera ||
 		!tlas || tlas->gpuAddress == 0 || !context.hasShadowCastingLight) return false;
-	auto selection = SelectShadowLights(*context.viewLights, context.lightShadowFilterRevision, directionalOnly);
+	const uint32_t width = context.resources->GetSceneMain()->GetWidth();
+	const uint32_t height = context.resources->GetSceneMain()->GetHeight();
+	const uint64_t pixels = uint64_t(width) * height;
+	// バッファは2の累乗へ拡張される。履歴に入らない光源はLightingで直接追跡する
+	const auto memory = graphicsCore.GetDXObject().GetFeatureController().GetAdapterInfo().dedicatedVideoMemoryBytes;
+	const uint64_t budget = std::clamp<uint64_t>(memory / 8, 64ull << 20, 512ull << 20);
+	const uint64_t maxElements = std::bit_floor(budget / (sizeof(Vector2) + 4 * sizeof(uint32_t)));
+	auto selection = SelectShadowLights(*context.viewLights, context.lightShadowFilterRevision, directionalOnly, maxElements / (std::max)(pixels, uint64_t{1}));
 	if (selection.sources.empty()) {
 		implementation_->views.erase(context.view->GetHistoryKey());
 		return false;
 	}
 	if (!implementation_->EnsurePipelines(graphicsCore)) return false;
 	auto& owner = implementation_->views[context.view->GetHistoryKey()];
-	const uint32_t width = context.resources->GetSceneMain()->GetWidth();
-	const uint32_t height = context.resources->GetSceneMain()->GetHeight();
 	const uint32_t lightCount = static_cast<uint32_t>(selection.sources.size());
 	if (!owner || owner->width != width || owner->height != height || owner->lightCount != lightCount) {
 

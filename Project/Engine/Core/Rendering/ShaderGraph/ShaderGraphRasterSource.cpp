@@ -36,7 +36,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraphInput.worldNormal = normalize(mul(graphInput.objectNormal, transpose((float3x3)graphInput.worldToObject)));\n"
 			"\tfloat3 T = normalize(mul(graphInput.objectTangent, (float3x3)graphInput.objectToWorld));\n"
 			"\tgraphInput.viewDirection = normalize(graphInput.cameraPosition - graphInput.worldPosition);\n"
-			"\tgraphInput.screenPosition = input.position;\n"
+			"\tgraphInput.screenPosition = SceneRasterPositionToForward(input.position, shaderGraphReversedDepth);\n"
 			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 			"\tgraphInput.isFrontFace = isFrontFace;\n"
 			"\tgraphInput.tangentToWorld = float3x3(T, cross(graphInput.worldNormal, T), graphInput.worldNormal);\n";
@@ -77,7 +77,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraphInput.objectNormal = normalize(mul(graphInput.worldNormal, transpose((float3x3)graphInput.objectToWorld)));\n"
 			"\tgraphInput.objectTangent = normalize(mul(T, (float3x3)graphInput.worldToObject));\n"
 			"\tgraphInput.viewDirection = graphInput.cameraProjection.x != 0.0f ? -graphInput.cameraDirection : normalize(graphInput.cameraPosition - graphInput.worldPosition);\n"
-			"\tgraphInput.screenPosition = input.position;\n"
+			"\tgraphInput.screenPosition = SceneRasterPositionToForward(input.position, shaderGraphReversedDepth);\n"
 			"\tgraphInput.isFrontFace = isFrontFace;\n"
 			"\tgraphInput.tangentToWorld = float3x3(T, cross(graphInput.worldNormal, T), graphInput.worldNormal);\n";
 		return source;
@@ -90,6 +90,7 @@ namespace Engine::ShaderGraphStageSource {
 		std::string source = "// Shader Graph generated file\n"
 							 "#define NEM_PRIMITIVE_SHADER_GRAPH 1\n"
 							 "#include \"Builtin/Primitive/primitive.hlsli\"\n"
+							 "#include \"Builtin/Common/normalEncoding.hlsli\"\n"
 							 "#undef NEM_PRIMITIVE_SHADER_GRAPH\n"
 							 "#include \"Builtin/Mesh/Common/pbrShading.hlsli\"\n"
 							 "#include \"Builtin/Mesh/Common/deferredGBuffer.hlsli\"\n"
@@ -101,7 +102,7 @@ namespace Engine::ShaderGraphStageSource {
 		source +=
 			"\nShaderGraphSurface EvaluatePrimitiveShaderGraph(VSOutput input, bool isFrontFace) {\n\n"
 			"\tfloat3 N = normalize(input.normal);\n"
-			"\tfloat3 T = normalize(input.tangent - N * dot(N, input.tangent));\n"
+			"\tfloat3 T = OrthogonalizeTangent(input.tangent, N);\n"
 			"\tShaderGraphSurfaceInput graphInput = (ShaderGraphSurfaceInput)0;\n" +
 			BuildFrameInputAssignments() +
 			"\tgraphInput.hexTiling = input.hexTiling;\n"
@@ -115,7 +116,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraphInput.objectTangent = normalize(mul(T, (float3x3)graphInput.worldToObject));\n"
 			"\tgraphInput.isFrontFace = isFrontFace;\n"
 			"\tgraphInput.viewDirection = normalize(cameraPosition - input.worldPos);\n"
-			"\tgraphInput.screenPosition = input.position;\n"
+			"\tgraphInput.screenPosition = SceneRasterPositionToForward(input.position, shaderGraphReversedDepth);\n"
 			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
 			"\tgraphInput.tangentToWorld = float3x3(T, cross(N, T) * input.tangentSign, N);\n"
 			"\tShaderGraphSurface graph = EvaluateShaderGraphSurface(graphInput, GetShaderGraphParameters());\n"

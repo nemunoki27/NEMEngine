@@ -28,8 +28,8 @@ x86/
 # Debug名のエンジンソースフォルダはビルド出力から除外する
 !Project/Engine/Core/Rendering/Renderer/Debug/
 !Project/Engine/Core/Rendering/Renderer/Debug/**
-!Project/Engine/Assets/Shaders/Builtin/Debug/
-!Project/Engine/Assets/Shaders/Builtin/Debug/**
+!Project/Engine/Assets/Rendering/Builtin/Debug/
+!Project/Engine/Assets/Rendering/Builtin/Debug/**
 Project/Externals/libcurl/build-*/
 
 # Local config

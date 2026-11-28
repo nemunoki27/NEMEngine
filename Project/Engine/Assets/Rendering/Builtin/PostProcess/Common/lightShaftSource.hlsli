@@ -1,3 +1,4 @@
+#include "../../Common/sceneViewDepth.hlsli"
 #include "postProcessCommon.hlsli"
 #define NEM_LIGHT_COUNTS_REGISTER b2
 #include "../../Lighting/lightShaderData.hlsli"
@@ -27,7 +28,7 @@ float ResolveLightShaftSource(out float2 sourceUV, out float3 lightColor) {
 		for (int x = -2; x <= 2; ++x) {
 			float2 sampleUV = sourceUV + float2(x, y) * 0.004f;
 			int2 samplePixel = clamp(int2(sampleUV * float2(width, height)), 0, int2(width, height) - 1);
-			visibility += step(0.99999f, gSourceDepth.Load(int3(samplePixel, 0)));
+			visibility += step(gSourceDepth.Load(int3(samplePixel, 0)), kSceneFarDepth);
 		}
 	}
 	lightColor = light.color.rgb * max(light.intensity, 0.0f);

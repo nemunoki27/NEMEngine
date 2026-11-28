@@ -1,3 +1,4 @@
+#include "../Common/sceneViewDepth.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
@@ -27,7 +28,7 @@ SamplerState gSampler : register(s0);
 float4 main(VSOutput input) : SV_TARGET0 {
 
 	// 最遠面のNDCをワールドへ逆投影し視線方向を求める
-	float4 farPoint = mul(float4(input.ndc, 1.0f, 1.0f), inverseViewProjection);
+	float4 farPoint = mul(float4(input.ndc, kSceneFarDepth, 1.0f), inverseViewProjection);
 	float3 worldFar = farPoint.xyz / farPoint.w;
 	float3 viewDir = normalize(worldFar - cameraPosition);
 

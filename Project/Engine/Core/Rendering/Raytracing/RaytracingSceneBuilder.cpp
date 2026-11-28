@@ -207,7 +207,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 			key.meshAssetID = record.meshAssetID;
 			key.reloadGeneration = record.reloadGeneration;
 			auto entry = blasCache_.staticInstanceBLASes_.find(key);
-			if (entry == blasCache_.staticInstanceBLASes_.end() || !entry->second.blas.IsBuilt()) {
+			if (entry == blasCache_.staticInstanceBLASes_.end() || (entry->second.dedicated && !entry->second.blas.IsBuilt())) {
 				matchesStaticScene = false;
 				break;
 			}
@@ -256,11 +256,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 				const bool rebuildForTraceQuality =
 					RequiresTLASRebuildForTraceQuality(state.cachedTLASInstances.size(), changedInstanceCount);
 				state.tlasState.RefitORRebuild(graphicsCore, state.cachedTLASInstances, rebuildForTraceQuality);
+				state.tlasState.RecordInstances(state.cachedTLASInstances);
 			} else {
 				state.tlasState.MaintainTraceQuality(graphicsCore, state.cachedTLASInstances);
 			}
 
-			state.tlasState.RecordInstances(state.cachedTLASInstances);
 			state.cachedTransformRevision = renderBatch.GetSourceTransformRevision();
 			state.result.UploadCached();
 			FrameProfiler::GetInstance().AddBLASSkip(state.cachedBLASGeometryCount);
@@ -322,6 +322,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.result.hitMaterials_.clear();
 	state.result.materialParameterWords_.clear();
 	state.result.sceneGeometryBounds_.clear();
+	state.result.probeReceiversCovered_ = true;
 	state.result.sceneSubMeshScratch_.clear();
 	state.materialResolver.ResetPending(prepareMaterialHits);
 
@@ -366,9 +367,26 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	state.publishedBLASKeys.clear();
 	state.buildingMeshOwnerships.clear();
 	BuildMeshInstances(sceneMeshes, work);
+	const size_t meshInstanceCount = tlasEntityKeys.size();
 
 	// 形状ごとにBLASを共有してPrimitiveを追加
 	BuildPrimitiveInstances(scenePrimitives, work);
+
+	if (state.result.probeReceiversCovered_) {
+		const auto split = tlasEntityKeys.begin() + meshInstanceCount;
+		const std::unordered_set<SceneEntityKey, SceneEntityKeyHash> meshes(tlasEntityKeys.begin(), split);
+		const std::unordered_set<SceneEntityKey, SceneEntityKeyHash> primitives(split, tlasEntityKeys.end());
+		for (const auto& item : renderBatch.GetItems()) {
+			if (context.sceneInstance->instanceID && item.sceneInstanceID != context.sceneInstance->instanceID) continue;
+			if (item.renderPhase != RenderPhase::Opaque && item.renderPhase != RenderPhase::Transparent) continue;
+			const SceneEntityKey key{item.world, item.entity};
+			if ((item.backendID != RenderBackendID::Mesh || !meshes.contains(key)) &&
+				(item.backendID != RenderBackendID::Primitive || !primitives.contains(key))) {
+				state.result.probeReceiversCovered_ = false;
+				break;
+			}
+		}
+	}
 
 	// TLASインスタンスがない場合は処理しない
 	if (tlasInstances.empty()) {
@@ -396,6 +414,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 
 	// 構築済みにする
 	uint64_t sceneMaterialHash = ComputeSceneMaterialHash(state.result.sceneSubMeshScratch_);
+	for (const auto& bounds : state.result.sceneGeometryBounds_) {
+		if (bounds.emissiveTriangleCount) Algorithm::HashCombine(sceneMaterialHash, bounds.emitterFaceFlags);
+	}
 	for (const auto& hit : state.result.hitMaterials_) {
 		Algorithm::HashCombine(sceneMaterialHash, std::hash<AssetID>{}(hit.shader));
 		Algorithm::HashCombine(sceneMaterialHash, std::hash<AssetID>{}(hit.pipeline));

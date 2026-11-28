@@ -1,4 +1,5 @@
 #include "SceneGridRenderer.h"
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 #include "SceneGridLayout.h"
 
 //============================================================================
@@ -74,7 +75,7 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 
 	desc.numRenderTargets = 1;
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	desc.dsvFormat = Engine::ViewDepth::kDSVFormat;
 
 	bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(
 						graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;

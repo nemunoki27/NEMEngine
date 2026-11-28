@@ -5,6 +5,7 @@
 //============================================================================
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 void Engine::MeshBoundsUtility::Calculate(std::span<const MeshVertex> vertices,
 	std::span<const uint32_t> indices, Vector3& center, float& radius) {
@@ -27,6 +28,27 @@ void Engine::MeshBoundsUtility::Calculate(std::span<const MeshVertex> vertices,
 	}
 	center = (minimum + maximum) * 0.5f;
 	for (size_t index = 0; index < count; ++index) radius = std::max(radius, (position(index) - center).Length());
+}
+
+Engine::Vector3 Engine::MeshBoundsUtility::TransformHalfExtent(const Matrix4x4& matrix, const Vector3& center,
+	const Vector3& halfExtent) {
+
+	if (matrix.m[0][3] != 0.0f || matrix.m[1][3] != 0.0f || matrix.m[2][3] != 0.0f || matrix.m[3][3] != 1.0f)
+		return Vector3::AnyInit(std::numeric_limits<float>::infinity());
+	const float p[]{center.x, center.y, center.z};
+	const float h[]{halfExtent.x, halfExtent.y, halfExtent.z};
+	float result[3]{};
+	for (uint32_t axis = 0; axis < 3; ++axis) {
+		double extent = 0.0, magnitude = std::abs(matrix.m[3][axis]);
+		for (uint32_t i = 0; i < 3; ++i) {
+			const double coefficient = std::abs(matrix.m[i][axis]);
+			extent += coefficient * h[i];
+			magnitude += coefficient * std::abs(p[i]);
+		}
+		const double margin = (extent + magnitude) * (8.0 * std::numeric_limits<float>::epsilon());
+		result[axis] = std::nextafter(static_cast<float>(extent + margin), std::numeric_limits<float>::infinity());
+	}
+	return {result[0], result[1], result[2]};
 }
 
 void Engine::MeshBoundsUtility::TransformSphere(const Matrix4x4& matrix, Vector3& center, float& radius) {

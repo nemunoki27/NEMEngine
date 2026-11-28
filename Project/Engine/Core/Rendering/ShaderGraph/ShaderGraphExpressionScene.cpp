@@ -65,7 +65,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitSceneNode(const ShaderG
 		}
 		return {
 			ShaderGraphValueType::Float,
-			std::string(ShaderGraphBindingNames::kSceneDepth) + ".SampleLevel(gSampler, " + uv.code + ", 0.0f)",
+			"SceneDepthToForward(" + std::string(ShaderGraphBindingNames::kSceneDepth) + ".SampleLevel(gSampler, " + uv.code + ", 0.0f))",
 		};
 	}
 	case ShaderGraphNodeKind::SceneNormal:

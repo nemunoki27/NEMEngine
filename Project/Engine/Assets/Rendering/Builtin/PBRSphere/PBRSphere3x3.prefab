@@ -1,0 +1,777 @@
+{
+  "SchemaVersion": 2,
+  "Header": {
+    "name": "PBRSphere3x3",
+    "rootLocalFileID": "0000000000000001",
+    "version": 2
+  },
+  "Entities": [
+    {
+      "LocalFileID": "0000000000000001",
+      "Components": {
+        "Name": {
+          "name": "PBRSphere3x3"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "",
+          "siblingOrder": 0
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000001",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000002",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.000  Metallic 0.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 0
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000002",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": -1.25,
+            "y": -1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000003",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.500  Metallic 0.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 1
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000003",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": -1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.5
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000004",
+      "Components": {
+        "Name": {
+          "name": "Roughness 1.000  Metallic 0.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 2
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000004",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 1.25,
+            "y": -1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 1.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000005",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.000  Metallic 0.500"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 3
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000005",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": -1.25,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.5
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000006",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.500  Metallic 0.500"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 4
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000006",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.5
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.5
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000007",
+      "Components": {
+        "Name": {
+          "name": "Roughness 1.000  Metallic 0.500"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 5
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000007",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 1.25,
+            "y": 0,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 1.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 0.5
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000008",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.000  Metallic 1.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 6
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000008",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": -1.25,
+            "y": 1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 1.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "0000000000000009",
+      "Components": {
+        "Name": {
+          "name": "Roughness 0.500  Metallic 1.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 7
+        },
+        "SceneObject": {
+          "localFileId": "0000000000000009",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 0,
+            "y": 1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 0.5
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 1.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "LocalFileID": "000000000000000a",
+      "Components": {
+        "Name": {
+          "name": "Roughness 1.000  Metallic 1.000"
+        },
+        "Hierarchy": {
+          "parentLocalFileID": "0000000000000001",
+          "siblingOrder": 8
+        },
+        "SceneObject": {
+          "localFileId": "000000000000000a",
+          "activeSelf": true,
+          "tag": "Untagged",
+          "visibilityLayerMask": 4294967295
+        },
+        "Transform": {
+          "dimension": 1,
+          "localPos": {
+            "x": 1.25,
+            "y": 1.25,
+            "z": 0
+          },
+          "localRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "w": 1
+          },
+          "localScale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "PrimitiveRenderer": {
+          "renderSpace": "World3D",
+          "type": "Sphere",
+          "sphere": {
+            "radius": 0.5,
+            "latitudeDivide": 32,
+            "longitudeDivide": 32
+          },
+          "lighting": true,
+          "material": "",
+          "queue": "Opaque",
+          "blendMode": "Normal",
+          "materialInstance": [
+            {
+              "id": "77f5c18e246c6638",
+              "name": "color",
+              "semantic": "BaseColor",
+              "value": {
+                "r": 1,
+                "g": 1,
+                "b": 1,
+                "a": 1
+              }
+            },
+            {
+              "id": "c65b493a4e9d7f55",
+              "name": "roughness",
+              "semantic": "Roughness",
+              "value": 1.0
+            },
+            {
+              "id": "df9e0c473a8555c8",
+              "name": "metallic",
+              "semantic": "Metallic",
+              "value": 1.0
+            },
+            {
+              "id": "31d4f90ec37c453f",
+              "name": "emissiveIntensity",
+              "semantic": "EmissiveIntensity",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "NestedPrefabInstances": []
+}

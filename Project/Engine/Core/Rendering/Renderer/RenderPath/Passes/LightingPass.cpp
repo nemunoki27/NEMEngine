@@ -201,7 +201,7 @@ void Engine::LightingPass::Execute(
 	const bool volumetricShadows = RequiresDirectionalShadowMap(graphicsCore, passBuckets, context);
 	const bool useReSTIR = restirDI_.Render(graphicsCore, context, deps_);
 	const bool filteredShadow = requestShadow && inlineShadows_.Render(graphicsCore, context, deps_, useReSTIR);
-	const bool useShadow = filteredShadow || (requestShadow && useReSTIR);
+	const bool useShadow = requestShadow;
 	profiler.BeginPass(commandList, profilePrefix + " ShadowMap");
 	const bool shadowMapAvailable = (!useShadow || volumetricShadows) &&
 		directionalShadows_.Render(graphicsCore, passBuckets, context, deps_);

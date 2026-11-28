@@ -27,8 +27,8 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		GameApplication() = default;
-		~GameApplication() override = default;
+		GameApplication();
+		~GameApplication() override;
 
 		void Init(GraphicsCore& graphicsCore) override;
 		void Tick(GraphicsCore& graphicsCore, float deltaTime) override;
@@ -67,6 +67,8 @@ namespace Engine {
 
 		bool requestFrameDeltaReset_ = false;
 		bool playWorldJustStarted_ = false;
+		struct FrameCapture;
+		std::unique_ptr<FrameCapture> frameCapture_;
 
 		//--------- functions ----------------------------------------------------
 

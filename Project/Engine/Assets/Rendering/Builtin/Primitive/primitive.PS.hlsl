@@ -2,6 +2,7 @@
 //	include
 //============================================================================
 #include "primitive.hlsli"
+#include "../Common/normalEncoding.hlsli"
 #include "../Atmosphere/transparentFog.hlsli"
 #include "../Mesh/Common/pbrShading.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
@@ -53,7 +54,7 @@ ResolvedPBRMaterial ResolvePrimitiveMaterial(VSOutput input) {
 	float3 normalSample = SamplePrimitiveMaterialTexture(normalTexture, gSampler, hex, unassignedMaterialTextureMask, 4u).rgb;
 	if (min(min(normalSample.r, normalSample.g), normalSample.b) < 0.99f) {
 
-		float3 T = normalize(input.tangent - N * dot(N, input.tangent));
+		float3 T = OrthogonalizeTangent(input.tangent, N);
 		float3 B = cross(N, T) * input.tangentSign;
 		float3 tangentNormal = normalSample * 2.0f - 1.0f;
 		N = normalize(mul(tangentNormal, float3x3(T, B, N)));

@@ -1,3 +1,4 @@
+#include "../../Common/sceneViewDepth.hlsli"
 //============================================================================
 //	resources
 //============================================================================
@@ -29,7 +30,7 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 	}
 
 	const uint2 sourceBase = destination * 2u;
-	float maxDepth = 0.0f;
+	float farthestDepth = kSceneNearDepth;
 	const uint sampleCountX =
 		(sourceSize.x > destinationSize.x * 2u &&
 			destination.x + 1u == destinationSize.x) ?
@@ -43,10 +44,10 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 
 			const uint2 source = sourceBase + uint2(x, y);
 			if (all(source < sourceSize)) {
-				maxDepth = max(maxDepth,
+				farthestDepth = min(farthestDepth,
 					gSourceDepth.Load(int3(source, 0)));
 			}
 		}
 	}
-	gOutputDepth[destination] = maxDepth;
+	gOutputDepth[destination] = farthestDepth;
 }

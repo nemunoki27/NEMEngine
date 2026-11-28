@@ -123,9 +123,9 @@ float4 main(VSOutput input) : SV_TARGET0 {
 	float3 hdrColor = max(src.rgb, 0.0f);
 
 	// 前フレーム露出から現在露出への比で時間的なPre-Exposureを補正する
-	const float currentExposure = max(gExposureState[0].x, 1.0e-6f);
+	const float currentExposure = gExposureState[0].x;
 	const float previousExposure = usePreExposure != 0.0f ?
-		max(gExposureState[0].y, 1.0e-6f) : 1.0f;
+		gExposureState[0].y : 1.0f;
 	hdrColor *= previousExposure;
 	hdrColor *= currentExposure / previousExposure;
 	hdrColor = ApplyColorGrading(hdrColor);

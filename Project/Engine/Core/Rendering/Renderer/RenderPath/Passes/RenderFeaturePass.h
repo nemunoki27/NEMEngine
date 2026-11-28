@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureTemporalState.h"
+#include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
@@ -23,6 +24,15 @@ namespace Engine {
 		bool useConfiguredResolution = false;
 		bool allowInPlaceReflectionComposite = false;
 		bool worldSpaceHistory = false;
+	};
+
+	struct RenderFeatureComputeWorkQueue {
+		UUID pass;
+		AssetID selectionMaterial;
+		StructuredRWBuffer<uint32_t>& jobs;
+		StructuredRWBuffer<uint32_t>& arguments;
+		ID3D12CommandSignature* signature;
+		uint32_t selectGroupsX, selectGroupsY;
 	};
 
 	struct RenderFeatureSharedOutput {
@@ -53,7 +63,8 @@ namespace Engine {
 		bool HasExecutionSucceeded() const { return executionSucceeded_; }
 		// 同じフレームで計算済みのパス出力を別Viewの履歴へ引き継ぐ
 		void ExecuteWithSharedOutputs(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs);
+			SceneExecutionContext& context, UUID passID, std::span<const RenderFeatureSharedOutput> outputs,
+			const RenderFeatureComputeWorkQueue* queue = nullptr);
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RenderFeature; }
 

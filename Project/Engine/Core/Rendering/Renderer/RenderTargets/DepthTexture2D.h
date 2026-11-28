@@ -12,6 +12,19 @@
 
 namespace Engine {
 
+	// メインView用の浮動小数点深度とステンシル
+	namespace ViewDepth {
+
+		constexpr DXGI_FORMAT kResourceFormat = DXGI_FORMAT_R32G8X24_TYPELESS;
+		constexpr DXGI_FORMAT kDSVFormat = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+		constexpr DXGI_FORMAT kSRVFormat = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+		constexpr float ToDeviceDepth(DXGI_FORMAT format, float depth) {
+
+			return format == kDSVFormat ? 1.0f - depth : depth;
+		}
+	}
+
 	// front
 	class DSVDescriptor;
 	class SRVDescriptor;
@@ -31,6 +44,11 @@ namespace Engine {
 		DXGI_FORMAT resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
 		DXGI_FORMAT dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		DXGI_FORMAT srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+		static DepthTextureCreateDesc View() {
+
+			return {.resourceFormat = ViewDepth::kResourceFormat, .dsvFormat = ViewDepth::kDSVFormat, .srvFormat = ViewDepth::kSRVFormat};
+		}
 
 		// デバッグ用の名前
 		std::wstring debugName;

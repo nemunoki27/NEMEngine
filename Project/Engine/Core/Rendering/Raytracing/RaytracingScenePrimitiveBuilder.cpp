@@ -59,7 +59,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 			continue;
 		}
 		const PipelineVariantDesc* pipelineVariant =
-			ResolvePrimitivePipelineVariant(
+			ResolveSurfacePipelineVariant(
 				work.assetLibrary, *material, src.surfaceMode, work.runtimeFeatures);
 		// 半透明パスがない場合は既定Materialへ戻す
 		if (!pipelineVariant &&
@@ -69,7 +69,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 				work.assetDatabase, AssetID{}, DefaultMaterialSlot::Primitive);
 			material = work.assetLibrary.LoadMaterial(materialID);
 			pipelineVariant = material ?
-				ResolvePrimitivePipelineVariant(
+				ResolveSurfacePipelineVariant(
 					work.assetLibrary, *material, src.surfaceMode, work.runtimeFeatures) :
 				nullptr;
 		}
@@ -176,6 +176,16 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		work.scene.result.sceneGeometryBounds_.push_back({geometry->boundsCenter, geometry->boundsRadius,
 			shaderInstanceIndex, renderer.receiveDecals && src.surfaceMode != MaterialSurfaceMode::Transparent,
 			geometry->clothVertices != nullptr, GetEmissiveTriangleCount(subMeshData, geometry->indexCount)});
+
+		auto& bounds = work.scene.result.sceneGeometryBounds_.back();
+		if (bounds.emissiveTriangleCount) bounds.emitterFaceFlags = ResolveEmitterFaceFlags(pipelineVariant->rasterizer, &renderer.renderSettings);
+		if (!MaterialRenderPolicy::IsStandardSurface(*material) || renderer.type == PrimitiveType::Ring ||
+			renderer.type == PrimitiveType::Cylinder) {
+			work.scene.result.probeReceiversCovered_ = false;
+		} else if (!bounds.deformed) {
+			bounds.probeBoundsGuaranteed = true;
+			bounds.probeBounds = geometryData.boundsSphere;
+		}
 
 		RaytracingTLASInstance instance{};
 		instance.blas = geometry->blas.GetResource();

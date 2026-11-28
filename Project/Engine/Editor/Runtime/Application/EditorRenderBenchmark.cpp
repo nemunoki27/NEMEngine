@@ -96,7 +96,7 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 		sampleFrameCount_ = static_cast<uint32_t>(std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 10000ul));
 	}
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_CAPTURE_FRAMES", setting, 32) > 0u) {
-		captureFrameCount_ = static_cast<uint32_t>(std::min(std::wcstoul(setting, nullptr, 10), 32ul));
+		captureFrameCount_ = static_cast<uint32_t>(std::min(std::wcstoul(setting, nullptr, 10), 256ul));
 	}
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_PHASE_COUNT", setting, 32) > 0u) {
 		phaseCount_ = static_cast<uint32_t>(std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 128ul));
@@ -126,6 +126,10 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 	gpuValidation = quick[0] == L'1' && GetEnvironmentVariableW(L"NEM_D3D12_VALIDATION", validation, 2) == 1 && validation[0] == L'1';
 #endif
 	report_ = { { "adapter", features_->GetAdapterInfo().adapterName },
+		{ "driverVersion", features_->GetAdapterInfo().driverVersion }, { "d3d12HeaderVersion", D3D12_SDK_VERSION },
+		{ "shaderModel", GraphicsFeatureText::ToString(features_->GetSupport().highestShaderModel) },
+		{ "raytracingTier", GraphicsFeatureText::ToString(features_->GetSupport().raytracingTier) },
+		{ "raytracingTierValue", static_cast<uint32_t>(features_->GetSupport().raytracingTier) },
 		{ "width", settings.gameSize.x }, { "height", settings.gameSize.y },
 		{ "fitViewportResolution", application_->editorManager_.GetEditorState().fitViewportResolution },
 		{ "graphicsFrameCount", GraphicsFrameState::GetActiveCount() },
@@ -138,6 +142,12 @@ void Engine::EditorRenderBenchmark::Init(GraphicsCore& graphicsCore) {
 		{ "gpuSamples", "latest completed GPU frame, no additional wait" },
 		{ "phases", nlohmann::json::array() } };
 	if (continuousCapture_) report_["cpuSamples"] = "completed CPU frame distributions, GPU frame IDs recorded separately";
+	if (const auto camera = Algorithm::GetEnvironmentPath(L"NEM_RENDER_BENCHMARK_SCENE_CAMERA"); !camera.empty()) {
+		report_["sceneViewCamera"] = Algorithm::PathToUTF8(camera);
+	}
+	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_ANIMATION_FPS", setting, 32) > 0) {
+		report_["animationFrameRate"] = std::clamp(std::wcstoul(setting, nullptr, 10), 1ul, 240ul);
+	}
 	InitComparisonConditions();
 	BeginPhase(graphicsCore);
 }
@@ -227,6 +237,18 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 		}
 	}
 	// 移動確認は隔離したEditorのGame Cameraだけへ適用
+	if (const auto name = report_.find("sceneViewCamera"); name != report_.end()) {
+		auto& selection = application_->editorManager_.GetSceneViewCameraSelection();
+		if (auto* world = application_->GetActiveWorld(); world && !selection.perspectiveCameraUUID) {
+			world->ForEach<NameComponent, PerspectiveCameraComponent>([&](Entity entity,
+				const NameComponent& object, const PerspectiveCameraComponent& camera) {
+				if (camera.common.enabled && object.name == name->get_ref<const std::string&>()) {
+					selection.mode = SceneViewCameraMode::SelectedEntityCamera;
+					selection.perspectiveCameraUUID = world->GetUUID(entity);
+				}
+			});
+		}
+	}
 	wchar_t motion[2]{};
 	if (GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_CAMERA_MOTION", motion, 2) == 1 && motion[0] == L'1') {
 		if (auto* world = application_->GetActiveWorld()) {
@@ -250,7 +272,12 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	const auto tickStarted = std::chrono::steady_clock::now();
 	const bool preparingScene = sceneReadPending_ && application_->pendingSceneRead_.valid() &&
 		application_->pendingSceneRead_.wait_for(std::chrono::seconds(0)) != std::future_status::ready;
-	application_->Tick(graphicsCore, freezeAnimation_ ? 0.0f : deltaTime);
+	// 画質比較ではウォームアップ後に同じ時刻からアニメーションを開始する
+	float animationDelta = deltaTime;
+	if (const auto rate = report_.find("animationFrameRate"); rate != report_.end()) {
+		animationDelta = frames_.empty() ? 0.0f : 1.0f / rate->get<float>();
+	}
+	application_->Tick(graphicsCore, freezeAnimation_ ? 0.0f : animationDelta);
 	if (captureStartup_ && RenderFeatureProfileService::GetInstance().FindReflectionVariables(
 		BuiltinAssets::Materials::RaytracingReflection, MaterialPassKind::RayTracing) &&
 		application_->GetRenderedViewTexture(RenderViewKind::Game,
@@ -447,6 +474,8 @@ void Engine::EditorRenderBenchmark::Tick(GraphicsCore& graphicsCore, float delta
 	sample["blasGeometries"] = rendering.blasGeometryCount;
 	sample["tlasInstances"] = rendering.tlasInstanceCount;
 	sample["blasBuilds"] = rendering.blasBuildCount;
+	sample["blasRefits"] = rendering.blasRefitCount;
+	sample["blasSkips"] = rendering.blasSkipCount;
 	sample["tlasBuilds"] = rendering.tlasBuildCount;
 	sample["tlasRefits"] = rendering.tlasRefitCount;
 	sample["tlasSkips"] = rendering.tlasSkipCount;

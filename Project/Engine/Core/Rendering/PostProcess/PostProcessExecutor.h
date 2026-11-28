@@ -80,6 +80,8 @@ namespace Engine {
 		uint32_t groupCountX = 1;
 		uint32_t groupCountY = 1;
 		uint32_t groupCountZ = 1;
+		ID3D12CommandSignature* indirectSignature = nullptr;
+		ID3D12Resource* indirectArguments = nullptr;
 		bool allowInlineRayTracing = false;
 		// 同じ画素だけをUAVから読み書きする固定Passで許可する
 		bool allowInPlace = false;

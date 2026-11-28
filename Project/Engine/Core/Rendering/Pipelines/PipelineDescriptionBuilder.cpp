@@ -1,4 +1,5 @@
 #include "PipelineDescriptionBuilder.h"
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 
 //============================================================================
 //	include
@@ -6,6 +7,15 @@
 #include <algorithm>
 
 namespace Engine::PipelineDescriptionBuilder {
+
+	DXGI_FORMAT ResolveDSVFormat(const PipelineVariantDesc& variant, DXGI_FORMAT runtimeFormat) {
+
+		if (variant.dsvFormat == DXGI_FORMAT_UNKNOWN ||
+			(runtimeFormat == ViewDepth::kDSVFormat && variant.dsvFormat == DXGI_FORMAT_D24_UNORM_S8_UINT)) {
+			return runtimeFormat;
+		}
+		return variant.dsvFormat;
+	}
 
 	// シェーダーステージエントリからエントリポイントを解決する、存在しない場合は "main" を返す
 	std::string ResolveEntryOrDefault(const Engine::ShaderStageEntry* stage) {
@@ -130,7 +140,7 @@ namespace Engine::PipelineDescriptionBuilder {
 		for (UINT i = 0; i < outDesc.numRenderTargets; ++i) {
 			outDesc.rtvFormats[i] = finalRTVFormats[i];
 		}
-		outDesc.dsvFormat = (variant.dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant.dsvFormat : runtimeDSVFormat;
+		outDesc.dsvFormat = ResolveDSVFormat(variant, runtimeDSVFormat);
 		return true;
 	}
 	// パイプラインバリアントの情報とシェーダーアセットからコンピュートパイプラインの記述を構築する

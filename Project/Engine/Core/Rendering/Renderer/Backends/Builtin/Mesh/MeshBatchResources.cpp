@@ -31,6 +31,23 @@
 //	MeshBatchResources classMethods
 //============================================================================
 
+std::shared_ptr<const std::vector<Engine::MeshSurfaceGeometry::PoseBounds>> Engine::MeshBatchResources::GetSkinnedBounds(const MeshGPUResource& mesh) {
+
+	if (!mesh.probeSurface || !mesh.boneCount || paletteScratch_.size() != size_t(skinnedInstanceCount_) * mesh.boneCount) return {};
+	if (skinnedPoseBounds_ && boundsPoseGeneration_ == skinningResultGeneration_) return skinnedPoseBounds_;
+	if (!skinnedPoseBounds_ || skinnedPoseBounds_.use_count() != 1) skinnedPoseBounds_ = std::make_shared<std::vector<MeshSurfaceGeometry::PoseBounds>>();
+	const size_t subMeshes = mesh.subMeshes.size();
+	skinnedPoseBounds_->resize(size_t(skinnedInstanceCount_) * subMeshes);
+	for (size_t i = 0; i < skinnedInstanceCount_; ++i) {
+		const auto palette = std::span(paletteScratch_).subspan(i * mesh.boneCount, mesh.boneCount);
+		for (uint32_t sub = 0; sub < subMeshes; ++sub) {
+			(*skinnedPoseBounds_)[i * subMeshes + sub] = mesh.probeSurface->GetSkinnedBounds(sub, palette);
+		}
+	}
+	boundsPoseGeneration_ = skinningResultGeneration_;
+	return skinnedPoseBounds_;
+}
+
 Engine::MeshBatchResources::~MeshBatchResources() {
 
 	Finalize();
@@ -114,6 +131,8 @@ void Engine::MeshBatchResources::Finalize() {
 	dispatchedSkinningPoseHash_ = 0;
 	dispatchedSkinningPipelineID_ = 0;
 	skinningResultGeneration_ = 0;
+	skinnedPoseBounds_.reset();
+	boundsPoseGeneration_ = UINT64_MAX;
 	skinningDrawEnabled_ = true;
 	skinningBufferGeneration_ = 0;
 	usesFallbackTexture_ = false;

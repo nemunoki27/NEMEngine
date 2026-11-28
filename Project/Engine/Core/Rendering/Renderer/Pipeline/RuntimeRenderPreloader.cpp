@@ -1,4 +1,5 @@
 #include "RuntimeRenderPreloader.h"
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 
 //============================================================================
 //	include
@@ -55,11 +56,11 @@ namespace {
 		}
 		switch (passKind) {
 		case Engine::MaterialPassKind::ZPrepass:
-			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			formats.dsvFormat = Engine::ViewDepth::kDSVFormat;
 			break;
 		case Engine::MaterialPassKind::EditorPicking:
 			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_UINT };
-			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			formats.dsvFormat = Engine::ViewDepth::kDSVFormat;
 			break;
 		case Engine::MaterialPassKind::Draw:
 			formats = MakeSceneMainFormats();
@@ -67,14 +68,14 @@ namespace {
 		case Engine::MaterialPassKind::ScreenSpaceOutlineMask:
 		case Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask:
 			formats.rtvFormats = { RenderPathResources::BuildScreenSpaceOutlineMaskDesc(1, 1, {}, false).colors.front().format };
-			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			formats.dsvFormat = Engine::ViewDepth::kDSVFormat;
 			break;
 		case Engine::MaterialPassKind::Transparent:
 		case Engine::MaterialPassKind::Outline:
 		case Engine::MaterialPassKind::OutlineStencilWrite:
 		case Engine::MaterialPassKind::OutlineStencilTest:
 			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_FLOAT };
-			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			formats.dsvFormat = Engine::ViewDepth::kDSVFormat;
 			break;
 		default:
 			formats.rtvFormats = { DXGI_FORMAT_R32G32B32A32_FLOAT };

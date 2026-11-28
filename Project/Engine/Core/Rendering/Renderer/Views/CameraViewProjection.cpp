@@ -15,9 +15,10 @@ namespace {
 		if (mode == Engine::CameraProjectionMode::Orthographic) {
 			const float halfHeight = (std::max)(size, 0.001f);
 			const float halfWidth = halfHeight * aspect;
-			return Engine::Matrix4x4::MakeOrthographicMatrix(-halfWidth, halfHeight, halfWidth, -halfHeight, nearClip, farClip);
+			return Engine::Matrix4x4::MakeOrthographicMatrix(-halfWidth, halfHeight, halfWidth, -halfHeight, farClip, nearClip);
 		}
-		return Engine::Matrix4x4::MakePerspectiveFovMatrix(fieldOfView, aspect, nearClip, farClip);
+		// 遠方の精度を保つため、反転した深度を投影係数から直接求める
+		return Engine::Matrix4x4::MakePerspectiveFovMatrix(fieldOfView, aspect, farClip, nearClip);
 	}
 }
 
@@ -39,7 +40,7 @@ namespace Engine::CameraViewProjection {
 		out.matrices.viewMatrix = Engine::Matrix4x4::Identity();
 		out.matrices.inverseViewMatrix = Engine::Matrix4x4::Identity();
 		out.matrices.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-			static_cast<float>(width), static_cast<float>(height), out.nearClip, out.farClip);
+			static_cast<float>(width), static_cast<float>(height), out.farClip, out.nearClip);
 		out.matrices.inverseProjectionMatrix = Engine::Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.projectionMatrix;
 		out.matrices.unjitteredProjectionMatrix = out.matrices.projectionMatrix;
@@ -55,7 +56,7 @@ namespace Engine::CameraViewProjection {
 		// 深度範囲を前後対称にし、カメラと同じz平面のSpriteがニアクリップ境界で消えないようにする
 		const float orthoDepthRange = (std::max)(camera.farClip, 1.0f);
 		camera.common.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-			static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
+			static_cast<float>(width), static_cast<float>(height), orthoDepthRange, -orthoDepthRange);
 		camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
 	}
 
@@ -161,7 +162,7 @@ namespace Engine::CameraViewProjection {
 		const float zoom = std::clamp(state.orthographicZoom, 0.01f, 100.0f);
 		out.matrices.projectionMatrix = Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
 			static_cast<float>(width) / zoom, static_cast<float>(height) / zoom,
-			-orthoDepthRange, orthoDepthRange);
+			orthoDepthRange, -orthoDepthRange);
 		out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 		out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 

@@ -219,6 +219,8 @@ bool Engine::RayTracingExecutor::Execute(
 				const auto* emitters = context.bufferRegistry.Find("gGIEmitters");
 				constants.emitterCount = emitters ? emitters->elementCount : 0u;
 				constants.cullingMask = context.view->GetCullingMask(RenderCameraDomain::Perspective) & 0x00ffffffu;
+				// 全インスタンスに共通の可視レイヤーがある場合は、命中ごとの再判定を省く
+				constants.giPadding[0] = (context.raytracing.commonLayers & constants.cullingMask) != 0u ? 1u : 0u;
 				const auto quality = graphicsCore.GetDXObject().GetFeatureController().GetPreferences().dynamicGIQuality;
 				constants.rayCount = quality == DynamicGIQuality::High ? 32u : quality == DynamicGIQuality::Low ? 4u : 8u;
 			}

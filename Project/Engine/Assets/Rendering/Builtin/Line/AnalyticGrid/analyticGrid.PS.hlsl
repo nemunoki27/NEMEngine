@@ -1,6 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "../../Common/sceneViewDepth.hlsli"
 #include "analyticGrid.hlsli"
 
 //============================================================================
@@ -137,13 +138,13 @@ PSOutput main(VSOutput input) {
 	PSOutput output;
 	
 	output.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	output.depth = 1.0f;
+	output.depth = kSceneFarDepth;
 
 	float2 safeViewport = max(viewportSize.xy, float2(1.0f, 1.0f));
 	float2 uv = input.position.xy / safeViewport;
 	float2 ndc = float2(uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f);
 
-	float4 nearRelative = mul(float4(ndc, 0.0f, 1.0f), inverseRelativeViewProjectionMatrix);
+	float4 nearRelative = mul(float4(ndc, kSceneNearDepth, 1.0f), inverseRelativeViewProjectionMatrix);
 	float4 middleRelative = mul(float4(ndc, 0.5f, 1.0f), inverseRelativeViewProjectionMatrix);
 	nearRelative.xyz *= SafeReciprocal(nearRelative.w);
 	middleRelative.xyz *= SafeReciprocal(middleRelative.w);

@@ -18,12 +18,9 @@ const char* Engine::GraphicsFeatureText::ToString(D3D_FEATURE_LEVEL value) {
 const char* Engine::GraphicsFeatureText::ToString(D3D_SHADER_MODEL value) {
 
 	switch (value) {
-#ifdef D3D_SHADER_MODEL_6_8
+	case D3D_SHADER_MODEL_6_9: return "6.9";
 	case D3D_SHADER_MODEL_6_8: return "6.8";
-#endif
-#ifdef D3D_SHADER_MODEL_6_7
 	case D3D_SHADER_MODEL_6_7: return "6.7";
-#endif
 	case D3D_SHADER_MODEL_6_6: return "6.6";
 	case D3D_SHADER_MODEL_6_5: return "6.5";
 	case D3D_SHADER_MODEL_6_4: return "6.4";

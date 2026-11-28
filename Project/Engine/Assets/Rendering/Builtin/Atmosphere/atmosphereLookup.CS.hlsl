@@ -1,3 +1,4 @@
+#include "../Common/sceneViewDepth.hlsli"
 #include "atmosphereScattering.hlsli"
 #include "../Lighting/environmentSampling.hlsli"
 
@@ -127,7 +128,7 @@ void AerialMain(uint3 pixel : SV_DispatchThreadID) {
 	if (any(pixel.xy >= uint2(32, 1024))) return;
 	uint slice = pixel.y / 32u;
 	float2 uv = (float2(pixel.x, pixel.y % 32u) + 0.5f) / 32.0f;
-	float4 farPosition = mul(float4(uv * float2(2, -2) + float2(-1, 1), 1, 1), inverseViewProjection);
+	float4 farPosition = mul(float4(uv * float2(2, -2) + float2(-1, 1), kSceneFarDepth, 1), inverseViewProjection);
 	farPosition.xyz /= farPosition.w;
 	float3 direction = normalize(farPosition.xyz - cameraPositionDistance.xyz);
 	float3 position = float3(0, atmosphere.planet.x + max((cameraPositionDistance.y - atmosphere.planet.z) * 0.001f, 0.002f), 0);

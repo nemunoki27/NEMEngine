@@ -2263,7 +2263,8 @@ namespace ImGuizmo
       // behind camera
       vec_t camSpacePosition;
       camSpacePosition.TransformPoint(makeVect(0.f, 0.f, 0.f), gContext.mMVP);
-      if (!gContext.mIsOrthographic && camSpacePosition.z < 0.001f)
+      const float nearPlaneDistance = gContext.mReversed ? camSpacePosition.w - camSpacePosition.z : camSpacePosition.z;
+      if (!gContext.mIsOrthographic && nearPlaneDistance < 0.001f)
       {
          return false;
       }

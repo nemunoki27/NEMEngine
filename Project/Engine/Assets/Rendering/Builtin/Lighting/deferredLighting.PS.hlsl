@@ -1,6 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "../Common/sceneViewDepth.hlsli"
 #include "../FullscreenCopy/fullscreenCopy.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/pbrMath.hlsli"
@@ -104,7 +105,7 @@ static const uint kNoCubemap = 0xFFFFFFFF;
 float LoadFilteredShadow(uint2 pixel, uint lightIndex) {
 
 	uint slot = gShadowLightIndices[lightIndex];
-	if (slot == 0xFFFFFFFFu) return 0.0f;
+	if (slot == 0xFFFFFFFFu) return -1.0f;
 	return float(gFilteredRaytracedShadows[(slot * viewportSize.y + pixel.y) * viewportSize.x + pixel.x] & 65535u) / 65535.0f;
 }
 
@@ -124,7 +125,7 @@ float3 SampleBackground(float2 texcoord) {
 
 	// 入力テクスチャ座標からNDCを作ってinverseViewProjectionでワールド方向を復元
 	float2 ndc = float2(texcoord.x * 2.0f - 1.0f, 1.0f - texcoord.y * 2.0f);
-	float4 worldFar = mul(float4(ndc, 1.0f, 1.0f), inverseViewProjection);
+	float4 worldFar = mul(float4(ndc, kSceneFarDepth, 1.0f), inverseViewProjection);
 	float3 direction = normalize(worldFar.xyz / worldFar.w - cameraPos);
 	if (atmosphereSkyIndex != kNoCubemap) {
 		float latitude = asin(clamp(direction.y, -1.0f, 1.0f)) / 1.570796327f;
@@ -427,14 +428,14 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 		if (light.shadowStrength > 0.0f &&
 			(flags & kMaterialFlagReceiveShadow) != 0u) {
 
-			float occlusion = useShadow ?
-				(filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, index) :
-					TraceDirectionalShadow(worldPos, N, light.direction, light.shadowAngularRadius, pixel, index, light.shadowFilterIndex)) :
-				(shadowMapAvailable != 0u && index == shadowMapLightIndex ?
-					TraceDirectionalShadowMap(worldPos, N) :
-					(light.shadowFilterIndex == 0xFFFFFFFFu ? TraceScreenSpaceShadow(
-						worldPos + N * shadowNormalBias,
-						normalize(-light.direction)) : 0.0f));
+			float occlusion;
+			if (useShadow) {
+				occlusion = filteredShadowAvailable != 0u ? LoadFilteredShadow(pixel, index) : -1.0f;
+				if (occlusion < 0.0f) occlusion = TraceDirectionalShadow(worldPos, N, light.direction, light.shadowAngularRadius, pixel, index, light.shadowFilterIndex);
+			} else {
+				occlusion = shadowMapAvailable != 0u && index == shadowMapLightIndex ? TraceDirectionalShadowMap(worldPos, N) :
+					(light.shadowFilterIndex == 0xFFFFFFFFu ? TraceScreenSpaceShadow(worldPos + N * shadowNormalBias, normalize(-light.direction)) : 0.0f);
+			}
 			shadow = 1.0f - occlusion * light.shadowStrength;
 		}
 		float3 radiance = light.color.rgb * light.intensity * shadow;

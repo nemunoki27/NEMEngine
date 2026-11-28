@@ -367,6 +367,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 		viewState.lightBuffers.Upload(viewState.lightSet, context.raytracing.tlasResource ? &raytracingSceneBuilder_ : nullptr);
 		viewState.lightBuffers.RegisterTo(context.bufferRegistry);
+		context.maxWorldCellLights = worldLightIndex_.Publish(graphicsCore, viewState.lightSet, context.bufferRegistry);
 		context.lightShadowFilterRevision = viewState.lightBuffers.GetShadowFilterRevision();
 
 		if (particleBackend_ && particleBackend_->GetFeedbackRevision() != 0) {

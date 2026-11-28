@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingStructures.h"
-#include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
@@ -53,13 +53,13 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// シーンインスタンスバッファ
-		StructuredInstanceBuffer<RaytracingInstanceShaderData> sceneInstances_{ "gRaytracingSceneInstances" };
+		DefaultStructuredInstanceBuffer<RaytracingInstanceShaderData> sceneInstances_{ "gRaytracingSceneInstances" };
 		// BLAS内ジオメトリバッファ
-		StructuredInstanceBuffer<RaytracingGeometryShaderData> sceneGeometries_{ "gRaytracingGeometries" };
+		DefaultStructuredInstanceBuffer<RaytracingGeometryShaderData> sceneGeometries_{ "gRaytracingGeometries" };
 		// サブメッシュインスタンスバッファ
-		StructuredInstanceBuffer<MeshSubMeshShaderData> sceneSubMeshes_{ "gRaytracingSubMeshes" };
+		DefaultStructuredInstanceBuffer<MeshSubMeshShaderData> sceneSubMeshes_{ "gRaytracingSubMeshes" };
 
-		StructuredInstanceBuffer<uint32_t> materialParameters_{ "gRaytracingMaterialParameters" };
+		DefaultStructuredInstanceBuffer<uint32_t> materialParameters_{ "gRaytracingMaterialParameters" };
 		std::vector<uint32_t> materialParameterWords_;
 		std::vector<RaytracingHitMaterial> hitMaterials_;
 
@@ -76,8 +76,8 @@ namespace Engine {
 		// TLASインスタンスごとのピック記録先頭
 		std::vector<uint32_t> scenePickRecordOffsets_{};
 
-		std::array<bool, kGraphicsFrameContextCount> currentContents_{};
 		uint32_t commonLayers_ = 0;
+		bool probeReceiversCovered_ = false;
 		std::array<uint64_t, kGraphicsFrameContextCount>
 			sceneUploadFrameSerials_ = {};
 	};

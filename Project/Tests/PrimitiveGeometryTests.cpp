@@ -238,6 +238,16 @@ namespace {
 			rasterizer.CullMode = test.cullMode;
 			rasterizer.FrontCounterClockwise = test.frontCounterClockwise;
 			if (ToRaytracingCullFlags(rasterizer, test.reverseWinding) != test.expected) return false;
+			if (!test.reverseWinding) {
+				const uint32_t expectedFace = test.cullMode == D3D12_CULL_MODE_NONE ? 0u :
+					(test.expected == D3D12_RAYTRACING_INSTANCE_FLAG_NONE ? 2u : 4u);
+				Engine::RendererRenderSettings settings{};
+				if (ResolveEmitterFaceFlags(rasterizer, &settings) != expectedFace) return false;
+				settings.inheritMaterial = false;
+				settings.cullMode = static_cast<Engine::RendererCullMode>(test.cullMode);
+				rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+				if (ResolveEmitterFaceFlags(rasterizer, &settings) != expectedFace) return false;
+			}
 		}
 		return true;
 	}

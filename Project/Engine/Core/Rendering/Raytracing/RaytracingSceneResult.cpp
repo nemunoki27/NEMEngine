@@ -8,14 +8,13 @@
 
 void Engine::RaytracingSceneResult::Init(GraphicsCore& graphicsCore) {
 
-	sceneInstances_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
-	sceneGeometries_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
-	sceneSubMeshes_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
-	materialParameters_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
-	// 事前にある程度の容量を確保しておく
-	sceneInstances_.EnsureCapacity(256);
-	sceneGeometries_.EnsureCapacity(256);
-	sceneSubMeshes_.EnsureCapacity(256);
+	auto* device = graphicsCore.GetDXObject().GetDevice();
+	auto* descriptors = &graphicsCore.GetSRVDescriptor();
+	auto* uploader = &graphicsCore.GetBufferUploadService();
+	sceneInstances_.Init(device, descriptors, uploader);
+	sceneGeometries_.Init(device, descriptors, uploader);
+	sceneSubMeshes_.Init(device, descriptors, uploader);
+	materialParameters_.Init(device, descriptors, uploader);
 	sceneInstanceScratch_.reserve(256);
 	sceneGeometryScratch_.reserve(256);
 	sceneSubMeshScratch_.reserve(256);
@@ -38,13 +37,16 @@ void Engine::RaytracingSceneResult::Release() {
 	scenePickRecords_.clear();
 	scenePickRecordOffsets_.clear();
 	sceneUploadFrameSerials_ = {};
-	currentContents_ = {};
 }
 
 void Engine::RaytracingSceneResult::Upload() {
 
 	instanceMatricesDirty_ = true;
-	currentContents_.fill(false);
+	if (materialParameterWords_.empty()) materialParameterWords_.resize(4);
+	sceneInstances_.MarkFullUpdate(static_cast<uint32_t>(sceneInstanceScratch_.size()));
+	sceneGeometries_.MarkFullUpdate(static_cast<uint32_t>(sceneGeometryScratch_.size()));
+	sceneSubMeshes_.MarkFullUpdate(static_cast<uint32_t>(sceneSubMeshScratch_.size()));
+	materialParameters_.MarkFullUpdate(static_cast<uint32_t>(materialParameterWords_.size()));
 	commonLayers_ = 0x00ffffffu;
 	for (const auto& instance : sceneInstanceScratch_) commonLayers_ &= instance.renderFlags >> 8u;
 	UploadCached();
@@ -54,19 +56,10 @@ void Engine::RaytracingSceneResult::UploadCached() {
 
 	const uint32_t frame = GraphicsFrameState::GetCurrentIndex();
 	sceneUploadFrameSerials_[frame] = GraphicsFrameState::GetFrameSerial();
-	if (currentContents_[frame] && materialParameters_.GetResource()) {
-		sceneInstances_.RetainCurrentForFrame();
-		sceneGeometries_.RetainCurrentForFrame();
-		sceneSubMeshes_.RetainCurrentForFrame();
-		materialParameters_.RetainCurrentForFrame();
-		return;
-	}
-	sceneInstances_.Upload(sceneInstanceScratch_);
-	sceneGeometries_.Upload(sceneGeometryScratch_);
-	sceneSubMeshes_.Upload(sceneSubMeshScratch_);
-	if (materialParameterWords_.empty()) materialParameterWords_.resize(4);
-	materialParameters_.Upload(materialParameterWords_);
-	currentContents_[frame] = true;
+	sceneInstances_.UploadCurrentFrame(sceneInstanceScratch_);
+	sceneGeometries_.UploadCurrentFrame(sceneGeometryScratch_);
+	sceneSubMeshes_.UploadCurrentFrame(sceneSubMeshScratch_);
+	materialParameters_.UploadCurrentFrame(materialParameterWords_);
 }
 
 void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
@@ -81,6 +74,7 @@ void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 	context.raytracing.instanceWorldMatrices = instanceWorldMatrices_;
 	context.raytracing.geometryBounds = sceneGeometryBounds_;
 	context.raytracing.commonLayers = commonLayers_;
+	context.raytracing.probeReceiversCovered = probeReceiversCovered_;
 	context.raytracing.instanceData = sceneInstanceScratch_;
 	context.raytracing.hitMaterials = hitMaterials_;
 	if (!materialParameterWords_.empty()) {

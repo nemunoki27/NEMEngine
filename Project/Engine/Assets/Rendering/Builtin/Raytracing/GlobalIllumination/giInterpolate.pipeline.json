@@ -1,0 +1,10 @@
+{
+  "name": "giInterpolate",
+  "variants": [
+    {
+      "kind": "Compute",
+      "pipelineType": "Compute",
+      "shader": "4e454d41535345544749000000000032"
+    }
+  ]
+}

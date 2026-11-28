@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureResourceUtility.h"
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Utility/ScopedValue.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
@@ -34,7 +35,13 @@ namespace {
 
 	constexpr Engine::UUID kCachePass{0x4749434143484500ull};
 	constexpr Engine::UUID kTracePass{0x4749545241434500ull};
+	constexpr Engine::UUID kInterpolatePass{0x4749494e54455250ull};
 	constexpr Engine::UUID kResolvePass{0x47495245534f4c56ull};
+
+	uint32_t ProbeUpdatePeriod(DynamicGIQuality quality) {
+
+		return quality == DynamicGIQuality::Low ? 12u : quality == DynamicGIQuality::High ? 6u : 8u;
+	}
 
 	uint32_t GIHash(uint32_t value) {
 
@@ -84,10 +91,10 @@ namespace {
 			.widthScale = OutputScale(6u * gridSize, width), .heightScale = OutputScale(gridSize * gridSize, height),
 			.history = true, .historyShaderResource = "gHistoryColor"});
 		cache.outputs.push_back({.name = "Moments", .shaderResource = "gDestMoments", .format = RenderFeatureTextureFormat::RG16_FLOAT,
-			.widthScale = cache.outputs.front().widthScale, .heightScale = cache.outputs.front().heightScale,
+			.widthScale = OutputScale(12u * gridSize, width), .heightScale = OutputScale(2u * gridSize * gridSize, height),
 			.history = true, .historyShaderResource = "gHistoryMoments"});
 		cache.parameterOverrides.Set("updatePeriod", MaterialParameterValue{.value =
-			quality == DynamicGIQuality::Low ? 12u : quality == DynamicGIQuality::High ? 6u : 8u});
+			ProbeUpdatePeriod(quality)});
 		configureTrace(cache);
 		profile.passes.emplace_back(std::move(cache));
 
@@ -102,13 +109,21 @@ namespace {
 		configureTrace(trace);
 		profile.passes.emplace_back(std::move(trace));
 
+		auto interpolate = MakePass(kInterpolatePass, "GI Interpolation", BuiltinAssets::Materials::GIInterpolate);
+		interpolate.sourceKind = RenderFeatureSourceKind::PassOutput;
+		interpolate.source = {kTracePass, "Color"};
+		interpolate.sceneInputs = {{"gSourcePosition", RenderTargetNames::kScenePositionMain}, {"gSourceNormal", RenderTargetNames::kSceneNormalMain},
+			{"gSourceFlags", RenderTargetNames::kSceneFlagsMain}};
+		interpolate.outputs.push_back({.name = "Color", .shaderResource = "gDestColor", .format = RenderFeatureTextureFormat::RGBA32_FLOAT});
+		configureTrace(interpolate);
+		profile.passes.emplace_back(std::move(interpolate));
+
 		auto resolve = MakePass(kResolvePass, "GI Reconstruction", BuiltinAssets::Materials::GIResolve);
 		resolve.sourceKind = RenderFeatureSourceKind::PassOutput;
-		resolve.source = {kTracePass, "Color"};
+		resolve.source = {kInterpolatePass, "Color"};
 		resolve.passInputs["gWorldCache"] = {kCachePass, "Color"};
 		resolve.passInputs["gWorldMoments"] = {kCachePass, "Moments"};
-		resolve.sceneInputs = {{"gSourcePosition", RenderTargetNames::kScenePositionMain}, {"gSourceNormal", RenderTargetNames::kSceneNormalMain},
-			{"gSourceFlags", RenderTargetNames::kSceneFlagsMain}};
+		resolve.sceneInputs = {{"gSourcePosition", RenderTargetNames::kScenePositionMain}, {"gSourceNormal", RenderTargetNames::kSceneNormalMain}};
 		resolve.outputs.push_back({.name = "Color", .shaderResource = "gDestColor", .format = RenderFeatureTextureFormat::RGBA16_FLOAT});
 		configureTrace(resolve);
 		profile.passes.emplace_back(std::move(resolve));
@@ -173,17 +188,17 @@ void Engine::DynamicGIPass::UpdateProbeBricks(const SceneExecutionContext& conte
 	state.brickRegions.swap(brickRegions_);
 
 	// 近傍の格子が入りきらないシーンでは広域の格子にも一部を割り当てる
-	auto collect = [](const std::vector<BrickRegion>& regions, uint32_t limit, bool coarse) {
+	auto collect = [](const std::vector<BrickRegion>& regions, uint32_t limit, int32_t level) {
 		std::unordered_set<BrickCoord, BrickHash> unique;
 		unique.reserve(limit);
 		std::vector<BrickEntry> chosen;
 		chosen.reserve(limit);
 		auto add = [&](const BrickCoord& cell) {
-			if (unique.insert(cell).second) chosen.push_back({cell[0], cell[1], cell[2], coarse ? 2 : 1});
+			if (unique.insert(cell).second) chosen.push_back({cell[0], cell[1], cell[2], level + 1});
 		};
 		for (size_t begin = 0; begin < regions.size() && chosen.size() < limit;) {
 			size_t end = begin + 1;
-			while (end < regions.size() && (coarse || regions[end].sizeClass == regions[begin].sizeClass)) ++end;
+			while (end < regions.size() && (level != 0 || regions[end].sizeClass == regions[begin].sizeClass)) ++end;
 			for (int range = 0; range < static_cast<int>(limit) && chosen.size() < limit; ++range) {
 				bool hasShell = false;
 				for (size_t index = begin; index < end && chosen.size() < limit; ++index) {
@@ -210,23 +225,42 @@ void Engine::DynamicGIPass::UpdateProbeBricks(const SceneExecutionContext& conte
 		}
 		return chosen;
 	};
-	auto wanted = collect(state.brickRegions, capacity + 1u, false);
+	auto wanted = collect(state.brickRegions, capacity + 1u, 0);
 	state.hasCoarseBricks = wanted.size() > capacity;
 	if (state.hasCoarseBricks) {
-		std::vector<BrickRegion> coarse = state.brickRegions;
-		auto coarseIndex = [](int32_t index) { return index >> 2; };
-		for (auto& region : coarse) {
-			for (int axis = 0; axis < 3; ++axis) {
-				region.first[axis] = coarseIndex(region.first[axis] - 2);
-				region.last[axis] = coarseIndex(region.last[axis] + 2);
-				region.center[axis] = coarseIndex(region.center[axis]);
+		std::vector<BrickEntry> wide;
+		const uint32_t limit = capacity / 4u;
+		auto shiftedRegions = [&](uint32_t shift) {
+			auto coarse = state.brickRegions;
+			for (auto& region : coarse) {
+				for (int axis = 0; axis < 3; ++axis) {
+					region.first[axis] = (region.first[axis] - 2) >> shift;
+					region.last[axis] = (region.last[axis] + 2) >> shift;
+					region.center[axis] >>= shift;
+				}
+				region.sizeClass = 0;
 			}
-			region.sizeClass = 0;
+			std::sort(coarse.begin(), coarse.end(), order);
+			coarse.erase(std::unique(coarse.begin(), coarse.end()), coarse.end());
+			return coarse;
+		};
+		uint32_t shift = 2u;
+		for (;; ++shift) {
+			wide = collect(shiftedRegions(shift), limit + 1u, 1);
+			if (wide.size() <= limit) break;
 		}
-		std::sort(coarse.begin(), coarse.end(), order);
-		coarse.erase(std::unique(coarse.begin(), coarse.end()), coarse.end());
-		const auto wide = collect(coarse, capacity / 4u, true);
-		wanted.resize(capacity - wide.size());
+		if (state.atmosphere.coarseShift != shift) {
+			state.atmosphere.coarseShift = shift;
+			state.previousLookup.clear();
+		}
+		// 室内と街区で格子の間隔が大きく離れる場合は、その中間にも配置する
+		std::vector<BrickEntry> middle;
+		if (shift >= 4u) {
+			const auto limitMiddle = static_cast<uint32_t>((capacity - wide.size()) / 2u);
+			middle = collect(shiftedRegions((shift + 1u) / 2u), limitMiddle, 2);
+		}
+		wanted.resize(capacity - wide.size() - middle.size());
+		wanted.insert(wanted.end(), middle.begin(), middle.end());
 		wanted.insert(wanted.end(), wide.begin(), wide.end());
 	}
 	std::sort(wanted.begin(), wanted.end());
@@ -250,11 +284,11 @@ void Engine::DynamicGIPass::UpdateProbeBricks(const SceneExecutionContext& conte
 		const auto& key = state.bricks[slot];
 		if (!key[3]) continue;
 		const uint32_t mask = 2u * capacity - 1u;
-		const bool coarse = key[3] == 2;
-		uint32_t index = (BrickHash{}({key[0],key[1],key[2]}) ^ (coarse ? 0x9e3779b9u : 0u)) & mask;
+		const uint32_t level = static_cast<uint32_t>(key[3] - 1);
+		uint32_t index = (BrickHash{}({key[0],key[1],key[2]}) ^ (level * 0x9e3779b9u)) & mask;
 		while (state.lookup[index][3]) index = (index + 1u) & mask;
 		const int32_t entry = static_cast<int32_t>(slot + 1u);
-		state.lookup[index] = {key[0], key[1], key[2], coarse ? -entry : entry};
+		state.lookup[index] = {key[0], key[1], key[2], entry | static_cast<int32_t>(level << 16u)};
 	}
 	state.previousLookup.resize(state.lookup.size());
 	state.layoutPending = state.lookup != state.previousLookup;
@@ -322,25 +356,9 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		UpdateAtmosphere(context, state);
 		state.worldLightRevision = worldLightRevision;
 	}
-	size_t count = 0;
-	std::array<Vector4, 8> changed{};
+	changedBounds_.clear();
 	auto include = [&](const Vector4& bounds) {
-		if (bounds.w <= 0.0f || std::find(changed.begin(), changed.begin() + count, bounds) != changed.begin() + count) return;
-		if (count < changed.size()) {
-			changed[count++] = bounds;
-			return;
-		}
-		// 変更が多いときは最も近い範囲へ統合する
-		const Vector3 center{bounds.x, bounds.y, bounds.z};
-		auto cost = [&](const Vector4& value) {
-			return (center - Vector3(value.x,value.y,value.z)).Length() - value.w;
-		};
-		auto& nearest = *std::min_element(changed.begin(), changed.end(), [&](const auto& a,const auto& b) { return cost(a)<cost(b); });
-		Vector3 merged{nearest.x, nearest.y, nearest.z};
-		RaytracingSceneGeometryUtility::EncapsulateSphere(center, bounds.w, merged, nearest.w);
-		nearest.x = merged.x;
-		nearest.y = merged.y;
-		nearest.z = merged.z;
+		if (bounds.w > 0.0f) changedBounds_.push_back({bounds});
 	};
 	bool directionalChanged = false;
 	if (state.lightRevision != lightRevision || state.bricks.empty()) {
@@ -398,9 +416,16 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		state.lightingChangeFrames = 6;
 	}
 	const uint64_t renderRevision = context.world ? context.world->GetRenderDataRevision() : 0;
-	const bool geometryChanged = state.bricks.empty() || state.geometryGeneration != scene.geometryGeneration || state.renderRevision != renderRevision ||
+	const bool raySceneChanged = state.bricks.empty() || state.geometryGeneration != scene.geometryGeneration;
+	const bool geometryChanged = raySceneChanged || state.renderRevision != renderRevision ||
 		state.geometry.size() != scene.geometryBounds.size();
+	const size_t lightBoundsCount = changedBounds_.size();
 	if (geometryChanged) {
+		auto includeGeometry = [&](const State::Geometry& geometry) {
+			if (geometry.entityIndex == UINT32_MAX) return;
+			if (geometry.bounds.sphere.w >= 0.0f) changedBounds_.push_back(geometry.bounds);
+			else state.lightingChangeFrames = 6;
+		};
 		UpdateProbeBricks(context, state);
 		state.geometryLayers = 0;
 		for (const auto& instance : scene.instanceData) state.geometryLayers |= instance.renderFlags >> 8u;
@@ -410,37 +435,47 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 			const auto& bounds = scene.geometryBounds[i];
 			auto& previous = state.geometry[i];
 			if (bounds.instanceIndex >= scene.instanceWorldMatrices.size() || bounds.instanceIndex >= scene.instanceData.size()) {
-				include(previous.bounds);
+				includeGeometry(previous);
+				state.lightingChangeFrames = 6;
 				previous = {};
 				continue;
 			}
 			const auto& world = scene.instanceWorldMatrices[bounds.instanceIndex];
 			const auto& instance = scene.instanceData[bounds.instanceIndex];
-			Vector3 center = bounds.center;
-			float radius = bounds.radius;
-			MeshBoundsUtility::TransformSphere(world, center, radius);
-			const Vector4 sphere{center.x, center.y, center.z, radius};
-			if (previousCount != 0 && (bounds.deformed || previous.bounds != sphere || previous.world != world ||
+			GIProbeSurfaceMask::Bounds worldBounds;
+			GIProbeSurfaceMask::TryGetWorldBounds(bounds, world, worldBounds);
+			const State::Geometry current{worldBounds, world, instance.entityIndex, instance.entityGeneration, instance.renderFlags};
+			if (previousCount != 0 && (bounds.deformed || previous.bounds != worldBounds || previous.world != world ||
 				previous.entityIndex != instance.entityIndex || previous.entityGeneration != instance.entityGeneration ||
 				previous.renderFlags != instance.renderFlags)) {
-				include(previous.bounds);
-				include(sphere);
+				includeGeometry(previous);
+				includeGeometry(current);
 			}
-			previous = {sphere, world, instance.entityIndex, instance.entityGeneration, instance.renderFlags};
+			previous = current;
 		}
-		for (size_t i = scene.geometryBounds.size(); i < previousCount; ++i) include(state.geometry[i].bounds);
+		for (size_t i = scene.geometryBounds.size(); i < previousCount; ++i) includeGeometry(state.geometry[i]);
 		state.geometry.resize(scene.geometryBounds.size());
 		state.geometryGeneration = scene.geometryGeneration;
 		state.renderRevision = renderRevision;
 	}
-	if (count != 0) {
-		state.changedBounds = changed;
+	if (raySceneChanged || globalChange || !changedBounds_.empty() || scene.usesRenderTextureInputs) {
+		if (++state.directRevision == 0) {
+			state.directRevision = 1;
+			state.clearUpdateFrames = true;
+		}
+		state.stableDirectFrames = 0;
+	} else if (state.stableDirectFrames < 12u) ++state.stableDirectFrames;
+	// 外接箱が同じメッシュへの差し替えは範囲を特定できない
+	const bool unlocatedGeometryChange = raySceneChanged && changedBounds_.size() == lightBoundsCount;
+	if (unlocatedGeometryChange) state.lightingChangeFrames = 6;
+	if (!changedBounds_.empty()) {
+		state.changedBounds.swap(changedBounds_);
 		state.changeFrames = 8;
 	}
 	if (state.changeFrames != 0) --state.changeFrames;
-	else state.changedBounds = {};
-	const uint32_t cycle = state.quality == DynamicGIQuality::Low ? 12u : state.quality == DynamicGIQuality::High ? 6u : 8u;
-	if (globalChange || state.cacheFrame == 0 || scene.usesRenderTextureInputs)
+	else state.changedBounds.clear();
+	const uint32_t cycle = ProbeUpdatePeriod(state.quality);
+	if (globalChange || unlocatedGeometryChange || state.cacheFrame == 0 || scene.usesRenderTextureInputs)
 		state.settlingFrames = cycle * 12u;
 	else if (state.settlingFrames) --state.settlingFrames;
 	if (constantFrameSerial_ != GraphicsFrameState::GetFrameSerial()) {
@@ -460,7 +495,7 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		float radius = geometry.radius;
 		MeshBoundsUtility::TransformSphere(world, center, radius);
 		emitters_.push_back({world, {center.x, center.y, center.z, radius}, geometry.instanceIndex,
-			i - instance.geometryDataOffset, geometry.emissiveTriangleCount, geometry.deformed ? 1u : 0u});
+			i - instance.geometryDataOffset, geometry.emissiveTriangleCount, geometry.emitterFaceFlags | (geometry.deformed ? 1u : 0u)});
 	}
 	BuildEmitterHierarchy();
 	const State* other = shared_.frame == constantFrameSerial_ ? shared_.state : nullptr;
@@ -472,15 +507,18 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		other->localLights != state.localLights || other->environmentRevision != state.environmentRevision ||
 		shared_.tlas != scene.tlasResource) {
 		other = nullptr;
-	} else if (other->bricks != state.bricks) {
+	} else if (other->bricks != state.bricks || other->atmosphere.coarseShift != state.atmosphere.coarseShift) {
 		// 途中で開いたViewも、同じワールドなら先に描画したViewのスロット配置を引き継ぐ
 		state.bricks = other->bricks;
 		state.lookup = other->lookup;
 		state.hasCoarseBricks = other->hasCoarseBricks;
+		if (state.atmosphere.coarseShift != other->atmosphere.coarseShift) state.previousLookup.assign(state.lookup.size(), {});
+		state.atmosphere.coarseShift = other->atmosphere.coarseShift;
 		state.layoutPending = state.lookup != state.previousLookup;
 	}
+	// 別Viewから受け取ったスロットに、手元の一次照明を流用しない
+	if (other && state.layoutPending) state.clearUpdateFrames = true;
 	struct CacheChanges {
-		std::array<Vector4, 8> bounds;
 		uint32_t lightingChanged;
 		uint32_t emitterCount;
 		uint32_t cacheFrame;
@@ -489,13 +527,18 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		uint32_t showCacheUpdates;
 		uint32_t updateSpeed;
 		uint32_t layoutChanged;
+		uint32_t allLayersVisible;
+		uint32_t copyAllMoments;
+		uint32_t directRevision;
 	};
 	const uint32_t refreshMode = state.settlingFrames ? 0u : (state.changeFrames || state.layoutPending ? 2u : 1u);
-	const CacheChanges changes{state.changedBounds, state.lightingChangeFrames != 0 ? 1u : 0u,
+	const CacheChanges changes{state.lightingChangeFrames != 0 ? 1u : 0u,
 		static_cast<uint32_t>(emitters_.size()), state.cacheFrame, refreshMode,
 		state.hasCoarseBricks ? 1u : 0u,
 		platform.GetFeatureController().GetPreferences().dynamicGIDebug == DynamicGIDebug::CacheUpdates ? 1u : 0u,
-		lighting.giUpdateSpeed, state.layoutPending ? 1u : 0u};
+		lighting.giUpdateSpeed, state.layoutPending ? 1u : 0u, (scene.commonLayers & state.mask) != 0 ? 1u : 0u,
+		state.syncHistoryFrames || state.layoutPending ? 1u : 0u,
+		state.stableDirectFrames >= cycle ? state.directRevision : 0u};
 	if (state.lightingChangeFrames != 0) --state.lightingChangeFrames;
 	const auto upload = changeConstants_.AllocateAndUpload(platform.GetResourceRetirement(), platform.GetDevice(), changes);
 	context.bufferRegistry.Register({.alias = "GIChangeBounds", .gpuAddress = upload.gpuAddress});
@@ -506,8 +549,19 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 		return changeConstants_.AllocateAndUploadBytes(platform.GetResourceRetirement(), platform.GetDevice(),
 			{bytes, entries.size() * sizeof(BrickEntry)}).gpuAddress;
 	};
-	context.bufferRegistry.Register({.alias = "gGIProbeBricks", .gpuAddress = uploadBricks(state.bricks)});
-	const auto lookup = uploadBricks(state.lookup);
+	state.surfaceMask.Update(context, state.bricks, state.quality == DynamicGIQuality::High ? 0.75f : 1.5f,
+		state.atmosphere.coarseShift, state.liveProbeMasks);
+	if (other && !other->liveProbeMasks.empty() && other->liveProbeMasks != state.liveProbeMasks) other = nullptr;
+	MarkChangedProbes(state);
+	if (state.uploadedBricks != probeUpload_) {
+		state.uploadedBricks = probeUpload_;
+		state.brickBuffer.MarkFullUpdate(static_cast<uint32_t>(probeUpload_.size()));
+	}
+	state.brickBuffer.UploadCurrentFrame(state.uploadedBricks);
+	context.bufferRegistry.Register({.alias = "gGIProbeBricks", .gpuAddress = state.brickBuffer.GetGPUAddress()});
+	if (state.layoutPending) state.lookupBuffer.MarkFullUpdate(static_cast<uint32_t>(state.lookup.size()));
+	state.lookupBuffer.UploadCurrentFrame(state.lookup);
+	const auto lookup = state.lookupBuffer.GetGPUAddress();
 	context.bufferRegistry.Register({.alias = "gGIProbeLookup", .gpuAddress = lookup});
 	context.bufferRegistry.Register({.alias = "gGIPreviousProbeLookup",
 		.gpuAddress = state.layoutPending ? uploadBricks(state.previousLookup) : lookup});
@@ -521,6 +575,44 @@ const Engine::DynamicGIPass::State* Engine::DynamicGIPass::PrepareCacheChanges(G
 	context.bufferRegistry.Register({.alias = "gGIEmitters", .gpuAddress = address,
 		.elementCount = static_cast<uint32_t>(emitters_.size()), .stride = sizeof(Emitter)});
 	return other;
+}
+
+void Engine::DynamicGIPass::MarkChangedProbes(const State& state) {
+
+	// 座標表の後ろに各ブリックの64ビット更新マスクを詰める
+	const size_t count = state.bricks.size();
+	probeUpload_.assign(state.bricks.begin(), state.bricks.end());
+	const size_t packedCount = (count + 1) / 2;
+	probeUpload_.resize(count + packedCount);
+	probeUpload_.resize(count + 2 * packedCount, BrickEntry{-1, -1, -1, -1});
+	if (state.liveProbeMasks.size() == count) {
+		for (size_t slot = 0; slot < count; ++slot) {
+			const uint64_t mask = state.liveProbeMasks[slot];
+			auto& packed = probeUpload_[count + packedCount + slot / 2];
+			const size_t word = (slot & 1u) * 2u;
+			packed[word] = std::bit_cast<int32_t>(uint32_t(mask));
+			packed[word + 1] = std::bit_cast<int32_t>(uint32_t(mask >> 32));
+		}
+	}
+	if (state.changedBounds.empty()) return;
+	const float baseSpacing = state.quality == DynamicGIQuality::High ? 0.75f : 1.5f;
+	for (size_t slot = 0; slot < count; ++slot) {
+		const auto& brick = state.bricks[slot];
+		if (!brick[3]) continue;
+		const uint32_t shift = state.atmosphere.coarseShift;
+		const float spacing = std::ldexp(baseSpacing, brick[3] == 3 ? (shift + 1u) / 2u : brick[3] == 2 ? shift : 0u);
+		const Vector3 first{(4.0f * brick[0] + 0.5f) * spacing, (4.0f * brick[1] + 0.5f) * spacing,
+			(4.0f * brick[2] + 0.5f) * spacing};
+		uint64_t mask = 0;
+		for (const auto& bounds : state.changedBounds) {
+			mask |= bounds.GetProbeMask(first, spacing, spacing, mask);
+			if (mask == UINT64_MAX) break;
+		}
+		auto& packed = probeUpload_[count + slot / 2];
+		const size_t word = (slot & 1u) * 2u;
+		packed[word] = std::bit_cast<int32_t>(uint32_t(mask));
+		packed[word + 1] = std::bit_cast<int32_t>(uint32_t(mask >> 32));
+	}
 }
 
 void Engine::DynamicGIPass::BuildEmitterHierarchy() {
@@ -549,7 +641,7 @@ void Engine::DynamicGIPass::BuildEmitterHierarchy() {
 				lo[a] = std::min(lo[a], coords[a] - b.w);
 				hi[a] = std::max(hi[a], coords[a] + b.w);
 			}
-			deformed |= emitters_[i].deformed != 0;
+			deformed |= (emitters_[i].flags & 1u) != 0;
 		}
 		const std::array extent{hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]};
 		const auto axis = std::max_element(extent.begin(), extent.end()) - extent.begin();
@@ -569,10 +661,42 @@ void Engine::DynamicGIPass::BuildEmitterHierarchy() {
 		node.world.m[2][2] = extent[2] * 0.5f;
 		node.triangleCount = 0;
 		node.instance = static_cast<uint32_t>(emitterTree_.size());
-		node.deformed = deformed ? 1u : 0u;
+		node.flags = deformed ? 1u : 0u;
 	};
 	append(append, 0, emitters_.size());
 	emitters_ = emitterTree_;
+}
+
+bool Engine::DynamicGIPass::PrepareUpdateQueue(GraphicsCore& graphicsCore, SceneExecutionContext& context, uint32_t capacity) {
+
+	auto& platform = graphicsCore.GetDXObject();
+	auto& commands = *platform.GetDxCommand();
+	if (!dispatchSignature_) {
+		D3D12_INDIRECT_ARGUMENT_DESC arg{};
+		arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+		D3D12_COMMAND_SIGNATURE_DESC desc{};
+		desc.ByteStride = sizeof(D3D12_DISPATCH_ARGUMENTS);
+		desc.NumArgumentDescs = 1;
+		desc.pArgumentDescs = &arg;
+		const HRESULT result = platform.GetDevice()->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(&dispatchSignature_));
+		if (!DxDREDDiagnostics::CheckHRESULT(platform.GetDevice(), result, "DynamicGI::CreateCommandSignature")) return false;
+		updateJobs_.Init(platform.GetDevice(), &graphicsCore.GetSRVDescriptor());
+		updateArguments_.Init(platform.GetDevice(), &graphicsCore.GetSRVDescriptor());
+	}
+	updateJobs_.EnsureCapacity(capacity);
+	updateArguments_.EnsureCapacity(3u);
+	auto upload = changeConstants_.Reserve(platform.GetResourceRetirement(), platform.GetDevice(), sizeof(D3D12_DISPATCH_ARGUMENTS));
+	if (!upload.resource || !upload.mapped) return false;
+	const D3D12_DISPATCH_ARGUMENTS arguments{0u, 6u, 1u};
+	std::memcpy(upload.mapped, &arguments, sizeof(arguments));
+	updateArguments_.Transition(commands, D3D12_RESOURCE_STATE_COPY_DEST);
+	commands.GetCommandList()->CopyBufferRegion(updateArguments_.GetResource(), 0u, upload.resource, upload.offset, sizeof(arguments));
+	updateArguments_.Transition(commands, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	updateJobs_.Transition(commands, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.bufferRegistry.Register({.alias = "gGIUpdateJobs", .gpuAddress = updateJobs_.GetGPUAddress(), .uavGPUHandle = updateJobs_.GetUAVGPUHandle()});
+	context.bufferRegistry.Register({.alias = "gGIUpdateArguments", .gpuAddress = updateArguments_.GetGPUAddress(), .uavGPUHandle = updateArguments_.GetUAVGPUHandle()});
+	context.bufferRegistry.Register({.alias = "gGISelectedJobs", .gpuAddress = updateJobs_.GetGPUAddress(), .srvGPUHandle = updateJobs_.GetSRVGPUHandle()});
+	return true;
 }
 
 void Engine::DynamicGIPass::Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
@@ -590,8 +714,14 @@ void Engine::DynamicGIPass::Execute(GraphicsCore& graphicsCore, const RenderPass
 		}
 		return;
 	}
-	if (!context.view || !context.targetRegistry || !context.resources || context.disableInlineRayTracing ||
-		!context.raytracing.tlasResource || !context.raytracing.materialTexturesReady) return;
+	if (!context.view || !context.targetRegistry || !context.resources || context.disableInlineRayTracing) return;
+	if (!context.raytracing.tlasResource || !context.raytracing.materialTexturesReady) {
+		const auto previous = states_.find(context.view->GetHistoryKey());
+		const UUID sceneID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
+		if (previous != states_.end() && (!context.raytracing.tlasResource || previous->second.world != context.world ||
+			previous->second.sceneID != sceneID)) previous->second.surfaceMask.Release();
+		return;
+	}
 	const auto* camera = context.view->FindCamera(RenderCameraDomain::Perspective);
 	const auto* target = context.resources->GetSceneFinal();
 	if (!camera || !target || !target->GetWidth() || !target->GetHeight()) return;
@@ -613,24 +743,66 @@ void Engine::DynamicGIPass::Execute(GraphicsCore& graphicsCore, const RenderPass
 		state.height = height;
 		state.mask = mask;
 		if (resetHistory) {
+			if (!state.generation) {
+				auto* srv = &graphicsCore.GetSRVDescriptor();
+				auto* uploads = &graphicsCore.GetBufferUploadService();
+				state.brickBuffer.Init(platform.GetDevice(), srv, uploads);
+				state.lookupBuffer.Init(platform.GetDevice(), srv, uploads);
+				state.updateFrames.Init(platform.GetDevice(), srv);
+				state.directLighting.Init(platform.GetDevice(), srv);
+			}
 			state.generation = ++generation_;
+			state.clearUpdateFrames = true;
+			state.stableDirectFrames = 0;
 			state.bricks.clear();
 			state.previousLookup.clear();
 			state.geometry.clear();
 			state.changedBounds = {};
 			state.cacheFrame = 0;
+			state.syncHistoryFrames = 2;
 		}
 	}
 	const ScopedValue runtime(context.renderPassesRuntime, &state.runtime);
 	const ScopedValue generation(context.renderPassesGeneration, state.generation);
-	const State* other = PrepareCacheChanges(graphicsCore, context, state);
 	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+	if (HasExpiredGraphicsResource(state.lastCacheSerial, serial)) {
+		state.cacheFrame = 0;
+		state.syncHistoryFrames = 2;
+	}
+	const State* other = PrepareCacheChanges(graphicsCore, context, state);
 	const ScopedValue materialGeneration(context.raytracing.materialGeneration, uint64_t{0});
+	const uint32_t n = state.quality == DynamicGIQuality::High ? 32u : 16u;
+	if (!PrepareUpdateQueue(graphicsCore, context, n * n * n)) return;
+	const uint32_t probeCount = n * n * n;
+	state.updateFrames.EnsureCapacity(probeCount);
+	if (state.clearUpdateFrames) {
+		const size_t bytes = sizeof(std::array<uint32_t, 2>) * probeCount;
+		const auto zeros = changeConstants_.Reserve(graphicsCore.GetDXObject().GetResourceRetirement(), platform.GetDevice(), bytes);
+		if (!zeros.mapped) return;
+		std::memset(zeros.mapped, 0, bytes);
+		state.updateFrames.Transition(*platform.GetDxCommand(), D3D12_RESOURCE_STATE_COPY_DEST);
+		platform.GetDxCommand()->GetCommandList()->CopyBufferRegion(state.updateFrames.GetResource(), 0, zeros.resource, zeros.offset, bytes);
+		state.clearUpdateFrames = false;
+	}
+	state.directLighting.EnsureCapacity(state.stableDirectFrames >= ProbeUpdatePeriod(state.quality) ? probeCount * 6u : 1u);
+	state.directLighting.Transition(*platform.GetDxCommand(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.bufferRegistry.Register({.alias = "gGICachedLighting", .gpuAddress = state.directLighting.GetGPUAddress(),
+		.uavGPUHandle = state.directLighting.GetUAVGPUHandle()});
+	state.updateFrames.Transition(*platform.GetDxCommand(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	context.bufferRegistry.Register({.alias = "gGIProbeUpdateFrames", .gpuAddress = state.updateFrames.GetGPUAddress(),
+		.uavGPUHandle = state.updateFrames.GetUAVGPUHandle()});
+	const RenderFeatureComputeWorkQueue queue{kCachePass, BuiltinAssets::Materials::GICacheSelect,
+		updateJobs_, updateArguments_, dispatchSignature_.Get(), n / 8u, n * n / 8u};
 	if (other) {
 		const RenderFeatureSharedOutput outputs[] = {{"gDestColor", shared_.color}, {"gDestMoments", shared_.moments}};
-		executor_.ExecuteWithSharedOutputs(graphicsCore, passBuckets, context, kCachePass, outputs);
-	} else executor_.Execute(graphicsCore, passBuckets, context);
+		executor_.ExecuteWithSharedOutputs(graphicsCore, passBuckets, context, kCachePass, outputs, &queue);
+	} else executor_.ExecuteWithSharedOutputs(graphicsCore, passBuckets, context, {}, {}, &queue);
+	state.updateFrames.Transition(*platform.GetDxCommand(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	state.directLighting.Transition(*platform.GetDxCommand(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	if (executor_.HasExecutionSucceeded()) {
+		state.lastCacheSerial = serial;
+		if (other || state.layoutPending) state.syncHistoryFrames = 2;
+		else if (state.syncHistoryFrames) --state.syncHistoryFrames;
 		if (state.layoutPending) {
 			state.previousLookup = state.lookup;
 			state.layoutPending = false;
